@@ -94,6 +94,19 @@ const expectAnchorError = async (txResult: Promise<string>, errCode: string) => 
 	}
 };
 
+const expectSystemProgramError = async (txResult: Promise<string>) => {
+	let reverted = false;
+	try {
+		await txResult;
+	} catch (e) {
+		// error is a system program error
+		// we cannot validate all the info like an Anchor error
+		reverted = true;
+	} finally {
+		expect(reverted).toBe(true);
+	}
+};
+
 const expectRegisterState = async (register: PublicKey, value: number[]) => {
 	const registerState = await registrar.account.register.fetch(register);
 

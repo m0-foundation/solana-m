@@ -108,7 +108,7 @@ pub struct Initialize<'info> {
         init,
         payer = signer,
         space = ANCHOR_DISCRIMINATOR_SIZE + MintMaster::INIT_SPACE,
-        seeds = [b"mint-master"],
+        seeds = [MINT_MASTER_SEED],
         bump,
     )]
     pub mint_master: Account<'info, MintMaster>,
@@ -121,7 +121,7 @@ pub struct MintM<'info> {
     pub signer: Signer<'info>,
 
     #[account(
-        seeds = [b"mint-master"],
+        seeds = [MINT_MASTER_SEED],
         bump,
     )]
     pub mint_master: Account<'info, MintMaster>,
@@ -140,7 +140,7 @@ pub struct MintM<'info> {
 #[derive(Accounts)]
 pub struct SetMintAuthority<'info> {
     #[account(
-        seeds = [b"mint-master"],
+        seeds = [MINT_MASTER_SEED],
         bump,
     )]
     pub mint_master: Account<'info, MintMaster>,
@@ -157,6 +157,9 @@ pub struct SetMintAuthority<'info> {
 
 // Note: this is a simplistic/naive implementation that assumes only two addresses will need to mint
 // that could change in the future, but we can upgrade the implementation if needed.
+#[constant]
+pub const MINT_MASTER_SEED: &'static [u8] = b"mint-master";
+
 #[account]
 #[derive(InitSpace)]
 pub struct MintMaster {
