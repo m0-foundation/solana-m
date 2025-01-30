@@ -1,0 +1,25 @@
+[package]
+name = "earn"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+rust-version = "1.75"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "earn"
+
+[features]
+anchor-debug = ["anchor-lang/anchor-debug"]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "0.30.1", features = ["anchor-debug"] }
+anchor-spl = "0.30.1"
+solana-program = "=1.18.17"
+common = { version = "0.1.0", path = "../common", features = ["no-entrypoint"] }
