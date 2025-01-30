@@ -1310,7 +1310,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mint-master"
+name = "mint_master"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
@@ -1665,6 +1665,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "bs58 0.5.1",
+ "common",
  "solana-program",
 ]
 

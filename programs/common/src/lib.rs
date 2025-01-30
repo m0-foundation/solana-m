@@ -6,8 +6,7 @@ pub mod utils;
 
 use anchor_lang::prelude::*;
 
-// Dummy program ID for the common crate
-declare_id!("11111111111111111111111111111111");
+declare_id!("37Bvn81nj7sgETZQxy2vpKjTSR6tGtuGy4gNJhC19F14");
 
 #[program]
 pub mod common {}

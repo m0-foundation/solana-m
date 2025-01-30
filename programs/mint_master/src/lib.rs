@@ -16,7 +16,7 @@ use solana_program::program_option::COption;
 use common::{
     constants::{
         ANCHOR_DISCRIMINATOR_SIZE,
-        DEFAULT_ADMIN, 
+        ADMIN, 
         MINT
     },
     utils::mint_tokens,
@@ -100,7 +100,7 @@ pub mod mint_master {
 pub struct Initialize<'info> {
     #[account(
         mut,
-        address = DEFAULT_ADMIN
+        address = ADMIN
     )]
     pub signer: Signer<'info>,
 

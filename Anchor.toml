@@ -5,8 +5,9 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
+common = "37Bvn81nj7sgETZQxy2vpKjTSR6tGtuGy4gNJhC19F14"
 earn = "Ea18o3BKAQD8p3DTZ1mabgJiRM7XkoYtmh9TWgxFv6gh"
-mint-master = "7j9tN2dS7CuPfKPFvhh8HWWNgsPgN7jsDdDiPXMrjemb"
+mint_master = "7j9tN2dS7CuPfKPFvhh8HWWNgsPgN7jsDdDiPXMrjemb"
 registrar = "DJ3kM7oLuua6NZjnYgCA8SMFhYc1MJMAZ21HmP52ugD1"
 
 [registry]
