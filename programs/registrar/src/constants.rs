@@ -1,6 +1,10 @@
 // registrar/constants.rs
 
-pub use common::constants::*;
+use anchor_lang::prelude::*;
+pub use common::constants::ANCHOR_DISCRIMINATOR_SIZE;
+
+#[constant]
+pub const ADMIN: Pubkey = pubkey!("A27rCMHqtKYz95PEkeadsUeMctofs3i4R8MRXNh9We9m");
 
 pub const fn to_32_byte_array(input: &[u8]) -> [u8; 32] {
     let mut array = [0u8; 32];
