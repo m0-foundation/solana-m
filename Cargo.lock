@@ -920,6 +920,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "common",
+ "mint_master",
  "solana-program",
 ]
 

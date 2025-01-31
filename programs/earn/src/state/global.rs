@@ -8,12 +8,13 @@ pub const GLOBAL_SEED: &[u8] = b"global";
 #[account]
 #[derive(InitSpace)]
 pub struct Global {
-    earn_authority: Pubkey,
-    index: u64,
-    timestamp: u64,
-    claim_cooldown: u64,
-    rewards_per_token: u64,
-    max_yield: u64,
-    distributed: u64,
-    claim_complete: bool,
+    pub earn_authority: Pubkey, // address that can distribute yield
+    pub index: u64, // most recent index that yield is being distributed for
+    pub timestamp: u64, // timestamp of the most recent index update
+    pub claim_cooldown: u64, // cooldown period between claim cycles
+    pub rewards_per_token: u128, // rewards per token for the current index
+    pub max_supply: u64, // max supply of the token over the period that yield is being distributed for
+    pub max_yield: u64, // max yield that can be distributed in this claim cycle
+    pub distributed: u64, // total yield distributed in this claim cycle
+    pub claim_complete: bool, // whether the claim cycle is complete
 }
