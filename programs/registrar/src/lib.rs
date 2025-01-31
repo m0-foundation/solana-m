@@ -26,6 +26,10 @@ pub mod registrar {
         instructions::admin::set_key::handler(ctx, key, value)
     }
 
+    pub fn delete_key(ctx: Context<DeleteKey>, key: [u8; 32]) -> Result<()> {
+        instructions::admin::delete_key::handler(ctx, key)
+    }
+
     pub fn add_to_list(ctx: Context<AddToList>, list: [u8; 32], address: Pubkey) -> Result<()> {
         instructions::admin::add_to_list::handler(ctx, list, address)
     }

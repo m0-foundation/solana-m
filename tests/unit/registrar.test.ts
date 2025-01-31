@@ -1,4 +1,4 @@
-import * as anchor from "@coral-xyz/anchor";
+// import * as anchor from "@coral-xyz/anchor";
 import { Program, AnchorError } from "@coral-xyz/anchor";
 import { LiteSVM } from "litesvm";
 import { fromWorkspace, LiteSVMProvider } from "anchor-litesvm";
@@ -6,6 +6,7 @@ import {
 	PublicKey,
 	Keypair,
 	LAMPORTS_PER_SOL,
+	SystemProgram,
 } from "@solana/web3.js";
 import { loadKeypair, toFixedSizedArray } from "../test-utils";
 
@@ -64,7 +65,7 @@ const REGISTRAR_IDL = require("../../target/idl/registrar.json");
 
 
 // Setup wallets once at the beginning of the test suite
-const admin: Keypair = loadKeypair("test-addr/admin.json");
+const admin: Keypair = loadKeypair("test-addr/portal.json");
 const nonAdmin: Keypair = new Keypair();
 
 // Use a fresh SVM instance for each unit test
@@ -76,7 +77,13 @@ let registrar: Program<Registrar>;
 // Utility functions for the tests
 const expectAccountEmpty = (account: PublicKey) => {
 	const accountInfo = svm.getAccount(account);
-	expect(accountInfo).toBeNull();
+
+	if (accountInfo) {
+		expect(accountInfo.lamports).toBe(0);
+		expect(accountInfo.data.length).toBe(0);
+		expect(accountInfo.owner).toStrictEqual(SystemProgram.programId);
+	} 
+	// If the accountInfo is null, then the account does not exist
 };
 
 const expectAnchorError = async (txResult: Promise<string>, errCode: string) => {
@@ -120,6 +127,106 @@ const expectFlagState = async (flag: PublicKey, value: boolean) => {
 	expect(flagState.value).toBe(value);
 };
 
+const prepSetKey = (signer: Keypair, key: string, value: string) => {
+	const formattedKey = toFixedSizedArray(Buffer.from(key), 32);
+	const formattedValue = toFixedSizedArray(Buffer.from(value), 32);
+
+	// Populate accounts for the instruction
+	accounts.signer = signer.publicKey;
+
+	const register = PublicKey.findProgramAddressSync(
+		[Buffer.from("VALUE"), Buffer.from(formattedKey)],
+		registrar.programId
+	)[0];
+	accounts.register = register;
+
+	accounts.systemProgram = SystemProgram.programId;
+
+	// Return the formatted key, value, and register
+	return { key: formattedKey, value: formattedValue, register };
+};
+
+const setKey = async (key: string, value: string) => {
+	// Setup the instruction call
+	const { key: formattedKey, value: formattedValue, register } = prepSetKey(admin, key, value);
+
+	// Create and send the transaction
+	await registrar.methods
+		.setKey(formattedKey, formattedValue)
+		.accounts({ ...accounts })
+		.signers([admin])
+		.rpc();
+
+	// Check that the register account has been updated with the value
+	await expectRegisterState(register, formattedValue);
+};
+
+const prepDeleteKey = (signer: Keypair, key: string) => {
+	const formattedKey = toFixedSizedArray(Buffer.from(key), 32);
+
+	// Populate accounts for the instruction
+	accounts.signer = signer.publicKey;
+
+	const register = PublicKey.findProgramAddressSync(
+		[Buffer.from("VALUE"), Buffer.from(formattedKey)],
+		registrar.programId
+	)[0];
+	accounts.register = register;
+
+	accounts.systemProgram = SystemProgram.programId;
+
+	// Return the formatted key, value, and register
+	return { key: formattedKey, register };
+};
+
+const deleteKey = async (key: string) => {
+	// Setup the instruction call
+	const { key: formattedKey, register } = prepDeleteKey(admin, key);
+
+	// Create and send the transaction
+	await registrar.methods
+		.deleteKey(formattedKey)
+		.accounts({ ...accounts })
+		.signers([admin])
+		.rpc();
+
+	// Check that the register account has been updated with the value
+	expectAccountEmpty(register);
+};
+
+const prepAddToList = (signer: Keypair, list: string, address: PublicKey) => {
+	const formattedList = toFixedSizedArray(Buffer.from(list), 32);
+
+	// Populate accounts for the instruction
+	accounts.signer = signer.publicKey;
+
+	const flag = PublicKey.findProgramAddressSync(
+		[Buffer.from("LIST"), Buffer.from(formattedList), address.toBuffer()],
+		registrar.programId
+	)[0];
+	accounts.flag = flag;
+
+	accounts.systemProgram = SystemProgram.programId;
+
+	// Return the formatted list and flag
+	return { list: formattedList, flag };
+};
+
+const addToList = async (list: string, address: PublicKey) => {
+	// Setup the instruction call
+	const { list: formattedList, flag } = prepAddToList(admin, list, address);
+
+	// Create and send the transaction
+	await registrar.methods
+		.addToList(formattedList, address)
+		.accounts({ ...accounts })
+		.signers([admin])
+		.rpc();
+
+	// Check that the flag account has been updated with the value
+	await expectFlagState(flag, true);
+};
+
 describe("Registrar unit tests", () => {
 	beforeEach(() => {
 		// Initialize the SVM instance from the workspace programs
@@ -140,42 +247,6 @@ describe("Registrar unit tests", () => {
 
 	describe("set_key unit tests", () => {
 
-		// utility functions
-		const prepSetKey = (signer: Keypair, key: string, value: string) => {
-			const formattedKey = toFixedSizedArray(Buffer.from(key), 32);
-			const formattedValue = toFixedSizedArray(Buffer.from(value), 32);
-
-			// Populate accounts for the instruction
-			accounts.signer = signer.publicKey;
-
-			const register = PublicKey.findProgramAddressSync(
-				[Buffer.from("VALUE"), Buffer.from(formattedKey)],
-				registrar.programId
-			)[0];
-			accounts.register = register;
-
-			accounts.systemProgram = anchor.web3.SystemProgram.programId;
-
-			// Return the formatted key, value, and register
-			return { key: formattedKey, value: formattedValue, register };
-		};
-
-		const setKey = async (key: string, value: string) => {
-			// Setup the instruction call
-			const { key: formattedKey, value: formattedValue, register } = prepSetKey(admin, key, value);
-
-			// Create and send the transaction
-			await registrar.methods
-				.setKey(formattedKey, formattedValue)
-				.accounts({ ...accounts })
-				.signers([admin])
-				.rpc();
-
-			// Check that the register account has been updated with the value
-			expectRegisterState(register, formattedValue);
-		};
-
-
 		// given the key register does not exist yet
 		// given the admin signs the transaction
 		// the key register is created and the value is set to the new value
@@ -194,10 +265,7 @@ describe("Registrar unit tests", () => {
 				.rpc();
 
 			// Check that the register account has been initialized with the value
-			const registerState = await registrar.account.register.fetch(register);
-
-			expect(registerState.value.length).toBe(32);
-			expect(registerState.value).toEqual(value);
+			await expectRegisterState(register, value);
 		});
 
 		// given the key register does not exist yet
@@ -212,7 +280,7 @@ describe("Registrar unit tests", () => {
 
 			// Create and send our transaction
 			// We expect an error, so we catch it
-			expectAnchorError(
+			await expectAnchorError(
 				registrar.methods
 					.setKey(key, value)
 					.accounts({ ...accounts })
@@ -256,7 +324,7 @@ describe("Registrar unit tests", () => {
 
 			// Create and send our transaction
 			// We expect an error, so we catch it
-			expectAnchorError(
+			await expectAnchorError(
 				registrar.methods
 					.setKey(key, newValue)
 					.accounts({ ...accounts })
@@ -266,7 +334,223 @@ describe("Registrar unit tests", () => {
 			);
 
 			// Check that the register account has not been updated
-			expectRegisterState(register, toFixedSizedArray(Buffer.from("test-value"), 32));
+			await expectRegisterState(register, toFixedSizedArray(Buffer.from("test-value"), 32));
+		});
+
+		// given a key has been set and deleted
+		// given the admin signs the transaction
+		// the key register is created and the value is set to the new value
+		test("Admin can set a key again after it is deleted", async () => {
+			// Set the key for the first time
+			await setKey("test-key", "test-value");
+
+			// Delete the key
+			await deleteKey("test-key");
+
+			// Setup the instruction call
+			const { key, value, register } = prepSetKey(admin, "test-key", "new-test-value");
+
+			// Create and send our transaction
+			await registrar.methods
+				.setKey(key, value)
+				.accounts({ ...accounts })
+				.signers([admin])
+				.rpc();
+
+			// Check that the register account has been initialized with the value
+			await expectRegisterState(register, value);
+
+		});
+	});
+
+	describe("delete_key unit tests", () => {
+		// given the key register does not exist yet
+		// given the admin signs the transaction
+		// the transaction reverts with an account does not exist error
+		test("Admin cannot delete a non-existing key", async () => {
+			// Setup the instruction call
+			const { key, register } = prepDeleteKey(admin, "test-key");
+
+			// Check that the register account has not been created
+			expectAccountEmpty(register);
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectAnchorError(
+				registrar.methods
+					.deleteKey(key)
+					.accounts({ ...accounts })
+					.signers([admin])
+					.rpc(),
+				"AccountNotInitialized"
+			);
+		});
+
+		// given the key register does not exist yet
+		// given the admin does not sign the transaction
+		// the transaction reverts with an account not initialized error
+		test("Non-admin cannot delete a non-existing key", async () => {
+			// Setup the instruction call
+			const { key, register } = prepDeleteKey(nonAdmin, "test-key");
+
+			// Check that the register account has not been created
+			expectAccountEmpty(register);
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectAnchorError(
+				registrar.methods
+					.deleteKey(key)
+					.accounts({ ...accounts })
+					.signers([nonAdmin])
+					.rpc(),
+				"AccountNotInitialized"
+			);
+		});
+
+		// given the key register already exists
+		// given the admin signs the transaction
+		// the key register account is closed
+		test("Admin can delete an existing key", async () => {
+			// Set the key for the first time
+			await setKey("test-key", "test-value");
+
+			// Setup the instruction call
+			const { key, register } = prepDeleteKey(admin, "test-key");
+
+			// Create and send our transaction
+			await registrar.methods
+				.deleteKey(key)
+				.accounts({ ...accounts })
+				.signers([admin])
+				.rpc();
+
+			// Check that the register account has been deleted
+			expectAccountEmpty(register);
+		});
+
+		// given the key register already exists
+		// given the admin does not sign the transaction
+		// the transaction reverts with an address constraint error on the signer account
+		test("Non-admin cannot delete an existing key", async () => {
+			// Set the key for the first time
+			await setKey("test-key", "test-value");
+			
+			// Setup the instruction call
+			const { key, register } = prepDeleteKey(nonAdmin, "test-key");
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectAnchorError(
+				registrar.methods
+					.deleteKey(key)
+					.accounts({ ...accounts })
+					.signers([nonAdmin])
+					.rpc(),
+				"ConstraintAddress"
+			);
+
+			// Check that the register account has not been deleted
+			await expectRegisterState(register, toFixedSizedArray(Buffer.from("test-value"), 32));
+		});
+	});
+	
+	// add_to_list
+	describe("add_to_list unit tests", () => {
+
+		// given the flag account does not exist yet
+		// given the admin signs the transaction
+		// the flag account is created and the value set to true
+		test("Admin can add an address to a list", async () => {
+			// Setup the instruction call
+			const address = PublicKey.unique();
+			const { list, flag } = prepAddToList(admin, "test-list", address);
+
+			// Check that the flag account has not been created
+			expectAccountEmpty(flag);
+
+			// Create and send our transaction
+			await registrar.methods
+				.addToList(list, address)
+				.accounts({ ...accounts })
+				.signers([admin])
+				.rpc();
+
+			// Check that the flag account has been initialized with the value
+			await expectFlagState(flag, true);
+		});
+
+		// given the flag account does not exist yet
+		// given the admin does not sign the transaction
+		// the transaction reverts with an address constraint error on the signer account
+		test("Non-admin cannot add an address to a list", async () => {
+			// Setup the instruction call
+			const address = PublicKey.unique();
+			const { list, flag } = prepAddToList(nonAdmin, "test-list", address);
+
+			// Check that the flag account has not been created
+			expectAccountEmpty(flag);
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectAnchorError(
+				registrar.methods
+					.addToList(list, address)
+					.accounts({ ...accounts })
+					.signers([nonAdmin])
+					.rpc(),
+				"ConstraintAddress"
+			);
+		});
+
+		// given the flag account already exists
+		// given the admin signs the transaction
+		// the transaction reverts with an account already exists error
+		test("Admin cannot add an address to a list that already exists", async () => {
+			// Add an address to the list			
+			const address = PublicKey.unique();
+			await addToList("test-list", address);
+			
+			// Setup the instruction call
+			const { list, flag } = prepAddToList(admin, "test-list", address);
+
+			// Check that the flag account has been created
+			await expectFlagState(flag, true);
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectSystemProgramError(
+				registrar.methods
+					.addToList(list, address)
+					.accounts({ ...accounts })
+					.signers([admin])
+					.rpc()
+			);
+		});
+
+		// given a flag account already exists
+		// given the admin does not sign the transaction
+		// the transaction reverts with an account already exists error
+		test("Non-admin cannot add an address to a list that already exists", async () => {
+			// Add an address to the list			
+			const address = PublicKey.unique();
+			await addToList("test-list", address);
+			
+			// Setup the instruction call
+			const { list, flag } = prepAddToList(nonAdmin, "test-list", address);
+
+			// Check that the flag account has been created
+			await expectFlagState(flag, true);
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectSystemProgramError(
+				registrar.methods
+					.addToList(list, address)
+					.accounts({ ...accounts })
+					.signers([nonAdmin])
+					.rpc()
+			);
 		});
 	});
 });

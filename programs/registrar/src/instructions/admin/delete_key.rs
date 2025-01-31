@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    constants::{ADMIN, ANCHOR_DISCRIMINATOR_SIZE},
+    constants::ADMIN,
     state::Register,
     utils::to_base58
 };
