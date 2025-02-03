@@ -2,13 +2,13 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount};
+use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use common::{
     constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
     utils::get_principal_rounded_down,
-}
+};
 use crate::{
     constants::REGISTRAR,
     errors::EarnError,
@@ -40,7 +40,7 @@ pub struct AddEarner<'info> {
         seeds = [GLOBAL_SEED],
         bump
     )]
-    pub global_account: Account<'info, GlobalEarning>,
+    pub global_account: Account<'info, Global>,
 
     #[account(
         token::mint = MINT,
@@ -55,7 +55,7 @@ pub struct AddEarner<'info> {
         seeds = [EARN_MANAGER_SEED, user_token_account.key().as_ref()],
         bump
     )]
-    pub user_earner_account: Account<'info, Earner>,
+    pub earner_account: Account<'info, Earner>,
 
     /// CHECK: this account must be the calculated PDA
     /// for the user on the earner list in the registrar program
@@ -102,11 +102,11 @@ pub fn handler(ctx: Context<AddEarner>, user: Pubkey, user_flag_bump: u8) -> Res
     // the initialization of the user earning account succeeded if we've reached this point
     // so we don't need to check this.
     // Therefore, we initialize the data in the account.
-    ctx.accounts.user_earner_account.is_earning = true;
-    ctx.accounts.user_earner_account.earn_manager = ctx.accounts.signer.key().clone();
+    ctx.accounts.earner_account.is_earning = true;
+    ctx.accounts.earner_account.earn_manager = ctx.accounts.signer.key().clone();
 
     // Set the last claim index on the user's earner account
-    ctx.accounts.user_earner_account.last_claim_index = ctx.accounts.global_account.index;
+    ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
 
     Ok(())
 }
