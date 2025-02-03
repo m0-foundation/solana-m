@@ -27,42 +27,48 @@ const REGISTRAR_IDL = require("../../target/idl/registrar.json");
 //         [X] the value is set to the new value
 //      [X] given the admin does not sign the transaction
 //         [X] the transaction reverts with an address constraint error on the signer account
+//   [X] given a key has been set and deleted
+//      [X] given the admin signs the transaction
+//         [X] the key register is created and the value is set to the new value
 //
-// [ ] delete_key
-//   [ ] given the key register does not exist yet
-//      [ ] given the admin signs the transaction
-//         [ ] the transaction reverts with ?
-//      [ ] given the admin does not sign the transaction
-//         [ ] the transaction reverts with ?
-//   [ ] given the key register already exists
-//      [ ] given the admin signs the transaction
-//         [ ] the key register account is closed
-//      [ ] given the admin does not sign the transaction
-//         [ ] the transaction reverts with an address constraint error on the signer account
+// [X] delete_key
+//   [X] given the key register does not exist yet
+//      [X] given the admin signs the transaction
+//         [X] the transaction reverts with ?
+//      [X] given the admin does not sign the transaction
+//         [X] the transaction reverts with ?
+//   [X] given the key register already exists
+//      [X] given the admin signs the transaction
+//         [X] the key register account is closed
+//      [X] given the admin does not sign the transaction
+//         [X] the transaction reverts with an address constraint error on the signer account
 //
-// [ ] add_to_list
-//   [ ] given the flag account does not exist yet
-//      [ ] given the admin signs the transaction
-//         [ ] the flag account is created and the value set to true
-//      [ ] given the admin does not sign the transaction
-//         [ ] the transaction reverts with an address constraint error on the signer account
-//   [ ] given the flag account already exists
-//      [ ] given the admin signs the transaction
-//         [ ] the transaction reverts with an account already exists error
-//      [ ] given the admin does not sign the transaction
-//         [ ] the transaction reverts with an address constraint error on the signer account
+// [X] add_to_list
+//   [X] given the flag account does not exist yet
+//      [X] given the admin signs the transaction
+//         [X] the flag account is created and the value set to true
+//      [X] given the admin does not sign the transaction
+//         [X] the transaction reverts with an address constraint error on the signer account
+//   [X] given the flag account already exists
+//      [X] given the admin signs the transaction
+//         [X] the transaction reverts with an account already exists error
+//      [X] given the admin does not sign the transaction
+//         [X] the transaction reverts with an address constraint error on the signer account
+//   [X] given a flag account was initialized and then closed
+//      [X] given the admin signs the transaction
+//         [X] the flag account is created and the value set to true
 //
-// [ ] remove_from_list
-//   [ ] given the flag account does not exist yet
-//      [ ] given the admin signs the transaction
-//         [ ] the transaction reverts with an account does not exist error
-//      [ ] given the admin does not sign the transaction
-//         [ ] the transaction reverts with an address constraint error on the signer account
-//   [ ] given the flag account already exists
-// 	    [ ] given the admin signs the transaction
-//         [ ] the flag account is closed? or should it be set to false so the portal doesn't receive the refund?
-//      [ ] given the admin does not sign the transaction
-//         [ ] the transaction reverts with an address constraint error on the signer account
+// [X] remove_from_list
+//   [X] given the flag account does not exist yet
+//      [X] given the admin signs the transaction
+//         [X] the transaction reverts with an account does not exist error
+//      [X] given the admin does not sign the transaction
+//         [X] the transaction reverts with an address constraint error on the signer account
+//   [X] given the flag account already exists
+// 	    [X] given the admin signs the transaction
+//         [X] the flag account is closed? or should it be set to false so the portal doesn't receive the refund?
+//      [X] given the admin does not sign the transaction
+//         [X] the transaction reverts with an address constraint error on the signer account
 
 
 // Setup wallets once at the beginning of the test suite
