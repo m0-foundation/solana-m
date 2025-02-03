@@ -92,6 +92,20 @@ pub mod mint_master {
 
         Ok(())
     }
+
+    pub fn set_distributor(ctx: Context<SetDistributor>, new_distributor: Pubkey) -> Result<()> {
+        // Set the distributor address in the mint master account
+        ctx.accounts.mint_master.distributor = new_distributor;
+
+        Ok(())
+    }
+
+    pub fn set_portal(ctx: Context<SetPortal>, new_portal: Pubkey) -> Result<()> {
+        // Set the portal address in the mint master account
+        ctx.accounts.mint_master.portal = new_portal;
+
+        Ok(())
+    }
 }
 
 // instruction contexts
@@ -151,6 +165,36 @@ pub struct SetMintAuthority<'info> {
     pub mint: InterfaceAccount<'info, Mint>,
 
     pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+pub struct SetDistributor<'info> {
+    #[account(
+        address = ADMIN
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [MINT_MASTER_SEED],
+        bump,
+    )]
+    pub mint_master: Account<'info, MintMaster>,
+}
+
+#[derive(Accounts)]
+pub struct SetPortal<'info> {
+    #[account(
+        address = ADMIN
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [MINT_MASTER_SEED],
+        bump,
+    )]
+    pub mint_master: Account<'info, MintMaster>,
 }
 
 // accounts
