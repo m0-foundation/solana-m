@@ -8,4 +8,6 @@ pub enum RegistrarError {
     InvalidPDA,
     #[msg("The provided PDA is not initialized.")]
     NotInitialized,
+    #[msg("Address is already a member of the list")]
+    AlreadyInList,
 }

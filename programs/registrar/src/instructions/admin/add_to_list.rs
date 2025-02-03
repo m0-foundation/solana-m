@@ -6,6 +6,7 @@ use anchor_lang::prelude::*;
 // local dependencies
 use crate::{
     constants::{ADMIN, ANCHOR_DISCRIMINATOR_SIZE},
+    errors::RegistrarError,
     state::Flag,
     utils::to_base58
 };
@@ -21,7 +22,7 @@ pub struct AddToList<'info> {
     pub signer: Signer<'info>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = signer,
         space = Flag::INIT_SPACE + ANCHOR_DISCRIMINATOR_SIZE,
         seeds = [b"LIST", list.as_slice(), address.as_ref()],
@@ -34,6 +35,13 @@ pub struct AddToList<'info> {
 
 /// AddToList instruction handler
 pub fn handler(ctx: Context<AddToList>, list: [u8; 32], address: Pubkey) -> Result<()> {
+    // Revert if the account flag is already true
+    // We are using init_if_needed to be able to re-add the address to the list if removed
+    // However, we don't want the address to be added twice and emit another message
+    if ctx.accounts.flag.value {
+        return err!(RegistrarError::AlreadyInList);
+    }
+
     // Set the flag on the account to true to signify the address is in the list
     ctx.accounts.flag.value = true;
 

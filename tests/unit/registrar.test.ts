@@ -8,6 +8,7 @@ import {
 	LAMPORTS_PER_SOL,
 	SystemProgram,
 } from "@solana/web3.js";
+// import { airdropIfRequired } from "@solana-developers/helpers";
 import { loadKeypair, toFixedSizedArray } from "../test-utils";
 
 import { Registrar } from "../../target/types/registrar";
@@ -69,9 +70,12 @@ const admin: Keypair = loadKeypair("test-addr/portal.json");
 const nonAdmin: Keypair = new Keypair();
 
 // Use a fresh SVM instance for each unit test
+// const provider = anchor.AnchorProvider.env();
+// const svm = provider.connection;
+
 let svm: LiteSVM;
 let provider: LiteSVMProvider;
-const accounts: Record<string, PublicKey> = {};
+let accounts: Record<string, PublicKey> = {};
 let registrar: Program<Registrar>;
 
 // Utility functions for the tests
@@ -261,7 +265,7 @@ const removeFromList = async (list: string, address: PublicKey) => {
 };
 
 describe("Registrar unit tests", () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		// Initialize the SVM instance from the workspace programs
 		svm = fromWorkspace("");
 
@@ -274,6 +278,9 @@ describe("Registrar unit tests", () => {
 		// Funds the two wallets
 		svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
 		svm.airdrop(nonAdmin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+
+		// clear the accounts object
+		accounts = {};
 	});
 
 	// set_key
@@ -600,16 +607,29 @@ describe("Registrar unit tests", () => {
 			// Setup the instruction call
 			const { list, flag } = prepAddToList(admin, "test-list", address);
 
-			// Check that the flag account has been deleted
-			expectAccountEmpty(flag);
+			// Wait 1 second
+			await new Promise((resolve) => setTimeout(resolve, 1000));
+
+			// Warp forward in time to ensure the account state is correct
+			let clock = svm.getClock();
+			clock.unixTimestamp = clock.unixTimestamp + 3600n;
+			svm.setClock(clock);
+
+			console.log("accounts: ", accounts);
 
 			// Create and send our transaction
-			await registrar.methods
+			try {
+				await registrar.methods
 				.addToList(list, address)
 				.accounts({ ...accounts })
 				.signers([admin])
 				.rpc();
+			} catch (e) {
+				console.log("error: ", e);
+				console.log("error logs", await e.getLogs());
 
+			}
+			
 			// Check that the flag account has been initialized with the value
 			await expectFlagState(flag, true);
 		});

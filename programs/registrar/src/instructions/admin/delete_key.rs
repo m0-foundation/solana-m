@@ -27,8 +27,6 @@ pub struct DeleteKey<'info> {
         bump
     )]
     pub register: Account<'info, Register>,
-
-    pub system_program: Program<'info, System>
 }
 
 /// SetKey instruction handler
