@@ -4,15 +4,14 @@
 use anchor_lang::prelude::*;
 
 // local dependencies
-use common::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, ADMIN, ONE},
-};
+use common::constants::{ANCHOR_DISCRIMINATOR_SIZE, ADMIN, ONE};
 use crate::{
-    state::{Global, GLOBAL_SEED},
-}
+    errors::EarnError,
+    state::{Global, GLOBAL_SEED}
+};
 
 #[derive(Accounts)]
-pub struct Initialize {
+pub struct Initialize<'info> {
     #[account(
         mut,
         address = ADMIN,
@@ -48,7 +47,7 @@ pub fn handler(
     global.earn_authority = earn_authority;
     global.index = initial_index;
     
-    let current_timestamp = Clock::get()?.unix_timestamp;
+    let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
     global.timestamp = current_timestamp;
 
     global.claim_cooldown = claim_cooldown;

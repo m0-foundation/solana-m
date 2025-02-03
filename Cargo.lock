@@ -921,6 +921,7 @@ dependencies = [
  "anchor-spl",
  "common",
  "mint_master",
+ "registrar",
  "solana-program",
 ]
 
