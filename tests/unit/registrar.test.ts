@@ -227,6 +227,39 @@ const addToList = async (list: string, address: PublicKey) => {
 	await expectFlagState(flag, true);
 };
 
+const prepRemoveFromList = (signer: Keypair, list: string, address: PublicKey) => {
+	const formattedList = toFixedSizedArray(Buffer.from(list), 32);
+
+	// Populate accounts for the instruction
+	accounts.signer = signer.publicKey;
+
+	const flag = PublicKey.findProgramAddressSync(
+		[Buffer.from("LIST"), Buffer.from(formattedList), address.toBuffer()],
+		registrar.programId
+	)[0];
+	accounts.flag = flag;
+
+	accounts.systemProgram = SystemProgram.programId;
+
+	// Return the formatted list and flag
+	return { list: formattedList, flag };
+};
+
+const removeFromList = async (list: string, address: PublicKey) => {
+	// Setup the instruction call
+	const { list: formattedList, flag } = prepRemoveFromList(admin, list, address);
+
+	// Create and send the transaction
+	await registrar.methods
+		.removeFromList(formattedList, address)
+		.accounts({ ...accounts })
+		.signers([admin])
+		.rpc();
+
+	// Check that the flag account no longer exists
+	expectAccountEmpty(flag);
+};
+
 describe("Registrar unit tests", () => {
 	beforeEach(() => {
 		// Initialize the SVM instance from the workspace programs
@@ -551,6 +584,137 @@ describe("Registrar unit tests", () => {
 					.signers([nonAdmin])
 					.rpc()
 			);
+		});
+
+		// given a flag account was initialized and then closed
+		// given the admin signs the transaction
+		// the flag account is created and the value set to true
+		test("Admin can add an address to a list after it has been removed", async () => {
+			// Add an address to the list
+			const address = PublicKey.unique();
+			await addToList("test-list", address);
+
+			// Remove the address from the list
+			await removeFromList("test-list", address);
+
+			// Setup the instruction call
+			const { list, flag } = prepAddToList(admin, "test-list", address);
+
+			// Check that the flag account has been deleted
+			expectAccountEmpty(flag);
+
+			// Create and send our transaction
+			await registrar.methods
+				.addToList(list, address)
+				.accounts({ ...accounts })
+				.signers([admin])
+				.rpc();
+
+			// Check that the flag account has been initialized with the value
+			await expectFlagState(flag, true);
+		});
+	});
+
+	describe("remove_from_list unit tests", () => {
+		
+		// given the flag account does not exist yet
+		// given the admin signs the transaction
+		// the transaction reverts with an account does not exist error
+		test("Admin cannot remove an address from a non-existing list", async () => {
+			// Setup the instruction call
+			const address = PublicKey.unique();
+			const { list, flag } = prepRemoveFromList(admin, "test-list", address);
+
+			// Check that the flag account has not been created
+			expectAccountEmpty(flag);
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectAnchorError(
+				registrar.methods
+					.removeFromList(list, address)
+					.accounts({ ...accounts })
+					.signers([admin])
+					.rpc(),
+				"AccountNotInitialized"
+			);
+		});
+
+		// given the flag account does not exist yet
+		// given the admin does not sign the transaction
+		// the transaction reverts with an account not initialized error
+		test("Non-admin cannot remove an address from a non-existing list", async () => {
+			// Setup the instruction call
+			const address = PublicKey.unique();
+			const { list, flag } = prepRemoveFromList(nonAdmin, "test-list", address);
+
+			// Check that the flag account has not been created
+			expectAccountEmpty(flag);
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectAnchorError(
+				registrar.methods
+					.removeFromList(list, address)
+					.accounts({ ...accounts })
+					.signers([nonAdmin])
+					.rpc(),
+				"AccountNotInitialized"
+			);
+		});
+
+		// given the flag account already exists
+		// given the admin signs the transaction
+		// the flag account is closed
+		test("Admin can remove an address from a list", async () => {
+			// Add an address to the list			
+			const address = PublicKey.unique();
+			await addToList("test-list", address);
+
+			// Setup the instruction call
+			const { list, flag } = prepRemoveFromList(admin, "test-list", address);
+
+			// Check that the flag account has been created
+			await expectFlagState(flag, true);
+
+			// Create and send our transaction
+			await registrar.methods
+				.removeFromList(list, address)
+				.accounts({ ...accounts })
+				.signers([admin])
+				.rpc();
+
+			// Check that the flag account has been deleted
+			expectAccountEmpty(flag);
+		});
+
+		// given the flag account already exists
+		// given the admin does not sign the transaction
+		// the transaction reverts with an address constraint error on the signer account
+		test("Non-admin cannot remove an address from a list", async () => {
+			// Add an address to the list			
+			const address = PublicKey.unique();
+			await addToList("test-list", address);
+
+			// Setup the instruction call
+			const { list, flag } = prepRemoveFromList(nonAdmin, "test-list", address);
+
+			// Check that the flag account has been created
+			await expectFlagState(flag, true);
+
+			// Create and send our transaction
+			// We expect an error, so we catch it
+			await expectAnchorError(
+				registrar.methods
+					.removeFromList(list, address)
+					.accounts({ ...accounts })
+					.signers([nonAdmin])
+					.rpc(),
+				"ConstraintAddress"
+			);
+
+			// Check that the flag account has not been deleted
+			await expectFlagState(flag, true);
 		});
 	});
 });
