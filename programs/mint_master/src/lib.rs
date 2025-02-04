@@ -140,10 +140,14 @@ pub struct MintM<'info> {
     )]
     pub mint_master: Account<'info, MintMaster>,
 
-    #[account(address = MINT)]
+    #[account(
+        mut,
+        address = MINT
+    )]
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
+        mut,
         token::mint = mint,
     )]
     pub to_token_account: InterfaceAccount<'info, TokenAccount>,
@@ -153,6 +157,9 @@ pub struct MintM<'info> {
 
 #[derive(Accounts)]
 pub struct SetMintAuthority<'info> {
+    #[account(address = ADMIN)]
+    pub signer: Signer<'info>,
+
     #[account(
         seeds = [MINT_MASTER_SEED],
         bump,
@@ -169,9 +176,7 @@ pub struct SetMintAuthority<'info> {
 
 #[derive(Accounts)]
 pub struct SetDistributor<'info> {
-    #[account(
-        address = ADMIN
-    )]
+    #[account(address = ADMIN)]
     pub signer: Signer<'info>,
 
     #[account(
@@ -184,9 +189,7 @@ pub struct SetDistributor<'info> {
 
 #[derive(Accounts)]
 pub struct SetPortal<'info> {
-    #[account(
-        address = ADMIN
-    )]
+    #[account(address = ADMIN)]
     pub signer: Signer<'info>,
 
     #[account(
