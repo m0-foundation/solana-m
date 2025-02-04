@@ -36,8 +36,6 @@ pub struct RemoveRegistrarEarner<'info> {
     /// CHECK: we validate this account within the instruction
     /// since we expect it to be an externally owned PDA
     pub registrar_flag: UncheckedAccount<'info>,
-
-    pub system_program: Program<'info, System>,
 }
 
 pub fn handler(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {
@@ -54,7 +52,7 @@ pub fn handler(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, flag_bump: u8)
     }
 
     // Check that the earner does not have an earn_manager, if so, return an error
-    if ctx.accounts.earner_account != ZERO_ADDRESS {
+    if ctx.accounts.earner_account.earn_manager != ZERO_ADDRESS {
         return err!(EarnError::NotAuthorized);
     }
 
