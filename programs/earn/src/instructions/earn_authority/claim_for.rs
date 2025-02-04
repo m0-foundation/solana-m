@@ -51,6 +51,9 @@ pub struct ClaimFor<'info> {
     pub mint_master_account: UncheckedAccount<'info>,
 }
 
+// TODO handle sending yield split to the user's earn_manager
+// Should there be a separate instruction that is for earner's with a manager?
+// This one could just be for registrar approved earners (i.e. no manager)
 pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // Validate that the earner account is still approved to earn
     if !ctx.accounts.earner.is_earning {
