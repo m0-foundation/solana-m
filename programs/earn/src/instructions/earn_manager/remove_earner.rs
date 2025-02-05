@@ -6,12 +6,14 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use common::constants::MINT;
-use crate::state::{Earner, EARNER_SEED};
+use crate::{
+    errors::EarnError,
+    state::{Earner, EARNER_SEED}
+};
 
 #[derive(Accounts)]
 #[instruction(user: Pubkey)]   
 pub struct RemoveEarner<'info> {
-    #[account(address = earner_account.earn_manager)]
     pub signer: Signer<'info>,
 
     #[account(
@@ -31,6 +33,19 @@ pub struct RemoveEarner<'info> {
 
 
 pub fn handler(ctx: Context<RemoveEarner>, user: Pubkey) -> Result<()> {
+    // Require that the earner has an earn manager
+    // If not, it must be removed from the registrar
+    // and a different instruction must be used
+    if let Some(earn_manager) = ctx.accounts.earner_account.earn_manager {
+        // Validate that the signer is the earn manager
+        if ctx.accounts.signer.key() != earn_manager {
+            return err!(EarnError::NotAuthorized);
+        }
+    } else {
+        return err!(EarnError::NotAuthorized);
+    }
+
+
     // Set the is_earning status to false
     ctx.accounts.earner_account.is_earning = false;
 

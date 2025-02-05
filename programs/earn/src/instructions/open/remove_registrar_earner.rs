@@ -4,7 +4,7 @@
 use anchor_lang::prelude::*;
 
 // local dependencies
-use common::constants::{MINT, ZERO_ADDRESS};
+use common::constants::MINT;
 use crate::{
     constants::REGISTRAR,
     state::{Earner, EARNER_SEED}
@@ -52,7 +52,7 @@ pub fn handler(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, flag_bump: u8)
     }
 
     // Check that the earner does not have an earn_manager, if so, return an error
-    if ctx.accounts.earner_account.earn_manager != ZERO_ADDRESS {
+    if let Some(_) = ctx.accounts.earner_account.earn_manager {
         return err!(EarnError::NotAuthorized);
     }
 

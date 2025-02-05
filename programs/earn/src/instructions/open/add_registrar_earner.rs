@@ -77,7 +77,8 @@ pub fn handler(ctx: Context<AddRegistrarEarner>, user: Pubkey, flag_bump: u8) ->
     // Set the earner's last claim index to the global index
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
 
-    // We don't set the earn_manager since this user is not managed by an earn manager
+    // Set the earner's earn manager to None
+    ctx.accounts.earner_account.earn_manager = None;
 
     // Log the success of the operation
     msg!(

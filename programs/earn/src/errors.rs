@@ -16,4 +16,8 @@ pub enum EarnError {
     NoActiveClaim,
     #[msg("User is not earning.")]
     NotEarning,
+    #[msg("An optional account is required in this case, but not provided.")]
+    RequiredAccountMissing,
+    #[msg("Account does not match the expected key.")]
+    InvalidAccount,
 }

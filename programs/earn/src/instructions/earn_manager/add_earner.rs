@@ -103,7 +103,7 @@ pub fn handler(ctx: Context<AddEarner>, user: Pubkey, user_flag_bump: u8) -> Res
     // so we don't need to check this.
     // Therefore, we initialize the data in the account.
     ctx.accounts.earner_account.is_earning = true;
-    ctx.accounts.earner_account.earn_manager = ctx.accounts.signer.key().clone();
+    ctx.accounts.earner_account.earn_manager = Some(ctx.accounts.signer.key().clone());
 
     // Set the last claim index on the user's earner account
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
