@@ -5,10 +5,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
-use common::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
-    utils::get_principal_rounded_down,
-};
+use common::constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT};
 use crate::{
     constants::REGISTRAR,
     errors::EarnError,

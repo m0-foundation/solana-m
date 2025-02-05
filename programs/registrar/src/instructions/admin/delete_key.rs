@@ -30,7 +30,7 @@ pub struct DeleteKey<'info> {
 }
 
 /// SetKey instruction handler
-pub fn handler(ctx: Context<DeleteKey>, key: [u8; 32]) -> Result<()> {
+pub fn handler(_ctx: Context<DeleteKey>, key: [u8; 32]) -> Result<()> {
     msg!("Deleted the register for key {}", to_base58(&key));
 
     Ok(())
