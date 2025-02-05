@@ -68,9 +68,6 @@ pub struct ClaimFor<'info> {
     pub earn_manager_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
 }
 
-// TODO handle sending yield split to the user's earn_manager
-// Should there be a separate instruction that is for earner's with a manager?
-// This one could just be for registrar approved earners (i.e. no manager)
 pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // Validate that the earner account is still approved to earn
     if !ctx.accounts.earner.is_earning {
