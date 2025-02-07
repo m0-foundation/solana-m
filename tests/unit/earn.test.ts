@@ -92,6 +92,8 @@ interface Global {
   maxYield?: BN;
   distributed?: BN;
   claimComplete?: boolean;
+  earnerMerkleRoot?: number[];
+  earnManagerMerkleRoot?: number[];
 }
 
 // Utility functions for the tests
@@ -137,6 +139,8 @@ const expectGlobalState = async (
   if (expected.maxYield) expect(state.maxYield.toString()).toEqual(expected.maxYield.toString());
   if (expected.distributed) expect(state.distributed.toString()).toEqual(expected.distributed.toString());
   if (expected.claimComplete !== undefined) expect(state.claimComplete).toEqual(expected.claimComplete);
+  if (expected.earnerMerkleRoot) expect(state.earnerMerkleRoot).toEqual(expected.earnerMerkleRoot);
+  if (expected.earnManagerMerkleRoot) expect(state.earnManagerMerkleRoot).toEqual(expected.earnManagerMerkleRoot);
 };
 
 const getTokenBalance = async (tokenAccount: PublicKey) => {
@@ -354,13 +358,21 @@ const prepPropagateIndex = (signer: Keypair) => {
   return { globalAccount };
 };
 
-const propagateIndex = async (newIndex: BN) => {
+const propagateIndex = async (
+    newIndex: BN,
+    earnerMerkleRoot: number[] = new Array(32).fill(0),
+    earnManagerMerkleRoot: number[] = new Array(32).fill(0)
+) => {
   // Setup the instruction
   const { globalAccount } = prepPropagateIndex(portal);
 
   // Send the instruction
   await earn.methods
-    .propagateIndex(newIndex)
+    .propagateIndex(
+        newIndex,
+        earnerMerkleRoot,
+        earnManagerMerkleRoot
+    )
     .accounts({...accounts})
     .signers([portal])
     .rpc();
@@ -461,19 +473,25 @@ describe("Earn unit tests", () => {
 
       // Create and send the transaction
       await earn.methods
-        .initialize(earnAuthority.publicKey, initialIndex, claimCooldown)
+        .initialize(
+            earnAuthority.publicKey, 
+            initialIndex, 
+            claimCooldown
+        )
         .accounts({ ...accounts })
         .signers([admin])
         .rpc();
 
-      // Verify the global state
+      // Verify the global state including zero-initialized Merkle roots
       await expectGlobalState(
         globalAccount,
         {
             earnAuthority: earnAuthority.publicKey,
             index: initialIndex,
             claimCooldown,
-            claimComplete: true
+            claimComplete: true,
+            earnerMerkleRoot: new Array(32).fill(0),
+            earnManagerMerkleRoot: new Array(32).fill(0)
         }
       );
     });
@@ -559,33 +577,50 @@ describe("Earn unit tests", () => {
 
     // given the portal signs the transaction
     // the transaction succeeds
-    test("Portal can update index", async () => {
+    test("Portal can update index and Merkle roots", async () => {
       const newIndex = new BN(1_100_000); // 1.1
+      const newEarnerRoot = Array(32).fill(1);
+      const newManagerRoot = Array(32).fill(2);
 
       const { globalAccount } = prepPropagateIndex(portal);
       
       await earn.methods
-        .propagateIndex(newIndex)
+        .propagateIndex(
+            newIndex,
+            newEarnerRoot,
+            newManagerRoot
+        )
         .accounts({...accounts})
         .signers([portal])
         .rpc();
 
       // Verify the global state was updated
-      await expectGlobalState(globalAccount, {
-        index: newIndex,
-      });
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          earnerMerkleRoot: newEarnerRoot,
+          earnManagerMerkleRoot: newManagerRoot
+        }
+      );
     });
 
     // given the portal does not sign the transaction
     // the transaction fails with a not authorized error
     test("Non-portal cannot update index", async () => {
       const newIndex = new BN(1_100_000);
+      const newEarnerRoot = Array(32).fill(1);
+      const newManagerRoot = Array(32).fill(2);
 
       prepPropagateIndex(nonAdmin);
       
       await expectAnchorError(
         earn.methods
-          .propagateIndex(newIndex)
+          .propagateIndex(
+              newIndex,
+              newEarnerRoot,
+              newManagerRoot
+          )
           .accounts({...accounts})
           .signers([nonAdmin])
           .rpc(),
@@ -600,25 +635,30 @@ describe("Earn unit tests", () => {
     test("propagate index - claim not complete, within cooldown period, supply <= max supply", async () => {
       // Update the index initially
       const newIndex = new BN(1_100_000);
-      const { globalAccount } = await propagateIndex(newIndex);
+      const newEarnerRoot = Array(32).fill(1);
+      const newManagerRoot = Array(32).fill(2);
+      const { globalAccount } = await propagateIndex(newIndex, newEarnerRoot, newManagerRoot);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
 
-      // Confirm that the index and timestamp is update
+      // Confirm that the index, timestamp, and Merkle roots are updated
       await expectGlobalState(
         globalAccount,
         {
           index: newIndex,
           timestamp: startTimestamp,
-          maxSupply: initialSupply
+          maxSupply: initialSupply,
+          earnerMerkleRoot: newEarnerRoot,
+          earnManagerMerkleRoot: newManagerRoot
         }
       );
 
-      // Propagate another new index immediately,
-      // the index shouldn't be updated, 
-      // but the max supply should increment with the new supply
+      // Propagate another new index immediately with different roots,
+      // only the Merkle roots should be updated
       const newNewIndex = new BN(1_150_000);
+      const newerEarnerRoot = Array(32).fill(3);
+      const newerManagerRoot = Array(32).fill(4);
 
-      await propagateIndex(newNewIndex);
+      await propagateIndex(newNewIndex, newerEarnerRoot, newerManagerRoot);
 
       // Check the state
       await expectGlobalState(
@@ -626,7 +666,9 @@ describe("Earn unit tests", () => {
         {
           index: newIndex,
           timestamp: startTimestamp,
-          maxSupply: initialSupply
+          maxSupply: initialSupply,
+          earnerMerkleRoot: newerEarnerRoot,
+          earnManagerMerkleRoot: newerManagerRoot
         }
       );
     });
