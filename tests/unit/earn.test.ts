@@ -8,6 +8,16 @@ import {
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
+  createInitializeMintInstruction,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+  getMint,
+  getMintLen,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import { loadKeypair } from "../test-utils";
 import { Earn } from "../../target/types/earn";
 import { MintMaster } from "../../target/types/mint_master";
@@ -64,6 +74,11 @@ let accounts: Record<string, PublicKey> = {};
 let earn: Program<Earn>;
 let mintMaster: Program<MintMaster>;
 let registrar: Program<Registrar>;
+
+// Start parameters
+const initialSupply = new BN(100_000_000); // 100 tokens with 6 decimals
+const initialIndex = new BN(1_000_000); // 1.0
+const claimCooldown = new BN(86_400) // 1 day
 
 // Type definitions for accounts to make it easier to do comparisons
 
@@ -124,6 +139,125 @@ const expectGlobalState = async (
   if (expected.claimComplete !== undefined) expect(state.claimComplete).toEqual(expected.claimComplete);
 };
 
+const getTokenBalance = async (tokenAccount: PublicKey) => {
+  return (
+    await getAccount(
+      provider.connection,
+      tokenAccount,
+      null,
+      TOKEN_2022_PROGRAM_ID
+    )
+  ).amount;
+};
+
+const createATA = async (mint: PublicKey, owner: PublicKey) => {
+  const tokenAccount = getAssociatedTokenAddressSync(
+    mint,
+    owner,
+    true,
+    TOKEN_2022_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  const createATA = createAssociatedTokenAccountInstruction(
+    admin.publicKey, // payer
+    tokenAccount, // ata
+    owner, // owner
+    mint, // mint
+    TOKEN_2022_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  let tx = new Transaction().add(createATA);
+
+  await provider.sendAndConfirm(tx, [admin]);
+
+  return tokenAccount;
+};
+
+const getATA = async (mint: PublicKey, owner: PublicKey) => {
+  // Check to see if the ATA already exists, if so return its key
+  const tokenAccount = getAssociatedTokenAddressSync(
+    mint,
+    owner,
+    true,
+    TOKEN_2022_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  const tokenAccountInfo = svm.getAccount(tokenAccount);
+
+  if (!tokenAccountInfo) {
+    await createATA(mint, owner);
+  }
+
+  return tokenAccount;
+}
+
+const createMint = async (mint: Keypair, mintAuthority: PublicKey) => {
+  const mintLen = getMintLen([]);
+  const mintLamports =
+    await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+  const createMintAccount = SystemProgram.createAccount({
+    fromPubkey: admin.publicKey,
+    newAccountPubkey: mint.publicKey,
+    space: mintLen,
+    lamports: mintLamports,
+    programId: TOKEN_2022_PROGRAM_ID,
+  });
+
+  const initializeMint = createInitializeMintInstruction(
+    mint.publicKey,
+    6, // decimals
+    mintAuthority, // mint authority
+    null, // freeze authority
+    TOKEN_2022_PROGRAM_ID
+  );
+
+  let tx = new Transaction();
+  tx.add(createMintAccount, initializeMint);
+
+  await provider.sendAndConfirm(tx, [admin, mint]);
+
+  // Verify the mint was created properly
+  const mintInfo = await provider.connection.getAccountInfo(mint.publicKey);
+  if (!mintInfo) {
+    throw new Error("Mint account was not created");
+  }
+
+  return mint.publicKey;
+};
+
+const mintM = async (to: PublicKey, amount: BN) => {
+  const [mintMasterAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("mint-master")],
+    mintMaster.programId
+  );
+
+  const toATA: PublicKey = await getATA(mint.publicKey, to);
+
+  // Populate accounts for the instruction
+  accounts = {};
+  accounts.signer = portal.publicKey;
+  accounts.mintMaster = mintMasterAccount;
+  accounts.mint = mint.publicKey;
+  accounts.toTokenAccount = toATA;
+  accounts.tokenProgram = TOKEN_2022_PROGRAM_ID;
+
+  // Send the instruction
+  await mintMaster.methods
+    .mintM(amount)
+    .accounts({...accounts})
+    .signers([portal])
+    .rpc();
+};
+
+const warp = (seconds: BN, increment: boolean) => {
+  const clock = svm.getClock();
+  clock.unixTimestamp = increment ? clock.unixTimestamp + BigInt(seconds.toString()) : BigInt(seconds.toString());
+  svm.setClock(clock);
+};
+
 // instruction convenience functions
 const prepInitialize = (signer: Keypair) => {
   // Find the global PDA
@@ -133,6 +267,7 @@ const prepInitialize = (signer: Keypair) => {
   );
 
   // Populate accounts for the instruction
+  accounts = {};
   accounts.signer = signer.publicKey;
   accounts.globalAccount = globalAccount;
   accounts.systemProgram = SystemProgram.programId;
@@ -176,12 +311,12 @@ const prepSetEarnAuthority = (signer: Keypair) => {
   );
 
   // Populate accounts for the instruction
+  accounts = {};
   accounts.signer = signer.publicKey;
   accounts.globalAccount = globalAccount;
-  accounts.systemProgram = SystemProgram.programId;
 
   return { globalAccount };
-}
+};
 
 const setEarnAuthority = async (newEarnAuthority: PublicKey) => {
     // Setup the instruction call
@@ -201,7 +336,67 @@ const setEarnAuthority = async (newEarnAuthority: PublicKey) => {
             earnAuthority: newEarnAuthority
         }
     );
+};
+
+const prepPropagateIndex = (signer: Keypair) => {
+  // Find the global PDA
+  const [globalAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("global")],
+    earn.programId
+  ); 
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.globalAccount = globalAccount;
+  accounts.mint = mint.publicKey;
+
+  return { globalAccount };
+};
+
+const propagateIndex = async (newIndex: BN) => {
+  // Setup the instruction
+  const { globalAccount } = prepPropagateIndex(portal);
+
+  // Send the instruction
+  await earn.methods
+    .propagateIndex(newIndex)
+    .accounts({...accounts})
+    .signers([portal])
+    .rpc();
+
+  // We don't check state here because it depends on the circumstances
+
+  return { globalAccount };
+};
+
+const prepCompleteClaims = (signer: Keypair) => {
+  // Find the global PDA
+  const [globalAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("global")],
+    earn.programId
+  ); 
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.globalAccount = globalAccount;
+
+  return { globalAccount }; 
+};
+
+const completeClaims = async () => {
+  // Setup the instruction
+  await prepCompleteClaims(earnAuthority);
+
+  // Send the instruction
+  await earn.methods
+    .completeClaims()
+    .accounts({...accounts})
+    .signers([earnAuthority])
+    .rpc();
 }
+
 
 describe("Earn unit tests", () => {
   beforeEach(async () => {
@@ -227,8 +422,34 @@ describe("Earn unit tests", () => {
     svm.airdrop(earnAuthority.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
     svm.airdrop(nonAdmin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
 
-    // Clear the accounts object
-    accounts = {};
+    // Get the mint master PDA to be the mint authority
+    const [mintMasterAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("mint-master")],
+      mintMaster.programId
+    );
+
+    // Get the earn global PDA to be the distributor on the mint master
+    const [globalAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("global")],
+      earn.programId
+    );
+
+    // Initialize the mint master program
+    await mintMaster.methods
+      .initialize(portal.publicKey, globalAccount)
+      .accounts({
+        signer: admin.publicKey,
+        mintMaster: mintMasterAccount,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([admin])
+      .rpc();
+
+    // Create the token mint
+    await createMint(mint, mintMasterAccount);
+
+    // Mint some tokens to have a non-zero supply
+    await mintM(admin.publicKey, initialSupply);
   });
 
   describe("initialize unit tests", () => {
@@ -237,8 +458,6 @@ describe("Earn unit tests", () => {
     test("Admin can initialize earn program", async () => {
       // Setup the instruction call
       const { globalAccount } = prepInitialize(admin);
-      const initialIndex = new BN(1_000_000); // 1.0
-      const claimCooldown = new BN(86400); // 1 day
 
       // Create and send the transaction
       await earn.methods
@@ -264,8 +483,6 @@ describe("Earn unit tests", () => {
     test("Non-admin cannot initialize earn program", async () => {
       // Setup the instruction call
       prepInitialize(nonAdmin);
-      const initialIndex = new BN(1_000_000); // 1.0
-      const claimCooldown = new BN(86400); // 1 day
 
       // Attempt to initialize with non-admin signer
       await expectAnchorError(
@@ -281,19 +498,21 @@ describe("Earn unit tests", () => {
   });
 
   describe("set_earn_authority unit tests", () => {
-    test("Admin can set new earn authority", async () => {
-      // Initialize the program first
-      const globalAccount = await initialize(
-        earnAuthority.publicKey,
-        new BN(1_000_000),
-        new BN(86400)
-      );
+    beforeEach(async () => {
+        // Initialize the program
+        await initialize(
+          earnAuthority.publicKey,
+          initialIndex,
+          claimCooldown
+        );
+    });
 
+    test("Admin can set new earn authority", async () => {
       // Setup new earn authority
       const newEarnAuthority = new Keypair();
 
       // Setup the instruction
-      await prepSetEarnAuthority(admin);
+      const { globalAccount } = prepSetEarnAuthority(admin);
 
       // Send the transaction
       await earn.methods
@@ -309,17 +528,10 @@ describe("Earn unit tests", () => {
     });
 
     test("Non-admin cannot set earn authority", async () => {
-      // Initialize the program first
-      const globalAccount = await initialize(
-        earnAuthority.publicKey,
-        new BN(1_000_000),
-        new BN(86400)
-      );
-
       // Attempt to set new earn authority with non-admin
       const newEarnAuthority = new Keypair();
 
-      await prepSetEarnAuthority(nonAdmin);
+      prepSetEarnAuthority(nonAdmin);
       
       await expectAnchorError(
         earn.methods
@@ -332,76 +544,292 @@ describe("Earn unit tests", () => {
     });
   });
 
-//   describe("propagate_index unit tests", () => {
-//     test("Portal can update index", async () => {
-//       // Initialize the program
-//       const globalAccount = await initialize(
-//         earnAuthority.publicKey,
-//         new BN(1_000_000), // 1.0
-//         new BN(1) // Set small cooldown for testing
-//       );
+  describe("propagate_index unit tests", () => {
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
 
-//       // Advance clock by cooldown period
-//       svm.setTime(Date.now() / 1000 + 2);
+      // Warp past the initial cooldown period
+      warp(claimCooldown, true);
+    });
 
-//       const newIndex = new BN(1_100_000); // 1.1
+    // given the portal signs the transaction
+    // the transaction succeeds
+    test("Portal can update index", async () => {
+      const newIndex = new BN(1_100_000); // 1.1
+
+      const { globalAccount } = prepPropagateIndex(portal);
       
-//       await earn.methods
-//         .propagateIndex(newIndex)
-//         .accounts({
-//           signer: portal.publicKey,
-//           globalAccount,
-//         })
-//         .signers([portal])
-//         .rpc();
+      await earn.methods
+        .propagateIndex(newIndex)
+        .accounts({...accounts})
+        .signers([portal])
+        .rpc();
 
-//       // Verify the global state was updated
-//       await expectGlobalState(globalAccount, {
-//         index: newIndex,
-//       });
-//     });
+      // Verify the global state was updated
+      await expectGlobalState(globalAccount, {
+        index: newIndex,
+      });
+    });
 
-//     test("Non-portal cannot update index", async () => {
-//       const globalAccount = await initialize(
-//         earnAuthority.publicKey,
-//         new BN(1_000_000),
-//         new BN(1)
-//       );
+    // given the portal does not sign the transaction
+    // the transaction fails with a not authorized error
+    test("Non-portal cannot update index", async () => {
+      const newIndex = new BN(1_100_000);
 
-//       svm.setTime(Date.now() / 1000 + 2);
+      prepPropagateIndex(nonAdmin);
+      
+      await expectAnchorError(
+        earn.methods
+          .propagateIndex(newIndex)
+          .accounts({...accounts})
+          .signers([nonAdmin])
+          .rpc(),
+        "NotAuthorized"
+      );
+    });
 
-//       await expectAnchorError(
-//         earn.methods
-//           .propagateIndex(new BN(1_100_000))
-//           .accounts({
-//             signer: nonAdmin.publicKey,
-//             globalAccount,
-//           })
-//           .signers([nonAdmin])
-//           .rpc(),
-//         "ConstraintAddress"
-//       );
-//     });
+    // given the last claim hasn't been completed
+    // given the time is within the cooldown period
+    // given current supply is less than or equal to max supply
+    // nothing is updated
+    test("propagate index - claim not complete, within cooldown period, supply <= max supply", async () => {
+      // Update the index initially
+      const newIndex = new BN(1_100_000);
+      const { globalAccount } = await propagateIndex(newIndex);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
 
-//     test("Cannot update index before cooldown period", async () => {
-//       const globalAccount = await initialize(
-//         earnAuthority.publicKey,
-//         new BN(1_000_000),
-//         new BN(86400) // 1 day cooldown
-//       );
+      // Confirm that the index and timestamp is update
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          timestamp: startTimestamp,
+          maxSupply: initialSupply
+        }
+      );
 
-//       // Try to update immediately without waiting
-//       await expectAnchorError(
-//         earn.methods
-//           .propagateIndex(new BN(1_100_000))
-//           .accounts({
-//             signer: portal.publicKey,
-//             globalAccount,
-//           })
-//           .signers([portal])
-//           .rpc(),
-//         "CooldownNotElapsed"
-//       );
-//     });
-//   });
+      // Propagate another new index immediately,
+      // the index shouldn't be updated, 
+      // but the max supply should increment with the new supply
+      const newNewIndex = new BN(1_150_000);
+
+      await propagateIndex(newNewIndex);
+
+      // Check the state
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          timestamp: startTimestamp,
+          maxSupply: initialSupply
+        }
+      );
+    });
+
+    // given the last claim hasn't been completed
+    // given the time is within the cooldown period
+    // given current supply is greater than max supply
+    // max supply is updated to the current supply
+    test("propagate index - claim not complete, within cooldown period, supply > max supply", async () => {
+      // Update the index initially
+      const newIndex = new BN(1_100_000);
+      const { globalAccount } = await propagateIndex(newIndex);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+
+      // Mint more tokens to increase supply
+      const additionalSupply = new BN(50_000_000);
+      await mintM(admin.publicKey, additionalSupply);
+      const newSupply = initialSupply.add(additionalSupply);
+
+      // Try to propagate new index
+      const newNewIndex = new BN(1_150_000);
+      await propagateIndex(newNewIndex);
+
+      // Check that only max supply was updated
+      const clock = svm.getClock();
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          timestamp: startTimestamp,
+          maxSupply: newSupply
+        }
+      );
+    });
+
+    // given the last claim has been completed
+    // given the time is within the cooldown period
+    // given current supply is greater than max supply
+    // max supply is updated to the current supply
+    test("propagate index - claim complete, within cooldown period, supply > max supply", async () => {
+      // Update the index initially 
+      const newIndex = new BN(1_100_000);
+      const { globalAccount } = await propagateIndex(newIndex);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+
+      // Set claim complete
+      await completeClaims();
+
+      // Mint more tokens
+      const additionalSupply = new BN(50_000_000);
+      await mintM(admin.publicKey, additionalSupply);
+      const newSupply = initialSupply.add(additionalSupply);
+
+      // Try to propagate new index
+      const newNewIndex = new BN(1_150_000);
+      await propagateIndex(newNewIndex);
+
+      // Check that only max supply was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          timestamp: startTimestamp, 
+          maxSupply: newSupply,
+          claimComplete: true
+        }
+      );
+    });
+
+    // given the last claim has been completed
+    // given the time is within the cooldown period
+    // given current supply is less than or equal to max supply
+    // nothing is updated
+    test("propagate index - claim complete, within cooldown period, supply <= max supply", async () => {
+      // Update the index initially
+      const newIndex = new BN(1_100_000);
+      const { globalAccount } = await propagateIndex(newIndex);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+
+      // Set claim complete
+      await completeClaims();
+
+      // Try to propagate new index
+      const newNewIndex = new BN(1_150_000);
+      await propagateIndex(newNewIndex);
+
+      // Check that nothing was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          timestamp: startTimestamp,
+          maxSupply: initialSupply,
+          claimComplete: true
+        }
+      );
+    });
+
+    // given the last claim hasn't been completed
+    // given the time is past the cooldown period
+    // given the current supply is greater than max supply
+    // max supply is updated to the current supply
+    test("propagate index - claim not complete, past cooldown period, supply > max supply", async () => {
+      // Update the index initially
+      const newIndex = new BN(1_100_000);
+      const { globalAccount } = await propagateIndex(newIndex);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+
+      // Warp past cooldown
+      warp(claimCooldown.add(new BN(1)), true);
+
+      // Mint more tokens
+      const additionalSupply = new BN(50_000_000);
+      await mintM(admin.publicKey, additionalSupply);
+      const newSupply = initialSupply.add(additionalSupply);
+
+      // Try to propagate new index
+      const newNewIndex = new BN(1_150_000);
+      await propagateIndex(newNewIndex);
+
+      // Check that only max supply was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          timestamp: startTimestamp,
+          maxSupply: newSupply
+        }
+      );
+    });
+
+    // given the last claim hasn't been completed
+    // given the time is past the cooldown period
+    // given the current supply is less than or equal to max supply
+    // nothing is updated
+    test("propagate index - claim not complete, past cooldown period, supply <= max supply", async () => {
+      // Update the index initially
+      const newIndex = new BN(1_100_000);
+      const { globalAccount } = await propagateIndex(newIndex);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+
+      // Warp past cooldown
+      warp(claimCooldown.add(new BN(1)), true);
+
+      // Try to propagate new index
+      const newNewIndex = new BN(1_150_000);
+      await propagateIndex(newNewIndex);
+
+      // Check that nothing was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          timestamp: startTimestamp, 
+          maxSupply: initialSupply
+        }
+      );
+    });
+
+    // given the last claim has been completed
+    // given the time is past the cooldown period
+    // a new claim cycle starts:
+    // index is updated to the provided value
+    // timestamp is updated to the current timestamp
+    // max supply is set to the current supply
+    // distributed is set to 0
+    // rewards per token is updated
+    // max yield is updated
+    // claim complete is set to false
+    test("propagate index - claim complete, past cooldown period, new cycle starts", async () => {
+      // Update the index initially
+      const newIndex = new BN(1_100_000);
+      const { globalAccount } = await propagateIndex(newIndex);
+
+      // Set claim complete
+      await completeClaims();
+
+      // Warp past cooldown
+      warp(claimCooldown.add(new BN(1)), true);
+
+      // Try to propagate new index
+      const newNewIndex = new BN(1_150_000);
+      await propagateIndex(newNewIndex);
+
+      // Calculate expected rewards per token and max yield
+      const REWARDS_SCALE = new BN(1_000_000_000_000);
+      const rewardsPerToken = newNewIndex.mul(REWARDS_SCALE).div(newIndex);
+      const maxYield = rewardsPerToken.mul(initialSupply).div(REWARDS_SCALE);
+
+      // Check that new cycle started with all updates
+      const clock = svm.getClock();
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newNewIndex,
+          timestamp: new BN(clock.unixTimestamp.toString()),
+          maxSupply: initialSupply,
+          maxYield,
+          distributed: new BN(0),
+          rewardsPerToken,
+          claimComplete: false
+        }
+      );
+    });
+  });
 }); 

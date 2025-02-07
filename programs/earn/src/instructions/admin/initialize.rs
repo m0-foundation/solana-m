@@ -47,6 +47,7 @@ pub fn handler(
     global.earn_authority = earn_authority;
     global.index = initial_index;
     
+    // TODO set this to 0 initially so we can call propagate immediately?
     let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
     global.timestamp = current_timestamp;
 
