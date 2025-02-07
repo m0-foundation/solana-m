@@ -29,7 +29,12 @@ pub struct PropagateIndex<'info> {
     pub mint: InterfaceAccount<'info, Mint>,
 }
 
-pub fn handler(ctx: Context<PropagateIndex>, new_index: u64) -> Result<()> {
+pub fn handler(
+    ctx: Context<PropagateIndex>, 
+    new_index: u64,
+    earner_merkle_root: [u8; 32],
+    earn_manager_merkle_root: [u8; 32]
+) -> Result<()> {
     // Validate that the signer is the Portal's PDA
     if ctx.accounts.signer.key() != PORTAL_SIGNER {
         return err!(EarnError::NotAuthorized);
@@ -46,6 +51,9 @@ pub fn handler(ctx: Context<PropagateIndex>, new_index: u64) -> Result<()> {
         if current_supply > ctx.accounts.global.max_supply {
             ctx.accounts.global.max_supply = current_supply;
         }
+        // Update the Merkle roots even if we're not starting a new cycle
+        ctx.accounts.global.earner_merkle_root = earner_merkle_root;
+        ctx.accounts.global.earn_manager_merkle_root = earn_manager_merkle_root;
         return Ok(());
     }
     
@@ -61,14 +69,15 @@ pub fn handler(ctx: Context<PropagateIndex>, new_index: u64) -> Result<()> {
         .try_into().unwrap();
 
     // Update the global state
-    let mut global = &mut ctx.accounts.global;
-    global.index = new_index;
-    global.timestamp = current_timestamp;
-    global.rewards_per_token = rewards_per_token;
-    global.max_supply = current_supply; // we set this to the current supply regardless of whether it is larger since we are starting a new cycle
-    global.max_yield = max_yield;
-    global.distributed = 0;
-    global.claim_complete = false;
+    ctx.accounts.global.index = new_index;
+    ctx.accounts.global.timestamp = current_timestamp;
+    ctx.accounts.global.rewards_per_token = rewards_per_token;
+    ctx.accounts.global.max_supply = current_supply; // we set this to the current supply regardless of whether it is larger since we are starting a new cycle
+    ctx.accounts.global.max_yield = max_yield;
+    ctx.accounts.global.distributed = 0;
+    ctx.accounts.global.claim_complete = false;
+    ctx.accounts.global.earner_merkle_root = earner_merkle_root;
+    ctx.accounts.global.earn_manager_merkle_root = earn_manager_merkle_root;
 
     Ok(())
 }

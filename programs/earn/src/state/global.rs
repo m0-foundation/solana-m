@@ -17,4 +17,6 @@ pub struct Global {
     pub max_yield: u64, // max yield that can be distributed in this claim cycle
     pub distributed: u64, // total yield distributed in this claim cycle
     pub claim_complete: bool, // whether the claim cycle is complete
+    pub earner_merkle_root: [u8; 32], // merkle root for approved earners list
+    pub earn_manager_merkle_root: [u8; 32], // merkle root for approved earn managers list
 }
