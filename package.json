@@ -2,7 +2,9 @@
   "license": "ISC",
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "tilt:test": "tilt ci -- --evm2 --generic_relayer --solana_watcher --wormchain --guardiand_loglevel=warn && npm run tilt:clean",
+    "tilt:clean": "kubectl delete --namespace=wormhole service,statefulset,configmap,pod,job --all"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
