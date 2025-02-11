@@ -32,7 +32,7 @@ pub struct RemoveEarner<'info> {
 }
 
 
-pub fn handler(ctx: Context<RemoveEarner>, user: Pubkey) -> Result<()> {
+pub fn handler(ctx: Context<RemoveEarner>, _user: Pubkey) -> Result<()> {
     // Require that the earner has an earn manager
     // If not, it must be removed from the registrar
     // and a different instruction must be used

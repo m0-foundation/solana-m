@@ -61,7 +61,7 @@ pub fn handler(ctx: Context<PropagateIndex>, new_index: u64) -> Result<()> {
         .try_into().unwrap();
 
     // Update the global state
-    let mut global = &mut ctx.accounts.global;
+    let global = &mut ctx.accounts.global;
     global.index = new_index;
     global.timestamp = current_timestamp;
     global.rewards_per_token = rewards_per_token;
