@@ -832,4 +832,57 @@ describe("Earn unit tests", () => {
       );
     });
   });
+
+  describe("claim_for unit tests", () => {
+    beforeEach(() => {});
+
+    // test cases
+    // [ ] given the earn authority does not sign the transaction
+    //   [ ] it reverts with an address constraint error
+    // [ ] given the earn authority signs the transaction
+    //   [ ] given the user token account' earner account is not initialized
+    //     [ ] it reverts with an account not initialized error
+    //   [ ] given the earner's is_earning status is false
+    //     [ ] it reverts with a NotEarning error
+    //   [ ] given the earner's last claim index is the current index
+    //     [ ] it reverts with an AlreadyClaimed error
+    //   [ ] given the amonut to be minted causes the total distributed to exceed the max yield
+    //     [ ] it reverts with am ExceedsMaxYield error
+    //   [ ] given the earner doesn't have an earn manager
+    //     [ ] the correct amount is minted to the earner
+    //   [ ] given the earner does have an earn manager 
+    //     [ ] given no earn manager account is provided
+    //       [ ] it reverts with a RequiredAccountMissing error
+    //     [ ] given no earn manager token account is provided
+    //       [ ] it reverts with a RequiredAccountMissing error
+    //     [ ] given an earn manager token account is provided, but it doesn't match the fee recipient token account in the earn manager's configuration
+    //       [ ] it reverts with an InvalidAccount error
+    //     [ ] given the earn manager account and earn manager token account are provided correctly
+    //       [ ] when the fee percent is zero
+    //         [ ] the full amount is minted to the earner
+    //       [ ] when the fee percent is not zero, but the actual fee rounds to zero
+    //         [ ] the full amount is minted to the earner
+    //       [ ] when the fee is non-zero
+    //         [ ] the fee amount is minted to the earn manager token account
+    //         [ ] the total rewards minus the fee is minted to the earner token account   
+
+
+
+
+
+  });
+
+  describe("complete_claim unit tests", () => {});
+
+  describe("configure earn_manager unit tests", () => {});
+
+  describe("add_earner unit tests", () => {});
+
+  describe("remove_earner unit tests", () => {});  
+
+  describe("add_register_earner unit tests", () => {});
+
+  describe("remove_registrar_earner unit tests", () => {});
+
+  describe("remove_earn_manager unit tests", () => {});
 }); 
