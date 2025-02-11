@@ -69,13 +69,12 @@ pub mod earn {
         instructions::open::add_registrar_earner::handler(ctx, user, flag_bump)
     }
 
-    // pub fn remove_registrar_earner(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {
-    //     instructions::open::remove_registrar_earner::handler(ctx, user, flag_bump)
-    // }
+    pub fn remove_registrar_earner(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {
+        instructions::open::remove_registrar_earner::handler(ctx, user, flag_bump)
+    }
 
-    // pub fn remove_earn_manager(ctx: Context<RemoveEarnManager>) -> Result<()> {
-    //     instructions::open::remove_earn_manager::handler(ctx)
-    // }
-
+    pub fn remove_earn_manager(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, flag_bump: u8) -> Result<()> {
+        instructions::open::remove_earn_manager::handler(ctx, earn_manager, flag_bump)
+    }
 
 }

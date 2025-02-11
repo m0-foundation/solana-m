@@ -4,6 +4,11 @@
 use anchor_lang::prelude::*;
 
 // local dependencies
+use crate::{
+    constants::REGISTRAR,
+    errors::EarnError,
+    state::EarnManager
+};
 use registrar::{
     constants::EARN_MANAGER_LIST,
     views::is_in_list,
@@ -17,7 +22,7 @@ pub struct RemoveEarnManager<'info> {
     #[account(
         mut,
         close = signer,
-        seeds = [EARN_MANAGER_LIST, earn_manager.as_ref()],
+        seeds = [&EARN_MANAGER_LIST, earn_manager.as_ref()],
         bump
     )]
     pub earn_manager_account: Account<'info, EarnManager>,
@@ -31,7 +36,7 @@ pub fn handler(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, flag_bump:
     // Check if the earn_manager is still on the earn_manager's list
     // If so or if the check fails, return an error
     if is_in_list(
-        REGISTRAR,
+        &REGISTRAR,
         &ctx.accounts.registrar_flag.to_account_info(),
         flag_bump,
         &EARN_MANAGER_LIST,

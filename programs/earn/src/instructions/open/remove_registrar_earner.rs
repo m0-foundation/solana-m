@@ -2,11 +2,13 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
+use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use common::constants::MINT;
 use crate::{
     constants::REGISTRAR,
+    errors::EarnError,
     state::{Earner, EARNER_SEED}
 };
 use registrar::{

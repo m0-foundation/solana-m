@@ -49,7 +49,7 @@ pub struct AddEarner<'info> {
         init,
         payer = signer,
         space = ANCHOR_DISCRIMINATOR_SIZE + Earner::INIT_SPACE,
-        seeds = [EARN_MANAGER_SEED, user_token_account.key().as_ref()],
+        seeds = [EARNER_SEED, user_token_account.key().as_ref()],
         bump
     )]
     pub earner_account: Account<'info, Earner>,
