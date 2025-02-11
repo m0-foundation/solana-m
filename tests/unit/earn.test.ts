@@ -16,7 +16,11 @@ import {
   getAccount,
   getMint,
   getMintLen,
+  getMultisig,
+  getMinimumBalanceForRentExemptMultisig,
   getAssociatedTokenAddressSync,
+  createInitializeMultisigInstruction,
+  createMintToCheckedInstruction,
 } from "@solana/spl-token";
 import { loadKeypair } from "../test-utils";
 import { Earn } from "../../target/types/earn";
@@ -66,13 +70,13 @@ const admin: Keypair = loadKeypair("test-addr/admin.json");
 const portal: Keypair = loadKeypair("test-addr/portal.json");
 const mint: Keypair = loadKeypair("test-addr/mint.json");
 const earnAuthority: Keypair = new Keypair();
+const mintAuthority: Keypair = new Keypair();
 const nonAdmin: Keypair = new Keypair();
 
 let svm: LiteSVM;
 let provider: LiteSVMProvider;
 let accounts: Record<string, PublicKey> = {};
 let earn: Program<Earn>;
-let mintMaster: Program<MintMaster>;
 let registrar: Program<Registrar>;
 
 // Start parameters
@@ -194,7 +198,39 @@ const getATA = async (mint: PublicKey, owner: PublicKey) => {
   return tokenAccount;
 }
 
-const createMint = async (mint: Keypair, mintAuthority: PublicKey) => {
+const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
+  // Create and initialize multisig mint authority on the token program
+  const multisigLen = 355;
+  // const multisigLamports = await provider.connection.getMinimumBalanceForRentExemption(multisigLen);
+  const multisigLamports = await getMinimumBalanceForRentExemptMultisig(provider.connection);
+  
+  const createMultisigAccount = SystemProgram.createAccount({
+    fromPubkey: admin.publicKey,
+    newAccountPubkey: mintAuthority.publicKey,
+    space: multisigLen,
+    lamports: multisigLamports,
+    programId: TOKEN_2022_PROGRAM_ID
+  });
+
+  const [globalAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("global")],
+    earn.programId
+  );
+
+  const initializeMultisig = createInitializeMultisigInstruction(
+    mintAuthority.publicKey, // account
+    [portal, globalAccount],
+    1,
+    TOKEN_2022_PROGRAM_ID
+  );
+
+  let tx = new Transaction();
+  tx.add(createMultisigAccount, initializeMultisig);
+
+  await provider.sendAndConfirm(tx, [admin, mintAuthority]);
+
+  // Create and initialize mint account
+
   const mintLen = getMintLen([]);
   const mintLamports =
     await provider.connection.getMinimumBalanceForRentExemption(mintLen);
@@ -209,12 +245,12 @@ const createMint = async (mint: Keypair, mintAuthority: PublicKey) => {
   const initializeMint = createInitializeMintInstruction(
     mint.publicKey,
     6, // decimals
-    mintAuthority, // mint authority
+    mintAuthority.publicKey, // mint authority
     null, // freeze authority
     TOKEN_2022_PROGRAM_ID
   );
 
-  let tx = new Transaction();
+  tx = new Transaction();
   tx.add(createMintAccount, initializeMint);
 
   await provider.sendAndConfirm(tx, [admin, mint]);
@@ -229,27 +265,21 @@ const createMint = async (mint: Keypair, mintAuthority: PublicKey) => {
 };
 
 const mintM = async (to: PublicKey, amount: BN) => {
-  const [mintMasterAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("mint-master")],
-    mintMaster.programId
-  );
-
   const toATA: PublicKey = await getATA(mint.publicKey, to);
 
-  // Populate accounts for the instruction
-  accounts = {};
-  accounts.signer = portal.publicKey;
-  accounts.mintMaster = mintMasterAccount;
-  accounts.mint = mint.publicKey;
-  accounts.toTokenAccount = toATA;
-  accounts.tokenProgram = TOKEN_2022_PROGRAM_ID;
+  const mintToInstruction = createMintToCheckedInstruction(
+    mint.publicKey,
+    toATA,
+    mintAuthority.publicKey,
+    BigInt(amount.toString()),
+    6,
+    [portal],
+    TOKEN_2022_PROGRAM_ID
+  );
 
-  // Send the instruction
-  await mintMaster.methods
-    .mintM(amount)
-    .accounts({...accounts})
-    .signers([portal])
-    .rpc();
+  let tx = new Transaction();
+  tx.add(mintToInstruction);
+  await provider.sendAndConfirm(tx, [portal]);
 };
 
 const warp = (seconds: BN, increment: boolean) => {
@@ -413,7 +443,6 @@ describe("Earn unit tests", () => {
 
     // Create program instances
     earn = new Program<Earn>(EARN_IDL, provider);
-    mintMaster = new Program<MintMaster>(MINT_MASTER_IDL, provider);
     registrar = new Program<Registrar>(REGISTRAR_IDL, provider);
 
     // Fund the wallets
@@ -422,31 +451,8 @@ describe("Earn unit tests", () => {
     svm.airdrop(earnAuthority.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
     svm.airdrop(nonAdmin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
 
-    // Get the mint master PDA to be the mint authority
-    const [mintMasterAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from("mint-master")],
-      mintMaster.programId
-    );
-
-    // Get the earn global PDA to be the distributor on the mint master
-    const [globalAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from("global")],
-      earn.programId
-    );
-
-    // Initialize the mint master program
-    await mintMaster.methods
-      .initialize(portal.publicKey, globalAccount)
-      .accounts({
-        signer: admin.publicKey,
-        mintMaster: mintMasterAccount,
-        systemProgram: SystemProgram.programId
-      })
-      .signers([admin])
-      .rpc();
-
     // Create the token mint
-    await createMint(mint, mintMasterAccount);
+    await createMint(mint, mintAuthority);
 
     // Mint some tokens to have a non-zero supply
     await mintM(admin.publicKey, initialSupply);
@@ -834,7 +840,7 @@ describe("Earn unit tests", () => {
   });
 
   describe("claim_for unit tests", () => {
-    beforeEach(() => {});
+    // beforeEach(() => {});
 
     // test cases
     // [ ] given the earn authority does not sign the transaction
