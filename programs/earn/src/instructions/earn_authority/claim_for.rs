@@ -5,21 +5,19 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // local dependencies
-use common::constants::{MINT, ONE};
+use common::{
+    constants::{MINT, ONE},
+    utils::mint_tokens
+};
 use crate::{
     errors::EarnError,
-    constants::{MINT_MASTER, REWARDS_SCALE},
+    constants::REWARDS_SCALE,
     state::{
         Global, GLOBAL_SEED,
         Earner, EARNER_SEED,
         EarnManager, EARN_MANAGER_SEED,
     },
 };
-use mint_master::{
-    cpi::{mint_m, accounts::MintM},
-    program::MintMaster as MintMasterProgram,
-};
-
 
 #[derive(Accounts)]
 pub struct ClaimFor<'info> {
@@ -48,11 +46,8 @@ pub struct ClaimFor<'info> {
 
     pub token_program: Interface<'info, TokenInterface>,
 
-    #[account(address = MINT_MASTER)]
-    pub mint_master_program: Program<'info, MintMasterProgram>,
-
-    /// CHECK: This account is checked in the CPI to MintMaster
-    pub mint_master_account: UncheckedAccount<'info>,
+    /// CHECK: This account is checked in the CPI to Token2022 program
+    pub mint_authority: UncheckedAccount<'info>,
 
     #[account(
         seeds = [EARN_MANAGER_SEED, earner.earn_manager.unwrap().as_ref()],
@@ -136,18 +131,14 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
             // TODO set some dust threshold?
             if fee > 0 {
-                let cpi_context = CpiContext::new_with_signer(
-                    ctx.accounts.mint_master_program.to_account_info(),
-                    MintM {
-                        signer: ctx.accounts.global.to_account_info(),
-                        mint_master: ctx.accounts.mint_master_account.to_account_info(),
-                        mint: ctx.accounts.mint.to_account_info(),
-                        to_token_account: earn_manager_token_account.to_account_info(),
-                        token_program: ctx.accounts.token_program.to_account_info(),
-                    },
-                    earn_global_seeds,
-                );
-                mint_m(cpi_context, fee)?;
+                mint_tokens(
+                    &earn_manager_token_account, // to
+                    &fee, // amount
+                    &ctx.accounts.mint, // mint
+                    &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
+                    earn_global_seeds, // signer seeds
+                    &ctx.accounts.token_program
+                )?;
     
                 // Return the fee to reduce the rewards by
                 fee
@@ -161,19 +152,15 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         0u64
     };
 
-    // Mint the tokens to the user's token aaccount via the MintMaster
+    // Mint the tokens to the user's token aaccount
     // The result of the CPI is the result of the handler
-    let cpi_context = CpiContext::new_with_signer(
-        ctx.accounts.mint_master_program.to_account_info(),
-        MintM {
-            signer: ctx.accounts.global.to_account_info(),
-            mint_master: ctx.accounts.mint_master_account.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            to_token_account: ctx.accounts.user_token_account.to_account_info(),
-            token_program: ctx.accounts.token_program.to_account_info(),
-        },
-        earn_global_seeds,
-    );
-    mint_m(cpi_context, rewards)
+    mint_tokens(
+        &ctx.accounts.user_token_account, // to
+        &rewards, // amount
+        &ctx.accounts.mint, // mint
+        &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
+        earn_global_seeds, // signer seeds
+        &ctx.accounts.token_program
+    )
 }
 
