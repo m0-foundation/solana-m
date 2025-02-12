@@ -24,9 +24,14 @@ pub mod earn {
         ctx: Context<Initialize>,
         earn_authority: Pubkey, 
         initial_index: u64,
-        claim_cooldown: u64
+        claim_cooldown: u64,
     ) -> Result<()> {
-        instructions::admin::initialize::handler(ctx, earn_authority, initial_index, claim_cooldown)
+        instructions::admin::initialize::handler(
+            ctx, 
+            earn_authority, 
+            initial_index, 
+            claim_cooldown,
+        )
     }
 
     pub fn set_earn_authority(ctx: Context<SetEarnAuthority>, new_earn_authority: Pubkey) -> Result<()> {
@@ -35,8 +40,18 @@ pub mod earn {
 
     // Portal instrutions
 
-    pub fn propagate_index(ctx: Context<PropagateIndex>, index: u64) -> Result<()> {
-        instructions::portal::propagate_index::handler(ctx, index)
+    pub fn propagate_index(
+        ctx: Context<PropagateIndex>, 
+        index: u64,
+        earner_merkle_root: [u8; 32],
+        earn_manager_merkle_root: [u8; 32]
+    ) -> Result<()> {
+        instructions::portal::propagate_index::handler(
+            ctx, 
+            index,
+            earner_merkle_root,
+            earn_manager_merkle_root
+        )
     }
 
     // Earn authority instructions
@@ -51,22 +66,35 @@ pub mod earn {
 
     // Earn manager instructions
 
-    pub fn add_earner(ctx: Context<AddEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {
-        instructions::earn_manager::add_earner::handler(ctx, user, flag_bump)
+    pub fn add_earner(
+        ctx: Context<AddEarner>, 
+        user: Pubkey, 
+        proof: Vec<[u8; 32]>,
+        sibling: [u8; 32]
+    ) -> Result<()> {
+        instructions::earn_manager::add_earner::handler(ctx, user, proof, sibling)
     }
 
     pub fn remove_earner(ctx: Context<RemoveEarner>, user: Pubkey) -> Result<()> {
         instructions::earn_manager::remove_earner::handler(ctx, user)
     }
 
-    pub fn configure_earn_manager(ctx: Context<ConfigureEarnManager>, fee_percent: u64, flag_bump: u8) -> Result<()> {
-        instructions::earn_manager::configure::handler(ctx, fee_percent, flag_bump)
+    pub fn configure_earn_manager(
+        ctx: Context<ConfigureEarnManager>, 
+        fee_percent: u64,
+        proof: Vec<[u8; 32]>
+    ) -> Result<()> {
+        instructions::earn_manager::configure::handler(ctx, fee_percent, proof)
     }
 
     // Open instructions
 
-    pub fn add_registrar_earner(ctx: Context<AddRegistrarEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {
-        instructions::open::add_registrar_earner::handler(ctx, user, flag_bump)
+    pub fn add_registrar_earner(
+        ctx: Context<AddRegistrarEarner>, 
+        user: Pubkey, 
+        proof: Vec<[u8; 32]>
+    ) -> Result<()> {
+        instructions::open::add_registrar_earner::handler(ctx, user, proof)
     }
 
     pub fn remove_registrar_earner(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {

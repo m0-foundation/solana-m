@@ -34,7 +34,7 @@ pub fn handler(
     ctx: Context<Initialize>,
     earn_authority: Pubkey, 
     initial_index: u64,
-    claim_cooldown: u64
+    claim_cooldown: u64,
 ) -> Result<()> {
 
     // Check that the initial index is at least 1
@@ -61,6 +61,10 @@ pub fn handler(
     global.max_supply = 0;
     global.max_yield = 0;
     global.distributed = 0;
+
+    // Initialize Merkle roots to zero - they will be set by the first propagate_index call
+    global.earner_merkle_root = [0; 32];
+    global.earn_manager_merkle_root = [0; 32];
     
     Ok(())
 }

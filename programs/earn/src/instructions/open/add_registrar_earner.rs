@@ -7,20 +7,15 @@ use anchor_spl::token_interface::{Mint, TokenAccount};
 // local dependencies
 use common::{
     constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
+    utils::verify_in_tree,
 };
 use crate::{
-    constants::REGISTRAR,
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
         Earner, EARNER_SEED,
     },
 };
-use registrar::{
-    constants::EARNER_LIST,
-    views::is_in_list,
-};
-
 
 #[derive(Accounts)]
 #[instruction(user: Pubkey)]
@@ -52,22 +47,19 @@ pub struct AddRegistrarEarner<'info> {
     )]
     pub earner_account: Account<'info, Earner>,
 
-    /// CHECK: we validate this account within the instruction
-    /// since we expect it to be an externally owned PDA
-    pub registrar_flag: UncheckedAccount<'info>,
-
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<AddRegistrarEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {
-    // Check that the user is on the earner list
-    if !is_in_list(
-        &REGISTRAR, 
-        &ctx.accounts.registrar_flag.to_account_info(),
-        flag_bump, 
-        &EARNER_LIST, 
-        &user
-    )? {
+pub fn handler(
+    ctx: Context<AddRegistrarEarner>, 
+    user: Pubkey, 
+    proof: Vec<[u8; 32]>
+) -> Result<()> {
+    // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
+    let leaf = solana_program::hash::hashv(&[&[1u8], &user.to_bytes()]).to_bytes();
+
+    // Verify the user is in the approved earners list
+    if !verify_in_tree(proof, ctx.accounts.global_account.earner_merkle_root, leaf) {
         return err!(EarnError::NotAuthorized);
     }
 
