@@ -19,9 +19,9 @@ no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
-anchor-lang = { version = "0.30.1", features = ["anchor-debug"] }
-anchor-spl = "0.30.1"
-solana-program = "=1.18.17"
+anchor-lang = { workspace = true, features = ["anchor-debug"] }
+anchor-spl.workspace = true
+solana-program.workspace = true
 common = { version = "0.1.0", path = "../common", features = ["no-entrypoint"] }
 mint_master = { version = "0.1.0", path = "../mint_master", features = ["cpi"] }
 registrar = { version = "0.1.0", path = "../registrar", features = ["cpi"] }

@@ -12,7 +12,6 @@ load(".wormhole/Tiltfile", "namespace", "k8s_yaml_with_ns")
 # Clone the native-token-transfers repository
 git_checkout('https://github.com/wormhole-foundation/native-token-transfers.git#main', '.native-token-transfers/', unsafe_mode=True)
 
-
 # Solana deploy
 docker_build(
     ref = "ntt-solana-contract",
@@ -50,11 +49,9 @@ docker_build(
     only=["./sdk", "./package.json", "./package-lock.json", "jest.config.ts", "tsconfig.json", "tsconfig.esm.json", "tsconfig.cjs.json", "tsconfig.test.json"],
     dockerfile = "./.native-token-transfers/sdk/Dockerfile",
 )
-k8s_yaml_with_ns("./.native-token-transfers/sdk/ci.yaml") 
+k8s_yaml_with_ns("ci.yaml") 
 k8s_resource(
     "ntt-ci-tests",
     labels = ["ntt"],
     resource_deps = ["eth-devnet", "eth-devnet2", "solana-devnet", "guardian", "relayer-engine", "wormchain"],
 )
-
-# See http://localhost:10350 for logs
