@@ -77,12 +77,16 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     }
 
     // Calculate the amount of tokens to send to the user
-    // TODO should we calculate the rewards per token locally for each user
-    // this would allow us to skip certain users when the amount of rewards
-    // is below some dust threshold, but also make it so they do not lose
-    // rewards in the long-run. There may be other implications of allowing
-    // rewards to persist through multiple claim cycles though.
-    let rewards_per_token: u128 = ctx.accounts.global.rewards_per_token;
+    // We calculate the rewards per token locally for each user
+    // this allows us to skip certain users when the amount of rewards
+    // is below some dust threshold without them losing rewards.
+
+    // Calculate the rewards per token for the user
+    // from their last claim index to the current one
+    let rewards_per_token: u128 = REWARDS_SCALE
+        .checked_mul(ctx.accounts.global.index.into()).unwrap()
+        .checked_div(ctx.accounts.earner.last_claim_index.into()).unwrap();
+
     let balance: u128 = snapshot_balance.into();
 
     let mut rewards: u64 = balance
@@ -130,7 +134,6 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
             // Fees are rounded down in favor of the user
             let fee = (rewards * earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
 
-            // TODO set some dust threshold?
             if fee > 0 {
                 mint_tokens(
                     &earn_manager_token_account, // to
@@ -138,7 +141,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
                     &ctx.accounts.mint, // mint
                     &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
                     earn_global_seeds, // signer seeds
-                    &ctx.accounts.token_program
+                    &ctx.accounts.token_program // token program
                 )?;
     
                 // Return the fee to reduce the rewards by
@@ -161,7 +164,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.mint, // mint
         &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
         earn_global_seeds, // signer seeds
-        &ctx.accounts.token_program
+        &ctx.accounts.token_program // token program
     )
 }
 

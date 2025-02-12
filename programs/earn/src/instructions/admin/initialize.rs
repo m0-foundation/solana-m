@@ -57,7 +57,6 @@ pub fn handler(
     global.claim_complete = true;
     
     // We explicitly set these values to zero for clarity
-    global.rewards_per_token = 0;
     global.max_supply = 0;
     global.max_yield = 0;
     global.distributed = 0;

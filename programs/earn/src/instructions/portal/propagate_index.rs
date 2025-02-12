@@ -62,7 +62,7 @@ pub fn handler(
         .checked_div(ctx.accounts.global.index.into()).unwrap();
 
     // Calculate the new max yield using the max supply (which has been updated on each call to this function)
-    let max_yield: u64 = rewards_per_token
+    let period_max: u64 = rewards_per_token
         .checked_mul(ctx.accounts.global.max_supply.into()).unwrap()
         .checked_div(REWARDS_SCALE).unwrap()
         .try_into().unwrap();
@@ -70,9 +70,16 @@ pub fn handler(
     // Update the global state
     ctx.accounts.global.index = new_index;
     ctx.accounts.global.timestamp = current_timestamp;
-    ctx.accounts.global.rewards_per_token = rewards_per_token;
     ctx.accounts.global.max_supply = current_supply; // we set this to the current supply regardless of whether it is larger since we are starting a new cycle
-    ctx.accounts.global.max_yield = max_yield;
+    
+    // Some max yield can be leftover from the previous period if yield was not claimed for some users.
+    // To get the max yield for the next claim cycle, we take the difference between the current max yield 
+    // and what was distributed to get the leftover amount. Then, we add the new potential max yield to be
+    // sent out. TODO confirm this won't get too large over time due to some users not earning.
+    // Should this be set to max u64 if it will overflow?
+    ctx.accounts.global.max_yield = ctx.accounts.global.max_yield
+        .checked_sub(ctx.accounts.global.distributed).unwrap()
+        .checked_add(period_max).unwrap();
     ctx.accounts.global.distributed = 0;
     ctx.accounts.global.claim_complete = false;
     ctx.accounts.global.earner_merkle_root = earner_merkle_root;
