@@ -59,7 +59,7 @@ pub fn handler(
     sibling: [u8; 32]
 ) -> Result<()> {
     // Verify the user is not already an earner by proving a different value exists at their position
-    let user_leaf = solana_program::hash::hashv(&[&[1u8], &user.to_bytes()]).to_bytes();
+    let user_leaf = solana_program::keccak::hash(&user.to_bytes()).to_bytes();
     if !verify_not_in_tree(
         proof,
         ctx.accounts.global_account.earner_merkle_root,

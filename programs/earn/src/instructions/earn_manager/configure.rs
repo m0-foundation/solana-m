@@ -50,7 +50,7 @@ pub fn handler(
     proof: Vec<[u8; 32]>
 ) -> Result<()> {
     // Verify the signer is an approved earn manager
-    let leaf = solana_program::hash::hashv(&[&[1u8], &ctx.accounts.signer.key().to_bytes()]).to_bytes();
+    let leaf = solana_program::keccak::hash(&ctx.accounts.signer.key().to_bytes()).to_bytes();
     if !verify_in_tree(
         proof,
         ctx.accounts.global_account.earn_manager_merkle_root,
