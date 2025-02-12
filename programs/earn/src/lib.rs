@@ -82,10 +82,10 @@ pub mod earn {
 
     pub fn configure_earn_manager(
         ctx: Context<ConfigureEarnManager>, 
-        fee_percent: u64,
+        fee_bps: u64,
         proof: Vec<[u8; 32]>
     ) -> Result<()> {
-        instructions::earn_manager::configure::handler(ctx, fee_percent, proof)
+        instructions::earn_manager::configure::handler(ctx, fee_bps, proof)
     }
 
     // Open instructions

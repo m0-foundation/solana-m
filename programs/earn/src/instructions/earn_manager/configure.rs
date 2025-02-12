@@ -6,7 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE, MINT},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE_HUNDRED_PERCENT, MINT},
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
@@ -46,7 +46,7 @@ pub struct ConfigureEarnManager<'info> {
 
 pub fn handler(
     ctx: Context<ConfigureEarnManager>, 
-    fee_percent: u64,
+    fee_bps: u64,
     proof: Vec<[u8; 32]>
 ) -> Result<()> {
     // Verify the signer is an approved earn manager
@@ -60,13 +60,13 @@ pub fn handler(
     }
 
     // Validate the fee percent is not greater than 100%
-    if fee_percent > ONE {
+    if fee_bps > ONE_HUNDRED_PERCENT {
         return err!(EarnError::InvalidParam);
     }
 
     // Configure the earn manager account
     let earn_manager = &mut ctx.accounts.earn_manager_account;
-    earn_manager.fee_percent = fee_percent;
+    earn_manager.fee_bps = fee_bps;
     earn_manager.fee_token_account = ctx.accounts.fee_token_account.key();
 
     Ok(())

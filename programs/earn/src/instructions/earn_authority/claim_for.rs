@@ -9,7 +9,7 @@ use crate::{
     errors::EarnError,
     constants::{
         MINT,
-        ONE,
+        ONE_HUNDRED_PERCENT,
         REWARDS_SCALE,
     },
     state::{
@@ -126,9 +126,9 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         };
 
         // If we reach this point, then the correct accounts have been provided and we can calculate the fee split
-        if earn_manager_account.fee_percent > 0 {
+        if earn_manager_account.fee_bps > 0 {
             // Fees are rounded down in favor of the user
-            let fee = (rewards * earn_manager_account.fee_percent) / ONE;
+            let fee = (rewards * earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
 
             // TODO set some dust threshold?
             if fee > 0 {

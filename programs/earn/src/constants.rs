@@ -12,3 +12,4 @@ pub const REGISTRAR: Pubkey = pubkey!("BsvrfNL85iCTtQoxWwnLGJECBzpzqJw1zyYyZYLU5
 
 pub const REWARDS_SCALE: u128 = 1_000_000_000_000; // 1e12 = (1e6)^2
 pub const ONE: u64 = 1_000_000; // 1e6
+pub const ONE_HUNDRED_PERCENT: u64 = 100_00; // 1e4
