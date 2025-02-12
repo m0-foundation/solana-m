@@ -4,8 +4,8 @@
 use anchor_lang::prelude::*;
 
 // local dependencies
-use common::constants::{ANCHOR_DISCRIMINATOR_SIZE, ADMIN, ONE};
 use crate::{
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, ADMIN, ONE},
     errors::EarnError,
     state::{Global, GLOBAL_SEED}
 };

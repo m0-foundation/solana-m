@@ -9,17 +9,17 @@ use solana_program;
 /// defined by `root`. For this, a `proof` must be provided, containing
 /// sibling hashes on the branch from the leaf to the root of the tree. Each
 /// pair of leaves and each pair of pre-images are assumed to be sorted.
-pub fn verify(proof: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
+pub fn verify_in_tree(proof: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
     let mut computed_hash = leaf;
     for proof_element in proof.into_iter() {
         if computed_hash <= proof_element {
             // Hash(current computed hash + current element of the proof)
             computed_hash =
-                solana_program::hash::hashv(&[&[1u8], &computed_hash, &proof_element]).to_bytes();
+                solana_program::keccak::hashv(&[computed_hash.as_slice(), proof_element.as_slice()]).to_bytes();
         } else {
             // Hash(current element of the proof + current computed hash)
             computed_hash =
-                solana_program::hash::hashv(&[&[1u8], &proof_element, &computed_hash]).to_bytes();
+                solana_program::keccak::hashv(&[proof_element.as_slice(), computed_hash.as_slice()]).to_bytes();
         }
     }
     // Check if the computed hash (root) is equal to the provided root
@@ -59,11 +59,11 @@ pub fn verify_not_in_tree(
 
         // Compute the next hash for both
         if leaf_goes_left {
-            leaf_hash = solana_program::hash::hashv(&[&[1u8], &leaf_hash, &proof_element]).to_bytes();
-            sibling_hash = solana_program::hash::hashv(&[&[1u8], &sibling_hash, &proof_element]).to_bytes();
+            leaf_hash = solana_program::keccak::hashv(&[leaf_hash.as_slice(), proof_element.as_slice()]).to_bytes();
+            sibling_hash = solana_program::keccak::hashv(&[sibling_hash.as_slice(), proof_element.as_slice()]).to_bytes();
         } else {
-            leaf_hash = solana_program::hash::hashv(&[&[1u8], &proof_element, &leaf_hash]).to_bytes();
-            sibling_hash = solana_program::hash::hashv(&[&[1u8], &proof_element, &sibling_hash]).to_bytes();
+            leaf_hash = solana_program::keccak::hashv(&[proof_element.as_slice(), leaf_hash.as_slice()]).to_bytes();
+            sibling_hash = solana_program::keccak::hashv(&[proof_element.as_slice(), sibling_hash.as_slice()]).to_bytes();
         }
     }
 

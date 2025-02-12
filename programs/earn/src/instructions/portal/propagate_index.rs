@@ -5,10 +5,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::Mint;
 
 // local dependencies
-use common::constants::MINT;
 use crate::{
     errors::EarnError,
-    constants::{PORTAL_SIGNER, REWARDS_SCALE},
+    constants::{MINT, PORTAL_SIGNER, REWARDS_SCALE},
     state::{Global, GLOBAL_SEED},
 };
 

@@ -5,16 +5,14 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount};
 
 // local dependencies
-use common::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
-    utils::verify_in_tree,
-};
 use crate::{
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
         Earner, EARNER_SEED,
     },
+    utils::merkle_proof::verify_in_tree,
 };
 
 #[derive(Accounts)]

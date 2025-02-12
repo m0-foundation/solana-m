@@ -5,13 +5,12 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    constants::REGISTRAR,
     errors::EarnError,
-    state::EarnManager
-};
-use registrar::{
-    constants::EARN_MANAGER_LIST,
-    views::is_in_list,
+    state::{
+        EarnManager, EARN_MANAGER_SEED,
+        Global, GLOBAL_SEED
+    },
+    utils::merkle_proof::verify_not_in_tree,
 };
 
 #[derive(Accounts)]
@@ -20,28 +19,26 @@ pub struct RemoveEarnManager<'info> {
     pub signer: Signer<'info>,
 
     #[account(
+        seeds = [GLOBAL_SEED],
+        bump
+    )]
+    pub global_account: Account<'info, Global>,
+
+    #[account(
         mut,
         close = signer,
-        seeds = [&EARN_MANAGER_LIST, earn_manager.as_ref()],
+        seeds = [EARN_MANAGER_SEED, earn_manager.as_ref()],
         bump
     )]
     pub earn_manager_account: Account<'info, EarnManager>,
-
-    /// CHECK: we validate this account within the instruction
-    /// since we expect it to be an externally owned PDA
-    pub registrar_flag: UncheckedAccount<'info>,
 }
 
-pub fn handler(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, flag_bump: u8) -> Result<()> {
-    // Check if the earn_manager is still on the earn_manager's list
-    // If so or if the check fails, return an error
-    if is_in_list(
-        &REGISTRAR,
-        &ctx.accounts.registrar_flag.to_account_info(),
-        flag_bump,
-        &EARN_MANAGER_LIST,
-        &earn_manager,
-    )? {
+pub fn handler(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
+    // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
+    let leaf = solana_program::hash::hashv(&[&[1u8], &earn_manager.to_bytes()]).to_bytes();
+
+    // Verify the earn manager is not in the approved earn managers list
+    if !verify_not_in_tree(proof, ctx.accounts.global_account.earn_manager_merkle_root, leaf, sibling) {
         return err!(EarnError::NotAuthorized);
     }
 

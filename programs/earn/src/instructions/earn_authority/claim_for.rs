@@ -5,18 +5,19 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // local dependencies
-use common::{
-    constants::{MINT, ONE},
-    utils::mint_tokens
-};
 use crate::{
     errors::EarnError,
-    constants::REWARDS_SCALE,
+    constants::{
+        MINT,
+        ONE,
+        REWARDS_SCALE,
+    },
     state::{
         Global, GLOBAL_SEED,
         Earner, EARNER_SEED,
         EarnManager, EARN_MANAGER_SEED,
     },
+    utils::token::mint_tokens
 };
 
 #[derive(Accounts)]

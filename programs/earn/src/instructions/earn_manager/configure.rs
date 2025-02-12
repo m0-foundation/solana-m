@@ -5,29 +5,20 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
-use common::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE, MINT},
-    utils::verify_in_tree,
-};
 use crate::{
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE, MINT},
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
         EarnManager, EARN_MANAGER_SEED,
     },
+    utils::merkle_proof::verify_in_tree,
 };
 
 #[derive(Accounts)]
 pub struct ConfigureEarnManager<'info> {
-    /// CHECK: this account must be an approved earn manager, which is denoted in the registry
-    /// We check this within the instruction because we have to deserialize and validate the registry flag first
     #[account(mut)]
     pub signer: Signer<'info>,
-
-    /// CHECK: we expect this to be a PDA owned by the REGISTRAR program
-    /// Since it is an externally owned PDA, we have to validate manually
-    /// in the instruction handler. We do this using the imported `is_in_list` function
-    pub registrar_flag: UncheckedAccount<'info>,
 
     #[account(
         seeds = [GLOBAL_SEED],

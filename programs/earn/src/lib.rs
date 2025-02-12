@@ -4,6 +4,7 @@ pub mod constants;
 pub mod errors;
 pub mod instructions;
 pub mod state;
+pub mod utils;
 
 use anchor_lang::prelude::*;
 
@@ -97,12 +98,12 @@ pub mod earn {
         instructions::open::add_registrar_earner::handler(ctx, user, proof)
     }
 
-    pub fn remove_registrar_earner(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {
-        instructions::open::remove_registrar_earner::handler(ctx, user, flag_bump)
+    pub fn remove_registrar_earner(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
+        instructions::open::remove_registrar_earner::handler(ctx, user, proof, sibling)
     }
 
-    pub fn remove_earn_manager(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, flag_bump: u8) -> Result<()> {
-        instructions::open::remove_earn_manager::handler(ctx, earn_manager, flag_bump)
+    pub fn remove_earn_manager(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
+        instructions::open::remove_earn_manager::handler(ctx, earn_manager, proof, sibling)
     }
 
 }
