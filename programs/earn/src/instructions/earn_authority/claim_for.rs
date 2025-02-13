@@ -10,7 +10,6 @@ use crate::{
     constants::{
         MINT,
         ONE_HUNDRED_PERCENT,
-        REWARDS_SCALE,
     },
     state::{
         Global, GLOBAL_SEED,
@@ -77,22 +76,10 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     }
 
     // Calculate the amount of tokens to send to the user
-    // We calculate the rewards per token locally for each user
-    // this allows us to skip certain users when the amount of rewards
-    // is below some dust threshold without them losing rewards.
-
-    // Calculate the rewards per token for the user
-    // from their last claim index to the current one
-    let rewards_per_token: u128 = REWARDS_SCALE
-        .checked_mul(ctx.accounts.global.index.into()).unwrap()
-        .checked_div(ctx.accounts.earner.last_claim_index.into()).unwrap();
-
-    let balance: u128 = snapshot_balance.into();
-
-    let mut rewards: u64 = balance
-        .checked_mul(rewards_per_token).unwrap()
-        .checked_div(REWARDS_SCALE).unwrap()
-        .try_into().unwrap();
+    let mut rewards: u64 = snapshot_balance
+        .checked_mul(ctx.accounts.global.index).unwrap()
+        .checked_div(ctx.accounts.earner.last_claim_index).unwrap()
+        - snapshot_balance; // can't underflow because global index > last claim index
 
     // Validate the rewards do not cause the distributed amount to exceed the max yield
     let distributed = ctx.accounts.global.distributed.checked_add(rewards).unwrap();
