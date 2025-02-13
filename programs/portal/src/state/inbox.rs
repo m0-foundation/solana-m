@@ -26,6 +26,22 @@ impl InboxItem {
         self.release_status = ReleaseStatus::ReleaseAfter(release_timestamp);
         Ok(())
     }
+
+    pub fn try_release(&mut self) -> Result<bool> {
+        let now = clock::Clock::get().unwrap().unix_timestamp;
+
+        match self.release_status {
+            ReleaseStatus::NotApproved => Ok(false),
+            ReleaseStatus::ReleaseAfter(release_timestamp) => {
+                if release_timestamp > now {
+                    return Ok(false);
+                }
+                self.release_status = ReleaseStatus::Released;
+                Ok(true)
+            }
+            ReleaseStatus::Released => Err(PortalError::TransferAlreadyRedeemed.into()),
+        }
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, InitSpace)]

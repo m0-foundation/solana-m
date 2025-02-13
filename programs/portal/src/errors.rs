@@ -3,6 +3,10 @@ use ntt_messages::errors::ScalingError;
 
 #[error_code]
 pub enum PortalError {
+    #[msg("CantReleaseYet")]
+    CantReleaseYet,
+    #[msg("TransferAlreadyRedeemed")]
+    TransferAlreadyRedeemed,
     #[msg("Paused")]
     Paused,
     #[msg("InvalidTransceiverPeer")]
@@ -13,6 +17,10 @@ pub enum PortalError {
     InvalidRecipientAddress,
     #[msg("InvalidNttManagerPeer")]
     InvalidNttManagerPeer,
+    #[msg("InvalidMode")]
+    InvalidMode,
+    #[msg("InvalidMultisig")]
+    InvalidMultisig,
     #[msg("TransferCannotBeRedeemed")]
     TransferCannotBeRedeemed,
     #[msg("BitmapIndexOutOfBounds")]
@@ -23,7 +31,6 @@ pub enum PortalError {
     DisabledTransceiver,
     #[msg("InvalidRecipientNttManager")]
     InvalidRecipientNttManager,
-
     #[msg("OverflowExponent")]
     OverflowExponent,
     #[msg("OverflowScaledAmount")]
