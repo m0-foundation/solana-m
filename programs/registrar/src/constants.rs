@@ -2,6 +2,7 @@
 
 use anchor_lang::prelude::*;
 pub use common::constants::ANCHOR_DISCRIMINATOR_SIZE;
+use solana_program::pubkey;
 
 #[constant]
 pub const ADMIN: Pubkey = pubkey!("A27rCMHqtKYz95PEkeadsUeMctofs3i4R8MRXNh9We9m");

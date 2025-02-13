@@ -1,13 +1,14 @@
 [toolchain]
 
 [features]
-resolution = true
+seeds = false
 skip-lint = false
 
 [programs.localnet]
 common = "37Bvn81nj7sgETZQxy2vpKjTSR6tGtuGy4gNJhC19F14"
 earn = "Ea18o3BKAQD8p3DTZ1mabgJiRM7XkoYtmh9TWgxFv6gh"
 mint_master = "7j9tN2dS7CuPfKPFvhh8HWWNgsPgN7jsDdDiPXMrjemb"
+portal = "GGxDgRiGrjX6VsCrTWJZs25Hn8dPJc346RdbgpL1Wnmi"
 registrar = "DJ3kM7oLuua6NZjnYgCA8SMFhYc1MJMAZ21HmP52ugD1"
 
 [registry]
@@ -15,7 +16,7 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "/Users/kurtis.streutker/.config/solana/id.json"
 
 [scripts]
 test = "yarn run jest --preset ts-jest"
