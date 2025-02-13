@@ -24,12 +24,8 @@ import {
 } from "@solana/spl-token";
 import { loadKeypair } from "../test-utils";
 import { Earn } from "../../target/types/earn";
-import { MintMaster } from "../../target/types/mint_master";
-import { Registrar } from "../../target/types/registrar";
 
 const EARN_IDL = require("../../target/idl/earn.json");
-const MINT_MASTER_IDL = require("../../target/idl/mint_master.json");
-const REGISTRAR_IDL = require("../../target/idl/registrar.json");
 
 // Unit tests for earn program
 // [ ] initialize
@@ -77,7 +73,6 @@ let svm: LiteSVM;
 let provider: LiteSVMProvider;
 let accounts: Record<string, PublicKey> = {};
 let earn: Program<Earn>;
-let registrar: Program<Registrar>;
 
 // Start parameters
 const initialSupply = new BN(100_000_000); // 100 tokens with 6 decimals
@@ -91,7 +86,6 @@ interface Global {
   index?: BN;
   timestamp?: BN;
   claimCooldown?: BN;
-  rewardsPerToken?: BN;
   maxSupply?: BN;
   maxYield?: BN;
   distributed?: BN;
@@ -138,7 +132,6 @@ const expectGlobalState = async (
   if (expected.index) expect(state.index.toString()).toEqual(expected.index.toString());
   if (expected.timestamp) expect(state.timestamp.toString()).toEqual(expected.timestamp.toString());
   if (expected.claimCooldown) expect(state.claimCooldown.toString()).toEqual(expected.claimCooldown.toString());
-  if (expected.rewardsPerToken) expect(state.rewardsPerToken.toString()).toEqual(expected.rewardsPerToken.toString());
   if (expected.maxSupply) expect(state.maxSupply.toString()).toEqual(expected.maxSupply.toString());
   if (expected.maxYield) expect(state.maxYield.toString()).toEqual(expected.maxYield.toString());
   if (expected.distributed) expect(state.distributed.toString()).toEqual(expected.distributed.toString());
@@ -455,7 +448,6 @@ describe("Earn unit tests", () => {
 
     // Create program instances
     earn = new Program<Earn>(EARN_IDL, provider);
-    registrar = new Program<Registrar>(REGISTRAR_IDL, provider);
 
     // Fund the wallets
     svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
@@ -874,7 +866,6 @@ describe("Earn unit tests", () => {
           maxSupply: initialSupply,
           maxYield,
           distributed: new BN(0),
-          rewardsPerToken,
           claimComplete: false
         }
       );
