@@ -37,7 +37,7 @@ pub struct ConfigureEarnManager<'info> {
 
     #[account(
         token::mint = MINT,
-        token::authority = signer, // TODO should this be configurable to another address or require it be the earn_manager?
+        token::authority = signer, 
     )]
     pub fee_token_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -66,6 +66,7 @@ pub fn handler(
 
     // Configure the earn manager account
     let earn_manager = &mut ctx.accounts.earn_manager_account;
+    earn_manager.is_active = true;
     earn_manager.fee_bps = fee_bps;
     earn_manager.fee_token_account = ctx.accounts.fee_token_account.key();
 

@@ -106,4 +106,8 @@ pub mod earn {
         instructions::open::remove_earn_manager::handler(ctx, earn_manager, proof, sibling)
     }
 
+    pub fn remove_orphaned_earner(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
+        instructions::open::remove_orphaned_earner::handler(ctx)
+    }
+
 }

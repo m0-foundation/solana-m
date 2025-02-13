@@ -26,7 +26,6 @@ pub struct RemoveEarnManager<'info> {
 
     #[account(
         mut,
-        close = signer,
         seeds = [EARN_MANAGER_SEED, earn_manager.as_ref()],
         bump
     )]
@@ -41,11 +40,10 @@ pub fn handler(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proof: Vec
     if !verify_not_in_tree(proof, ctx.accounts.global_account.earn_manager_merkle_root, leaf, sibling) {
         return err!(EarnError::NotAuthorized);
     }
-
-    // TODO what happens to the earners that the earn_manager was managing?
-    // We can't iterate through them here. We could allow an open "remove_orphaned_earner"
-    // function to remove them, and check that the earn_manager is not the zero
-    // address but that the earn_manager's account on this program is closed.
+    
+    // We do not close earn manager accounts when they are removed so that orphaned earners can be removed as well
+    // Therefore, we just set the is_active flag to false
+    ctx.accounts.earn_manager_account.is_active = false;
 
     Ok(())
 }

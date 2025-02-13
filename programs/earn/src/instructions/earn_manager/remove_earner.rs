@@ -24,7 +24,7 @@ pub struct RemoveEarner<'info> {
 
     #[account(
         mut,
-        close = signer, // TODO should we close the account or just set the flag to false?
+        close = signer, 
         seeds = [EARNER_SEED, user_token_account.key().as_ref()],
         bump
     )]
