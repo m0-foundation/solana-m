@@ -5,10 +5,7 @@ use anchor_spl::{
 };
 use ntt_messages::mode::Mode;
 
-use crate::{
-    errors::PortalError,
-    state::{InboxItem, NotPausedConfig, ReleaseStatus, SplMultisig},
-};
+use crate::{errors::PortalError, state::*};
 
 pub const TOKEN_AUTHORITY_SEED: &[u8] = b"token_authority";
 

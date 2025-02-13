@@ -7,10 +7,7 @@ use ntt_messages::{
 };
 use wormhole_anchor_sdk::wormhole::PostedVaa;
 
-use crate::{
-    errors::PortalError,
-    state::{NotPausedConfig, TransceiverPeer, ValidatedTransceiverMessage},
-};
+use crate::{errors::PortalError, state::*};
 
 #[derive(Accounts)]
 pub struct ReceiveMessage<'info> {
