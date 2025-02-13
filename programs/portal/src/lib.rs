@@ -1,6 +1,11 @@
+pub mod errors;
+pub mod instructions;
+pub mod state;
+pub mod utils;
+
 use anchor_lang::prelude::*;
 
-pub mod instructions;
+use crate::instructions::ReceiveMessage;
 
 declare_id!("GGxDgRiGrjX6VsCrTWJZs25Hn8dPJc346RdbgpL1Wnmi");
 

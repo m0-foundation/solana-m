@@ -1,11 +1,16 @@
 use anchor_lang::prelude::*;
 use ntt_messages::{
     chain_id::ChainId,
-    ntt::NativeTokenTransfer,
+    ntt::{EmptyPayload, NativeTokenTransfer},
     transceiver::{TransceiverMessage, TransceiverMessageData},
     transceivers::wormhole::WormholeTransceiver,
 };
 use wormhole_anchor_sdk::wormhole::PostedVaa;
+
+use crate::{
+    errors::PortalError,
+    state::{NotPausedConfig, TransceiverPeer, ValidatedTransceiverMessage},
+};
 
 #[derive(Accounts)]
 pub struct ReceiveMessage<'info> {
@@ -16,42 +21,30 @@ pub struct ReceiveMessage<'info> {
 
     #[account(
         seeds = [TransceiverPeer::SEED_PREFIX, vaa.emitter_chain().to_be_bytes().as_ref()],
-        constraint = peer.address == *vaa.emitter_address() @ NTTError::InvalidTransceiverPeer,
+        constraint = peer.address == *vaa.emitter_address() @ PortalError::InvalidTransceiverPeer,
         bump = peer.bump,
     )]
     pub peer: Account<'info, TransceiverPeer>,
 
-    // TODO: Consider using VaaAccount from wormhole-solana-vaa crate. Using a zero-copy reader
-    // will allow this instruction to be generic (instead of strictly specifying NativeTokenTransfer
-    // as the message type).
-    #[account(
-        // check that the messages is targeted to this chain
-        constraint = vaa.message().ntt_manager_payload.payload.to_chain == config.chain_id @ NTTError::InvalidChainId,
-        // NOTE: we don't replay protect VAAs. Instead, we replay protect
-        // executing the messages themselves with the [`released`] flag.
-    )]
+    #[account(constraint = vaa.message().ntt_manager_payload.payload.to_chain == config.chain_id @ PortalError::InvalidChainId)]
     pub vaa: Account<
         'info,
-        PostedVaa<TransceiverMessage<WormholeTransceiver, NativeTokenTransfer<Payload>>>,
+        PostedVaa<TransceiverMessage<WormholeTransceiver, NativeTokenTransfer<EmptyPayload>>>,
     >,
 
     #[account(
         init,
         payer = payer,
-        space = 8 + ValidatedTransceiverMessage::<TransceiverMessageData<NativeTokenTransfer<Payload>>>::INIT_SPACE,
+        space = 8 + ValidatedTransceiverMessage::<TransceiverMessageData<NativeTokenTransfer<EmptyPayload>>>::INIT_SPACE,
         seeds = [
-            ValidatedTransceiverMessage::<TransceiverMessageData<NativeTokenTransfer<Payload>>>::SEED_PREFIX,
+            ValidatedTransceiverMessage::<TransceiverMessageData<NativeTokenTransfer<EmptyPayload>>>::SEED_PREFIX,
             vaa.emitter_chain().to_be_bytes().as_ref(),
             vaa.message().ntt_manager_payload.id.as_ref(),
         ],
         bump,
     )]
-    // NOTE: in order to handle multiple transceivers, we can just augment the
-    // inbox item transfer struct with a bitmap storing which transceivers have
-    // attested to the transfer. Then we only release it if there's quorum.
-    // We would need to maybe_init this account in that case.
     pub transceiver_message:
-        Account<'info, ValidatedTransceiverMessage<NativeTokenTransfer<Payload>>>,
+        Account<'info, ValidatedTransceiverMessage<NativeTokenTransfer<EmptyPayload>>>,
 
     pub system_program: Program<'info, System>,
 }
