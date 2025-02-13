@@ -114,11 +114,13 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // If the earner has an earn manager, validate the earn manager account and earn manager's token account
     // Then, calculate any fee for the earn manager, mint those tokens, and reduce the rewards by the amount sent
     rewards -= if let Some(_) = ctx.accounts.earner.earn_manager {
-        // TODO how should this work if the earn manager is removed?
         let earn_manager_account = match &ctx.accounts.earn_manager_account {
             Some(earn_manager_account) => earn_manager_account,
             None => return err!(EarnError::RequiredAccountMissing)
         };
+
+        // TODO should we return an error is the earn manager is not active?
+        // This would happen if an earn manager is removed, but the orphaned earner has not been cleaned up yet
 
         let earn_manager_token_account = match &ctx.accounts.earn_manager_token_account {
             Some(earn_manager_token_account) => if earn_manager_token_account.key() != earn_manager_account.fee_token_account {
