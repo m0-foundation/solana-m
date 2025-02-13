@@ -6,7 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::MINT,
+    constants::{BIT, MINT},
     errors::EarnError,
     state::{
         Earner, EARNER_SEED,
@@ -43,7 +43,7 @@ pub struct RemoveRegistrarEarner<'info> {
 
 pub fn handler(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
     // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
-    let leaf = solana_program::keccak::hash(&user.to_bytes()).to_bytes();
+    let leaf = solana_program::keccak::hashv(&[&[BIT],&user.to_bytes()]).to_bytes();
 
     // Verify the user is not in the approved earners list
     if !verify_not_in_tree(proof, ctx.accounts.global_account.earner_merkle_root, leaf, sibling) {

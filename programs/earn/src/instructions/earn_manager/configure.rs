@@ -6,7 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE_HUNDRED_PERCENT, MINT},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, BIT, ONE_HUNDRED_PERCENT, MINT},
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
@@ -50,7 +50,7 @@ pub fn handler(
     proof: Vec<[u8; 32]>
 ) -> Result<()> {
     // Verify the signer is an approved earn manager
-    let leaf = solana_program::keccak::hash(&ctx.accounts.signer.key().to_bytes()).to_bytes();
+    let leaf = solana_program::keccak::hashv(&[&[BIT],&ctx.accounts.signer.key().to_bytes()]).to_bytes();
     if !verify_in_tree(
         proof,
         ctx.accounts.global_account.earn_manager_merkle_root,

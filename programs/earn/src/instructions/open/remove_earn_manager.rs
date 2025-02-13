@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
+    constants::BIT,
     errors::EarnError,
     state::{
         EarnManager, EARN_MANAGER_SEED,
@@ -34,7 +35,7 @@ pub struct RemoveEarnManager<'info> {
 
 pub fn handler(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
     // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
-    let leaf = solana_program::keccak::hash(&earn_manager.to_bytes()).to_bytes();
+    let leaf = solana_program::keccak::hashv(&[&[BIT],&earn_manager.to_bytes()]).to_bytes();
 
     // Verify the earn manager is not in the approved earn managers list
     if !verify_not_in_tree(proof, ctx.accounts.global_account.earn_manager_merkle_root, leaf, sibling) {

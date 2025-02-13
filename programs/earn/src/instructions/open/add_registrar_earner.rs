@@ -6,7 +6,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount};
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, BIT, MINT},
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
@@ -54,7 +54,7 @@ pub fn handler(
     proof: Vec<[u8; 32]>
 ) -> Result<()> {
     // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
-    let leaf = solana_program::keccak::hash(&user.to_bytes()).to_bytes();
+    let leaf = solana_program::keccak::hashv(&[&[BIT],&user.to_bytes()]).to_bytes();
 
     // Verify the user is in the approved earners list
     if !verify_in_tree(proof, ctx.accounts.global_account.earner_merkle_root, leaf) {
