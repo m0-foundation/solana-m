@@ -5,8 +5,8 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
-use common::constants::MINT;
 use crate::{
+    constants::MINT,
     errors::EarnError,
     state::{Earner, EARNER_SEED}
 };
@@ -24,7 +24,7 @@ pub struct RemoveEarner<'info> {
 
     #[account(
         mut,
-        close = signer, // TODO should we close the account or just set the flag to false?
+        close = signer, 
         seeds = [EARNER_SEED, user_token_account.key().as_ref()],
         bump
     )]
@@ -32,7 +32,7 @@ pub struct RemoveEarner<'info> {
 }
 
 
-pub fn handler(ctx: Context<RemoveEarner>, user: Pubkey) -> Result<()> {
+pub fn handler(ctx: Context<RemoveEarner>, _user: Pubkey) -> Result<()> {
     // Require that the earner has an earn manager
     // If not, it must be removed from the registrar
     // and a different instruction must be used

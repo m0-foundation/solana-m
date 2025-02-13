@@ -1,4 +1,5 @@
-// common/utils.rs
+
+// earn/utils/token.rs
 
 // external dependencies
 use anchor_lang::prelude::*;
@@ -13,27 +14,6 @@ use anchor_spl::token_interface::{
     TokenInterface, 
     TransferChecked
 };
-
-// local dependencies
-// use crate::constants::ONE;
-
-// This file contains general helper functions used throughout the program
-
-// pub fn get_principal_rounded_down(amount: u64, index: u64) -> u64 {
-//     amount * ONE / index
-// }
-
-// pub fn get_principal_rounded_up(amount: u64, index: u64) -> u64 {
-//     (amount * ONE + index - 1) / index
-// }
-
-// pub fn get_amount_rounded_down(principal: u64, index: u64) -> u64 {
-//     principal * index / ONE
-// }
-
-// pub fn get_amount_rounded_up(principal: u64, index: u64) -> u64 {
-//     (principal * index + ONE - 1) / ONE
-// }
 
 pub fn transfer_tokens_from_program<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,

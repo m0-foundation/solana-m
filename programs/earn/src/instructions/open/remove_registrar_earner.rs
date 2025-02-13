@@ -2,22 +2,29 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
+use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
-use common::constants::MINT;
 use crate::{
-    constants::REGISTRAR,
-    state::{Earner, EARNER_SEED}
-};
-use registrar::{
-    constants::EARNER_LIST,
-    views::is_in_list,
+    constants::MINT,
+    errors::EarnError,
+    state::{
+        Earner, EARNER_SEED,
+        Global, GLOBAL_SEED
+    },
+    utils::merkle_proof::verify_not_in_tree
 };
 
 #[derive(Accounts)]
 #[instruction(user: Pubkey)]
 pub struct RemoveRegistrarEarner<'info> {
     pub signer: Signer<'info>,
+
+    #[account(
+        seeds = [GLOBAL_SEED],
+        bump
+    )]
+    pub global_account: Account<'info, Global>,
 
     #[account(
         token::mint = MINT,
@@ -32,22 +39,14 @@ pub struct RemoveRegistrarEarner<'info> {
         bump
     )]
     pub earner_account: Account<'info, Earner>,
-
-    /// CHECK: we validate this account within the instruction
-    /// since we expect it to be an externally owned PDA
-    pub registrar_flag: UncheckedAccount<'info>,
 }
 
-pub fn handler(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, flag_bump: u8) -> Result<()> {
-    // Check if the user is still on the earner's list on the registrar
-    // If so or if the check fails, return an error
-    if is_in_list(
-        &REGISTRAR, 
-        &ctx.accounts.registrar_flag.to_account_info(),
-        flag_bump, 
-        &EARNER_LIST, 
-        &user
-    )? {
+pub fn handler(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
+    // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
+    let leaf = solana_program::keccak::hash(&user.to_bytes()).to_bytes();
+
+    // Verify the user is not in the approved earners list
+    if !verify_not_in_tree(proof, ctx.accounts.global_account.earner_merkle_root, leaf, sibling) {
         return err!(EarnError::NotAuthorized);
     }
 

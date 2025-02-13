@@ -724,15 +724,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "solana-program",
-]
-
-[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -919,9 +910,6 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
- "common",
- "mint_master",
- "registrar",
  "solana-program",
 ]
 
@@ -1312,16 +1300,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mint_master"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "common",
- "solana-program",
-]
-
-[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1660,16 +1638,6 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
-
-[[package]]
-name = "registrar"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "bs58 0.5.1",
- "common",
- "solana-program",
-]
 
 [[package]]
 name = "rustc-hash"
