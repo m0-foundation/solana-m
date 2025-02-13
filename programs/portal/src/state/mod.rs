@@ -1,7 +1,11 @@
 pub mod config;
+pub mod inbox;
 pub mod messages;
-pub mod peer;
+pub mod outbox;
+pub mod transeiver;
 
 pub use config::*;
+pub use inbox::*;
 pub use messages::*;
-pub use peer::*;
+pub use outbox::*;
+pub use transeiver::*;

@@ -3,7 +3,7 @@ use bitmaps::Bitmap as BM;
 
 use crate::errors::PortalError;
 
-#[derive(Clone, AnchorDeserialize, AnchorSerialize, InitSpace)]
+#[derive(Clone, AnchorDeserialize, AnchorSerialize, Copy, InitSpace)]
 pub struct Bitmap {
     map: u128,
 }
