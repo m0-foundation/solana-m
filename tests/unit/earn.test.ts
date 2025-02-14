@@ -16,16 +16,16 @@ import {
   getAccount,
   getMint,
   getMintLen,
+  getMultisig,
+  getMinimumBalanceForRentExemptMultisig,
   getAssociatedTokenAddressSync,
+  createInitializeMultisigInstruction,
+  createMintToCheckedInstruction,
 } from "@solana/spl-token";
 import { loadKeypair } from "../test-utils";
 import { Earn } from "../../target/types/earn";
-import { MintMaster } from "../../target/types/mint_master";
-import { Registrar } from "../../target/types/registrar";
 
 const EARN_IDL = require("../../target/idl/earn.json");
-const MINT_MASTER_IDL = require("../../target/idl/mint_master.json");
-const REGISTRAR_IDL = require("../../target/idl/registrar.json");
 
 // Unit tests for earn program
 // [ ] initialize
@@ -66,14 +66,13 @@ const admin: Keypair = loadKeypair("test-addr/admin.json");
 const portal: Keypair = loadKeypair("test-addr/portal.json");
 const mint: Keypair = loadKeypair("test-addr/mint.json");
 const earnAuthority: Keypair = new Keypair();
+const mintAuthority: Keypair = new Keypair();
 const nonAdmin: Keypair = new Keypair();
 
 let svm: LiteSVM;
 let provider: LiteSVMProvider;
 let accounts: Record<string, PublicKey> = {};
 let earn: Program<Earn>;
-let mintMaster: Program<MintMaster>;
-let registrar: Program<Registrar>;
 
 // Start parameters
 const initialSupply = new BN(100_000_000); // 100 tokens with 6 decimals
@@ -87,11 +86,12 @@ interface Global {
   index?: BN;
   timestamp?: BN;
   claimCooldown?: BN;
-  rewardsPerToken?: BN;
   maxSupply?: BN;
   maxYield?: BN;
   distributed?: BN;
   claimComplete?: boolean;
+  earnerMerkleRoot?: number[];
+  earnManagerMerkleRoot?: number[];
 }
 
 // Utility functions for the tests
@@ -132,11 +132,12 @@ const expectGlobalState = async (
   if (expected.index) expect(state.index.toString()).toEqual(expected.index.toString());
   if (expected.timestamp) expect(state.timestamp.toString()).toEqual(expected.timestamp.toString());
   if (expected.claimCooldown) expect(state.claimCooldown.toString()).toEqual(expected.claimCooldown.toString());
-  if (expected.rewardsPerToken) expect(state.rewardsPerToken.toString()).toEqual(expected.rewardsPerToken.toString());
   if (expected.maxSupply) expect(state.maxSupply.toString()).toEqual(expected.maxSupply.toString());
   if (expected.maxYield) expect(state.maxYield.toString()).toEqual(expected.maxYield.toString());
   if (expected.distributed) expect(state.distributed.toString()).toEqual(expected.distributed.toString());
   if (expected.claimComplete !== undefined) expect(state.claimComplete).toEqual(expected.claimComplete);
+  if (expected.earnerMerkleRoot) expect(state.earnerMerkleRoot).toEqual(expected.earnerMerkleRoot);
+  if (expected.earnManagerMerkleRoot) expect(state.earnManagerMerkleRoot).toEqual(expected.earnManagerMerkleRoot);
 };
 
 const getTokenBalance = async (tokenAccount: PublicKey) => {
@@ -194,7 +195,39 @@ const getATA = async (mint: PublicKey, owner: PublicKey) => {
   return tokenAccount;
 }
 
-const createMint = async (mint: Keypair, mintAuthority: PublicKey) => {
+const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
+  // Create and initialize multisig mint authority on the token program
+  const multisigLen = 355;
+  // const multisigLamports = await provider.connection.getMinimumBalanceForRentExemption(multisigLen);
+  const multisigLamports = await getMinimumBalanceForRentExemptMultisig(provider.connection);
+  
+  const createMultisigAccount = SystemProgram.createAccount({
+    fromPubkey: admin.publicKey,
+    newAccountPubkey: mintAuthority.publicKey,
+    space: multisigLen,
+    lamports: multisigLamports,
+    programId: TOKEN_2022_PROGRAM_ID
+  });
+
+  const [globalAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("global")],
+    earn.programId
+  );
+
+  const initializeMultisig = createInitializeMultisigInstruction(
+    mintAuthority.publicKey, // account
+    [portal, globalAccount],
+    1,
+    TOKEN_2022_PROGRAM_ID
+  );
+
+  let tx = new Transaction();
+  tx.add(createMultisigAccount, initializeMultisig);
+
+  await provider.sendAndConfirm(tx, [admin, mintAuthority]);
+
+  // Create and initialize mint account
+
   const mintLen = getMintLen([]);
   const mintLamports =
     await provider.connection.getMinimumBalanceForRentExemption(mintLen);
@@ -209,12 +242,12 @@ const createMint = async (mint: Keypair, mintAuthority: PublicKey) => {
   const initializeMint = createInitializeMintInstruction(
     mint.publicKey,
     6, // decimals
-    mintAuthority, // mint authority
+    mintAuthority.publicKey, // mint authority
     null, // freeze authority
     TOKEN_2022_PROGRAM_ID
   );
 
-  let tx = new Transaction();
+  tx = new Transaction();
   tx.add(createMintAccount, initializeMint);
 
   await provider.sendAndConfirm(tx, [admin, mint]);
@@ -229,27 +262,21 @@ const createMint = async (mint: Keypair, mintAuthority: PublicKey) => {
 };
 
 const mintM = async (to: PublicKey, amount: BN) => {
-  const [mintMasterAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("mint-master")],
-    mintMaster.programId
-  );
-
   const toATA: PublicKey = await getATA(mint.publicKey, to);
 
-  // Populate accounts for the instruction
-  accounts = {};
-  accounts.signer = portal.publicKey;
-  accounts.mintMaster = mintMasterAccount;
-  accounts.mint = mint.publicKey;
-  accounts.toTokenAccount = toATA;
-  accounts.tokenProgram = TOKEN_2022_PROGRAM_ID;
+  const mintToInstruction = createMintToCheckedInstruction(
+    mint.publicKey,
+    toATA,
+    mintAuthority.publicKey,
+    BigInt(amount.toString()),
+    6,
+    [portal],
+    TOKEN_2022_PROGRAM_ID
+  );
 
-  // Send the instruction
-  await mintMaster.methods
-    .mintM(amount)
-    .accounts({...accounts})
-    .signers([portal])
-    .rpc();
+  let tx = new Transaction();
+  tx.add(mintToInstruction);
+  await provider.sendAndConfirm(tx, [portal]);
 };
 
 const warp = (seconds: BN, increment: boolean) => {
@@ -354,13 +381,21 @@ const prepPropagateIndex = (signer: Keypair) => {
   return { globalAccount };
 };
 
-const propagateIndex = async (newIndex: BN) => {
+const propagateIndex = async (
+    newIndex: BN,
+    earnerMerkleRoot: number[] = new Array(32).fill(0),
+    earnManagerMerkleRoot: number[] = new Array(32).fill(0)
+) => {
   // Setup the instruction
   const { globalAccount } = prepPropagateIndex(portal);
 
   // Send the instruction
   await earn.methods
-    .propagateIndex(newIndex)
+    .propagateIndex(
+        newIndex,
+        earnerMerkleRoot,
+        earnManagerMerkleRoot
+    )
     .accounts({...accounts})
     .signers([portal])
     .rpc();
@@ -413,8 +448,6 @@ describe("Earn unit tests", () => {
 
     // Create program instances
     earn = new Program<Earn>(EARN_IDL, provider);
-    mintMaster = new Program<MintMaster>(MINT_MASTER_IDL, provider);
-    registrar = new Program<Registrar>(REGISTRAR_IDL, provider);
 
     // Fund the wallets
     svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
@@ -422,31 +455,8 @@ describe("Earn unit tests", () => {
     svm.airdrop(earnAuthority.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
     svm.airdrop(nonAdmin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
 
-    // Get the mint master PDA to be the mint authority
-    const [mintMasterAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from("mint-master")],
-      mintMaster.programId
-    );
-
-    // Get the earn global PDA to be the distributor on the mint master
-    const [globalAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from("global")],
-      earn.programId
-    );
-
-    // Initialize the mint master program
-    await mintMaster.methods
-      .initialize(portal.publicKey, globalAccount)
-      .accounts({
-        signer: admin.publicKey,
-        mintMaster: mintMasterAccount,
-        systemProgram: SystemProgram.programId
-      })
-      .signers([admin])
-      .rpc();
-
     // Create the token mint
-    await createMint(mint, mintMasterAccount);
+    await createMint(mint, mintAuthority);
 
     // Mint some tokens to have a non-zero supply
     await mintM(admin.publicKey, initialSupply);
@@ -461,19 +471,25 @@ describe("Earn unit tests", () => {
 
       // Create and send the transaction
       await earn.methods
-        .initialize(earnAuthority.publicKey, initialIndex, claimCooldown)
+        .initialize(
+            earnAuthority.publicKey, 
+            initialIndex, 
+            claimCooldown
+        )
         .accounts({ ...accounts })
         .signers([admin])
         .rpc();
 
-      // Verify the global state
+      // Verify the global state including zero-initialized Merkle roots
       await expectGlobalState(
         globalAccount,
         {
             earnAuthority: earnAuthority.publicKey,
             index: initialIndex,
             claimCooldown,
-            claimComplete: true
+            claimComplete: true,
+            earnerMerkleRoot: new Array(32).fill(0),
+            earnManagerMerkleRoot: new Array(32).fill(0)
         }
       );
     });
@@ -559,33 +575,50 @@ describe("Earn unit tests", () => {
 
     // given the portal signs the transaction
     // the transaction succeeds
-    test("Portal can update index", async () => {
+    test("Portal can update index and Merkle roots", async () => {
       const newIndex = new BN(1_100_000); // 1.1
+      const newEarnerRoot = Array(32).fill(1);
+      const newManagerRoot = Array(32).fill(2);
 
       const { globalAccount } = prepPropagateIndex(portal);
       
       await earn.methods
-        .propagateIndex(newIndex)
+        .propagateIndex(
+            newIndex,
+            newEarnerRoot,
+            newManagerRoot
+        )
         .accounts({...accounts})
         .signers([portal])
         .rpc();
 
       // Verify the global state was updated
-      await expectGlobalState(globalAccount, {
-        index: newIndex,
-      });
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: newIndex,
+          earnerMerkleRoot: newEarnerRoot,
+          earnManagerMerkleRoot: newManagerRoot
+        }
+      );
     });
 
     // given the portal does not sign the transaction
     // the transaction fails with a not authorized error
     test("Non-portal cannot update index", async () => {
       const newIndex = new BN(1_100_000);
+      const newEarnerRoot = Array(32).fill(1);
+      const newManagerRoot = Array(32).fill(2);
 
       prepPropagateIndex(nonAdmin);
       
       await expectAnchorError(
         earn.methods
-          .propagateIndex(newIndex)
+          .propagateIndex(
+              newIndex,
+              newEarnerRoot,
+              newManagerRoot
+          )
           .accounts({...accounts})
           .signers([nonAdmin])
           .rpc(),
@@ -600,25 +633,30 @@ describe("Earn unit tests", () => {
     test("propagate index - claim not complete, within cooldown period, supply <= max supply", async () => {
       // Update the index initially
       const newIndex = new BN(1_100_000);
-      const { globalAccount } = await propagateIndex(newIndex);
+      const newEarnerRoot = Array(32).fill(1);
+      const newManagerRoot = Array(32).fill(2);
+      const { globalAccount } = await propagateIndex(newIndex, newEarnerRoot, newManagerRoot);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
 
-      // Confirm that the index and timestamp is update
+      // Confirm that the index, timestamp, and Merkle roots are updated
       await expectGlobalState(
         globalAccount,
         {
           index: newIndex,
           timestamp: startTimestamp,
-          maxSupply: initialSupply
+          maxSupply: initialSupply,
+          earnerMerkleRoot: newEarnerRoot,
+          earnManagerMerkleRoot: newManagerRoot
         }
       );
 
-      // Propagate another new index immediately,
-      // the index shouldn't be updated, 
-      // but the max supply should increment with the new supply
+      // Propagate another new index immediately with different roots,
+      // only the Merkle roots should be updated
       const newNewIndex = new BN(1_150_000);
+      const newerEarnerRoot = Array(32).fill(3);
+      const newerManagerRoot = Array(32).fill(4);
 
-      await propagateIndex(newNewIndex);
+      await propagateIndex(newNewIndex, newerEarnerRoot, newerManagerRoot);
 
       // Check the state
       await expectGlobalState(
@@ -626,7 +664,9 @@ describe("Earn unit tests", () => {
         {
           index: newIndex,
           timestamp: startTimestamp,
-          maxSupply: initialSupply
+          maxSupply: initialSupply,
+          earnerMerkleRoot: newerEarnerRoot,
+          earnManagerMerkleRoot: newerManagerRoot
         }
       );
     });
@@ -826,10 +866,62 @@ describe("Earn unit tests", () => {
           maxSupply: initialSupply,
           maxYield,
           distributed: new BN(0),
-          rewardsPerToken,
           claimComplete: false
         }
       );
     });
   });
+
+  describe("claim_for unit tests", () => {
+    // beforeEach(() => {});
+
+    // test cases
+    // [ ] given the earn authority does not sign the transaction
+    //   [ ] it reverts with an address constraint error
+    // [ ] given the earn authority signs the transaction
+    //   [ ] given the user token account' earner account is not initialized
+    //     [ ] it reverts with an account not initialized error
+    //   [ ] given the earner's is_earning status is false
+    //     [ ] it reverts with a NotEarning error
+    //   [ ] given the earner's last claim index is the current index
+    //     [ ] it reverts with an AlreadyClaimed error
+    //   [ ] given the amonut to be minted causes the total distributed to exceed the max yield
+    //     [ ] it reverts with am ExceedsMaxYield error
+    //   [ ] given the earner doesn't have an earn manager
+    //     [ ] the correct amount is minted to the earner
+    //   [ ] given the earner does have an earn manager 
+    //     [ ] given no earn manager account is provided
+    //       [ ] it reverts with a RequiredAccountMissing error
+    //     [ ] given no earn manager token account is provided
+    //       [ ] it reverts with a RequiredAccountMissing error
+    //     [ ] given an earn manager token account is provided, but it doesn't match the fee recipient token account in the earn manager's configuration
+    //       [ ] it reverts with an InvalidAccount error
+    //     [ ] given the earn manager account and earn manager token account are provided correctly
+    //       [ ] when the fee percent is zero
+    //         [ ] the full amount is minted to the earner
+    //       [ ] when the fee percent is not zero, but the actual fee rounds to zero
+    //         [ ] the full amount is minted to the earner
+    //       [ ] when the fee is non-zero
+    //         [ ] the fee amount is minted to the earn manager token account
+    //         [ ] the total rewards minus the fee is minted to the earner token account   
+
+
+
+
+
+  });
+
+  describe("complete_claim unit tests", () => {});
+
+  describe("configure earn_manager unit tests", () => {});
+
+  describe("add_earner unit tests", () => {});
+
+  describe("remove_earner unit tests", () => {});  
+
+  describe("add_register_earner unit tests", () => {});
+
+  describe("remove_registrar_earner unit tests", () => {});
+
+  describe("remove_earn_manager unit tests", () => {});
 }); 

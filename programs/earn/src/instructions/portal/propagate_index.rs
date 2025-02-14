@@ -5,10 +5,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::Mint;
 
 // local dependencies
-use common::constants::MINT;
 use crate::{
     errors::EarnError,
-    constants::{PORTAL_SIGNER, REWARDS_SCALE},
+    constants::{MINT, PORTAL_SIGNER},
     state::{Global, GLOBAL_SEED},
 };
 
@@ -29,7 +28,12 @@ pub struct PropagateIndex<'info> {
     pub mint: InterfaceAccount<'info, Mint>,
 }
 
-pub fn handler(ctx: Context<PropagateIndex>, new_index: u64) -> Result<()> {
+pub fn handler(
+    ctx: Context<PropagateIndex>, 
+    new_index: u64,
+    earner_merkle_root: [u8; 32],
+    earn_manager_merkle_root: [u8; 32]
+) -> Result<()> {
     // Validate that the signer is the Portal's PDA
     if ctx.accounts.signer.key() != PORTAL_SIGNER {
         return err!(EarnError::NotAuthorized);
@@ -39,36 +43,44 @@ pub fn handler(ctx: Context<PropagateIndex>, new_index: u64) -> Result<()> {
     let current_supply = ctx.accounts.mint.supply;
 
     // Check if the previous claim cycle is complete AND the cooldown period has passed
+    // Also, check that the index is greater than the previously seen index
     // If not, update the max_supply, if needed, and return
     let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
     if !ctx.accounts.global.claim_complete || current_timestamp < 
-        ctx.accounts.global.timestamp + ctx.accounts.global.claim_cooldown {
+        ctx.accounts.global.timestamp + ctx.accounts.global.claim_cooldown
+        || new_index <= ctx.accounts.global.index {
         if current_supply > ctx.accounts.global.max_supply {
             ctx.accounts.global.max_supply = current_supply;
         }
+        // Update the Merkle roots even if we're not starting a new cycle
+        ctx.accounts.global.earner_merkle_root = earner_merkle_root;
+        ctx.accounts.global.earn_manager_merkle_root = earn_manager_merkle_root;
         return Ok(());
     }
-    
-    // Calculate the rewards per token between the previous and new index
-    let rewards_per_token: u128 = REWARDS_SCALE
-        .checked_mul(new_index.into()).unwrap()
-        .checked_div(ctx.accounts.global.index.into()).unwrap();
 
     // Calculate the new max yield using the max supply (which has been updated on each call to this function)
-    let max_yield: u64 = rewards_per_token
-        .checked_mul(ctx.accounts.global.max_supply.into()).unwrap()
-        .checked_div(REWARDS_SCALE).unwrap()
-        .try_into().unwrap();
+    let period_max: u64 = ctx.accounts.global.max_supply
+        .checked_mul(new_index).unwrap()
+        .checked_div(ctx.accounts.global.index).unwrap()
+        - ctx.accounts.global.max_supply; // can't underflow because new_index > ctx.accounts.global.index
 
     // Update the global state
-    let mut global = &mut ctx.accounts.global;
-    global.index = new_index;
-    global.timestamp = current_timestamp;
-    global.rewards_per_token = rewards_per_token;
-    global.max_supply = current_supply; // we set this to the current supply regardless of whether it is larger since we are starting a new cycle
-    global.max_yield = max_yield;
-    global.distributed = 0;
-    global.claim_complete = false;
+    ctx.accounts.global.index = new_index;
+    ctx.accounts.global.timestamp = current_timestamp;
+    ctx.accounts.global.max_supply = current_supply; // we set this to the current supply regardless of whether it is larger since we are starting a new cycle
+    
+    // Some max yield can be leftover from the previous period if yield was not claimed for some users.
+    // To get the max yield for the next claim cycle, we take the difference between the current max yield 
+    // and what was distributed to get the leftover amount. Then, we add the new potential max yield to be
+    // sent out. TODO confirm this won't get too large over time due to some users not earning.
+    // Should this be set to max u64 if it will overflow?
+    ctx.accounts.global.max_yield = ctx.accounts.global.max_yield
+        .checked_sub(ctx.accounts.global.distributed).unwrap() // can probably remove the checked sub since distributed can't be greater than max yield
+        .checked_add(period_max).unwrap();
+    ctx.accounts.global.distributed = 0;
+    ctx.accounts.global.claim_complete = false;
+    ctx.accounts.global.earner_merkle_root = earner_merkle_root;
+    ctx.accounts.global.earn_manager_merkle_root = earn_manager_merkle_root;
 
     Ok(())
 }

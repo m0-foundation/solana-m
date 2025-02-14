@@ -4,8 +4,10 @@
 use anchor_lang::prelude::*;
 
 // local dependencies
-use common::constants::ADMIN;
-use crate::state::{Global, GLOBAL_SEED};
+use crate::{
+    constants::ADMIN,
+    state::{Global, GLOBAL_SEED}
+};
 
 #[derive(Accounts)]
 pub struct SetEarnAuthority<'info> {
