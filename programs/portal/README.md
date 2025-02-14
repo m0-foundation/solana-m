@@ -1,3 +1,5 @@
+# M Portal
+
 ## Receiving a message
 Receiving a bridge message involves calling 3 methods on the solana portal program. These 3 methods are called by each transceiver and are receiveWormholeMessage, redeem, and releaseInboundMintMultisig. 
 
@@ -14,3 +16,15 @@ Redeem checks the inbound rate limit and places the message in an Inbox. If a ra
 ### ReleaseInboundMintMultisig
 Example implementation
 This method takes a released inbox item and mints and transfers the inbox item amount.
+
+## Sending a message
+
+Sending a bridge message involves calling 2 methods on the solana portal program. These methods are transferBurn and releaseOutbound. 
+
+This lifecycle is outlined in [solana-message-lifecycle.md](https://github.com/wormhole-foundation/docs.wormhole.com/blob/main/docs/native-token-transfers/architecture/solana-message-lifecycle.md#1-transfer)
+
+### TransferBurn
+The client must specify the amount of the transfer, the recipient chain, the recipient address on the recipient chain, and the boolean flag should_queue. Outbound transfers are added into an Outbox and checked against an outbound rate limit.
+
+### ReleaseOutbound
+Request each Transceiver to send messages. To execute this instruction, the caller needs to pass the account of the Outbox item to be released. The instruction will then verify that the Transceiver is one of the specified senders for the message. Transceivers then send the messages based on the verification backend they are using.

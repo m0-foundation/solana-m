@@ -1462,6 +1462,7 @@ dependencies = [
  "bitmaps 3.2.1",
  "ntt-messages",
  "wormhole-anchor-sdk",
+ "wormhole-io",
 ]
 
 [[package]]

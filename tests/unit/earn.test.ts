@@ -447,7 +447,7 @@ describe("Earn unit tests", () => {
     provider = new LiteSVMProvider(svm);
 
     // Create program instances
-    earn = new Program<Earn>(EARN_IDL, provider);
+    earn = new Program<Earn>(EARN_IDL, EARN_IDL.metadata.address, provider);
 
     // Fund the wallets
     svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));

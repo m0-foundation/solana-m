@@ -7,7 +7,7 @@ use anchor_lang::prelude::*;
 
 use crate::instructions::*;
 
-declare_id!("GGxDgRiGrjX6VsCrTWJZs25Hn8dPJc346RdbgpL1Wnmi");
+declare_id!("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr");
 
 #[program]
 pub mod portal {
@@ -28,5 +28,21 @@ pub mod portal {
         args: ReleaseInboundArgs,
     ) -> Result<()> {
         instructions::release_inbound_mint_multisig(ctx, args)
+    }
+
+    // Outbound Instructions
+
+    pub fn transfer_burn<'info>(
+        ctx: Context<'_, '_, '_, 'info, TransferBurn<'info>>,
+        args: TransferArgs,
+    ) -> Result<()> {
+        instructions::transfer_burn(ctx, args)
+    }
+
+    pub fn release_wormhole_outbound(
+        ctx: Context<ReleaseOutbound>,
+        args: ReleaseOutboundArgs,
+    ) -> Result<()> {
+        instructions::release_outbound(ctx, args)
     }
 }
