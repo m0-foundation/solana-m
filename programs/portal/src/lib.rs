@@ -38,4 +38,11 @@ pub mod portal {
     ) -> Result<()> {
         instructions::transfer_burn(ctx, args)
     }
+
+    pub fn release_wormhole_outbound(
+        ctx: Context<ReleaseOutbound>,
+        args: ReleaseOutboundArgs,
+    ) -> Result<()> {
+        instructions::release_outbound(ctx, args)
+    }
 }
