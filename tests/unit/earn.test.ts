@@ -862,23 +862,8 @@ describe("Earn unit tests", () => {
         .div(newIndex)
         .sub(initialSupply);
 
-      
-      const state = await earn.account.global.fetch(globalAccount);
-      console.log("actual", state);
-
-      const clock = svm.getClock();
-      const expected = {
-          index: newNewIndex,
-          timestamp: new BN(clock.unixTimestamp.toString()),
-          maxSupply: initialSupply,
-          maxYield,
-          distributed: new BN(0),
-          claimComplete: false 
-      };
-      console.log("expected", expected);
-
       // Check that new cycle started with all updates
-      
+      const clock = svm.getClock();
       await expectGlobalState(
         globalAccount,
         {

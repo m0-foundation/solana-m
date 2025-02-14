@@ -63,7 +63,7 @@ pub fn handler(
 
     // Calculate the new max yield using the max supply (which has been updated on each call to this function
     // We cast to a u128 for the multiplcation to avoid potential overflows
-    let mut period_max: u64 = (ctx.accounts.global.max_supply as u128)
+    let mut period_max: u64 = (ctx.accounts.global_account.max_supply as u128)
         .checked_mul(new_index.into()).unwrap()
         .checked_div(ctx.accounts.global_account.index.into()).unwrap()
         .try_into().unwrap();
