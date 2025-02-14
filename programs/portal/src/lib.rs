@@ -7,7 +7,7 @@ use anchor_lang::prelude::*;
 
 use crate::instructions::*;
 
-declare_id!("GGxDgRiGrjX6VsCrTWJZs25Hn8dPJc346RdbgpL1Wnmi");
+declare_id!("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr");
 
 #[program]
 pub mod portal {
