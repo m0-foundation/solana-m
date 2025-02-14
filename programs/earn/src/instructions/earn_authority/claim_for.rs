@@ -76,10 +76,12 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     }
 
     // Calculate the amount of tokens to send to the user
-    let mut rewards: u64 = snapshot_balance
-        .checked_mul(ctx.accounts.global.index).unwrap()
-        .checked_div(ctx.accounts.earner.last_claim_index).unwrap()
-        - snapshot_balance; // can't underflow because global index > last claim index
+    // Cast to u128 for multiplication to avoid overflows
+    let mut rewards: u64 = (snapshot_balance as u128)
+        .checked_mul(ctx.accounts.global.index.into()).unwrap()
+        .checked_div(ctx.accounts.earner.last_claim_index.into()).unwrap()
+        .try_into().unwrap();
+    rewards -= snapshot_balance; // can't underflow because global index > last claim index
 
     // Validate the rewards do not cause the distributed amount to exceed the max yield
     let distributed = ctx.accounts.global.distributed.checked_add(rewards).unwrap();

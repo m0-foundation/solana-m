@@ -61,11 +61,13 @@ pub fn handler(
         return Ok(());
     }
 
-    // Calculate the new max yield using the max supply (which has been updated on each call to this function)
-    let period_max: u64 = ctx.accounts.global.max_supply
-        .checked_mul(new_index).unwrap()
-        .checked_div(ctx.accounts.global.index).unwrap()
-        - ctx.accounts.global.max_supply; // can't underflow because new_index > ctx.accounts.global.index
+    // Calculate the new max yield using the max supply (which has been updated on each call to this function
+    // We cast to a u128 for the multiplcation to avoid potential overflows
+    let mut period_max: u64 = (ctx.accounts.global.max_supply as u128)
+        .checked_mul(new_index.into()).unwrap()
+        .checked_div(ctx.accounts.global.index.into()).unwrap()
+        .try_into().unwrap();
+    period_max -= ctx.accounts.global.max_supply; // can't underflow because new_index > ctx.accounts.global.index
 
     // Update the global state
     ctx.accounts.global.index = new_index;
