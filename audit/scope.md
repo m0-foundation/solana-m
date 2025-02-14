@@ -24,7 +24,7 @@ Features
 
 A key goal for the design was to limit the amount of Portal customization to only propagating custom messages from other chains. 
 
-![Solana M Programs](assets/solana_m_programs.png)
+![Solana M Programs](../assets/solana_m_programs.png)
 
 ## Programs
 
@@ -56,4 +56,9 @@ Yield distribution is restricted to a permissioned `earn_authority`. The Portal 
 ~~Manages system configuration through key-value storage and access control lists. These values are set by an admin, which will be configured as the Portal receiving messages from Ethereum mainnet.~~
 
 ### Portal
-An external program not included in this repository. It is a fork of the Wormhole Native Token Transfer (NTT) Manager program, customized to allow passing generic messages and a payload with transfers
+The Portal is a fork of the Wormhole Native Token Transfer (NTT) program with a few modifications to suit our purposes:
+- A custom `Payload` to be able to receive the M index as well as two merkle roots from other chains with each transfer.
+- Utilitizing the newly added Token Multisig Mint Authority functionality to allow both the Portal and Earn programs to be able to mint M.
+- Adding a couple accounts and a CPI call to the `Earn` program within the `ReleaseInboundMintMultisig` instruction to store the custom data sent in the `Payload`.
+
+This is not currently included in the scope / lines of code.
