@@ -19,6 +19,9 @@ no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
-anchor-lang = { workspace = true, features = ["anchor-debug"] }
+anchor-lang = { workspace = true, features = [
+    "anchor-debug",
+    "init-if-needed",
+] }
 anchor-spl.workspace = true
 solana-program.workspace = true
