@@ -53,6 +53,9 @@ pub fn handler(
             ctx.accounts.global.max_supply = current_supply;
         }
         // Update the Merkle roots even if we're not starting a new cycle
+        // TODO need to think about this more
+        // If the root is sent from an L2 with stale data, it could overwrite a more recent root
+        // from mainnet. Do we need to store a separate timestamp for the roots?
         ctx.accounts.global.earner_merkle_root = earner_merkle_root;
         ctx.accounts.global.earn_manager_merkle_root = earn_manager_merkle_root;
         return Ok(());
