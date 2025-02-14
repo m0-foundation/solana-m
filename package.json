@@ -3,7 +3,7 @@
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "op::program-keypairs": "mkdir -p target/deploy &&op read 'op://Solana Dev/Solana Program Keys/portal-keypair' > target/deploy/portal-keypair.json && op read 'op://Solana Dev/Solana Program Keys/earn-keypair' > target/deploy/earn-keypair.json"
+    "op::program-keypairs": "mkdir -p target/deploy &&op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/portal-keypair' > target/deploy/portal-keypair.json && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/earn-keypair' > target/deploy/earn-keypair.json"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
