@@ -76,7 +76,7 @@ let earn: Program<Earn>;
 
 // Start parameters
 const initialSupply = new BN(100_000_000); // 100 tokens with 6 decimals
-const initialIndex = new BN(1_000_000); // 1.0
+const initialIndex = new BN(1_000_000_000_000); // 1.0
 const claimCooldown = new BN(86_400) // 1 day
 
 // Type definitions for accounts to make it easier to do comparisons
@@ -127,7 +127,7 @@ const expectGlobalState = async (
   expected: Global
 ) => {
   const state = await earn.account.global.fetch(globalAccount);
-  
+
   if (expected.earnAuthority) expect(state.earnAuthority).toEqual(expected.earnAuthority);
   if (expected.index) expect(state.index.toString()).toEqual(expected.index.toString());
   if (expected.timestamp) expect(state.timestamp.toString()).toEqual(expected.timestamp.toString());
@@ -576,7 +576,7 @@ describe("Earn unit tests", () => {
     // given the portal signs the transaction
     // the transaction succeeds
     test("Portal can update index and Merkle roots", async () => {
-      const newIndex = new BN(1_100_000); // 1.1
+      const newIndex = new BN(1_100_000_000_000); // 1.1
       const newEarnerRoot = Array(32).fill(1);
       const newManagerRoot = Array(32).fill(2);
 
@@ -606,7 +606,7 @@ describe("Earn unit tests", () => {
     // given the portal does not sign the transaction
     // the transaction fails with a not authorized error
     test("Non-portal cannot update index", async () => {
-      const newIndex = new BN(1_100_000);
+      const newIndex = new BN(1_100_000_000_000);
       const newEarnerRoot = Array(32).fill(1);
       const newManagerRoot = Array(32).fill(2);
 
@@ -632,7 +632,7 @@ describe("Earn unit tests", () => {
     // nothing is updated
     test("propagate index - claim not complete, within cooldown period, supply <= max supply", async () => {
       // Update the index initially
-      const newIndex = new BN(1_100_000);
+      const newIndex = new BN(1_100_000_000_000);
       const newEarnerRoot = Array(32).fill(1);
       const newManagerRoot = Array(32).fill(2);
       const { globalAccount } = await propagateIndex(newIndex, newEarnerRoot, newManagerRoot);
@@ -652,7 +652,7 @@ describe("Earn unit tests", () => {
 
       // Propagate another new index immediately with different roots,
       // only the Merkle roots should be updated
-      const newNewIndex = new BN(1_150_000);
+      const newNewIndex = new BN(1_150_000_000_000);
       const newerEarnerRoot = Array(32).fill(3);
       const newerManagerRoot = Array(32).fill(4);
 
@@ -677,7 +677,7 @@ describe("Earn unit tests", () => {
     // max supply is updated to the current supply
     test("propagate index - claim not complete, within cooldown period, supply > max supply", async () => {
       // Update the index initially
-      const newIndex = new BN(1_100_000);
+      const newIndex = new BN(1_100_000_000_000);
       const { globalAccount } = await propagateIndex(newIndex);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
 
@@ -687,7 +687,7 @@ describe("Earn unit tests", () => {
       const newSupply = initialSupply.add(additionalSupply);
 
       // Try to propagate new index
-      const newNewIndex = new BN(1_150_000);
+      const newNewIndex = new BN(1_150_000_000);
       await propagateIndex(newNewIndex);
 
       // Check that only max supply was updated
@@ -708,7 +708,7 @@ describe("Earn unit tests", () => {
     // max supply is updated to the current supply
     test("propagate index - claim complete, within cooldown period, supply > max supply", async () => {
       // Update the index initially 
-      const newIndex = new BN(1_100_000);
+      const newIndex = new BN(1_100_000_000_000);
       const { globalAccount } = await propagateIndex(newIndex);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
 
@@ -721,7 +721,7 @@ describe("Earn unit tests", () => {
       const newSupply = initialSupply.add(additionalSupply);
 
       // Try to propagate new index
-      const newNewIndex = new BN(1_150_000);
+      const newNewIndex = new BN(1_150_000_000_000);
       await propagateIndex(newNewIndex);
 
       // Check that only max supply was updated
@@ -742,7 +742,7 @@ describe("Earn unit tests", () => {
     // nothing is updated
     test("propagate index - claim complete, within cooldown period, supply <= max supply", async () => {
       // Update the index initially
-      const newIndex = new BN(1_100_000);
+      const newIndex = new BN(1_100_000_000_000);
       const { globalAccount } = await propagateIndex(newIndex);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
 
@@ -750,7 +750,7 @@ describe("Earn unit tests", () => {
       await completeClaims();
 
       // Try to propagate new index
-      const newNewIndex = new BN(1_150_000);
+      const newNewIndex = new BN(1_150_000_000_000);
       await propagateIndex(newNewIndex);
 
       // Check that nothing was updated
@@ -771,7 +771,7 @@ describe("Earn unit tests", () => {
     // max supply is updated to the current supply
     test("propagate index - claim not complete, past cooldown period, supply > max supply", async () => {
       // Update the index initially
-      const newIndex = new BN(1_100_000);
+      const newIndex = new BN(1_100_000_000_000);
       const { globalAccount } = await propagateIndex(newIndex);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
 
@@ -784,7 +784,7 @@ describe("Earn unit tests", () => {
       const newSupply = initialSupply.add(additionalSupply);
 
       // Try to propagate new index
-      const newNewIndex = new BN(1_150_000);
+      const newNewIndex = new BN(1_150_000_000_000);
       await propagateIndex(newNewIndex);
 
       // Check that only max supply was updated
@@ -804,7 +804,7 @@ describe("Earn unit tests", () => {
     // nothing is updated
     test("propagate index - claim not complete, past cooldown period, supply <= max supply", async () => {
       // Update the index initially
-      const newIndex = new BN(1_100_000);
+      const newIndex = new BN(1_100_000_000_000);
       const { globalAccount } = await propagateIndex(newIndex);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
 
@@ -812,7 +812,7 @@ describe("Earn unit tests", () => {
       warp(claimCooldown.add(new BN(1)), true);
 
       // Try to propagate new index
-      const newNewIndex = new BN(1_150_000);
+      const newNewIndex = new BN(1_150_000_000_000);
       await propagateIndex(newNewIndex);
 
       // Check that nothing was updated
@@ -838,7 +838,7 @@ describe("Earn unit tests", () => {
     // claim complete is set to false
     test("propagate index - claim complete, past cooldown period, new cycle starts", async () => {
       // Update the index initially
-      const newIndex = new BN(1_100_000);
+      const newIndex = new BN(1_100_000_000_000);
       const { globalAccount } = await propagateIndex(newIndex);
 
       // Set claim complete
@@ -848,16 +848,37 @@ describe("Earn unit tests", () => {
       warp(claimCooldown.add(new BN(1)), true);
 
       // Try to propagate new index
-      const newNewIndex = new BN(1_150_000);
-      await propagateIndex(newNewIndex);
+      const newNewIndex = new BN(1_150_000_000_000);
+      try {
+        await propagateIndex(newNewIndex);
+      } catch (e) {
+        console.log(e);
+        expect(true).toBe(false);
+      }
 
       // Calculate expected rewards per token and max yield
-      const REWARDS_SCALE = new BN(1_000_000_000_000);
-      const rewardsPerToken = newNewIndex.mul(REWARDS_SCALE).div(newIndex);
-      const maxYield = rewardsPerToken.mul(initialSupply).div(REWARDS_SCALE);
+      const maxYield = initialSupply
+        .mul(newNewIndex)
+        .div(newIndex)
+        .sub(initialSupply);
+
+      
+      const state = await earn.account.global.fetch(globalAccount);
+      console.log("actual", state);
+
+      const clock = svm.getClock();
+      const expected = {
+          index: newNewIndex,
+          timestamp: new BN(clock.unixTimestamp.toString()),
+          maxSupply: initialSupply,
+          maxYield,
+          distributed: new BN(0),
+          claimComplete: false 
+      };
+      console.log("expected", expected);
 
       // Check that new cycle started with all updates
-      const clock = svm.getClock();
+      
       await expectGlobalState(
         globalAccount,
         {
