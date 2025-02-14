@@ -2,7 +2,8 @@
   "license": "ISC",
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "op::program-keypairs": "op read 'op://Solana Dev/Solana Program Keys/potal-keypair' >> target/deploy/portal-keypair.json && op read 'op://Solana Dev/Solana Program Keys/earn-keypair' >> target/deploy/earn-keypair.json"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
