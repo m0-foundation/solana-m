@@ -15,10 +15,6 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
 
-mainnet = ["wormhole-anchor-sdk/mainnet"]
-solana-devnet = ["wormhole-anchor-sdk/solana-devnet"]
-tilt-devnet = ["wormhole-anchor-sdk/tilt-devnet"]
-
 [dependencies]
 anchor-lang = { workspace = true, features = ["init-if-needed"] }
 anchor-spl.workspace = true
