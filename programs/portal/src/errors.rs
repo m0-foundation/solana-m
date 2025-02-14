@@ -3,38 +3,46 @@ use ntt_messages::errors::ScalingError;
 
 #[error_code]
 pub enum PortalError {
+    #[msg("BadAmountAfterBurn")]
+    BadAmountAfterBurn,
+    #[msg("BitmapIndexOutOfBounds")]
+    BitmapIndexOutOfBounds,
     #[msg("CantReleaseYet")]
     CantReleaseYet,
-    #[msg("TransferAlreadyRedeemed")]
-    TransferAlreadyRedeemed,
-    #[msg("Paused")]
-    Paused,
-    #[msg("InvalidTransceiverPeer")]
-    InvalidTransceiverPeer,
+    #[msg("DisabledTransceiver")]
+    DisabledTransceiver,
     #[msg("InvalidChainId")]
     InvalidChainId,
-    #[msg("InvalidRecipientAddress")]
-    InvalidRecipientAddress,
-    #[msg("InvalidNttManagerPeer")]
-    InvalidNttManagerPeer,
     #[msg("InvalidMode")]
     InvalidMode,
     #[msg("InvalidMultisig")]
     InvalidMultisig,
-    #[msg("TransferCannotBeRedeemed")]
-    TransferCannotBeRedeemed,
-    #[msg("BitmapIndexOutOfBounds")]
-    BitmapIndexOutOfBounds,
-    #[msg("ZeroThreshold")]
-    ZeroThreshold,
-    #[msg("DisabledTransceiver")]
-    DisabledTransceiver,
+    #[msg("InvalidNttManagerPeer")]
+    InvalidNttManagerPeer,
+    #[msg("InvalidRecipientAddress")]
+    InvalidRecipientAddress,
     #[msg("InvalidRecipientNttManager")]
     InvalidRecipientNttManager,
+    #[msg("InvalidTransceiverPeer")]
+    InvalidTransceiverPeer,
+    #[msg("MessageAlreadySent")]
+    MessageAlreadySent,
+    #[msg("NoRegisteredTransceivers")]
+    NoRegisteredTransceivers,
     #[msg("OverflowExponent")]
     OverflowExponent,
     #[msg("OverflowScaledAmount")]
     OverflowScaledAmount,
+    #[msg("Paused")]
+    Paused,
+    #[msg("TransferAlreadyRedeemed")]
+    TransferAlreadyRedeemed,
+    #[msg("TransferCannotBeRedeemed")]
+    TransferCannotBeRedeemed,
+    #[msg("TransferExceedsRateLimit")]
+    TransferExceedsRateLimit,
+    #[msg("ZeroThreshold")]
+    ZeroThreshold,
 }
 
 impl From<ScalingError> for PortalError {

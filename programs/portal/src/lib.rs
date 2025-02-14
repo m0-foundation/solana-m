@@ -29,4 +29,13 @@ pub mod portal {
     ) -> Result<()> {
         instructions::release_inbound_mint_multisig(ctx, args)
     }
+
+    // Outbound Instructions
+
+    pub fn transfer_burn<'info>(
+        ctx: Context<'_, '_, '_, 'info, TransferBurn<'info>>,
+        args: TransferArgs,
+    ) -> Result<()> {
+        instructions::transfer_burn(ctx, args)
+    }
 }
