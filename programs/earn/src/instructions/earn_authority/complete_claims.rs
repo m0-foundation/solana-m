@@ -12,7 +12,7 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct CompleteClaims<'info> {
-    #[account(address = global.earn_authority)]
+    #[account(address = global_account.earn_authority)]
     pub signer: Signer<'info>,
 
     #[account(
@@ -20,17 +20,17 @@ pub struct CompleteClaims<'info> {
         seeds = [GLOBAL_SEED],
         bump,
     )]
-    pub global: Account<'info, Global>,
+    pub global_account: Account<'info, Global>,
 }
 
 pub fn handler(ctx: Context<CompleteClaims>) -> Result<()> {
     // Validate that the latest claim cycle is not already completed
-    if ctx.accounts.global.claim_complete {
+    if ctx.accounts.global_account.claim_complete {
         return err!(EarnError::NoActiveClaim);
     }
 
     // Set the claim_complete flag to true
-    ctx.accounts.global.claim_complete = true;
+    ctx.accounts.global_account.claim_complete = true;
 
     Ok(())
 }

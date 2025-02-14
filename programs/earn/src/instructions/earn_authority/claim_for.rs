@@ -21,7 +21,7 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct ClaimFor<'info> {
-    #[account(address = global.earn_authority)]
+    #[account(address = global_account.earn_authority)]
     pub signer: Signer<'info>,
 
     #[account(
@@ -29,7 +29,7 @@ pub struct ClaimFor<'info> {
         seeds = [GLOBAL_SEED],
         bump,
     )]
-    pub global: Account<'info, Global>,
+    pub global_account: Account<'info, Global>,
 
     #[account(mut, address = MINT)]
     pub mint: InterfaceAccount<'info, Mint>,
@@ -42,7 +42,7 @@ pub struct ClaimFor<'info> {
         seeds = [EARNER_SEED, user_token_account.key().as_ref()],
         bump
     )]
-    pub earner: Account<'info, Earner>,
+    pub earner_account: Account<'info, Earner>,
 
     pub token_program: Interface<'info, TokenInterface>,
 
@@ -50,7 +50,7 @@ pub struct ClaimFor<'info> {
     pub mint_authority: UncheckedAccount<'info>,
 
     #[account(
-        seeds = [EARN_MANAGER_SEED, earner.earn_manager.unwrap().as_ref()],
+        seeds = [EARN_MANAGER_SEED, earner_account.earn_manager.unwrap().as_ref()],
         bump
     )]
     pub earn_manager_account: Option<Account<'info, EarnManager>>,
@@ -65,42 +65,44 @@ pub struct ClaimFor<'info> {
 
 pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // Validate that the earner account is still approved to earn
-    if !ctx.accounts.earner.is_earning {
+    if !ctx.accounts.earner_account.is_earning {
         return err!(EarnError::NotEarning);
     }
     
     // Validate that the earner account has not already claimed this cycle
     // Earner index should never be > global index, but we check to be safe against an error with index propagation
-    if ctx.accounts.earner.last_claim_index >= ctx.accounts.global.index {
+    if ctx.accounts.earner_account.last_claim_index >= ctx.accounts.global_account.index {
         return err!(EarnError::AlreadyClaimed);
     }
 
     // Calculate the amount of tokens to send to the user
-    let mut rewards: u64 = snapshot_balance
-        .checked_mul(ctx.accounts.global.index).unwrap()
-        .checked_div(ctx.accounts.earner.last_claim_index).unwrap()
-        - snapshot_balance; // can't underflow because global index > last claim index
+    // Cast to u128 for multiplication to avoid overflows
+    let mut rewards: u64 = (snapshot_balance as u128)
+        .checked_mul(ctx.accounts.global_account.index.into()).unwrap()
+        .checked_div(ctx.accounts.earner_account.last_claim_index.into()).unwrap()
+        .try_into().unwrap();
+    rewards -= snapshot_balance; // can't underflow because global index > last claim index
 
     // Validate the rewards do not cause the distributed amount to exceed the max yield
-    let distributed = ctx.accounts.global.distributed.checked_add(rewards).unwrap();
-    if distributed > ctx.accounts.global.max_yield {
+    let distributed = ctx.accounts.global_account.distributed.checked_add(rewards).unwrap();
+    if distributed > ctx.accounts.global_account.max_yield {
         return err!(EarnError::ExceedsMaxYield);
     }
 
     // Update the total distributed
-    ctx.accounts.global.distributed = distributed;
+    ctx.accounts.global_account.distributed = distributed;
 
     // Set the earner's last claim index to the global index
-    ctx.accounts.earner.last_claim_index = ctx.accounts.global.index;
+    ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
 
     // Setup the signer seeds for the mint CPI(s)
     let earn_global_seeds: &[&[&[u8]]] = &[&[
-        GLOBAL_SEED, &[ctx.bumps.global]
+        GLOBAL_SEED, &[ctx.bumps.global_account]
     ]];
 
     // If the earner has an earn manager, validate the earn manager account and earn manager's token account
     // Then, calculate any fee for the earn manager, mint those tokens, and reduce the rewards by the amount sent
-    rewards -= if let Some(_) = ctx.accounts.earner.earn_manager {
+    rewards -= if let Some(_) = ctx.accounts.earner_account.earn_manager {
         let earn_manager_account = match &ctx.accounts.earn_manager_account {
             Some(earn_manager_account) => earn_manager_account,
             None => return err!(EarnError::RequiredAccountMissing)
