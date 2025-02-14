@@ -13,7 +13,7 @@ pub use errors::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("Ea18o3BKAQD8p3DTZ1mabgJiRM7XkoYtmh9TWgxFv6gh");
+declare_id!("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c");
 
 #[program]
 pub mod earn {
