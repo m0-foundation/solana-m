@@ -91,24 +91,6 @@ pub struct InitializeArgs {
     pub mode: ntt_messages::mode::Mode,
 }
 
-pub fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
-    // NOTE: this check was moved into the function body to reuse the `Initialize` struct
-    // in the multisig variant while preserving ABI
-    if args.mode == Mode::Burning
-        && ctx.accounts.mint.mint_authority.unwrap() != ctx.accounts.token_authority.key()
-    {
-        return Err(NTTError::InvalidMintAuthority.into());
-    }
-
-    initialize_config_and_rate_limit(
-        ctx.accounts,
-        ctx.bumps.config,
-        args.chain_id,
-        args.limit,
-        args.mode,
-    )
-}
-
 #[derive(Accounts)]
 #[instruction(args: InitializeArgs)]
 pub struct InitializeMultisig<'info> {
@@ -129,28 +111,14 @@ pub struct InitializeMultisig<'info> {
 }
 
 pub fn initialize_multisig(ctx: Context<InitializeMultisig>, args: InitializeArgs) -> Result<()> {
-    initialize_config_and_rate_limit(
-        &mut ctx.accounts.common,
-        ctx.bumps.common.config,
-        args.chain_id,
-        args.limit,
-        args.mode,
-    )
-}
+    let common = &mut ctx.accounts.common;
 
-fn initialize_config_and_rate_limit(
-    common: &mut Initialize<'_>,
-    config_bump: u8,
-    chain_id: u16,
-    limit: u64,
-    mode: ntt_messages::mode::Mode,
-) -> Result<()> {
     common.config.set_inner(crate::config::Config {
-        bump: config_bump,
+        bump: ctx.bumps.common.config,
         mint: common.mint.key(),
         token_program: common.token_program.key(),
-        mode,
-        chain_id: ChainId { id: chain_id },
+        mode: args.mode,
+        chain_id: ChainId { id: args.chain_id },
         owner: common.deployer.key(),
         pending_owner: None,
         paused: false,
@@ -162,7 +130,7 @@ fn initialize_config_and_rate_limit(
     });
 
     common.rate_limit.set_inner(OutboxRateLimit {
-        rate_limit: RateLimitState::new(limit),
+        rate_limit: RateLimitState::new(args.limit),
     });
 
     Ok(())

@@ -107,8 +107,6 @@ impl TransferArgs {
     }
 }
 
-// Burn/mint
-
 #[derive(Accounts)]
 #[instruction(args: TransferArgs)]
 pub struct TransferBurn<'info> {
@@ -253,113 +251,6 @@ pub fn transfer_burn<'info>(
     )?;
 
     Ok(())
-}
-
-// Lock/unlock
-
-#[derive(Accounts)]
-#[instruction(args: TransferArgs)]
-pub struct TransferLock<'info> {
-    #[account(
-        constraint = common.config.mode == Mode::Locking @ NTTError::InvalidMode,
-    )]
-    pub common: Transfer<'info>,
-
-    #[account(
-        mut,
-        seeds = [InboxRateLimit::SEED_PREFIX, args.recipient_chain.id.to_be_bytes().as_ref()],
-        bump = inbox_rate_limit.bump,
-    )]
-    // NOTE: it would be nice to put these into `common`, but that way we don't
-    // have access to the instruction args
-    pub inbox_rate_limit: Account<'info, InboxRateLimit>,
-
-    #[account(
-        seeds = [NttManagerPeer::SEED_PREFIX, args.recipient_chain.id.to_be_bytes().as_ref()],
-        bump = peer.bump,
-    )]
-    pub peer: Account<'info, NttManagerPeer>,
-
-    #[account(
-        seeds = [
-            crate::SESSION_AUTHORITY_SEED,
-            common.from.owner.as_ref(),
-            args.keccak256().as_ref()
-        ],
-        bump,
-    )]
-    /// CHECK: The seeds constraint enforces that this is the correct account
-    /// See [`crate::SESSION_AUTHORITY_SEED`] for an explanation of the flow.
-    pub session_authority: UncheckedAccount<'info>,
-}
-
-pub fn transfer_lock<'info>(
-    ctx: Context<'_, '_, '_, 'info, TransferLock<'info>>,
-    args: TransferArgs,
-) -> Result<()> {
-    let accs = ctx.accounts;
-
-    let TransferArgs {
-        mut amount,
-        recipient_chain,
-        recipient_address,
-        should_queue,
-    } = args;
-
-    // TODO: should we revert if we have dust?
-    let trimmed_amount = TrimmedAmount::remove_dust(
-        &mut amount,
-        accs.common.mint.decimals,
-        accs.peer.token_decimals,
-    )
-    .map_err(NTTError::from)?;
-
-    let before = accs.common.custody.amount;
-
-    onchain::invoke_transfer_checked(
-        &accs.common.token_program.key(),
-        accs.common.from.to_account_info(),
-        accs.common.mint.to_account_info(),
-        accs.common.custody.to_account_info(),
-        accs.session_authority.to_account_info(),
-        ctx.remaining_accounts,
-        amount,
-        accs.common.mint.decimals,
-        &[&[
-            crate::SESSION_AUTHORITY_SEED,
-            accs.common.from.owner.as_ref(),
-            args.keccak256().as_ref(),
-            &[ctx.bumps.session_authority],
-        ]],
-    )?;
-
-    accs.common.custody.reload()?;
-    let after = accs.common.custody.amount;
-
-    // NOTE: we currently do not support tokens with fees. Support could be
-    // added, but it would require the client to calculate the amount _before_
-    // paying fees that results in an amount that can safely be trimmed.
-    // Otherwise, if the amount after paying fees has dust, then that amount
-    // would be lost.
-    // To support fee tokens, we would first transfer the amount, _then_ assert
-    // that the resulting amount has no dust (instead of removing dust before
-    // the transfer like we do now).
-    if after != before + amount {
-        return Err(NTTError::BadAmountAfterTransfer.into());
-    }
-
-    let recipient_ntt_manager = accs.peer.address;
-
-    insert_into_outbox(
-        &mut accs.common,
-        &mut accs.inbox_rate_limit,
-        amount,
-        trimmed_amount,
-        recipient_chain,
-        recipient_ntt_manager,
-        recipient_address,
-        should_queue,
-    )
 }
 
 fn insert_into_outbox(
