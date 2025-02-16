@@ -1,14 +1,14 @@
 use anchor_lang::prelude::*;
+
 use ntt_messages::{
-    ntt::{EmptyPayload, NativeTokenTransfer},
-    ntt_manager::NttManagerMessage,
-    transceiver::TransceiverMessage,
+    ntt::NativeTokenTransfer, ntt_manager::NttManagerMessage, transceiver::TransceiverMessage,
     transceivers::wormhole::WormholeTransceiver,
 };
-use wormhole_anchor_sdk::wormhole::{self, Finality};
-use wormhole_io::TypePrefixedPayload;
 
-use crate::{errors::PortalError, state::*};
+use crate::{
+    config::*, error::NTTError, queue::outbox::OutboxItem, registered_transceiver::*,
+    transceivers::wormhole::accounts::*, transfer::Payload,
+};
 
 #[derive(Accounts)]
 pub struct ReleaseOutbound<'info> {
@@ -19,13 +19,13 @@ pub struct ReleaseOutbound<'info> {
 
     #[account(
         mut,
-        constraint = !outbox_item.released.get(transceiver.id)? @ PortalError::MessageAlreadySent,
+        constraint = !outbox_item.released.get(transceiver.id)? @ NTTError::MessageAlreadySent,
     )]
     pub outbox_item: Account<'info, OutboxItem>,
 
     #[account(
         constraint = transceiver.transceiver_address == crate::ID,
-        constraint = config.enabled_transceivers.get(transceiver.id)? @ PortalError::DisabledTransceiver
+        constraint = config.enabled_transceivers.get(transceiver.id)? @ NTTError::DisabledTransceiver
     )]
     pub transceiver: Account<'info, RegisteredTransceiver>,
 
@@ -41,6 +41,7 @@ pub struct ReleaseOutbound<'info> {
         seeds = [b"emitter"],
         bump
     )]
+    // TODO: do we want to put anything in here?
     /// CHECK: wormhole uses this as the emitter address
     pub emitter: UncheckedAccount<'info>,
 
@@ -58,15 +59,16 @@ pub fn release_outbound(ctx: Context<ReleaseOutbound>, args: ReleaseOutboundArgs
 
     if !released {
         if args.revert_on_delay {
-            return Err(PortalError::CantReleaseYet.into());
+            return Err(NTTError::CantReleaseYet.into());
         } else {
             return Ok(());
         }
     }
 
     assert!(accs.outbox_item.released.get(accs.transceiver.id)?);
-    let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer<EmptyPayload>> =
+    let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer<Payload>> =
         TransceiverMessage::new(
+            // TODO: should we just put the ntt id here statically?
             accs.outbox_item.to_account_info().owner.to_bytes(),
             accs.outbox_item.recipient_ntt_manager,
             NttManagerMessage {
@@ -77,7 +79,7 @@ pub fn release_outbound(ctx: Context<ReleaseOutbound>, args: ReleaseOutboundArgs
                     source_token: accs.config.mint.to_bytes(),
                     to: accs.outbox_item.recipient_address,
                     to_chain: accs.outbox_item.recipient_chain,
-                    additional_payload: EmptyPayload {},
+                    additional_payload: Payload {},
                 },
             },
             vec![],
@@ -96,66 +98,6 @@ pub fn release_outbound(ctx: Context<ReleaseOutbound>, args: ReleaseOutboundArgs
             &[ctx.bumps.wormhole_message],
         ]],
     )?;
-
-    Ok(())
-}
-
-pub fn post_message<'info, A: TypePrefixedPayload>(
-    wormhole: &WormholeAccounts<'info>,
-    payer: AccountInfo<'info>,
-    message: AccountInfo<'info>,
-    emitter: AccountInfo<'info>,
-    emitter_bump: u8,
-    payload: &A,
-    additional_seeds: &[&[&[u8]]],
-) -> Result<()> {
-    let batch_id = 0;
-
-    pay_wormhole_fee(wormhole, &payer)?;
-
-    let ix = wormhole::PostMessage {
-        config: wormhole.bridge.to_account_info(),
-        message,
-        emitter,
-        sequence: wormhole.sequence.to_account_info(),
-        payer: payer.to_account_info(),
-        fee_collector: wormhole.fee_collector.to_account_info(),
-        clock: wormhole.clock.to_account_info(),
-        rent: wormhole.rent.to_account_info(),
-        system_program: wormhole.system_program.to_account_info(),
-    };
-
-    let seeds: &[&[&[&[u8]]]] = &[
-        &[&[b"emitter".as_slice(), &[emitter_bump]]],
-        additional_seeds,
-    ];
-
-    wormhole::post_message(
-        CpiContext::new_with_signer(wormhole.program.to_account_info(), ix, &seeds.concat()),
-        batch_id,
-        TypePrefixedPayload::to_vec_payload(payload),
-        Finality::Finalized, // set to confirmed for devnet
-    )?;
-
-    Ok(())
-}
-
-fn pay_wormhole_fee<'info>(
-    wormhole: &WormholeAccounts<'info>,
-    payer: &AccountInfo<'info>,
-) -> Result<()> {
-    if wormhole.bridge.fee() > 0 {
-        anchor_lang::system_program::transfer(
-            CpiContext::new(
-                wormhole.system_program.to_account_info(),
-                anchor_lang::system_program::Transfer {
-                    from: payer.to_account_info(),
-                    to: wormhole.fee_collector.to_account_info(),
-                },
-            ),
-            wormhole.bridge.fee(),
-        )?;
-    }
 
     Ok(())
 }

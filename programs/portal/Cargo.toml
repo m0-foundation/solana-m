@@ -16,14 +16,19 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
+ntt-messages = { git = "https://github.com/wormhole-foundation/native-token-transfers", rev = "738c67b", features = [
+    "anchor",
+    "hash",
+] }
 anchor-lang = { workspace = true, features = ["init-if-needed"] }
 anchor-spl.workspace = true
+spl-token-2022 = { version = "3.0.2", features = ["no-entrypoint"] }
+solana-program.workspace = true
 wormhole-anchor-sdk = { version = "0.29.0-alpha.1", default-features = false, features = [
     "mainnet",
 ] }
 wormhole-io = "0.1.3"
-ntt-messages = { git = "https://github.com/wormhole-foundation/native-token-transfers", features = [
-    "anchor",
-    "hash",
-] }
+wormhole-solana-utils = "0.3.0-alpha.1"
 bitmaps = "3.2.1"
+cfg-if.workspace = true
+solana-address-lookup-table-program.workspace = true

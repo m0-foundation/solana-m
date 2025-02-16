@@ -1,22 +1,46 @@
-use anchor_lang::{prelude::*, solana_program::keccak};
-use anchor_spl::{
-    token_2022::{burn, spl_token_2022::onchain::invoke_transfer_checked, Burn},
-    token_interface::{Mint, TokenAccount, TokenInterface},
-};
+//! This module implements the transfer instruction(s).
+//! There are two types of transfers: burning and locking, depending on the
+//! configuration of the NTT deployment.
+//!
+//! Since these two operations are very similar, we abstract out as much of the
+//! common account structure as possible into the `Transfer` struct.
+//! Due to some unfortunate limitations of Anchor, namely that it's impossible
+//! to propagate instruction data to nested account structs, there is some
+//! amount of duplication between `TransferBurn` and `TransferLock` (exactly the
+//! accounts whose constraints refer to the instruction data).
+//!
+//! See the documentation of [`crate::SESSION_AUTHORITY_SEED`] for an
+//! explanation of the approval flow.
+
+#![allow(clippy::too_many_arguments)]
+use anchor_lang::prelude::*;
+use anchor_spl::token_interface;
 use ntt_messages::{chain_id::ChainId, mode::Mode, trimmed_amount::TrimmedAmount};
+use spl_token_2022::onchain;
 
 use crate::{
-    errors::PortalError,
-    state::*,
-    utils::{Bitmap, SESSION_AUTHORITY_SEED, TOKEN_AUTHORITY_SEED},
+    bitmap::Bitmap,
+    config::*,
+    error::NTTError,
+    peer::NttManagerPeer,
+    queue::{
+        inbox::InboxRateLimit,
+        outbox::{OutboxItem, OutboxRateLimit},
+        rate_limit::RateLimitResult,
+    },
 };
 
+// this will burn the funds and create an account that either allows sending the
+// transfer immediately, or queuing up the transfer for later
 #[derive(Accounts)]
 pub struct Transfer<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    #[account(constraint = !config.enabled_transceivers.is_empty() @ PortalError::NoRegisteredTransceivers)]
+    // Ensure that there exists at least one enabled transceiver
+    #[account(
+        constraint = !config.enabled_transceivers.is_empty() @ NTTError::NoRegisteredTransceivers,
+    )]
     pub config: NotPausedConfig<'info>,
 
     #[account(
@@ -24,16 +48,17 @@ pub struct Transfer<'info> {
         address = config.mint,
     )]
     /// CHECK: the mint address matches the config
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub mint: InterfaceAccount<'info, token_interface::Mint>,
 
     #[account(
         mut,
         token::mint = mint,
     )]
-    /// CHECK: the spl token program will check that the session_authority account can spend these tokens.
-    pub from: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: the spl token program will check that the session_authority
+    ///        account can spend these tokens.
+    pub from: InterfaceAccount<'info, token_interface::TokenAccount>,
 
-    pub token_program: Interface<'info, TokenInterface>,
+    pub token_program: Interface<'info, token_interface::TokenInterface>,
 
     #[account(
         init,
@@ -49,7 +74,10 @@ pub struct Transfer<'info> {
         mut,
         address = config.custody
     )]
-    pub custody: InterfaceAccount<'info, TokenAccount>,
+    /// Tokens are always transferred to the custody account first regardless of
+    /// the mode.
+    /// For an explanation, see the note in [`transfer_burn`].
+    pub custody: InterfaceAccount<'info, token_interface::TokenAccount>,
 
     pub system_program: Program<'info, System>,
 }
@@ -63,14 +91,14 @@ pub struct TransferArgs {
 }
 
 impl TransferArgs {
-    pub fn keccak256(&self) -> keccak::Hash {
+    pub fn keccak256(&self) -> solana_program::keccak::Hash {
         let TransferArgs {
             amount,
             recipient_chain,
             recipient_address,
             should_queue,
         } = self;
-        keccak::hashv(&[
+        solana_program::keccak::hashv(&[
             amount.to_be_bytes().as_ref(),
             recipient_chain.id.to_be_bytes().as_ref(),
             recipient_address,
@@ -85,7 +113,7 @@ impl TransferArgs {
 #[instruction(args: TransferArgs)]
 pub struct TransferBurn<'info> {
     #[account(
-        constraint = common.config.mode == Mode::Burning @ PortalError::InvalidMode,
+        constraint = common.config.mode == Mode::Burning @ NTTError::InvalidMode,
     )]
     pub common: Transfer<'info>,
 
@@ -94,6 +122,8 @@ pub struct TransferBurn<'info> {
         seeds = [InboxRateLimit::SEED_PREFIX, args.recipient_chain.id.to_be_bytes().as_ref()],
         bump = inbox_rate_limit.bump,
     )]
+    // NOTE: it would be nice to put these into `common`, but that way we don't
+    // have access to the instruction args
     pub inbox_rate_limit: Account<'info, InboxRateLimit>,
 
     #[account(
@@ -104,17 +134,18 @@ pub struct TransferBurn<'info> {
 
     #[account(
         seeds = [
-            SESSION_AUTHORITY_SEED,
+            crate::SESSION_AUTHORITY_SEED,
             common.from.owner.as_ref(),
             args.keccak256().as_ref()
         ],
         bump,
     )]
     /// CHECK: The seeds constraint enforces that this is the correct account.
+    /// See [`crate::SESSION_AUTHORITY_SEED`] for an explanation of the flow.
     pub session_authority: UncheckedAccount<'info>,
 
     #[account(
-        seeds = [TOKEN_AUTHORITY_SEED],
+        seeds = [crate::TOKEN_AUTHORITY_SEED],
         bump,
     )]
     /// CHECK: The seeds constraint enforces that this is the correct account.
@@ -140,7 +171,7 @@ pub fn transfer_burn<'info>(
         accs.common.mint.decimals,
         accs.peer.token_decimals,
     )
-    .map_err(PortalError::from)?;
+    .map_err(NTTError::from)?;
 
     let before = accs.common.custody.amount;
 
@@ -160,7 +191,7 @@ pub fn transfer_burn<'info>(
     // (mint to custody, *then* transfer to recipient).
 
     // Step 1: transfer to custody account
-    invoke_transfer_checked(
+    onchain::invoke_transfer_checked(
         &accs.common.token_program.key(),
         accs.common.from.to_account_info(),
         accs.common.mint.to_account_info(),
@@ -170,7 +201,7 @@ pub fn transfer_burn<'info>(
         amount,
         accs.common.mint.decimals,
         &[&[
-            SESSION_AUTHORITY_SEED,
+            crate::SESSION_AUTHORITY_SEED,
             accs.common.from.owner.as_ref(),
             args.keccak256().as_ref(),
             &[ctx.bumps.session_authority],
@@ -178,15 +209,15 @@ pub fn transfer_burn<'info>(
     )?;
 
     // Step 2: burn the tokens from the custody account
-    burn(
+    token_interface::burn(
         CpiContext::new_with_signer(
             accs.common.token_program.to_account_info(),
-            Burn {
+            token_interface::Burn {
                 mint: accs.common.mint.to_account_info(),
                 from: accs.common.custody.to_account_info(),
                 authority: accs.token_authority.to_account_info(),
             },
-            &[&[TOKEN_AUTHORITY_SEED, &[ctx.bumps.token_authority]]],
+            &[&[crate::TOKEN_AUTHORITY_SEED, &[ctx.bumps.token_authority]]],
         ),
         amount,
     )?;
@@ -205,7 +236,7 @@ pub fn transfer_burn<'info>(
     // _after_ paying fees so as to not burn more than what was transferred to
     // the custody.
     if after != before {
-        return Err(PortalError::BadAmountAfterBurn.into());
+        return Err(NTTError::BadAmountAfterBurn.into());
     }
 
     let recipient_ntt_manager = accs.peer.address;
@@ -222,6 +253,113 @@ pub fn transfer_burn<'info>(
     )?;
 
     Ok(())
+}
+
+// Lock/unlock
+
+#[derive(Accounts)]
+#[instruction(args: TransferArgs)]
+pub struct TransferLock<'info> {
+    #[account(
+        constraint = common.config.mode == Mode::Locking @ NTTError::InvalidMode,
+    )]
+    pub common: Transfer<'info>,
+
+    #[account(
+        mut,
+        seeds = [InboxRateLimit::SEED_PREFIX, args.recipient_chain.id.to_be_bytes().as_ref()],
+        bump = inbox_rate_limit.bump,
+    )]
+    // NOTE: it would be nice to put these into `common`, but that way we don't
+    // have access to the instruction args
+    pub inbox_rate_limit: Account<'info, InboxRateLimit>,
+
+    #[account(
+        seeds = [NttManagerPeer::SEED_PREFIX, args.recipient_chain.id.to_be_bytes().as_ref()],
+        bump = peer.bump,
+    )]
+    pub peer: Account<'info, NttManagerPeer>,
+
+    #[account(
+        seeds = [
+            crate::SESSION_AUTHORITY_SEED,
+            common.from.owner.as_ref(),
+            args.keccak256().as_ref()
+        ],
+        bump,
+    )]
+    /// CHECK: The seeds constraint enforces that this is the correct account
+    /// See [`crate::SESSION_AUTHORITY_SEED`] for an explanation of the flow.
+    pub session_authority: UncheckedAccount<'info>,
+}
+
+pub fn transfer_lock<'info>(
+    ctx: Context<'_, '_, '_, 'info, TransferLock<'info>>,
+    args: TransferArgs,
+) -> Result<()> {
+    let accs = ctx.accounts;
+
+    let TransferArgs {
+        mut amount,
+        recipient_chain,
+        recipient_address,
+        should_queue,
+    } = args;
+
+    // TODO: should we revert if we have dust?
+    let trimmed_amount = TrimmedAmount::remove_dust(
+        &mut amount,
+        accs.common.mint.decimals,
+        accs.peer.token_decimals,
+    )
+    .map_err(NTTError::from)?;
+
+    let before = accs.common.custody.amount;
+
+    onchain::invoke_transfer_checked(
+        &accs.common.token_program.key(),
+        accs.common.from.to_account_info(),
+        accs.common.mint.to_account_info(),
+        accs.common.custody.to_account_info(),
+        accs.session_authority.to_account_info(),
+        ctx.remaining_accounts,
+        amount,
+        accs.common.mint.decimals,
+        &[&[
+            crate::SESSION_AUTHORITY_SEED,
+            accs.common.from.owner.as_ref(),
+            args.keccak256().as_ref(),
+            &[ctx.bumps.session_authority],
+        ]],
+    )?;
+
+    accs.common.custody.reload()?;
+    let after = accs.common.custody.amount;
+
+    // NOTE: we currently do not support tokens with fees. Support could be
+    // added, but it would require the client to calculate the amount _before_
+    // paying fees that results in an amount that can safely be trimmed.
+    // Otherwise, if the amount after paying fees has dust, then that amount
+    // would be lost.
+    // To support fee tokens, we would first transfer the amount, _then_ assert
+    // that the resulting amount has no dust (instead of removing dust before
+    // the transfer like we do now).
+    if after != before + amount {
+        return Err(NTTError::BadAmountAfterTransfer.into());
+    }
+
+    let recipient_ntt_manager = accs.peer.address;
+
+    insert_into_outbox(
+        &mut accs.common,
+        &mut accs.inbox_rate_limit,
+        amount,
+        trimmed_amount,
+        recipient_chain,
+        recipient_ntt_manager,
+        recipient_address,
+        should_queue,
+    )
 }
 
 fn insert_into_outbox(
@@ -244,7 +382,7 @@ fn insert_into_outbox(
         }
         RateLimitResult::Delayed(release_timestamp) => {
             if !should_queue {
-                return Err(PortalError::TransferExceedsRateLimit.into());
+                return Err(NTTError::TransferExceedsRateLimit.into());
             }
             release_timestamp
         }

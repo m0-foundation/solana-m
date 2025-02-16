@@ -15,3 +15,5 @@ codegen-units = 1
 anchor-lang = "0.29.0"
 anchor-spl = "0.29.0"
 solana-program = "=1.18.10"
+solana-address-lookup-table-program = "=1.18.10"
+cfg-if = "1.0"

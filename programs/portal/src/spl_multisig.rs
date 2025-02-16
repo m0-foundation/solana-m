@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program_pack::Pack, Ids, Owners};
-use anchor_spl::{token_2022::spl_token_2022, token_interface::TokenInterface};
+use anchor_spl::token_interface::TokenInterface;
 use std::ops::Deref;
 
 /// Anchor does not have a SPL Multisig wrapper as a part of the token interface:
