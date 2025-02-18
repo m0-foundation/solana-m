@@ -42,24 +42,40 @@ pub fn handler(
     // Cache the current supply of the M token
     let current_supply = ctx.accounts.mint.supply;
 
-    // Check if the previous claim cycle is complete AND the cooldown period has passed
-    // Also, check that the index is greater than the previously seen index
-    // If not, update the max_supply, if needed, and return
+    // Check if a non-zero merkle roots have been provided AND
+    // if the new index is greater than the previously seen index
+    // If so, update the merkle roots.
+    // We don't necessarily need the second check if we know updates only come
+    // from mainnet. However, it provides some protection against staleness
+    // in the event non-zero roots are sent from another chain.
+    if earner_merkle_root != [0u8; 32] &&
+        earn_manager_merkle_root != [0u8; 32] &&
+        new_index >= ctx.accounts.global_account.index
+    {
+        ctx.accounts.global_account.earner_merkle_root = earner_merkle_root;
+        ctx.accounts.global_account.earn_manager_merkle_root = earn_manager_merkle_root;
+    }
+
+    // We only want to start a new claim cycle if the conditions are correct.
+    // If any of the following are true, then we do not start a cycle
+    // - Prior claim cycle is not complete
+    // - The cooldown period after the previous claim cycle has not passed
+    // - The new index is less than or equal to the already seen index (there is no yield to claim)
+    // In this case, we only check if the max observed supply for the next cycle needs to be updated
+    // and return early.
     let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
+
     if !ctx.accounts.global_account.claim_complete || current_timestamp < 
         ctx.accounts.global_account.timestamp + ctx.accounts.global_account.claim_cooldown
         || new_index <= ctx.accounts.global_account.index {
         if current_supply > ctx.accounts.global_account.max_supply {
             ctx.accounts.global_account.max_supply = current_supply;
         }
-        // Update the Merkle roots even if we're not starting a new cycle
-        // TODO need to think about this more
-        // If the root is sent from an L2 with stale data, it could overwrite a more recent root
-        // from mainnet. Do we need to store a separate timestamp for the roots?
-        ctx.accounts.global_account.earner_merkle_root = earner_merkle_root;
-        ctx.accounts.global_account.earn_manager_merkle_root = earn_manager_merkle_root;
+        
         return Ok(());
     }
+
+    // Start a new claim cycle
 
     // Calculate the new max yield using the max supply (which has been updated on each call to this function
     // We cast to a u128 for the multiplcation to avoid potential overflows
