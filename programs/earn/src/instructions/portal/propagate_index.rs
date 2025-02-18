@@ -42,18 +42,19 @@ pub fn handler(
     // Cache the current supply of the M token
     let current_supply = ctx.accounts.mint.supply;
 
-    // Check if a non-zero merkle roots have been provided AND
-    // if the new index is greater than the previously seen index
-    // If so, update the merkle roots.
+    // Check if the new index is greater than the previously seen index
+    // If so, update the merkle roots if they are non-zero.
     // We don't necessarily need the second check if we know updates only come
     // from mainnet. However, it provides some protection against staleness
     // in the event non-zero roots are sent from another chain.
-    if earner_merkle_root != [0u8; 32] &&
-        earn_manager_merkle_root != [0u8; 32] &&
-        new_index >= ctx.accounts.global_account.index
+    if new_index >= ctx.accounts.global_account.index
     {
-        ctx.accounts.global_account.earner_merkle_root = earner_merkle_root;
-        ctx.accounts.global_account.earn_manager_merkle_root = earn_manager_merkle_root;
+        if earner_merkle_root != [0u8; 32] {
+            ctx.accounts.global_account.earner_merkle_root = earner_merkle_root;
+        }
+        if earn_manager_merkle_root != [0u8; 32] {
+            ctx.accounts.global_account.earn_manager_merkle_root = earn_manager_merkle_root;
+        }
     }
 
     // We only want to start a new claim cycle if the conditions are correct.
