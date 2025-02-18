@@ -2,7 +2,7 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount};
+use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
@@ -21,11 +21,8 @@ pub struct AddRegistrarEarner<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
-    #[account(address = MINT)]
-    pub mint: InterfaceAccount<'info, Mint>,
-
     #[account(
-        token::mint = mint,
+        token::mint = MINT,
         token::authority = user
     )]
     pub token_account: InterfaceAccount<'info, TokenAccount>,
