@@ -58,6 +58,11 @@ pub fn handler(
     proof: Vec<[u8; 32]>,
     sibling: [u8; 32]
 ) -> Result<()> {
+    // Only active earn managers can add earners
+    if !ctx.accounts.earn_manager_account.is_active {
+        return err!(EarnError::NotAuthorized);
+    }
+
     // Verify the user is not already an earner by proving a different value exists at their position
     let user_leaf = solana_program::keccak::hashv(&[&[BIT], &user.to_bytes()]).to_bytes();
     if !verify_not_in_tree(
@@ -69,10 +74,6 @@ pub fn handler(
         return err!(EarnError::AlreadyEarns);
     }
 
-    // Only active earn managers can add earners
-    if !ctx.accounts.earn_manager_account.is_active {
-        return err!(EarnError::NotAuthorized);
-    }
 
     // Initialize the user earning account
     ctx.accounts.earner_account.is_earning = true;
