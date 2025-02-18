@@ -28,38 +28,9 @@ import { Earn } from "../../target/types/earn";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 // Unit tests for earn program
-// [ ] initialize
-//   [ ] given the admin signs the transaction
-//      [ ] the global account is created
-//      [ ] the earn authority is set correctly
-//      [ ] the initial index is set correctly
-//      [ ] the claim cooldown is set correctly
-//   [ ] given a non-admin signs the transaction
-//      [ ] the transaction reverts with an address constraint error
-//
-// [ ] set_earn_authority
-//   [ ] given the admin signs the transaction
-//      [ ] the earn authority is updated
-//   [ ] given a non-admin signs the transaction
-//      [ ] the transaction reverts with an address constraint error
 //
 // [ ] propagate_index
-//   [ ] given the portal signs the transaction
-//      [ ] the index is updated
-//      [ ] the max yield is calculated correctly
-//   [ ] given a non-portal signs the transaction
-//      [ ] the transaction reverts with an invalid signer error
-//   [ ] given the cooldown period has not elapsed
-//      [ ] the transaction reverts with a cooldown not elapsed error
-//
-// [ ] claim
-//   [ ] given the earn authority signs the transaction
-//      [ ] tokens are minted to the destination account
-//      [ ] the mint amount is correct based on the index
-//   [ ] given a non-earn-authority signs the transaction
-//      [ ] the transaction reverts with an invalid signer error
-//   [ ] given the previous claim cycle is not complete
-//      [ ] the transaction reverts with a claim in progress error
+
 
 // Setup wallets once at the beginning of the test suite
 const admin: Keypair = loadKeypair("test-addr/admin.json");
@@ -463,6 +434,16 @@ describe("Earn unit tests", () => {
   });
 
   describe("initialize unit tests", () => {
+    // test cases
+    //   [X] given the admin signs the transaction
+    //      [X] the global account is created
+    //      [X] the earn authority is set correctly
+    //      [X] the initial index is set correctly
+    //      [X] the claim cooldown is set correctly
+    //   [X] given a non-admin signs the transaction
+    //      [X] the transaction reverts with an address constraint error
+
+
     // given the admin signs the transaction
     // the global account is created and configured correctly
     test("Admin can initialize earn program", async () => {
@@ -514,6 +495,12 @@ describe("Earn unit tests", () => {
   });
 
   describe("set_earn_authority unit tests", () => {
+    // test cases
+    //   [X] given the admin signs the transaction
+    //      [X] the earn authority is updated
+    //   [X] given a non-admin signs the transaction
+    //      [X] the transaction reverts with an address constraint error
+
     beforeEach(async () => {
         // Initialize the program
         await initialize(
@@ -561,6 +548,81 @@ describe("Earn unit tests", () => {
   });
 
   describe("propagate_index unit tests", () => {
+
+    // test cases
+    // [X] given the portal does not sign the transaction
+    //   [X] the transaction fails with a not authorized error
+    // [X] given the portal does sign the transaction
+    //   [ ] given the new index is less than the existing index
+    //     [ ] given the new earner merkle root is empty
+    //       [ ] it is not updated
+    //     [ ] given the new earner merkle is not empty
+    //       [ ] it is not updated
+    //     [ ] given the new earn_manager merkle root is empty
+    //       [ ] it is not updated
+    //     [ ] given the new earn_manager merkle is not empty
+    //       [ ] it is not updated
+    //   [ ] given the new index is greater than or eqal to the existing index
+    //     [ ] given the new earner merkle root is empty
+    //       [ ] it is not updated
+    //     [ ] given the new earner merkle is not empty
+    //       [ ] it is updated
+    //     [ ] given the new earn_manager merkle root is empty
+    //       [ ] it is not updated
+    //     [ ] given the new earn_manager merkle is not empty
+    //       [ ] it is updated
+    //   [X] given the last claim hasn't been completed
+    //     [X] given the time is within the cooldown period
+    //       [ ] given the new index is less than or equal to the existing index
+    //         [X] given current supply is less than or equal to max supply
+    //           [X] nothing is updated
+    //         [X] given current supply is greater than max supply
+    //           [X] max supply is updated to the current supply
+    //       [ ] given the new index is greater the existing index
+    //         [ ] given current supply is less than or equal to max supply
+    //           [ ] nothing is updated
+    //         [ ] given current supply is greater than max supply
+    //           [ ] max supply is updated to the current supply
+
+    //     [X] given the time is past the cooldown period
+    //       [ ] given the new index is less than or equal to the existing index
+    //         [X] given the current supply is less than or equal to max supply
+    //           [X] nothing is updated
+    //         [X] given the current supply is greater than max supply
+    //           [X] max supply is updated to the current supply
+    //       [ ] given the new index is greater the existing index
+    //         [ ] given current supply is less than or equal to max supply
+    //           [ ] nothing is updated
+    //         [ ] given current supply is greater than max supply
+    //           [ ] max supply is updated to the current supply
+    //   [X] given the last claim has been completed
+    //     [X] given the time is within the cooldown period
+    //       [ ] given the new index is less than or equal to the existing index
+    //         [X] given current supply is greater than max supply
+    //           [X] max supply is updated to the current supply
+    //         [X] given current supply is less than or equal to max supply
+    //           [X] nothing is updated
+    //       [ ] given the new index is greater the existing index
+    //         [ ] given current supply is less than or equal to max supply
+    //           [ ] nothing is updated
+    //         [ ] given current supply is greater than max supply
+    //           [ ] max supply is updated to the current supply
+    //     [X] given the time is past the cooldown period
+    //       [ ] given the new index is less than or equal to the existing index
+    //         [ ] given current supply is less than or equal to max supply
+    //           [ ] nothing is updated
+    //         [ ] given current supply is greater than max supply
+    //           [ ] max supply is updated to the current supply
+    //       [ ] given the new index is greater the existing index
+    //         [X] a new claim cycle starts:
+    //           [X] index is updated to the provided value
+    //           [X] timestamp is updated to the current timestamp
+    //           [X] max supply is set to the current supply
+    //           [X] distributed is set to 0
+    //           [X] max yield is updated
+    //           [X] claim complete is set to false
+
+
     beforeEach(async () => {
       // Initialize the program
       await initialize(
@@ -885,7 +947,11 @@ describe("Earn unit tests", () => {
     // [ ] given the earn authority does not sign the transaction
     //   [ ] it reverts with an address constraint error
     // [ ] given the earn authority signs the transaction
-    //   [ ] given the user token account' earner account is not initialized
+    //   [ ] given the token mint is the wrong account
+    //     [ ] it reverts with an address constraint error
+    //   [ ] given the user token account is for the wrong token mint
+    //     [ ] it reverts with an address constraint error
+    //   [ ] given the user token account's earner account is not initialized
     //     [ ] it reverts with an account not initialized error
     //   [ ] given the earner's is_earning status is false
     //     [ ] it reverts with a NotEarning error
@@ -917,17 +983,153 @@ describe("Earn unit tests", () => {
 
   });
 
-  describe("complete_claim unit tests", () => {});
+  describe("complete_claim unit tests", () => {
+    // test cases
+    // [ ] given the earn authority does not sign the transaction
+    //   [ ] it reverts with an address constraint error
+    // [ ] given the earn authority signs the transaction
+    //   [ ] given the most recent claim is complete
+    //     [ ] it reverts with a NoActiveClaim error
+    //   [ ] given the most recent claim is not complete
+    //     [ ] it sets the claim complete flag to true in the global account
 
-  describe("configure earn_manager unit tests", () => {});
+  });
 
-  describe("add_earner unit tests", () => {});
+  describe("configure earn_manager unit tests", () => {
+    // test cases
+    // [ ] given the provided merkle proof for the signer is invalid
+    //    [ ] it reverts with a NotAuthorized error
+    // [ ] given the provided merkle proof for the signer is valid
+    //    [ ] given the fee basis points is greater than 100_00 
+    //      [ ] it reverts with an InvalidParam error
+    //    [ ] given the fee basis points is less than or equal to 100_00
+    //      [ ] given the fee_token_account is for the wrong token mint
+    //        [ ] it reverts with an address constraint error
+    //      [ ] given the fee_token_account authority is not the signer
+    //        [ ] it reverts with an address constraint error
+    //      [ ] given the fee_token_account is for the correct token mint and the authority is the signer
+    //        [ ] given the earn manager account does not exist yet
+    //          [ ] it creates the earn manager account and the signer pays for it
+    //          [ ] it sets the earn manager is_active flag to true
+    //          [ ] it sets the fee_bps to the provided value
+    //          [ ] it sets the fee_token_account to the provided token account
 
-  describe("remove_earner unit tests", () => {});  
 
-  describe("add_register_earner unit tests", () => {});
+  });
 
-  describe("remove_registrar_earner unit tests", () => {});
+  describe("add_earner unit tests", () => {
+    // test cases
+    // [ ] given signer does not have an earn manager account initialized
+    //   [ ] it reverts with an account not initialized error
+    // [ ] given signer has an earn manager account initialized
+    //   [ ] given earn manager account is not active
+    //     [ ] it reverts with a NotAuthorized error
+    //   [ ] given earn manager account is active
+    //     [ ] given merkle proof for user exclusion from earner list is invalid
+    //       [ ] it reverts with an AlreadyEarns error
+    //     [ ] given merkle proof for user exclusion from earner list is valid
+    //       [ ] given user token account is for the wrong token mint
+    //         [ ] it reverts with an address constraint error
+    //       [ ] given user token account authority does not match the user pubkey
+    //         [ ] it reverts with an address constraint error:w
 
-  describe("remove_earn_manager unit tests", () => {});
+  });
+
+  describe("remove_earner unit tests", () => {
+    // test cases
+    // [ ] given signer does not have an earn manager account initialized
+    //   [ ] it reverts with an account not initialized error
+    // [ ] given signer has an earn manager account initialized
+    //   [ ] given earn manager account is not active
+    //     [ ] it reverts with a NotAuthorized error
+    //   [ ] given earn manager account is active
+    //     [ ] given the earner account does not have an earn manager
+    //       [ ] it reverts with a NotAuthorized error
+    //     [ ] given the earner account has an earn manager
+    //       [ ] given the earner's earn manager is not the signer
+    //         [ ] it reverts with a NotAuthorized error
+    //       [ ] given the earner's earn manager is the signer
+    //         [ ] the earner's is_earning flag is set to false
+    //         [ ] the earner account is closed and the signer refunded the rent
+
+  });
+
+  describe("add_register_earner unit tests", () => {
+    // test cases
+    // [ ] given the user token account is for the wrong token mint
+    //   [ ] it reverts with an address constraint error
+    // [ ] given the user token account is not for the user pubkey
+    //   [ ] it reverts with an address constraint error
+    // [ ] given the user token account is not initialized
+    //   [ ] it reverts with an account not initialized error
+    // [ ] given the earner account is already initialized
+    //   [ ] it reverts with an account already initialized error
+    // [ ] given all the accounts are valid
+    //   [ ] given the merkle proof for the user in the earner list is invalid
+    //     [ ] it reverts with an AlreadyEarns error
+    //   [ ] given the merkle proof for the user in the earner list is valid
+    //     [ ] it creates the earner account
+    //     [ ] it sets the earner account's is_earning flag to true
+    //     [ ] it sets the earner account's earn_manager to None
+    //     [ ] it sets the earner account's last_claim_index to the current index
+
+
+  });
+
+  describe("remove_registrar_earner unit tests", () => {
+    // test cases
+    // [ ] given the user token account is for the wrong token mint
+    //   [ ] it reverts with an address constraint error
+    // [ ] given the user token account is not for the user pubkey
+    //   [ ] it reverts with an address constraint error
+    // [ ] given the user token account is not initialized
+    //   [ ] it reverts with an account not initialized error
+    // [ ] given the earner account is not initialized
+    //   [ ] it reverts with an account not initialized error
+    // [ ] given all the accounts are valid
+    //   [ ] given the merkle proof for user's exclusion from the earner list is invalid
+    //     [ ] it reverts with an NotAuthorized error
+    //   [ ] given the merkle proof for user's exclusion from the earner list is valid
+    //     [ ] given the earner account has an earn manager
+    //       [ ] it reverts with a NotAuthorized error
+    //     [ ] given the earner account does not have an earn manager
+    //       [ ] it sets the earner account's is_earning flag to false
+    //       [ ] it closes the earner account and refunds the rent to the signer
+
+
+  });
+
+  describe("remove_earn_manager unit tests", () => {
+    // test cases
+    // [ ] given the earn manager account is not initialized
+    //   [ ] it reverts with an account not initialized error
+    // [ ] given the earn manager account is initialized
+    //   [ ] given the earn manager account is not active
+    //     [ ] it reverts with a NotActive error
+    //   [ ] given the earn manager account is active
+    //     [ ] given the merkle proof for the earn manager's exclusion from the earn manager list is invalid
+    //       [ ] it reverts with a NotAuthorized error
+    //     [ ] given the merkle proof for the earn manager's exclusion from the earn manager list is valid
+    //       [ ] it sets the earn manager account's is_active flag to false
+  });
+
+  describe("remove_orphaned_earner unit tests", () => {
+    // test cases
+    // [ ] given the user token account is for the wrong token mint
+    //   [ ] it reverts with an address constraint error
+    // [ ] given the earner account is not initialized
+    //   [ ] it reverts with an account not initialized error
+    // [ ] given the earn manager account is not initialized
+    //   [ ] it reverts with an account not initialized error
+    // [ ] given all the accounts are valid
+    //   [ ] given the earner does not have an earn manager
+    //     [ ] it reverts with a NotAuthorized error
+    //   [ ] given the earner has an earn manager
+    //     [ ] given the earn manager account is active
+    //       [ ] it reverts with a NotAuthorized error
+    //     [ ] given the earn manager account is not active
+    //       [ ] it sets the earner account's is_earning flag to false
+    //       [ ] it closes the earner account and refunds the rent to the signer
+
+  });
 }); 
