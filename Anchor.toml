@@ -22,10 +22,6 @@ test = "yarn run jest --preset ts-jest tests/unit/portal.test.ts"
 address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
 program = "tests/accounts/core_bridge.so"
 
-[[test.genesis]]
-address = "Ee6jpX9oq2EsGuqGb6iZZxvtcpmMGZk8SAUbnQy4jcHR"
-program = "tests/accounts/ntt_transceiver.so"
-
 [[test.validator.account]]
 address = "2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn"
 filename = "tests/accounts/core_bridge_config.json"
