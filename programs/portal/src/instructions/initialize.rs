@@ -18,7 +18,7 @@ pub struct Initialize<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    #[account(address = program_data.upgrade_authority_address.unwrap_or_default())]
+    // #[account(address = program_data.upgrade_authority_address.unwrap_or_default())]
     pub deployer: Signer<'info>,
 
     #[account(
