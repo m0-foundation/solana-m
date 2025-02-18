@@ -69,6 +69,11 @@ pub fn handler(
         return err!(EarnError::AlreadyEarns);
     }
 
+    // Only active earn managers can add earners
+    if !ctx.accounts.earn_manager_account.is_active {
+        return err!(EarnError::NotAuthorized);
+    }
+
     // Initialize the user earning account
     ctx.accounts.earner_account.is_earning = true;
     ctx.accounts.earner_account.earn_manager = Some(ctx.accounts.signer.key().clone());

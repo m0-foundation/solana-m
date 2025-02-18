@@ -8,7 +8,10 @@ use anchor_spl::token_interface::TokenAccount;
 use crate::{
     constants::MINT,
     errors::EarnError,
-    state::{Earner, EARNER_SEED}
+    state::{
+        Earner, EARNER_SEED,
+        EarnManager, EARN_MANAGER_SEED,
+    },
 };
 
 #[derive(Accounts)]
@@ -29,10 +32,22 @@ pub struct RemoveEarner<'info> {
         bump
     )]
     pub earner_account: Account<'info, Earner>,
+
+    #[account(
+        mut,
+        seeds = [EARN_MANAGER_SEED, signer.key().as_ref()],
+        bump
+    )]
+    pub earn_manager_account: Account<'info, EarnManager>,
 }
 
 
 pub fn handler(ctx: Context<RemoveEarner>, _user: Pubkey) -> Result<()> {
+    // Only active earn managers can remove earners
+    if !ctx.accounts.earn_manager_account.is_active {
+        return err!(EarnError::NotAuthorized);
+    }
+
     // Require that the earner has an earn manager
     // If not, it must be removed from the registrar
     // and a different instruction must be used
