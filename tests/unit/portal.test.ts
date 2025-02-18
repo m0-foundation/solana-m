@@ -32,7 +32,6 @@ const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const CORE_BRIDGE_ADDRESS = contracts.coreBridge("Mainnet", "Solana");
 const NTT_ADDRESS = new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr")
-const WH_TRANSCEIVER_ADDRESS = new PublicKey("Ee6jpX9oq2EsGuqGb6iZZxvtcpmMGZk8SAUbnQy4jcHR")
 
 const w = new Wormhole("Devnet", [SolanaPlatform], {
     chains: { Solana: { contracts: { coreBridge: CORE_BRIDGE_ADDRESS } } },
@@ -71,14 +70,6 @@ const mint = anchor.web3.Keypair.generate();
 const coreBridge = new SolanaWormholeCore("Devnet", "Solana", connection, {
     coreBridge: CORE_BRIDGE_ADDRESS,
 });
-
-const nttTransceivers = {
-    wormhole: getTransceiverProgram(
-        connection,
-        WH_TRANSCEIVER_ADDRESS.toBase58(),
-        VERSION
-    ),
-};
 
 describe("portal", () => {
     let ntt: SolanaNtt<"Devnet", "Solana">;
@@ -160,7 +151,7 @@ describe("portal", () => {
                     token: tokenAddress,
                     manager: NTT_ADDRESS.toBase58(),
                     transceiver: {
-                        wormhole: nttTransceivers["wormhole"].programId.toBase58(),
+                        wormhole: NTT_ADDRESS.toBase58(),
                     },
                 },
             },
@@ -200,14 +191,6 @@ describe("portal", () => {
             });
             await ssw(ctx, initTxs, signer);
 
-            console.log("CONFIG", NTT.pdas(NTT_ADDRESS.toBase58()).configAccount().toBase58());
-            console.log("CONFIG EXPECTED", NTT.pdas(WH_TRANSCEIVER_ADDRESS).configAccount().toBase58());
-
-            console.log("😅😅😅", JSON.stringify(await ntt.registerWormholeTransceiver({
-                payer: new SolanaAddress(payer.publicKey),
-                owner: new SolanaAddress(payer.publicKey),
-            }).next(), null, 2))
-
             // register
             const registerTxs = ntt.registerWormholeTransceiver({
                 payer: new SolanaAddress(payer.publicKey),
@@ -246,13 +229,11 @@ describe("portal", () => {
             const outboxItemInfo = await ntt.program.account.outboxItem.fetch(
                 outboxItem.publicKey
             );
-            expect(outboxItemInfo.released.map.bitLength()).toBe(
-                Object.keys(nttTransceivers).length
-            );
+            expect(outboxItemInfo.released.map.bitLength()).toBe(1);
 
             const [wormholeMessage] = PublicKey.findProgramAddressSync(
                 [Buffer.from("message"), outboxItem.publicKey.toBytes()],
-                nttTransceivers["wormhole"].programId
+                NTT_ADDRESS
             );
 
             const unsignedVaa = await coreBridge.parsePostMessageAccount(
