@@ -34,6 +34,11 @@ pub struct RemoveEarnManager<'info> {
 }
 
 pub fn handler(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
+    // Check that the earn_manager_account is active
+    if !ctx.accounts.earn_manager_account.is_active {
+        return err!(EarnError::NotAuthorized);
+    }
+
     // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
     let leaf = solana_program::keccak::hashv(&[&[BIT],&earn_manager.to_bytes()]).to_bytes();
 
