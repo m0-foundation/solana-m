@@ -33,8 +33,10 @@ jobs:
           key: solana-cli-1.18.10
       - name: Install Solana CLI
         run: |
+          mkdir -p ~/.local/share/solana
           sh -c "$(curl -sSfL https://release.solana.com/v1.18.10/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Cache node_modules
         uses: actions/cache@v3
         with:
@@ -47,5 +49,7 @@ jobs:
         run: npm i -g yarn && yarn install
         shell: bash
       - name: Run tests
-        run: anchor test
+        run: |
+          cd ${{ github.workspace }}
+          anchor test
         shell: bash

@@ -16,12 +16,12 @@ cluster = "Localnet"
 wallet = "tests/keys/user.json"
 
 [scripts]
-test = "yarn run jest --preset ts-jest"
+test = "yarn run jest --preset ts-jest --detectOpenHandles --forceExit"
 
 [test]
 upgradeable = true
-startup_wait = 5000
-shutdown_wait = 2000
+startup_wait = 3000
+shutdown_wait = 1000
 
 [[test.genesis]]
 address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
