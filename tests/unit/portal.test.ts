@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import * as spl from "@solana/spl-token";
-import { PublicKey } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from "@solana/web3.js";
 import {
     AccountAddress,
     ChainAddress,
@@ -30,7 +30,7 @@ const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2e
 const CORE_BRIDGE_ADDRESS = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth";
 const NTT_ADDRESS = new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr")
 
-const connection = new anchor.web3.Connection(
+const connection = new Connection(
     "http://localhost:8899",
     "confirmed"
 );
@@ -39,14 +39,14 @@ describe("portal", () => {
     let ntt: SolanaNtt<"Devnet", "Solana">;
     let signer: Signer;
     let sender: AccountAddress<"Solana">;
-    let multisig: anchor.web3.PublicKey;
-    let tokenAddress: string;
+    let multisig: PublicKey;
 
-    let tokenAccount: anchor.web3.PublicKey;
-    const mint = anchor.web3.Keypair.generate();
+    let tokenAccount: PublicKey;
+    const mint = Keypair.generate();
+    const tokenAddress = mint.publicKey.toBase58();
 
     const payer = loadKeypair("tests/keys/test.json");
-    const owner = anchor.web3.Keypair.generate();
+    const owner = Keypair.generate();
 
     const { ctx, ...wc } = getWormholeContext();
 
@@ -60,8 +60,8 @@ describe("portal", () => {
             mintLen
         );
 
-        const transaction = new anchor.web3.Transaction().add(
-            anchor.web3.SystemProgram.createAccount({
+        const transaction = new Transaction().add(
+            SystemProgram.createAccount({
                 fromPubkey: payer.publicKey,
                 newAccountPubkey: mint.publicKey,
                 space: mintLen,
@@ -82,7 +82,7 @@ describe("portal", () => {
         transaction.feePayer = payer.publicKey;
         transaction.recentBlockhash = blockhash;
 
-        await anchor.web3.sendAndConfirmTransaction(connection, transaction, [
+        await sendAndConfirmTransaction(connection, transaction, [
             payer,
             mint,
         ]);
@@ -108,8 +108,6 @@ describe("portal", () => {
             undefined,
             TOKEN_PROGRAM
         );
-
-        tokenAddress = mint.publicKey.toBase58();
 
         // contract client
         ntt = new SolanaNtt(
@@ -137,7 +135,7 @@ describe("portal", () => {
                 payer,
                 [owner.publicKey, ntt.pdas.tokenAuthority()],
                 1,
-                anchor.web3.Keypair.generate(),
+                Keypair.generate(),
                 undefined,
                 TOKEN_PROGRAM
             );
@@ -186,7 +184,7 @@ describe("portal", () => {
             const sender = Wormhole.parseAddress("Solana", signer.address());
             const receiver = testing.utils.makeUniversalChainAddress("Ethereum");
 
-            const outboxItem = anchor.web3.Keypair.generate();
+            const outboxItem = Keypair.generate();
             const xferTxs = ntt.transfer(
                 sender,
                 amount,
@@ -211,15 +209,14 @@ describe("portal", () => {
                 wormholeMessage
             );
 
-            const transceiverMessage = deserializePayload(
+            const tm = deserializePayload(
                 "Ntt:WormholeTransfer",
                 unsignedVaa.payload
             );
 
             // assert that amount is what we expect
-            expect(
-                transceiverMessage.nttManagerPayload.payload.trimmedAmount
-            ).toMatchObject({ amount: 10000n, decimals: 8 });
+            expect(tm.nttManagerPayload.payload.trimmedAmount)
+                .toMatchObject({ amount: 10000n, decimals: 8 });
 
             // get from balance
             const balance = await connection.getTokenAccountBalance(tokenAccount);
@@ -275,7 +272,7 @@ describe("portal", () => {
                 connection,
                 payer,
                 mint.publicKey,
-                anchor.web3.Keypair.generate().publicKey,
+                Keypair.generate().publicKey,
                 false,
                 undefined,
                 undefined,
