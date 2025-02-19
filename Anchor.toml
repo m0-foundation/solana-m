@@ -13,10 +13,13 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "tests/keys/test.json"
 
 [scripts]
-test = "yarn run jest --preset ts-jest"
+test = "yarn run jest --preset ts-jest tests/unit/portal.test.ts"
+
+[test]
+upgradeable = true
 
 [[test.genesis]]
 address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"

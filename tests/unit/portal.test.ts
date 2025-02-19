@@ -24,7 +24,7 @@ import {
 } from "@wormhole-foundation/sdk-solana";
 import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
 import { getTransceiverProgram, IdlVersion, NTT, SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
-import { airdrop } from "../test-utils";
+import { airdrop, loadKeypair } from "../test-utils";
 import { getWormholeDerivedAccounts } from "@wormhole-foundation/sdk-solana-core/dist/cjs/utils";
 
 const VERSION: IdlVersion = "3.0.0";
@@ -50,7 +50,7 @@ const remoteMgr: ChainAddress = {
     ),
 };
 
-const payer = anchor.web3.Keypair.generate();
+const payer = loadKeypair("tests/keys/test.json");
 const owner = anchor.web3.Keypair.generate();
 console.log(`payer: ${payer.publicKey.toBase58()} | owner: ${owner.publicKey.toBase58()}`);
 
@@ -80,7 +80,6 @@ describe("portal", () => {
 
     beforeAll(async () => {
         await airdrop(connection, payer.publicKey);
-
         signer = await getSolanaSignAndSendSigner(connection, payer);
         sender = Wormhole.parseAddress("Solana", signer.address());
 
