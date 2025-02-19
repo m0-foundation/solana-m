@@ -41,7 +41,7 @@ jobs:
           path: ./node_modules/
           key: node-modules-18
       - name: Install Anchor CLI
-        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli
+        run: npm i -g @coral-xyz/anchor-cli@v0.29.0
         shell: bash
       - name: Install Node Dependencies
         run: npm i -g yarn && yarn install
