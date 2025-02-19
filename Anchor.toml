@@ -16,7 +16,7 @@ cluster = "Localnet"
 wallet = "tests/keys/user.json"
 
 [scripts]
-test = "yarn run jest --preset ts-jest --detectOpenHandles --forceExit"
+test = "yarn run jest --preset ts-jest"
 
 [test]
 upgradeable = true
