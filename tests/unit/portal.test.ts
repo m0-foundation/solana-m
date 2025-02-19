@@ -1,4 +1,3 @@
-import * as anchor from "@coral-xyz/anchor";
 import * as spl from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from "@solana/web3.js";
 import {
