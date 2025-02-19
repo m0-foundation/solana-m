@@ -65,6 +65,44 @@ interface Global {
   earnManagerMerkleRoot?: number[];
 }
 
+interface Earner {
+  earnManager?: PublicKey;
+  lastClaimIndex?: BN;
+  isEarning: boolean;
+}
+
+interface EarnManager {
+
+}
+
+const getGlobalAccount = () => {
+  const [globalAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("global")],
+    earn.programId
+  );
+
+  return globalAccount;
+}
+
+const getEarnerAccount = (ata: PublicKey) => {
+  const [earnerAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("earner"), ata.toBuffer()],
+    earn.programId
+  );
+
+  return earnerAccount;
+};
+
+const getEarnManagerAccount = (earnManager: PublicKey) => {
+  const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from("earnManager"), earnManager.toBuffer()],
+    earn.programId
+  );
+
+  return earnManagerAccount;
+};
+
+
 // Utility functions for the tests
 const expectAccountEmpty = (account: PublicKey) => {
   const accountInfo = svm.getAccount(account);
@@ -180,10 +218,7 @@ const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
     programId: TOKEN_2022_PROGRAM_ID
   });
 
-  const [globalAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("global")],
-    earn.programId
-  );
+  const globalAccount = getGlobalAccount();
 
   const initializeMultisig = createInitializeMultisigInstruction(
     mintAuthority.publicKey, // account
@@ -258,11 +293,8 @@ const warp = (seconds: BN, increment: boolean) => {
 
 // instruction convenience functions
 const prepInitialize = (signer: Keypair) => {
-  // Find the global PDA
-  const [globalAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("global")],
-    earn.programId
-  );
+  // Get the global PDA
+  const globalAccount = getGlobalAccount();
 
   // Populate accounts for the instruction
   accounts = {};
@@ -302,11 +334,8 @@ const initialize = async (
 };
 
 const prepSetEarnAuthority = (signer: Keypair) => {
-  // Find the global PDA
-  const [globalAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("global")],
-    earn.programId
-  );
+  // Get the global PDA
+  const globalAccount = getGlobalAccount();
 
   // Populate accounts for the instruction
   accounts = {};
@@ -337,11 +366,8 @@ const setEarnAuthority = async (newEarnAuthority: PublicKey) => {
 };
 
 const prepPropagateIndex = (signer: Keypair) => {
-  // Find the global PDA
-  const [globalAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("global")],
-    earn.programId
-  ); 
+  // Get the global PDA
+  const globalAccount = getGlobalAccount(); 
 
   // Populate accounts
   accounts = {};
@@ -376,12 +402,57 @@ const propagateIndex = async (
   return { globalAccount };
 };
 
+const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey, earnManager?: PublicKey) => {
+  // Get the global PDA
+  const globalAccount = getGlobalAccount();
+
+  // Get the earner ATA
+  const earnerATA = await getATA(mint, earner);
+
+  // Get the earner account
+  const earnerAccount = getEarnerAccount(earnerATA);
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.globalAccount = globalAccount;
+  accounts.earnerAccount = earnerAccount;
+  accounts.mint = mint;
+  accounts.userTokenAccount = earnerATA;
+
+  if (earnManager) {
+    // Get the earn manager ATA
+    const earnManagerATA = await getATA(mint, earnManager);
+
+    // Get the earn manager account
+    const earnManagerAccount = getEarnManagerAccount(earnManager);
+
+    accounts.earnManagerAccount = earnManagerAccount;
+    accounts.earnManagerTokenAccount = earnManagerATA;
+
+    return { globalAccount, earnerAccount, earnerATA, earnManagerAccount, earnManagerATA };
+  }
+  
+  return { globalAccount, earnerAccount, earnerATA };
+
+};
+
+const claimFor = async (snapshotBalance: BN, earner: PublicKey, earnManager?: PublicKey) => {
+  // Setup the instruction
+  await prepClaimFor(earnAuthority, mint.publicKey, earner, earnManager);
+
+  // Send the instruction
+  await earn.methods
+    .claimFor(snapshotBalance)
+    .accounts({...accounts})
+    .signers([earnAuthority])
+    .rpc();
+};
+
+
 const prepCompleteClaims = (signer: Keypair) => {
-  // Find the global PDA
-  const [globalAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("global")],
-    earn.programId
-  ); 
+  // Get the global PDA
+  const globalAccount = getGlobalAccount(); 
 
   // Populate accounts
   accounts = {};
@@ -401,8 +472,238 @@ const completeClaims = async () => {
     .accounts({...accounts})
     .signers([earnAuthority])
     .rpc();
-}
+};
 
+const prepConfigureEarnManager = (signer: Keypair, earnManager: PublicKey, feeTokenAccount: PublicKey) => {
+  // Get the global PDA
+  const globalAccount = getGlobalAccount();
+
+  // Get the earn manager PDA
+  const earnManagerAccount = getEarnManagerAccount(earnManager);
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.globalAccount = globalAccount;
+  accounts.earnManagerAccount = earnManagerAccount;
+  accounts.feeTokenAccount = feeTokenAccount;
+  accounts.systemProgram = SystemProgram.programId;
+
+  return { globalAccount, earnManagerAccount };
+};
+
+const configureEarnManager = async (earnManager: Keypair, feeBps: BN, proof: number[][]) => {
+  // Get the fee token account
+  const feeTokenAccount = await getATA(mint.publicKey, earnManager.publicKey);
+
+  // Setup the instruction
+  prepConfigureEarnManager(earnManager, earnManager.publicKey, feeTokenAccount);
+
+  // Send the instruction
+  await earn.methods
+    .configureEarnManager(feeBps, proof)
+    .accounts({...accounts})
+    .signers([earnManager])
+    .rpc();
+};
+
+const prepAddEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: PublicKey) => {
+  // Get the global PDA
+  const globalAccount = getGlobalAccount();
+
+  // Get the earn manager account
+  const earnManagerAccount = getEarnManagerAccount(earnManager);
+
+  // Get the earner account
+  const earnerAccount = getEarnerAccount(earnerATA);
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.earnManagerAccount = earnManagerAccount;
+  accounts.globalAccount = globalAccount;
+  accounts.userTokenAccount = earnerATA;
+  accounts.earnerAccount = earnerAccount;
+  accounts.systemProgram = SystemProgram.programId;
+
+  return { globalAccount, earnManagerAccount, earnerAccount };
+};
+
+const addEarner = async (earnManager: Keypair, earner: PublicKey, proof: number[][], sibling: number[]) => {
+  // Get the earner ATA
+  const earnerATA = await getATA(mint.publicKey, earner);
+
+  // Setup the instruction
+  prepAddEarner(earnManager, earnManager.publicKey, earnerATA);
+
+  // Send the instruction
+  await earn.methods
+    .addEarner(earner, proof, sibling)
+    .accounts({...accounts})
+    .signers([earnManager])
+    .rpc();
+};
+
+const prepRemoveEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: PublicKey) => {
+  // Get the earn manager account
+  const earnManagerAccount = getEarnManagerAccount(earnManager);
+
+  // Get the earner account
+  const earnerAccount = getEarnerAccount(earnerATA);
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.userTokenAccount = earnerATA;
+  accounts.earnManagerAccount = earnManagerAccount;
+  accounts.earnerAccount = earnerAccount;
+
+  return { earnManagerAccount, earnerAccount };
+};
+
+const removeEarner = async (earnManager: Keypair, earner: PublicKey) => {
+  // Get the earner ATA
+  const earnerATA = await getATA(mint.publicKey, earner);
+
+  // Setup the instruction
+  prepRemoveEarner(earnManager, earnManager.publicKey, earnerATA);
+
+  // Send the instruction
+  await earn.methods
+    .removeEarner(earner)
+    .accounts({...accounts})
+    .signers([earnManager])
+    .rpc();
+};
+
+const prepAddRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
+  // Get the global PDA
+  const globalAccount = getGlobalAccount();
+
+  // Get the earner account
+  const earnerAccount = getEarnerAccount(earnerATA);
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.tokenAccount = earnerATA;
+  accounts.globalAccount = globalAccount;
+  accounts.earnerAccount = earnerAccount;
+  accounts.systemProgram = SystemProgram.programId;
+
+  return { globalAccount, earnerAccount };
+};
+
+const addRegistrarEarner = async (earner: PublicKey, proof: number[][]) => {
+  // Get the earner ATA
+  const earnerATA = await getATA(mint.publicKey, earner);
+
+  // Setup the instruction
+  prepAddRegistrarEarner(nonAdmin, earnerATA);
+
+  // Send the instruction
+  await earn.methods
+    .addRegistrarEarner(earner, proof)
+    .accounts({...accounts})
+    .signers([nonAdmin])
+    .rpc();
+};
+
+const prepRemoveRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
+  // Get the global PDA
+  const globalAccount = getGlobalAccount();
+
+  // Get the earner account
+  const earnerAccount = getEarnerAccount(earnerATA);
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.globalAccount = globalAccount;
+  accounts.userTokenAccount = earnerATA;
+  accounts.earnerAccount = earnerAccount;
+
+  return { globalAccount, earnerAccount };
+};
+
+const removeRegistrarEarner = async (earner: PublicKey, proof: number[][], sibling: number[]) => {
+  // Get the earner ATA
+  const earnerATA = await getATA(mint.publicKey, earner);
+
+  // Setup the instruction
+  prepRemoveRegistrarEarner(nonAdmin, earnerATA);
+
+  // Send the instruction
+  await earn.methods
+    .removeRegistrarEarner(earner, proof, sibling)
+    .accounts({...accounts})
+    .signers([nonAdmin])
+    .rpc();
+};
+
+const prepRemoveEarnManager = (signer: Keypair, earnManager: PublicKey) => {
+  // Get the global PDA
+  const globalAccount = getGlobalAccount();
+
+  // Get the earn manager account
+  const earnManagerAccount = getEarnManagerAccount(earnManager);
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.globalAccount = globalAccount;
+  accounts.earnManagerAccount = earnManagerAccount;
+
+  return { globalAccount, earnManagerAccount };
+};
+
+const removeEarnManager = async (earnManager: PublicKey, proof: number[][], sibling: number[]) => {
+  // Setup the instruction
+  prepRemoveEarnManager(nonAdmin, earnManager);
+
+  // Send the instruction
+  await earn.methods
+    .removeEarnManager(earnManager, proof, sibling)
+    .accounts({...accounts})
+    .signers([nonAdmin])
+    .rpc();
+};
+
+const prepRemoveOrphanedEarner = (signer: Keypair, earnerATA: PublicKey, earnManager?: PublicKey) => {
+  // Get the earner account
+  const earnerAccount = getEarnerAccount(earnerATA);
+
+
+  // Populate accounts
+  accounts = {};
+  accounts.signer = signer.publicKey;
+  accounts.userTokenAccount = earnerATA;
+  accounts.earnerAccount = earnerAccount;
+  if (earnManager) {
+    // Get the earn manager account
+    const earnManagerAccount = getEarnManagerAccount(earnManager);
+    accounts.earnManagerAccount = earnManagerAccount;
+    
+    return { earnerAccount, earnManagerAccount };
+  }
+
+  return { earnerAccount };
+};
+
+const removeOrphanedEarner = async (earner: PublicKey, earnManager?: PublicKey) => {
+  // Get the earner ATA
+  const earnerATA = await getATA(mint.publicKey, earner);
+
+  // Setup the instruction
+  prepRemoveOrphanedEarner(nonAdmin, earnerATA, earnManager);
+
+  // Send the instruction
+  await earn.methods
+    .removeOrphanedEarner()
+    .accounts({...accounts})
+    .signers([nonAdmin])
+    .rpc();
+};
 
 describe("Earn unit tests", () => {
   beforeEach(async () => {
@@ -941,7 +1242,20 @@ describe("Earn unit tests", () => {
   });
 
   describe("claim_for unit tests", () => {
-    // beforeEach(() => {});
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
+
+      // Warp past the initial cooldown period
+      warp(claimCooldown, true);
+
+      // Propagate a new index to start a new claim cycle
+      await propagateIndex(new BN(1_100_000_000_000));
+    });
 
     // test cases
     // [ ] given the earn authority does not sign the transaction
@@ -960,7 +1274,7 @@ describe("Earn unit tests", () => {
     //   [ ] given the amonut to be minted causes the total distributed to exceed the max yield
     //     [ ] it reverts with am ExceedsMaxYield error
     //   [ ] given the earner doesn't have an earn manager
-    //     [ ] the correct amount is minted to the earner
+    //     [ ] the correct amount is minted to the earner's token account
     //   [ ] given the earner does have an earn manager 
     //     [ ] given no earn manager account is provided
     //       [ ] it reverts with a RequiredAccountMissing error
@@ -975,7 +1289,41 @@ describe("Earn unit tests", () => {
     //         [ ] the full amount is minted to the earner
     //       [ ] when the fee is non-zero
     //         [ ] the fee amount is minted to the earn manager token account
-    //         [ ] the total rewards minus the fee is minted to the earner token account   
+    //         [ ] the total rewards minus the fee is minted to the earner token account  
+    
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
+
+      // Warp past the initial cooldown period
+      warp(claimCooldown, true);
+
+      // Propagate a new index to start a new claim cycle
+      await propagateIndex(new BN(1_100_000_000_000));
+    });
+
+    // // given the earn authority doesn't sign the transaction
+    // // it reverts with an address constraint error
+    // test("Non-earn authority cannot claim", async () => {
+    //   // Setup the instruction
+    //   const { globalAccount } = prepClaimFor(nonAdmin);
+
+    //   // Attempt to claim with non-earn authority
+    //   await expectAnchorError(
+    //     earn.methods
+    //       .claimFor(new BN(100_000_000))
+    //       .accounts({ ...accounts })
+    //       .signers([nonAdmin])
+    //       .rpc(),
+    //     "ConstraintAddress"
+    //   );
+    // });
+
+    
 
 
 
