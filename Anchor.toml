@@ -16,7 +16,7 @@ cluster = "Localnet"
 wallet = "tests/keys/test.json"
 
 [scripts]
-test = "yarn run jest --preset ts-jest tests/unit/portal.test.ts"
+test = "yarn run jest --preset ts-jest"
 
 [test]
 upgradeable = true
