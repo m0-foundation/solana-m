@@ -13,7 +13,7 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "Localnet"
-wallet = "tests/keys/test.json"
+wallet = "tests/keys/user.json"
 
 [scripts]
 test = "yarn run jest --preset ts-jest"
