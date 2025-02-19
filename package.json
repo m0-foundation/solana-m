@@ -10,6 +10,12 @@
     "@solana-developers/helpers": "^2.7.0",
     "@solana/spl-token": "^0.4.12",
     "@solana/web3.js": "^1.98.0",
+    "@wormhole-foundation/sdk": "1.0.0",
+    "@wormhole-foundation/sdk-definitions": "1.0.0",
+    "@wormhole-foundation/sdk-definitions-ntt": "0.5.0",
+    "@wormhole-foundation/sdk-solana": "1.0.0",
+    "@wormhole-foundation/sdk-solana-core": "1.0.0",
+    "@wormhole-foundation/sdk-solana-ntt": "0.7.0-multi-token-alpha.0",
     "anchor-litesvm": "^0.1.1",
     "bn.js": "^5.2.1",
     "litesvm": "^0.1.0"

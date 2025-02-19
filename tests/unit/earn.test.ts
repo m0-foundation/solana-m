@@ -14,9 +14,7 @@ import {
   createInitializeMintInstruction,
   createAssociatedTokenAccountInstruction,
   getAccount,
-  getMint,
   getMintLen,
-  getMultisig,
   getMinimumBalanceForRentExemptMultisig,
   getAssociatedTokenAddressSync,
   createInitializeMultisigInstruction,
@@ -62,9 +60,9 @@ const EARN_IDL = require("../../target/idl/earn.json");
 //      [ ] the transaction reverts with a claim in progress error
 
 // Setup wallets once at the beginning of the test suite
-const admin: Keypair = loadKeypair("test-addr/admin.json");
-const portal: Keypair = loadKeypair("test-addr/portal.json");
-const mint: Keypair = loadKeypair("test-addr/mint.json");
+const admin: Keypair = loadKeypair("tests/keys/admin.json");
+const portal: Keypair = loadKeypair("tests/keys/portal.json");
+const mint: Keypair = loadKeypair("tests/keys/mint.json");
 const earnAuthority: Keypair = new Keypair();
 const mintAuthority: Keypair = new Keypair();
 const nonAdmin: Keypair = new Keypair();
@@ -200,7 +198,7 @@ const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
   const multisigLen = 355;
   // const multisigLamports = await provider.connection.getMinimumBalanceForRentExemption(multisigLen);
   const multisigLamports = await getMinimumBalanceForRentExemptMultisig(provider.connection);
-  
+
   const createMultisigAccount = SystemProgram.createAccount({
     fromPubkey: admin.publicKey,
     newAccountPubkey: mintAuthority.publicKey,
@@ -320,11 +318,11 @@ const initialize = async (
   // Confirm the global account state
   await expectGlobalState(
     globalAccount,
-    { 
-        earnAuthority,
-        index: initialIndex,
-        claimCooldown,
-        claimComplete: true
+    {
+      earnAuthority,
+      index: initialIndex,
+      claimCooldown,
+      claimComplete: true
     });
 
   return globalAccount;
@@ -346,23 +344,23 @@ const prepSetEarnAuthority = (signer: Keypair) => {
 };
 
 const setEarnAuthority = async (newEarnAuthority: PublicKey) => {
-    // Setup the instruction call
-    const { globalAccount } = prepSetEarnAuthority(admin);
+  // Setup the instruction call
+  const { globalAccount } = prepSetEarnAuthority(admin);
 
-    // Send the instruction
-    await earn.methods
-        .setEarnAuthority(newEarnAuthority)
-        .accounts({...accounts})
-        .signers([admin])
-        .rpc();
+  // Send the instruction
+  await earn.methods
+    .setEarnAuthority(newEarnAuthority)
+    .accounts({ ...accounts })
+    .signers([admin])
+    .rpc();
 
-    // Confirm the global state has been updated
-    await expectGlobalState(
-        globalAccount,
-        {
-            earnAuthority: newEarnAuthority
-        }
-    );
+  // Confirm the global state has been updated
+  await expectGlobalState(
+    globalAccount,
+    {
+      earnAuthority: newEarnAuthority
+    }
+  );
 };
 
 const prepPropagateIndex = (signer: Keypair) => {
@@ -370,7 +368,7 @@ const prepPropagateIndex = (signer: Keypair) => {
   const [globalAccount] = PublicKey.findProgramAddressSync(
     [Buffer.from("global")],
     earn.programId
-  ); 
+  );
 
   // Populate accounts
   accounts = {};
@@ -382,9 +380,9 @@ const prepPropagateIndex = (signer: Keypair) => {
 };
 
 const propagateIndex = async (
-    newIndex: BN,
-    earnerMerkleRoot: number[] = new Array(32).fill(0),
-    earnManagerMerkleRoot: number[] = new Array(32).fill(0)
+  newIndex: BN,
+  earnerMerkleRoot: number[] = new Array(32).fill(0),
+  earnManagerMerkleRoot: number[] = new Array(32).fill(0)
 ) => {
   // Setup the instruction
   const { globalAccount } = prepPropagateIndex(portal);
@@ -392,11 +390,11 @@ const propagateIndex = async (
   // Send the instruction
   await earn.methods
     .propagateIndex(
-        newIndex,
-        earnerMerkleRoot,
-        earnManagerMerkleRoot
+      newIndex,
+      earnerMerkleRoot,
+      earnManagerMerkleRoot
     )
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([portal])
     .rpc();
 
@@ -410,14 +408,14 @@ const prepCompleteClaims = (signer: Keypair) => {
   const [globalAccount] = PublicKey.findProgramAddressSync(
     [Buffer.from("global")],
     earn.programId
-  ); 
+  );
 
   // Populate accounts
   accounts = {};
   accounts.signer = signer.publicKey;
   accounts.globalAccount = globalAccount;
 
-  return { globalAccount }; 
+  return { globalAccount };
 };
 
 const completeClaims = async () => {
@@ -427,7 +425,7 @@ const completeClaims = async () => {
   // Send the instruction
   await earn.methods
     .completeClaims()
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([earnAuthority])
     .rpc();
 }
@@ -472,9 +470,9 @@ describe("Earn unit tests", () => {
       // Create and send the transaction
       await earn.methods
         .initialize(
-            earnAuthority.publicKey, 
-            initialIndex, 
-            claimCooldown
+          earnAuthority.publicKey,
+          initialIndex,
+          claimCooldown
         )
         .accounts({ ...accounts })
         .signers([admin])
@@ -484,12 +482,12 @@ describe("Earn unit tests", () => {
       await expectGlobalState(
         globalAccount,
         {
-            earnAuthority: earnAuthority.publicKey,
-            index: initialIndex,
-            claimCooldown,
-            claimComplete: true,
-            earnerMerkleRoot: new Array(32).fill(0),
-            earnManagerMerkleRoot: new Array(32).fill(0)
+          earnAuthority: earnAuthority.publicKey,
+          index: initialIndex,
+          claimCooldown,
+          claimComplete: true,
+          earnerMerkleRoot: new Array(32).fill(0),
+          earnManagerMerkleRoot: new Array(32).fill(0)
         }
       );
     });
@@ -515,12 +513,12 @@ describe("Earn unit tests", () => {
 
   describe("set_earn_authority unit tests", () => {
     beforeEach(async () => {
-        // Initialize the program
-        await initialize(
-          earnAuthority.publicKey,
-          initialIndex,
-          claimCooldown
-        );
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
     });
 
     test("Admin can set new earn authority", async () => {
@@ -533,7 +531,7 @@ describe("Earn unit tests", () => {
       // Send the transaction
       await earn.methods
         .setEarnAuthority(newEarnAuthority.publicKey)
-        .accounts({...accounts})
+        .accounts({ ...accounts })
         .signers([admin])
         .rpc();
 
@@ -548,11 +546,11 @@ describe("Earn unit tests", () => {
       const newEarnAuthority = new Keypair();
 
       prepSetEarnAuthority(nonAdmin);
-      
+
       await expectAnchorError(
         earn.methods
           .setEarnAuthority(newEarnAuthority.publicKey)
-          .accounts({...accounts})
+          .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         "ConstraintAddress"
@@ -581,14 +579,14 @@ describe("Earn unit tests", () => {
       const newManagerRoot = Array(32).fill(2);
 
       const { globalAccount } = prepPropagateIndex(portal);
-      
+
       await earn.methods
         .propagateIndex(
-            newIndex,
-            newEarnerRoot,
-            newManagerRoot
+          newIndex,
+          newEarnerRoot,
+          newManagerRoot
         )
-        .accounts({...accounts})
+        .accounts({ ...accounts })
         .signers([portal])
         .rpc();
 
@@ -611,15 +609,15 @@ describe("Earn unit tests", () => {
       const newManagerRoot = Array(32).fill(2);
 
       prepPropagateIndex(nonAdmin);
-      
+
       await expectAnchorError(
         earn.methods
           .propagateIndex(
-              newIndex,
-              newEarnerRoot,
-              newManagerRoot
+            newIndex,
+            newEarnerRoot,
+            newManagerRoot
           )
-          .accounts({...accounts})
+          .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         "NotAuthorized"
@@ -729,7 +727,7 @@ describe("Earn unit tests", () => {
         globalAccount,
         {
           index: newIndex,
-          timestamp: startTimestamp, 
+          timestamp: startTimestamp,
           maxSupply: newSupply,
           claimComplete: true
         }
@@ -820,7 +818,7 @@ describe("Earn unit tests", () => {
         globalAccount,
         {
           index: newIndex,
-          timestamp: startTimestamp, 
+          timestamp: startTimestamp,
           maxSupply: initialSupply
         }
       );
@@ -917,17 +915,17 @@ describe("Earn unit tests", () => {
 
   });
 
-  describe("complete_claim unit tests", () => {});
+  describe("complete_claim unit tests", () => { });
 
-  describe("configure earn_manager unit tests", () => {});
+  describe("configure earn_manager unit tests", () => { });
 
-  describe("add_earner unit tests", () => {});
+  describe("add_earner unit tests", () => { });
 
-  describe("remove_earner unit tests", () => {});  
+  describe("remove_earner unit tests", () => { });
 
-  describe("add_register_earner unit tests", () => {});
+  describe("add_register_earner unit tests", () => { });
 
-  describe("remove_registrar_earner unit tests", () => {});
+  describe("remove_registrar_earner unit tests", () => { });
 
-  describe("remove_earn_manager unit tests", () => {});
+  describe("remove_earn_manager unit tests", () => { });
 }); 
