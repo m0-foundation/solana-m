@@ -28,22 +28,22 @@ export class MerkleTree {
             }
 
             let leafHash = this._hashLeaf(leaves[i]);
-            zippedLeaves[i] = (leaves[i].toBuffer(), leafHash);
+            zippedLeaves[i] = [leaves[i].toBuffer(), leafHash];
         }
-        
+
         // Sort the zipped leaves by the leaf hash
-        zippedLeaves.sort((a, b) => a[1] < b[1] ? -1 : 1);
+        zippedLeaves.sort((a, b) => a[1].compare(b[1]));
 
         // Unzip the leaves and store them
         for (let i = 0; i < len; i++) {
             let rawLeaf = zippedLeaves[i][0];
-            let hashedleaf = zippedLeaves[i][1];
+            let hashedLeaf = zippedLeaves[i][1];
 
             if (this.rawLeaves.includes(rawLeaf)) {
                 throw new Error("Duplicate leaf found");
             }
-            this.rawLeaves[i] = zippedLeaves[i][0];
-            this.leaves[i] = zippedLeaves[i][1];
+            this.rawLeaves[i] = rawLeaf; 
+            this.leaves[i] = hashedLeaf;
         }
 
         // Build the tree
@@ -131,6 +131,24 @@ export class MerkleTree {
         return hash;
     }
 
+    private _getLeafIndex(leaf: Buffer): number {
+        for (let i = 0; i < this.leaves.length; i++) {
+            if (this.leaves[i].equals(leaf)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private _getTreeIndex(level: number, node: Buffer): number {
+        for (let i = 0; i < this.tree[level].length; i++) {
+            if (this.tree[level][i].equals(node)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     public addLeaf(leaf: PublicKey) {
         // Check that the leaf is not already in the tree
         const leafHash = this._hashLeaf(leaf);
@@ -190,21 +208,24 @@ export class MerkleTree {
         // Find the index of the leaf in the leaves
         // Note: this handles cases where the last leaf is duplicated in the tree
         // by just sending the first index
-        let index = this.leaves.indexOf(leafHash);
+        let index = this._getLeafIndex(leafHash);
         if (index === -1) {
             throw new Error("Leaf not found in the tree");
         }
 
-        // Initialize the proof
-        // It will be the same length as the depth of the tree
-        let proof = new Array<Array<number>>(this.depth);
+        // console.log("tree", this.tree);
+        // console.log("depth", this.depth);
 
         // Iterate through the tree constructing the proof
+        let proof: Array<Array<number>> = [];
         for (let i = 0; i < this.depth; i++) {
+            // console.log("level", i);
+            // console.log("index", index);
             // Find the neighbor to hash against
             // If the index is even, the neighbor is to the right
             // If the index is odd, the neighbor is to the left
             let neighborIndex = index % 2 === 0 ? index + 1 : index - 1;
+            // console.log("neighborIndex", neighborIndex);
             let neighbor = this.tree[i][neighborIndex];
 
             // Add the neighbor to the proof
@@ -214,7 +235,12 @@ export class MerkleTree {
             let parent = this._hashNode(this.tree[i][index], neighbor);
 
             // Find the index of the parent in the next level
-            index = this.tree[i + 1].indexOf(parent);
+            index = this._getTreeIndex(i + 1, parent);
+
+            // If the index is -1, throw an error
+            if (index === -1) {
+                throw new Error("Parent not found in the tree");
+            }
         }
 
         return { proof };
@@ -223,25 +249,40 @@ export class MerkleTree {
     public getExclusionProof(leaf: PublicKey): { proof: number[][], sibling: number[] }  {
         const leafHash = this._hashLeaf(leaf);
 
+        console.log("leaf hashes", this.leaves);
+        console.log("leaf hash", leafHash);
+
         // Check that the leaf is not in the tree
-        if (this.leaves.includes(leafHash)) {
+        let index = this._getLeafIndex(leafHash);
+        if (index !== -1) {
             throw new Error("Leaf found in the tree");
         }
 
         // Find the index that the leaf would be at if it was in the tree
-        let index = 0;
-        for (let i = 0; i < this.leaves.length; i++) {
-            if (leafHash < this.leaves[i]) {
+        index = 0;
+        let len = this.leaves.length;
+        for (let i = 0; i < len; i++) {
+            if (leafHash.compare(this.leaves[i]) === -1) {
                 index = i;
                 break;
             }
+
+            if (i === len - 1) {
+                index = i;
+            }
         }
+
+        console.log("sibling index", index);
+        console.log("sibling hash", this.leaves[index]);
 
         // The sibling is the raw leaf that is at the position the leaf would be at
         let sibling = this.rawLeaves[index];
 
         // Generate the inclusion proof for the sibling
         let { proof } = this.getInclusionProof(new PublicKey(sibling));
+
+        console.log("proof", proof);
+        console.log("sibling", sibling);
 
         return { proof, sibling: Array.from(sibling) };
     }

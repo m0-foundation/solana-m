@@ -71,7 +71,7 @@ pub fn handler(
         user_leaf,
         sibling
     ) {
-        return err!(EarnError::AlreadyEarns);
+        return err!(EarnError::InvalidProof);
     }
 
 
