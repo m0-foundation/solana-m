@@ -8,7 +8,6 @@ import {
     Signer,
     UniversalAddress,
     Wormhole,
-    contracts,
     deserialize,
     deserializePayload,
     encoding,
@@ -23,53 +22,18 @@ import {
     getSolanaSignAndSendSigner,
 } from "@wormhole-foundation/sdk-solana";
 import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
-import { getTransceiverProgram, IdlVersion, NTT, SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
+import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
 import { airdrop, loadKeypair } from "../test-utils";
-import { getWormholeDerivedAccounts } from "@wormhole-foundation/sdk-solana-core/dist/cjs/utils";
 
-const VERSION: IdlVersion = "3.0.0";
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
-const CORE_BRIDGE_ADDRESS = contracts.coreBridge("Mainnet", "Solana");
+const CORE_BRIDGE_ADDRESS = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth";
 const NTT_ADDRESS = new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr")
-
-const w = new Wormhole("Devnet", [SolanaPlatform], {
-    chains: { Solana: { contracts: { coreBridge: CORE_BRIDGE_ADDRESS } } },
-});
-
-const remoteXcvr: ChainAddress = {
-    chain: "Ethereum",
-    address: new UniversalAddress(
-        encoding.bytes.encode("transceiver".padStart(32, "\0"))
-    ),
-};
-const remoteMgr: ChainAddress = {
-    chain: "Ethereum",
-    address: new UniversalAddress(
-        encoding.bytes.encode("nttManager".padStart(32, "\0"))
-    ),
-};
-
-const payer = loadKeypair("tests/keys/test.json");
-const owner = anchor.web3.Keypair.generate();
-console.log(`payer: ${payer.publicKey.toBase58()} | owner: ${owner.publicKey.toBase58()}`);
 
 const connection = new anchor.web3.Connection(
     "http://localhost:8899",
     "confirmed"
 );
-
-// Make sure we're using the exact same Connection obj for rpc
-const ctx: ChainContext<"Devnet", "Solana"> = w
-    .getPlatform("Solana")
-    .getChain("Solana", connection);
-
-let tokenAccount: anchor.web3.PublicKey;
-const mint = anchor.web3.Keypair.generate();
-
-const coreBridge = new SolanaWormholeCore("Devnet", "Solana", connection, {
-    coreBridge: CORE_BRIDGE_ADDRESS,
-});
 
 describe("portal", () => {
     let ntt: SolanaNtt<"Devnet", "Solana">;
@@ -77,6 +41,14 @@ describe("portal", () => {
     let sender: AccountAddress<"Solana">;
     let multisig: anchor.web3.PublicKey;
     let tokenAddress: string;
+
+    let tokenAccount: anchor.web3.PublicKey;
+    const mint = anchor.web3.Keypair.generate();
+
+    const payer = loadKeypair("tests/keys/test.json");
+    const owner = anchor.web3.Keypair.generate();
+
+    const { ctx, ...wc } = getWormholeContext();
 
     beforeAll(async () => {
         await airdrop(connection, payer.publicKey);
@@ -154,7 +126,7 @@ describe("portal", () => {
                     },
                 },
             },
-            VERSION
+            "3.0.0"
         );
     });
 
@@ -199,13 +171,13 @@ describe("portal", () => {
 
             // Set Wormhole xcvr peer
             const setXcvrPeerTxs = ntt.setWormholeTransceiverPeer(
-                remoteXcvr,
+                wc.remoteXcvr,
                 sender
             );
             await ssw(ctx, setXcvrPeerTxs, signer);
 
             // Set manager peer
-            const setPeerTxs = ntt.setPeer(remoteMgr, 18, 1000000n, sender);
+            const setPeerTxs = ntt.setPeer(wc.remoteMgr, 18, 1000000n, sender);
             await ssw(ctx, setPeerTxs, signer);
         });
 
@@ -235,7 +207,7 @@ describe("portal", () => {
                 NTT_ADDRESS
             );
 
-            const unsignedVaa = await coreBridge.parsePostMessageAccount(
+            const unsignedVaa = await wc.coreBridge.parsePostMessageAccount(
                 wormholeMessage
             );
 
@@ -256,7 +228,7 @@ describe("portal", () => {
 
         it("Can receive tokens", async () => {
             const emitter = new testing.mocks.MockEmitter(
-                remoteXcvr.address as UniversalAddress,
+                wc.remoteXcvr.address as UniversalAddress,
                 "Ethereum",
                 0n
             );
@@ -265,7 +237,7 @@ describe("portal", () => {
             const sender = Wormhole.parseAddress("Solana", signer.address());
 
             const sendingTransceiverMessage = {
-                sourceNttManager: remoteMgr.address as UniversalAddress,
+                sourceNttManager: wc.remoteMgr.address as UniversalAddress,
                 recipientNttManager: new UniversalAddress(
                     ntt.program.programId.toBytes()
                 ),
@@ -325,3 +297,29 @@ describe("portal", () => {
         });
     });
 });
+
+function getWormholeContext() {
+    const w = new Wormhole("Devnet", [SolanaPlatform], {
+        chains: { Solana: { contracts: { coreBridge: CORE_BRIDGE_ADDRESS } } },
+    });
+    const remoteXcvr: ChainAddress = {
+        chain: "Ethereum",
+        address: new UniversalAddress(
+            encoding.bytes.encode("transceiver".padStart(32, "\0"))
+        ),
+    };
+    const remoteMgr: ChainAddress = {
+        chain: "Ethereum",
+        address: new UniversalAddress(
+            encoding.bytes.encode("nttManager".padStart(32, "\0"))
+        ),
+    };
+    const ctx: ChainContext<"Devnet", "Solana"> = w
+        .getPlatform("Solana")
+        .getChain("Solana", connection);
+
+    const coreBridge = new SolanaWormholeCore("Devnet", "Solana", connection, {
+        coreBridge: CORE_BRIDGE_ADDRESS,
+    });
+    return { ctx, coreBridge, remoteXcvr, remoteMgr };
+}
