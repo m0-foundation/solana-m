@@ -2,6 +2,7 @@
 //! modified to include INTERMEDIATE_HASH prefix and sha256 hashing
 use crate::constants::ONE_BIT;
 use solana_program;
+use anchor_lang::prelude::msg;
 
 /// This function deals with verification of Merkle trees (hash trees).
 /// Direct port of https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v3.4.0/contracts/cryptography/MerkleProof.sol
@@ -12,6 +13,9 @@ use solana_program;
 pub fn verify_in_tree(proof: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
     let mut computed_hash = leaf;
     for proof_element in proof.into_iter() {
+        msg!("proof element: {:?}", proof_element);
+
+
         if computed_hash <= proof_element {
             // Hash(current computed hash + current element of the proof)
             computed_hash =
@@ -22,21 +26,28 @@ pub fn verify_in_tree(proof: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> b
                 solana_program::keccak::hashv(&[&[ONE_BIT], proof_element.as_slice(), computed_hash.as_slice()]).to_bytes();
         }
     }
+
+    msg!("computed hash: {:?}", computed_hash);
+    msg!("root: {:?}", root);
     // Check if the computed hash (root) is equal to the provided root
     computed_hash == root
 }
 
 /// This function verifies that a leaf is NOT part of a Merkle tree.
 /// It verifies that:
-/// 1. The provided sibling would occupy the same position as our leaf
+/// 1. The provided neighbor would occupy the same position as our leaf
 ///    (by checking they would take the same path through the tree)
-/// 2. The sibling's path to the root is valid
-/// 3. The sibling is different from our leaf
+/// 2. The neighbor's path to the root is valid
+/// 3. The neighbor is different from our leaf
+
+// TODO you actually need to prove that both neighbors are in the tree and that they are next to each other
 pub fn verify_not_in_tree(
-    proof: Vec<[u8; 32]>, 
     root: [u8; 32], 
     leaf: [u8; 32],
-    sibling: [u8; 32]
+    left_proof: Vec<[u8; 32]>, 
+    left_neighbor: [u8; 32],
+    right_proof: Vec<[u8; 32]>,
+    right_neighbor: [u8; 32],
 ) -> bool {
     if sibling == leaf {
         return false;
@@ -49,6 +60,7 @@ pub fn verify_not_in_tree(
 
     for proof_element in proof.iter() {
         // Check if they would make the same left/right choice at this level
+        // TODO this doesn't work with hashes
         let leaf_goes_left = leaf_hash <= *proof_element;
         let sibling_goes_left = sibling_hash <= *proof_element;
         
