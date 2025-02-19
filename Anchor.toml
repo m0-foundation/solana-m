@@ -20,6 +20,7 @@ test = "yarn run jest --preset ts-jest"
 
 [test]
 upgradeable = true
+startup_wait = 5000
 
 [[test.genesis]]
 address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"

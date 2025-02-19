@@ -42,11 +42,11 @@ describe("portal", () => {
     let multisig: PublicKey;
 
     let tokenAccount: PublicKey;
-    const mint = Keypair.generate();
+    const mint = loadKeypair("tests/keys/mint.json");
     const tokenAddress = mint.publicKey.toBase58();
 
-    const payer = loadKeypair("tests/keys/test.json");
-    const owner = Keypair.generate();
+    const payer = loadKeypair("tests/keys/user.json");
+    const owner = loadKeypair("tests/keys/mint.json");
 
     const { ctx, ...wc } = getWormholeContext();
 
