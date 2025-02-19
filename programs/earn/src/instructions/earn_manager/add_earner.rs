@@ -6,7 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, BIT, MINT},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, ZERO_BIT, MINT},
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
@@ -64,7 +64,7 @@ pub fn handler(
     }
 
     // Verify the user is not already an earner by proving a different value exists at their position
-    let user_leaf = solana_program::keccak::hashv(&[&[BIT], &user.to_bytes()]).to_bytes();
+    let user_leaf = solana_program::keccak::hashv(&[&[ZERO_BIT], &user.to_bytes()]).to_bytes();
     if !verify_not_in_tree(
         proof,
         ctx.accounts.global_account.earner_merkle_root,

@@ -28,9 +28,6 @@ import { Earn } from "../../target/types/earn";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 // Unit tests for earn program
-//
-// [ ] propagate_index
-
 
 // Setup wallets once at the beginning of the test suite
 const admin: Keypair = loadKeypair("test-addr/admin.json");
@@ -72,7 +69,9 @@ interface Earner {
 }
 
 interface EarnManager {
-
+  isActive?: boolean;
+  feeBps?: BN;
+  feeTokenAccount?: PublicKey;
 }
 
 const getGlobalAccount = () => {
@@ -147,6 +146,28 @@ const expectGlobalState = async (
   if (expected.claimComplete !== undefined) expect(state.claimComplete).toEqual(expected.claimComplete);
   if (expected.earnerMerkleRoot) expect(state.earnerMerkleRoot).toEqual(expected.earnerMerkleRoot);
   if (expected.earnManagerMerkleRoot) expect(state.earnManagerMerkleRoot).toEqual(expected.earnManagerMerkleRoot);
+};
+
+const expectEarnerState = async (
+  earnerAccount: PublicKey,
+  expected: Earner
+) => {
+  const state = await earn.account.earner.fetch(earnerAccount);
+
+  if (expected.earnManager) expect(state.earnManager).toEqual(expected.earnManager);
+  if (expected.lastClaimIndex) expect(state.lastClaimIndex.toString()).toEqual(expected.lastClaimIndex.toString());
+  if (expected.isEarning) expect(state.isEarning).toEqual(expected.isEarning);
+};
+
+const expectEarnManagerState = async (
+  earnManagerAccount: PublicKey,
+  expected: EarnManager
+) => {
+  const state = await earn.account.earnManager.fetch(earnManagerAccount);
+
+  if (expected.isActive !== undefined) expect(state.isActive).toEqual(expected.isActive);
+  if (expected.feeBps) expect(state.feeBps.toString()).toEqual(expected.feeBps.toString());
+  if (expected.feeTokenAccount) expect(state.feeTokenAccount).toEqual(expected.feeTokenAccount);
 };
 
 const getTokenBalance = async (tokenAccount: PublicKey) => {
