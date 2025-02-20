@@ -101,8 +101,6 @@ pub fn handler(
         .checked_add(period_max).unwrap();
     ctx.accounts.global_account.distributed = 0;
     ctx.accounts.global_account.claim_complete = false;
-    ctx.accounts.global_account.earner_merkle_root = earner_merkle_root;
-    ctx.accounts.global_account.earn_manager_merkle_root = earn_manager_merkle_root;
 
     Ok(())
 }
