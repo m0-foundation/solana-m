@@ -3,6 +3,7 @@ import { Commitment, Keypair, LAMPORTS_PER_SOL, PublicKey, RpcResponseAndContext
 import fs from "fs";
 import { LiteSVMProvider } from "anchor-litesvm";
 import { LiteSVM } from "litesvm";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export function loadKeypair(filePath: string): Keypair {
   const fullPath = path.resolve(filePath);
@@ -32,7 +33,6 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
       signers?: Signer[] | SendOptions,
       options?: SendOptions,
     ): Promise<string> => {
-      console.log("signers", (signers as Signer[]).map((s) => s.publicKey.toBase58()))
       return this.sendAndConfirm(transaction, signers as Signer[])
     }
     this.connection.confirmTransaction = async (strategy: TransactionConfirmationStrategy | string, commitment?: Commitment): Promise<RpcResponseAndContext<SignatureResult>> => {
@@ -41,6 +41,12 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
         context: { slot: await this.connection.getSlot() },
         value: { err: null }
       }
+    }
+    this.connection.sendRawTransaction = async (rawTransaction: Buffer, options?: SendOptions): Promise<string> => {
+      console.log('wallet', this.wallet.publicKey.toBase58())
+      const tx = Transaction.from(rawTransaction)
+      this.client.sendTransaction(tx);
+      return bs58.encode(tx.signature);
     }
   }
 }

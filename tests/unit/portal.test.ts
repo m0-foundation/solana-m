@@ -24,7 +24,7 @@ import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
 import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
 import { LiteSVMProviderExt, loadKeypair } from "../test-utils";
 import { fromWorkspace } from "anchor-litesvm";
-import { createMintToInstruction } from "@solana/spl-token";
+import { createMintToInstruction, createSetAuthorityInstruction } from "@solana/spl-token";
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -39,7 +39,7 @@ describe("portal", () => {
     let ntt: SolanaNtt<"Devnet", "Solana">;
     let signer: Signer;
     let sender: AccountAddress<"Solana">;
-    let multisig: PublicKey;
+    let multisig = Keypair.generate();
 
     let tokenAccount: PublicKey;
     const mint = loadKeypair("tests/keys/mint.json");
@@ -164,33 +164,38 @@ describe("portal", () => {
 
     describe("Burning", () => {
         beforeAll(async () => {
-            multisig = await spl.createMultisig(
-                connection,
-                payer,
-                [owner.publicKey, ntt.pdas.tokenAuthority()],
-                1,
-                Keypair.generate(),
-                undefined,
-                TOKEN_PROGRAM
+            const multiSigTx = new Transaction().add(
+                SystemProgram.createAccount({
+                    fromPubkey: payer.publicKey,
+                    newAccountPubkey: multisig.publicKey,
+                    space: spl.MULTISIG_SIZE,
+                    lamports: await spl.getMinimumBalanceForRentExemptMultisig(connection),
+                    programId: TOKEN_PROGRAM,
+                }),
+                spl.createInitializeMultisigInstruction(
+                    multisig.publicKey,
+                    [owner.publicKey, ntt.pdas.tokenAuthority()],
+                    1,
+                    TOKEN_PROGRAM,
+                ),
+                createSetAuthorityInstruction(
+                    mint.publicKey,
+                    owner.publicKey,
+                    spl.AuthorityType.MintTokens,
+                    multisig.publicKey,
+                    [],
+                    TOKEN_PROGRAM,
+                )
             );
-            await spl.setAuthority(
-                connection,
-                payer,
-                mint.publicKey,
-                owner,
-                spl.AuthorityType.MintTokens,
-                multisig,
-                [],
-                undefined,
-                TOKEN_PROGRAM
-            );
+
+            await provider.sendAndConfirm(multiSigTx, [payer, owner, multisig]);
 
             // init
             const initTxs = ntt.initialize(sender, {
                 mint: mint.publicKey,
                 outboundLimit: 1000000n,
                 mode: "burning",
-                multisig,
+                multisig: multisig.publicKey,
             });
             await ssw(ctx, initTxs, signer);
 
@@ -296,7 +301,7 @@ describe("portal", () => {
             const published = emitter.publishMessage(0, serialized, 200);
             const rawVaa = guardians.addSignatures(published, [0]);
             const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
-            const redeemTxs = ntt.redeem([vaa], sender, multisig);
+            const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
 
             await ssw(ctx, redeemTxs, signer);
         });
