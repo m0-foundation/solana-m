@@ -49,7 +49,5 @@ jobs:
         run: npm i -g yarn && yarn install
         shell: bash
       - name: Run tests
-        run: |
-          cd ${{ github.workspace }}
-          anchor test
+        run: anchor build && yarn test
         shell: bash

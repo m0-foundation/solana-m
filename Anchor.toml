@@ -17,24 +17,3 @@ wallet = "tests/keys/user.json"
 
 [scripts]
 test = "yarn run jest --preset ts-jest"
-
-[test]
-upgradeable = true
-startup_wait = 3000
-shutdown_wait = 1000
-
-[[test.genesis]]
-address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-program = "tests/accounts/core_bridge.so"
-
-[[test.validator.account]]
-address = "2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn"
-filename = "tests/accounts/core_bridge_config.json"
-
-[[test.validator.account]]
-address = "9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"
-filename = "tests/accounts/core_bridge_fee_collector.json"
-
-[[test.validator.account]]
-address = "DS7qfSAgYsonPpKoAjcGhX9VFjXdGkiHjEDkTidf8H2P"
-filename = "tests/accounts/guardian_set_0.json"
