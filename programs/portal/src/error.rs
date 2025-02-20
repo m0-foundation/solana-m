@@ -60,6 +60,8 @@ pub enum NTTError {
     IncorrectRentPayer,
     #[msg("InvalidMultisig")]
     InvalidMultisig,
+    #[msg("InvalidPayload")]
+    InvalidPayload,
 }
 
 impl From<ScalingError> for NTTError {

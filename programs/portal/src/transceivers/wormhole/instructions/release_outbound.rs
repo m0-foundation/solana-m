@@ -1,13 +1,17 @@
 use anchor_lang::prelude::*;
 
 use ntt_messages::{
-    ntt_manager::NttManagerMessage, transceiver::TransceiverMessage,
+    ntt::EmptyPayload, ntt_manager::NttManagerMessage, transceiver::TransceiverMessage,
     transceivers::wormhole::WormholeTransceiver,
 };
 
 use crate::{
-    config::*, error::NTTError, payloads::NativeTokenTransfer, queue::outbox::OutboxItem,
-    registered_transceiver::*, transceivers::wormhole::accounts::*, transfer::Payload,
+    config::*,
+    error::NTTError,
+    payloads::{token_transfer::NativeTokenTransfer, Payload},
+    queue::outbox::OutboxItem,
+    registered_transceiver::*,
+    transceivers::wormhole::accounts::*,
 };
 
 #[derive(Accounts)]
@@ -66,24 +70,22 @@ pub fn release_outbound(ctx: Context<ReleaseOutbound>, args: ReleaseOutboundArgs
     }
 
     assert!(accs.outbox_item.released.get(accs.transceiver.id)?);
-    let message: TransceiverMessage<WormholeTransceiver, NativeTokenTransfer<Payload>> =
-        TransceiverMessage::new(
-            // TODO: should we just put the ntt id here statically?
-            accs.outbox_item.to_account_info().owner.to_bytes(),
-            accs.outbox_item.recipient_ntt_manager,
-            NttManagerMessage {
-                id: accs.outbox_item.key().to_bytes(),
-                sender: accs.outbox_item.sender.to_bytes(),
-                payload: NativeTokenTransfer {
-                    amount: accs.outbox_item.amount,
-                    source_token: accs.config.mint.to_bytes(),
-                    to: accs.outbox_item.recipient_address,
-                    to_chain: accs.outbox_item.recipient_chain,
-                    additional_payload: Payload {},
-                },
-            },
-            vec![],
-        );
+    let message: TransceiverMessage<WormholeTransceiver, Payload> = TransceiverMessage::new(
+        accs.outbox_item.to_account_info().owner.to_bytes(),
+        accs.outbox_item.recipient_ntt_manager,
+        NttManagerMessage {
+            id: accs.outbox_item.key().to_bytes(),
+            sender: accs.outbox_item.sender.to_bytes(),
+            payload: Payload::NativeTokenTransfer(NativeTokenTransfer {
+                amount: accs.outbox_item.amount,
+                source_token: accs.config.mint.to_bytes(),
+                to: accs.outbox_item.recipient_address,
+                to_chain: accs.outbox_item.recipient_chain,
+                additional_payload: EmptyPayload {},
+            }),
+        },
+        vec![],
+    );
 
     post_message(
         &accs.wormhole,

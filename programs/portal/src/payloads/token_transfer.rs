@@ -3,19 +3,20 @@ use ntt_messages::{
     chain_id::ChainId, trimmed_amount::TrimmedAmount, utils::maybe_space::MaybeSpace,
 };
 use std::io;
+
 use wormhole_io::{Readable, TypePrefixedPayload, Writeable};
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub struct NativeTokenTransfer<A: MaybeSpace> {
     pub amount: TrimmedAmount,
     pub source_token: [u8; 32],
-    pub to_chain: ChainId,
     pub to: [u8; 32],
+    pub to_chain: ChainId,
     pub additional_payload: A,
 }
 
 impl<A: MaybeSpace> NativeTokenTransfer<A> {
-    const PREFIX: [u8; 4] = [0x99, 0x4E, 0x54, 0x54];
+    pub const PREFIX: [u8; 4] = [0x99, 0x4E, 0x54, 0x54];
 }
 
 impl<A: TypePrefixedPayload + MaybeSpace> TypePrefixedPayload for NativeTokenTransfer<A> {
@@ -30,14 +31,6 @@ impl<A: TypePrefixedPayload + MaybeSpace> Readable for NativeTokenTransfer<A> {
         Self: Sized,
         R: io::Read,
     {
-        let prefix: [u8; 4] = Readable::read(reader)?;
-        if prefix != Self::PREFIX {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid prefix for NativeTokenTransfer",
-            ));
-        }
-
         let amount = Readable::read(reader)?;
         let source_token = Readable::read(reader)?;
         let to = Readable::read(reader)?;
