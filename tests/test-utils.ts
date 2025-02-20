@@ -1,9 +1,10 @@
 import path from "path";
-import { AccountInfo, Commitment, GetAccountInfoConfig, Keypair, LAMPORTS_PER_SOL, PublicKey, RpcResponseAndContext, SendOptions, SignatureResult, Signer, Transaction, TransactionConfirmationStrategy, VersionedTransaction } from "@solana/web3.js";
+import { AccountInfo, Commitment, GetAccountInfoConfig, Keypair, LAMPORTS_PER_SOL, PublicKey, RpcResponseAndContext, SendOptions, SignatureResult, Signer, Transaction, TransactionConfirmationStrategy, VersionedMessage, VersionedTransaction } from "@solana/web3.js";
 import fs from "fs";
 import { LiteSVMProvider } from "anchor-litesvm";
 import { FailedTransactionMetadata, LiteSVM } from "litesvm";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Wallet } from "@coral-xyz/anchor";
 
 export function loadKeypair(filePath: string): Keypair {
   const fullPath = path.resolve(filePath);
@@ -25,15 +26,15 @@ export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Extend LiteSVMProvider with missing web3.js methods
 export class LiteSVMProviderExt extends LiteSVMProvider {
-  constructor(public client: LiteSVM) {
-    super(client);
+  constructor(public client: LiteSVM, wallet?: Wallet) {
+    super(client, wallet);
 
     this.connection.getLatestBlockhash = async () => ({ blockhash: this.client.latestBlockhash(), lastValidBlockHeight: 10 })
     this.connection.getSlot = async (_) => Number(this.client.getClock().slot)
     this.connection.sendTransaction = async (
       transaction: Transaction | VersionedTransaction,
       signers?: Signer[] | SendOptions,
-      options?: SendOptions,
+      _?: SendOptions,
     ): Promise<string> => {
       return this.sendAndConfirm(transaction, signers as Signer[])
     }
@@ -47,7 +48,15 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
     }
 
     this.connection.sendRawTransaction = async (rawTransaction: Buffer, options?: SendOptions): Promise<string> => {
-      const tx = Transaction.from(rawTransaction)
+      let tx: Transaction | VersionedTransaction
+      let signature: string
+      try {
+        tx = Transaction.from(rawTransaction)
+        signature = bs58.encode(tx.signature)
+      } catch {
+        tx = VersionedTransaction.deserialize(rawTransaction)
+        signature = bs58.encode(tx.signatures[0])
+      }
 
       // send and check for error
       const result = this.client.sendTransaction(tx);
@@ -56,20 +65,27 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
         throw new Error(result.err().toString());
       }
 
-      return bs58.encode(tx.signature);
+      return signature
+    }
+
+    this.connection.getAccountInfo = async (
+      publicKey: PublicKey,
+      _?: Commitment | GetAccountInfoConfig
+    ): Promise<AccountInfo<Buffer> | null> => {
+      const accountInfoBytes = this.client.getAccount(publicKey);
+      return accountInfoBytes ? {
+        ...accountInfoBytes,
+        data: Buffer.from(accountInfoBytes.data ?? []),
+      } : null;
     }
 
     this.connection.getAccountInfoAndContext = async (
       publicKey: PublicKey,
       _?: Commitment | GetAccountInfoConfig | undefined,
     ): Promise<RpcResponseAndContext<AccountInfo<Buffer> | null>> => {
-      const accountInfoBytes = this.client.getAccount(publicKey);
       return {
         context: { slot: Number(this.client.getClock().slot) },
-        value: {
-          ...accountInfoBytes,
-          data: Buffer.from(accountInfoBytes?.data ?? []),
-        },
+        value: await this.connection.getAccountInfo(publicKey),
       };
     }
   }

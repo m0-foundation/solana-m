@@ -1,5 +1,5 @@
 import * as spl from "@solana/spl-token";
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from "@solana/web3.js";
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import {
     AccountAddress,
     ChainAddress,
@@ -25,7 +25,8 @@ import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
 import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
 import { LiteSVMProviderExt, loadKeypair } from "../test-utils";
 import { fromWorkspace } from "anchor-litesvm";
-import { createMintToInstruction, createSetAuthorityInstruction } from "@solana/spl-token";
+import { createAssociatedTokenAccountInstruction, createMintToInstruction, createSetAuthorityInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -81,8 +82,16 @@ describe("portal", () => {
         data: Buffer.from("AAAAAAEAAAC++kKdV80Yt/ik2RotqatK8F0PvkPJm2EAAAAA", "base64"),
     })
 
+    const programData = new PublicKey("ErL2HKJaMbQvGsLBtCR8tpLJTYfPaF14V81KRCxPUtd9")
+    svm.setAccount(programData, {
+        executable: false,
+        owner: new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111"),
+        lamports: 21141440,
+        data: Buffer.from([]),
+    })
+
     // Create an anchor provider from the liteSVM instance
-    const provider = new LiteSVMProviderExt(svm);
+    const provider = new LiteSVMProviderExt(svm, new NodeWallet(payer));
     const connection = provider.connection;
 
     const { ctx, ...wc } = getWormholeContext(connection);
@@ -165,6 +174,7 @@ describe("portal", () => {
 
     describe("Burning", () => {
         beforeAll(async () => {
+            // Create multisig and set authority
             const multiSigTx = new Transaction().add(
                 SystemProgram.createAccount({
                     fromPubkey: payer.publicKey,
@@ -262,8 +272,9 @@ describe("portal", () => {
                 .toMatchObject({ amount: 10000n, decimals: 8 });
 
             // get from balance
-            const balance = await connection.getTokenAccountBalance(tokenAccount);
-            expect(balance.value.amount).toBe("9900000");
+            const tokenAccountInfo = await connection.getAccountInfo(tokenAccount);
+            const parsedTokenAccount = spl.unpackAccount(tokenAccount, tokenAccountInfo, TOKEN_PROGRAM);
+            expect(parsedTokenAccount.amount).toBe(9900000n);
         });
 
         it("Can receive tokens", async () => {
@@ -311,29 +322,37 @@ describe("portal", () => {
         });
 
         it("Can mint independently", async () => {
-            const dest = await spl.getOrCreateAssociatedTokenAccount(
-                connection,
-                payer,
+            const recipient = Keypair.generate()
+            const associatedToken = getAssociatedTokenAddressSync(
                 mint.publicKey,
-                Keypair.generate().publicKey,
+                recipient.publicKey,
                 false,
-                undefined,
-                undefined,
-                TOKEN_PROGRAM
+                TOKEN_PROGRAM,
             );
-            await spl.mintTo(
-                connection,
-                payer,
-                mint.publicKey,
-                dest.address,
-                multisig,
-                1,
-                [owner],
-                undefined,
-                TOKEN_PROGRAM
-            );
-            const balance = await connection.getTokenAccountBalance(dest.address);
-            expect(balance.value.amount.toString()).toBe("1");
+
+            const tx = new Transaction().add(
+                createAssociatedTokenAccountInstruction(
+                    payer.publicKey,
+                    associatedToken,
+                    recipient.publicKey,
+                    mint.publicKey,
+                    TOKEN_PROGRAM,
+                ),
+                createMintToInstruction(
+                    mint.publicKey,
+                    associatedToken,
+                    multisig.publicKey,
+                    1,
+                    [owner],
+                    TOKEN_PROGRAM,
+                )
+            )
+
+            await provider.sendAndConfirm(tx, [payer, owner]);
+
+            const tokenAccountInfo = await connection.getAccountInfo(associatedToken);
+            const parsedTokenAccount = spl.unpackAccount(tokenAccount, tokenAccountInfo, TOKEN_PROGRAM);
+            expect(parsedTokenAccount.amount).toBe(1n);
         });
     });
 });
