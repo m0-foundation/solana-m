@@ -172,8 +172,8 @@ describe("Portal unit tests", () => {
         );
     });
 
-    describe("Burning", () => {
-        beforeAll(async () => {
+    describe("Initialize", () => {
+        test("initialize multisig", async () => {
             // Create multisig and set authority
             const multiSigTx = new Transaction().add(
                 SystemProgram.createAccount({
@@ -200,7 +200,8 @@ describe("Portal unit tests", () => {
             );
 
             await provider.sendAndConfirm(multiSigTx, [payer, owner, multisig]);
-
+        })
+        test("initialize portal", async () => {
             // init
             const initTxs = ntt.initialize(sender, {
                 mint: mint.publicKey,
@@ -232,8 +233,10 @@ describe("Portal unit tests", () => {
             const setPeerTxs = ntt.setPeer(wc.remoteMgr, 18, 1000000n, sender);
             await ssw(ctx, setPeerTxs, signer);
         });
+    })
 
-        test("Can send tokens", async () => {
+    describe("Sending", () => {
+        test("can send tokens", async () => {
             const amount = 100000n;
             const sender = Wormhole.parseAddress("Solana", signer.address());
             const receiver = testing.utils.makeUniversalChainAddress("Ethereum");
@@ -277,8 +280,11 @@ describe("Portal unit tests", () => {
             const parsedTokenAccount = spl.unpackAccount(tokenAccount, tokenAccountInfo, TOKEN_PROGRAM);
             expect(parsedTokenAccount.amount).toBe(9900000n);
         });
+    });
 
-        it("Can receive tokens", async () => {
+
+    describe("Receiving", () => {
+        it("can receive tokens", async () => {
             const emitter = new testing.mocks.MockEmitter(
                 wc.remoteXcvr.address as UniversalAddress,
                 "Ethereum",
@@ -321,8 +327,10 @@ describe("Portal unit tests", () => {
 
             await ssw(ctx, redeemTxs, signer);
         });
+    });
 
-        it("Can mint independently", async () => {
+    describe("Mint", () => {
+        it("can mint independently", async () => {
             const recipient = Keypair.generate()
             const associatedToken = getAssociatedTokenAddressSync(
                 mint.publicKey,

@@ -24,6 +24,7 @@ import { loadKeypair } from "../test-utils";
 import { Earn } from "../../target/types/earn";
 
 const EARN_IDL = require("../../target/idl/earn.json");
+const EARN_PROGRAM_ID = new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c");
 
 // Unit tests for earn program
 // [ ] initialize
@@ -445,7 +446,7 @@ describe("Earn unit tests", () => {
     provider = new LiteSVMProvider(svm);
 
     // Create program instances
-    earn = new Program<Earn>(EARN_IDL, EARN_IDL.metadata.address, provider);
+    earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM_ID, provider);
 
     // Fund the wallets
     svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
