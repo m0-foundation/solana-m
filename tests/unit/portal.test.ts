@@ -37,7 +37,7 @@ const WORMHOLE_PID = new PublicKey("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
 const WORMHOLE_BRIDGE_CONFIG = new PublicKey("2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn")
 const WORMHOLE_BRIDGE_FEE_COLLECTOR = new PublicKey("9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy")
 
-describe("portal", () => {
+describe("Portal unit tests", () => {
     let ntt: SolanaNtt<"Devnet", "Solana">;
     let signer: Signer;
     let sender: AccountAddress<"Solana">;
