@@ -87,7 +87,7 @@ describe("portal", () => {
         executable: false,
         owner: new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111"),
         lamports: 21141440,
-        data: Buffer.from([]),
+        data: Buffer.from("AwAAAAAAAAAAAAAAAQa4yslYf5U3dUpgue6krXRMhOaQBUhVFoaJfBigRtkS", "base64"),
     })
 
     // Create an anchor provider from the liteSVM instance
