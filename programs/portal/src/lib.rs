@@ -17,6 +17,7 @@ pub mod config;
 pub mod error;
 pub mod instructions;
 pub mod messages;
+pub mod payloads;
 pub mod peer;
 pub mod pending_token_authority;
 pub mod queue;

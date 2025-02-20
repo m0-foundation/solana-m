@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
 
 use ntt_messages::{
-    ntt::NativeTokenTransfer, ntt_manager::NttManagerMessage, transceiver::TransceiverMessage,
+    ntt_manager::NttManagerMessage, transceiver::TransceiverMessage,
     transceivers::wormhole::WormholeTransceiver,
 };
 
 use crate::{
-    config::*, error::NTTError, queue::outbox::OutboxItem, registered_transceiver::*,
-    transceivers::wormhole::accounts::*, transfer::Payload,
+    config::*, error::NTTError, payloads::NativeTokenTransfer, queue::outbox::OutboxItem,
+    registered_transceiver::*, transceivers::wormhole::accounts::*, transfer::Payload,
 };
 
 #[derive(Accounts)]

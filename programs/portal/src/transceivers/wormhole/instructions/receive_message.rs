@@ -2,7 +2,6 @@ use anchor_lang::prelude::*;
 
 use ntt_messages::{
     chain_id::ChainId,
-    ntt::NativeTokenTransfer,
     transceiver::{TransceiverMessage, TransceiverMessageData},
     transceivers::wormhole::WormholeTransceiver,
 };
@@ -10,7 +9,8 @@ use wormhole_anchor_sdk::wormhole::PostedVaa;
 
 use crate::{
     config::*, error::NTTError, messages::ValidatedTransceiverMessage,
-    transceivers::accounts::peer::TransceiverPeer, transfer::Payload,
+    payloads::NativeTokenTransfer, transceivers::accounts::peer::TransceiverPeer,
+    transfer::Payload,
 };
 
 #[derive(Accounts)]

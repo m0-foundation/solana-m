@@ -1,12 +1,13 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface;
-use ntt_messages::{ntt::NativeTokenTransfer, ntt_manager::NttManagerMessage};
+use ntt_messages::ntt_manager::NttManagerMessage;
 
 use crate::{
     bitmap::Bitmap,
     config::*,
     error::NTTError,
     messages::ValidatedTransceiverMessage,
+    payloads::NativeTokenTransfer,
     peer::NttManagerPeer,
     queue::{
         inbox::{InboxItem, InboxRateLimit, ReleaseStatus},
