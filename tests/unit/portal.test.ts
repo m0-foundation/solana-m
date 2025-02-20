@@ -1,5 +1,5 @@
 import * as spl from "@solana/spl-token";
-import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from "@solana/web3.js";
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from "@solana/web3.js";
 import {
     AccountAddress,
     ChainAddress,
@@ -18,21 +18,22 @@ import * as testing from "@wormhole-foundation/sdk-definitions/testing";
 import {
     SolanaAddress,
     SolanaPlatform,
-    getSolanaSignAndSendSigner,
+    SolanaSendSigner,
 } from "@wormhole-foundation/sdk-solana";
 import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
 import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
-import { airdrop, loadKeypair } from "../test-utils";
+import { LiteSVMProviderExt, loadKeypair } from "../test-utils";
+import { fromWorkspace } from "anchor-litesvm";
+import { createMintToInstruction } from "@solana/spl-token";
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const CORE_BRIDGE_ADDRESS = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth";
 const NTT_ADDRESS = new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr")
 
-const connection = new Connection(
-    "http://localhost:8899",
-    "confirmed"
-);
+const WORMHOLE_PID = new PublicKey("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth")
+const WORMHOLE_BRIDGE_CONFIG = new PublicKey("2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn")
+const WORMHOLE_BRIDGE_FEE_COLLECTOR = new PublicKey("9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy")
 
 describe("portal", () => {
     let ntt: SolanaNtt<"Devnet", "Solana">;
@@ -47,11 +48,47 @@ describe("portal", () => {
     const payer = loadKeypair("tests/keys/user.json");
     const owner = loadKeypair("tests/keys/mint.json");
 
-    const { ctx, ...wc } = getWormholeContext();
+    const svm = fromWorkspace("")
+        .withSplPrograms()
+        .withBuiltins()
+        .withSysvars()
+        .withBlockhashCheck(false)
+
+    // Wormhole program
+    svm.addProgramFromFile(WORMHOLE_PID, "tests/accounts/core_bridge.so")
+
+    // Add necessary wormhole accounts
+    svm.setAccount(WORMHOLE_BRIDGE_CONFIG, {
+        executable: false,
+        owner: WORMHOLE_PID,
+        lamports: 1057920,
+        data: Buffer.from("BAAAACQWCRUAAAAAgFEBAGQAAAAAAAAA", "base64"),
+    })
+
+    svm.setAccount(WORMHOLE_BRIDGE_FEE_COLLECTOR, {
+        executable: false,
+        owner: new PublicKey("11111111111111111111111111111111"),
+        lamports: 2350640070,
+        data: Buffer.from([]),
+    })
+
+    const gaurdianSet0 = new PublicKey("DS7qfSAgYsonPpKoAjcGhX9VFjXdGkiHjEDkTidf8H2P")
+    svm.setAccount(gaurdianSet0, {
+        executable: false,
+        owner: WORMHOLE_PID,
+        lamports: 21141440,
+        data: Buffer.from("AAAAAAEAAAC++kKdV80Yt/ik2RotqatK8F0PvkPJm2EAAAAA", "base64"),
+    })
+
+    // Create an anchor provider from the liteSVM instance
+    const provider = new LiteSVMProviderExt(svm);
+    const connection = provider.connection;
+
+    const { ctx, ...wc } = getWormholeContext(connection);
 
     beforeAll(async () => {
-        await airdrop(connection, payer.publicKey);
-        signer = await getSolanaSignAndSendSigner(connection, payer);
+        svm.airdrop(payer.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+        signer = new SolanaSendSigner(connection, "Solana", payer, false, {});
         sender = Wormhole.parseAddress("Solana", signer.address());
 
         const mintLen = spl.getMintLen([]);
@@ -59,7 +96,7 @@ describe("portal", () => {
             mintLen
         );
 
-        const transaction = new Transaction().add(
+        const tx = new Transaction().add(
             SystemProgram.createAccount({
                 fromPubkey: payer.publicKey,
                 newAccountPubkey: mint.publicKey,
@@ -76,37 +113,35 @@ describe("portal", () => {
             )
         );
 
-        const { blockhash } = await connection.getLatestBlockhash();
+        await provider.sendAndConfirm(tx, [payer, mint]);
 
-        transaction.feePayer = payer.publicKey;
-        transaction.recentBlockhash = blockhash;
-
-        await sendAndConfirmTransaction(connection, transaction, [
-            payer,
-            mint,
-        ]);
-
-        tokenAccount = await spl.createAssociatedTokenAccount(
-            connection,
-            payer,
+        tokenAccount = spl.getAssociatedTokenAddressSync(
             mint.publicKey,
             payer.publicKey,
-            undefined,
+            false,
             TOKEN_PROGRAM,
-            spl.ASSOCIATED_TOKEN_PROGRAM_ID
         );
 
-        await spl.mintTo(
-            connection,
-            payer,
-            mint.publicKey,
-            tokenAccount,
-            owner,
-            10_000_000n,
-            undefined,
-            undefined,
-            TOKEN_PROGRAM
+        // Mint tokens to payer
+        const mintTx = new Transaction().add(
+            spl.createAssociatedTokenAccountInstruction(
+                payer.publicKey,
+                tokenAccount,
+                payer.publicKey,
+                mint.publicKey,
+                TOKEN_PROGRAM,
+            ),
+            createMintToInstruction(
+                mint.publicKey,
+                tokenAccount,
+                owner.publicKey,
+                10_000_000n,
+                undefined,
+                TOKEN_PROGRAM,
+            )
         );
+
+        await provider.sendAndConfirm(mintTx, [payer, owner]);
 
         // contract client
         ntt = new SolanaNtt(
@@ -294,7 +329,7 @@ describe("portal", () => {
     });
 });
 
-function getWormholeContext() {
+function getWormholeContext(connection: Connection) {
     const w = new Wormhole("Devnet", [SolanaPlatform], {
         chains: { Solana: { contracts: { coreBridge: CORE_BRIDGE_ADDRESS } } },
     });
