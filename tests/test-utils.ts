@@ -31,22 +31,15 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
 
     this.connection.getLatestBlockhash = async () => ({ blockhash: this.client.latestBlockhash(), lastValidBlockHeight: 10 })
     this.connection.getSlot = async (_) => Number(this.client.getClock().slot)
-    this.connection.sendTransaction = async (
-      transaction: Transaction | VersionedTransaction,
-      signers?: Signer[] | SendOptions,
-      _?: SendOptions,
-    ): Promise<string> => {
-      return this.sendAndConfirm(transaction, signers as Signer[])
-    }
 
-    this.connection.confirmTransaction = async (strategy: TransactionConfirmationStrategy | string, commitment?: Commitment): Promise<RpcResponseAndContext<SignatureResult>> => {
-      // transactions sent to litesvm are confirmed immediately
-      return {
-        context: { slot: await this.connection.getSlot() },
-        value: { err: null }
-      }
-    }
+    // litesvm only has sendAndConfirm which will throw on error so we can assume confirmTransaction will always succeed
+    this.connection.sendTransaction = async (tx: Transaction | VersionedTransaction, s?: Signer[] | SendOptions, _?: SendOptions) => this.sendAndConfirm(tx, s as Signer[])
+    this.connection.confirmTransaction = async (_strat: TransactionConfirmationStrategy | string, _?: Commitment) => ({
+      context: { slot: await this.connection.getSlot() },
+      value: { err: null }
+    })
 
+    // send transaction and thow on error (because transaction immediately confirm)
     this.connection.sendRawTransaction = async (rawTransaction: Buffer, options?: SendOptions): Promise<string> => {
       let tx: Transaction | VersionedTransaction
       let signature: string
@@ -68,25 +61,14 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
       return signature
     }
 
-    this.connection.getAccountInfo = async (
-      publicKey: PublicKey,
-      _?: Commitment | GetAccountInfoConfig
-    ): Promise<AccountInfo<Buffer> | null> => {
-      const accountInfoBytes = this.client.getAccount(publicKey);
-      return accountInfoBytes ? {
-        ...accountInfoBytes,
-        data: Buffer.from(accountInfoBytes.data ?? []),
-      } : null;
+    // these are expected to return null and not throw an error
+    this.connection.getAccountInfo = async (pk: PublicKey, _?: Commitment | GetAccountInfoConfig) => {
+      const accountInfoBytes = this.client.getAccount(pk);
+      return accountInfoBytes ? { ...accountInfoBytes, data: Buffer.from(accountInfoBytes.data ?? []) } : null;
     }
-
-    this.connection.getAccountInfoAndContext = async (
-      publicKey: PublicKey,
-      _?: Commitment | GetAccountInfoConfig | undefined,
-    ): Promise<RpcResponseAndContext<AccountInfo<Buffer> | null>> => {
-      return {
-        context: { slot: Number(this.client.getClock().slot) },
-        value: await this.connection.getAccountInfo(publicKey),
-      };
-    }
+    this.connection.getAccountInfoAndContext = async (pk: PublicKey, _?: Commitment | GetAccountInfoConfig | undefined) => ({
+      context: { slot: Number(this.client.getClock().slot) },
+      value: await this.connection.getAccountInfo(pk),
+    });
   }
 }

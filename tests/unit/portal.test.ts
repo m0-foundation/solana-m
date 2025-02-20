@@ -208,6 +208,7 @@ describe("portal", () => {
                 mode: "burning",
                 multisig: multisig.publicKey,
             });
+            // TODO: creating the LUT throws an error due to recent slot checks
             async function* onlyInit() {
                 yield (await initTxs.next()).value as SolanaUnsignedTransaction<"Devnet", "Solana">
             }
