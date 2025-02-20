@@ -19,6 +19,7 @@ import {
     SolanaAddress,
     SolanaPlatform,
     SolanaSendSigner,
+    SolanaUnsignedTransaction,
 } from "@wormhole-foundation/sdk-solana";
 import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
 import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
@@ -197,7 +198,10 @@ describe("portal", () => {
                 mode: "burning",
                 multisig: multisig.publicKey,
             });
-            await ssw(ctx, initTxs, signer);
+            async function* onlyInit() {
+                yield (await initTxs.next()).value as SolanaUnsignedTransaction<"Devnet", "Solana">
+            }
+            await ssw(ctx, onlyInit(), signer);
 
             // register
             const registerTxs = ntt.registerWormholeTransceiver({
