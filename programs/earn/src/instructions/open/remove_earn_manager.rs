@@ -45,7 +45,7 @@ pub fn handler(
 
     // Verify the earn manager is not in the approved earn managers list
     if !verify_not_in_tree(
-        ctx.accounts.global_account.earner_merkle_root,
+        ctx.accounts.global_account.earn_manager_merkle_root,
         earn_manager.to_bytes(),
         proofs,
         neighbors
