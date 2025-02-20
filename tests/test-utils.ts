@@ -61,7 +61,7 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
       return signature
     }
 
-    // these are expected to return null and not throw an error
+    // these are expected to return null and not throw an error if uninitialized
     this.connection.getAccountInfo = async (pk: PublicKey, _?: Commitment | GetAccountInfoConfig) => {
       const accountInfoBytes = this.client.getAccount(pk);
       return accountInfoBytes ? { ...accountInfoBytes, data: Buffer.from(accountInfoBytes.data ?? []) } : null;

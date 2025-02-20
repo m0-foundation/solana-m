@@ -57,7 +57,7 @@ describe("Portal unit tests", () => {
         .withBlockhashCheck(false)
 
     // Wormhole program
-    svm.addProgramFromFile(WORMHOLE_PID, "tests/accounts/core_bridge.so")
+    svm.addProgramFromFile(WORMHOLE_PID, "tests/programs/core_bridge.so")
 
     // Add necessary wormhole accounts
     svm.setAccount(WORMHOLE_BRIDGE_CONFIG, {
