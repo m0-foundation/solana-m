@@ -50,7 +50,7 @@ impl Readable for Payload {
 impl Writeable for Payload {
     fn written_size(&self) -> usize {
         match self {
-            Payload::NativeTokenTransfer(ntt) => TOKEN_TRANSFER_PREFIX.len() + ntt.written_size(),
+            Payload::NativeTokenTransfer(ntt) => ntt.written_size(),
             Payload::IndexTransfer(it) => it.written_size(),
         }
     }
