@@ -21,7 +21,7 @@ import {
   createMintToCheckedInstruction,
 } from "@solana/spl-token";
 
-import { MerkleTree } from "../merkle";
+import { MerkleTree, ProofElement } from "../merkle";
 import { loadKeypair } from "../test-utils";
 
 import { Earn } from "../../target/types/earn";
@@ -142,6 +142,21 @@ const expectAnchorError = async (
   }
 };
 
+const expectSystemError = async (
+  txResult: Promise<string>
+) => {
+  let reverted = false;
+  try {
+    await txResult;
+  } catch (e) {
+    // console.log(e.transactionMessage);
+    // console.log(e.logs);
+    reverted = true;
+  } finally {
+    expect(reverted).toBe(true);
+  }
+};
+
 const expectGlobalState = async (
   globalAccount: PublicKey,
   expected: Global
@@ -238,6 +253,43 @@ const getATA = async (mint: PublicKey, owner: PublicKey) => {
 }
 
 const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
+
+  // Create and initialize mint account
+
+  const mintLen = getMintLen([]);
+  const mintLamports =
+    await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+  const createMintWithMultisigAccount = SystemProgram.createAccount({
+    fromPubkey: admin.publicKey,
+    newAccountPubkey: mint.publicKey,
+    space: mintLen,
+    lamports: mintLamports,
+    programId: TOKEN_2022_PROGRAM_ID,
+  });
+
+  const initializeMint = createInitializeMintInstruction(
+    mint.publicKey,
+    6, // decimals
+    mintAuthority.publicKey, // mint authority
+    null, // freeze authority
+    TOKEN_2022_PROGRAM_ID
+  );
+
+  let tx = new Transaction();
+  tx.add(createMintWithMultisigAccount, initializeMint);
+
+  await provider.sendAndConfirm(tx, [admin, mint]);
+
+  // Verify the mint was created properly
+  const mintInfo = await provider.connection.getAccountInfo(mint.publicKey);
+  if (!mintInfo) {
+    throw new Error("Mint account was not created");
+  }
+
+  return mint.publicKey;
+};
+
+const createMintWithMultisig = async (mint: Keypair, mintAuthority: Keypair) => {
   // Create and initialize multisig mint authority on the token program
   const multisigLen = 355;
   // const multisigLamports = await provider.connection.getMinimumBalanceForRentExemption(multisigLen);
@@ -270,7 +322,7 @@ const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
   const mintLen = getMintLen([]);
   const mintLamports =
     await provider.connection.getMinimumBalanceForRentExemption(mintLen);
-  const createMintAccount = SystemProgram.createAccount({
+  const createMintWithMultisigAccount = SystemProgram.createAccount({
     fromPubkey: admin.publicKey,
     newAccountPubkey: mint.publicKey,
     space: mintLen,
@@ -287,7 +339,7 @@ const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
   );
 
   tx = new Transaction();
-  tx.add(createMintAccount, initializeMint);
+  tx.add(createMintWithMultisigAccount, initializeMint);
 
   await provider.sendAndConfirm(tx, [admin, mint]);
 
@@ -525,7 +577,7 @@ const prepConfigureEarnManager = (signer: Keypair, earnManager: PublicKey, feeTo
   return { globalAccount, earnManagerAccount };
 };
 
-const configureEarnManager = async (earnManager: Keypair, feeBps: BN, proof: number[][]) => {
+const configureEarnManager = async (earnManager: Keypair, feeBps: BN, proof: ProofElement[]) => {
   // Get the fee token account
   const feeTokenAccount = await getATA(mint.publicKey, earnManager.publicKey);
 
@@ -563,7 +615,7 @@ const prepAddEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: Publi
   return { globalAccount, earnManagerAccount, earnerAccount };
 };
 
-const addEarner = async (earnManager: Keypair, earner: PublicKey, proof: number[][], sibling: number[]) => {
+const addEarner = async (earnManager: Keypair, earner: PublicKey, proofs: ProofElement[][], neighbors: number[][]) => {
   // Get the earner ATA
   const earnerATA = await getATA(mint.publicKey, earner);
 
@@ -572,7 +624,7 @@ const addEarner = async (earnManager: Keypair, earner: PublicKey, proof: number[
 
   // Send the instruction
   await earn.methods
-    .addEarner(earner, proof, sibling)
+    .addEarner(earner, proofs, neighbors)
     .accounts({...accounts})
     .signers([earnManager])
     .rpc();
@@ -628,7 +680,7 @@ const prepAddRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
   return { globalAccount, earnerAccount };
 };
 
-const addRegistrarEarner = async (earner: PublicKey, proof: number[][]) => {
+const addRegistrarEarner = async (earner: PublicKey, proof: ProofElement[]) => {
   // Get the earner ATA
   const earnerATA = await getATA(mint.publicKey, earner);
 
@@ -660,7 +712,7 @@ const prepRemoveRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
   return { globalAccount, earnerAccount };
 };
 
-const removeRegistrarEarner = async (earner: PublicKey, proof: number[][], sibling: number[]) => {
+const removeRegistrarEarner = async (earner: PublicKey, proofs: ProofElement[][], neighbors: number[][]) => {
   // Get the earner ATA
   const earnerATA = await getATA(mint.publicKey, earner);
 
@@ -669,7 +721,7 @@ const removeRegistrarEarner = async (earner: PublicKey, proof: number[][], sibli
 
   // Send the instruction
   await earn.methods
-    .removeRegistrarEarner(earner, proof, sibling)
+    .removeRegistrarEarner(earner, proofs, neighbors)
     .accounts({...accounts})
     .signers([nonAdmin])
     .rpc();
@@ -691,13 +743,13 @@ const prepRemoveEarnManager = (signer: Keypair, earnManager: PublicKey) => {
   return { globalAccount, earnManagerAccount };
 };
 
-const removeEarnManager = async (earnManager: PublicKey, proof: number[][], sibling: number[]) => {
+const removeEarnManager = async (earnManager: PublicKey, proofs: ProofElement[][], neighbors: number[][]) => {
   // Setup the instruction
   prepRemoveEarnManager(nonAdmin, earnManager);
 
   // Send the instruction
   await earn.methods
-    .removeEarnManager(earnManager, proof, sibling)
+    .removeEarnManager(earnManager, proofs, neighbors)
     .accounts({...accounts})
     .signers([nonAdmin])
     .rpc();
@@ -764,7 +816,7 @@ describe("Earn unit tests", () => {
     svm.airdrop(nonEarnManagerOne.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
 
     // Create the token mint
-    await createMint(mint, mintAuthority);
+    await createMintWithMultisig(mint, mintAuthority);
 
     // Mint some tokens to have a non-zero supply
     await mintM(admin.publicKey, initialSupply);
@@ -1403,11 +1455,11 @@ describe("Earn unit tests", () => {
 
   describe("add_earner unit tests", () => {
     // test cases
-    // [ ] given signer does not have an earn manager account initialized
-    //   [ ] it reverts with an account not initialized error
-    // [ ] given signer has an earn manager account initialized
-    //   [ ] given earn manager account is not active
-    //     [ ] it reverts with a NotAuthorized error
+    // [X] given signer does not have an earn manager account initialized
+    //   [X] it reverts with an account not initialized error
+    // [X] given signer has an earn manager account initialized
+    //   [X] given earn manager account is not active
+    //     [X] it reverts with a NotAuthorized error
     //   [ ] given earn manager account is active
     //     [ ] given the earner already has an earner account
     //       [ ] it reverts with an account already initialized error
@@ -1448,181 +1500,180 @@ describe("Earn unit tests", () => {
       // Get inclusion proof for earn manager one in the earn manager tree
       const { proof: earnManagerOneProof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
 
-      console.log("proof", earnManagerOneProof);
-
-      console.log("Trying to add earn manager")
-
       // Initialize earn manager one's account
       await configureEarnManager(earnManagerOne, new BN(100), earnManagerOneProof);
-
-      console.log("Earn manager one initialized");
     });
 
-    // // given signer does not have an earn manager account initialized
-    // // it reverts with an account not initialized error
-    // test("Signer must have an earn manager account initialized", async () => {
-    //   // Get the ATA for non earner one
-    //   const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+    // given signer does not have an earn manager account initialized
+    // it reverts with an account not initialized error
+    test("Signer must have an earn manager account initialized", async () => {
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
-    //   // Setup the instruction
-    //   prepAddEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnerOneATA);
+      // Setup the instruction
+      prepAddEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnerOneATA);
 
-    //   // Get the exclusion proof for the earner against the earner merkle tree
-    //   const { proof, sibling } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+      // Get the exclusion proof for the earner against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
-    //   // Attempt to add earner without an initialized earn manager account
-    //   await expectAnchorError(
-    //     earn.methods
-    //       .addEarner(earnerOne.publicKey, proof, sibling)
-    //       .accounts({ ...accounts })
-    //       .signers([nonAdmin])
-    //       .rpc(),
-    //     "AccountNotInitialized"
-    //   );
-    // });
+      // Attempt to add earner without an initialized earn manager account
+      await expectAnchorError(
+        earn.methods
+          .addEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([nonEarnManagerOne])
+          .rpc(),
+        "AccountNotInitialized"
+      );
+    });
 
-    // // given signer has an earn manager account initialized
-    // // given earn manager account is not active
-    // // it reverts with a NotAuthorized error
-    // test("Signer's earn manager account must be active", async () => {
-    //   // Get the ATA for non earner one
-    //   const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey); 
+    // given signer has an earn manager account initialized
+    // given earn manager account is not active
+    // it reverts with a NotAuthorized error
+    test("Signer's earn manager account must be active", async () => {
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey); 
 
-    //   // Remove earn manager one from the earn manager merkle tree
-    //   earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
+      // Remove earn manager one from the earn manager merkle tree
+      earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
 
-    //   // Get the exclusion proof for earn manager one against the earn manager merkle tree
-    //   const { proof: earnManagerOneProof, sibling: earnManagerOneSibling } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
+      // Update the earn manager merkle root on the global account
+      await propagateIndex(new BN(1_110_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+      
+      // Get the exclusion proof for earn manager one against the earn manager merkle tree
+      const { proofs: earnManagerOneProofs, neighbors: earnManagerOneNeighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
 
-    //   // Remove the earn manager account (set it to inactive)
-    //   await removeEarnManager(earnManagerOne.publicKey, earnManagerOneProof, earnManagerOneSibling);
+      // Remove the earn manager account (set it to inactive)
+      await removeEarnManager(earnManagerOne.publicKey, earnManagerOneProofs, earnManagerOneNeighbors);
 
-    //   // Get the exclusion proof for the earner against the earner merkle tree
-    //   const { proof, sibling } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
+      // Get the exclusion proof for the earner against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
-    //   // Setup the instruction
-    //   prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+      // Setup the instruction
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
 
-    //   // Attempt to add earner with an inactive earn manager account
-    //   await expectAnchorError(
-    //     earn.methods
-    //       .addEarner(earnerOne.publicKey, proof, sibling)
-    //       .accounts({ ...accounts })
-    //       .signers([earnManagerOne])
-    //       .rpc(),
-    //     "NotAuthorized"
-    //   );
-    // });
+      // Attempt to add earner with an inactive earn manager account
+      await expectAnchorError(
+        earn.methods
+          .addEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "NotAuthorized"
+      );
+    });
 
 
-    // // given signer has an earn manager account initialized
-    // // given earn manager account is active
-    // // given earner already has an earner account
-    // // it reverts with an account already initialized error
-    // test("Earner account already initialized", async () => {
-    //   // Get the ATA for earner one
-    //   const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
+    // given signer has an earn manager account initialized
+    // given earn manager account is active
+    // given earner already has an earner account
+    // it reverts with an account already initialized error
+    test("Earner account already initialized", async () => {
+      // Get the inclusion proof for earner one against the earner merkle tree
+      const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
 
-    //   // Get the inclusion proof for earner one against the earner merkle tree
-    //   const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
+      // Add the earner via the registrar
+      await addRegistrarEarner(earnerOne.publicKey, proof);
 
-    //   // Setup the instruction
-    //   prepAddEarner(earnManagerOne, earnManagerOne.publicKey, earnerOneATA);
+      // Get the ATA for earner one
+      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
-    //   // Attempt to add earner with an already initialized earner account
-    //   await expectAnchorError(
-    //     earn.methods
-    //       .addEarner(earnerOne.publicKey, proof, Array.from(earnerOne.publicKey.toBuffer()))
-    //       .accounts({ ...accounts })
-    //       .signers([earnManagerOne])
-    //       .rpc(),
-    //     "AccountAlreadyInitialized"
-    //   );
-    // });
+      // Setup the instruction
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, earnerOneATA);
 
-    // // given signer has an earn manager account initialized
-    // // given earn manager account is active
-    // // given the earner does not already have an earner account
-    // // given merkle proof for user exclusion from earner list is invalid
-    // // it reverts with an AlreadyEarns error
-    // test("Invalid merkle proof for user exclusion", async () => {
-    //   // Get the ATA for earner one
-    //   const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+      // Attempt to add earner with an already initialized earner account
+      await expectSystemError(
+        earn.methods
+          .addEarner(earnerOne.publicKey, [], [])
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc()
+      );
+    });
 
-    //   // Get the exclusion proof for a different key against the earner merkle tree
-    //   const { proof, sibling } = earnerMerkleTree.getExclusionProof(nonAdmin.publicKey);
+    // given signer has an earn manager account initialized
+    // given earn manager account is active
+    // given the earner does not already have an earner account
+    // given merkle proof for user exclusion from earner list is invalid
+    // it reverts with an AlreadyEarns error
+    test("Invalid merkle proof for user exclusion", async () => {
+      // Get the ATA for earner one
+      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
-    //   // Setup the instruction
-    //   prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+      // Get the exclusion proof for a different key against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonAdmin.publicKey);
 
-    //   // Attempt to add earner with invalid merkle proof
-    //   await expectAnchorError(
-    //     earn.methods
-    //       .addEarner(nonEarnerOne.publicKey, proof, sibling)
-    //       .accounts({ ...accounts })
-    //       .signers([earnManagerOne])
-    //       .rpc(),
-    //     "AlreadyEarns" // TODO change this error
-    //   );
-    // });
+      // Setup the instruction
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, earnerOneATA);
 
-    // // given signer has an earn manager account initialized
-    // // given earn manager account is active
-    // // given the earner does not already have an earner account
-    // // given merkle proof for user exclusion from earner list is valid
-    // // given user token account is for the wrong token mint
-    // // it reverts with an address constraint error
-    // test("User token account is for the wrong token mint", async () => {
-    //   // Create a new mint for the user token account
-    //   const wrongMint = new Keypair();
-    //   await createMint(wrongMint, nonAdmin);
+      // Attempt to add earner with invalid merkle proof
+      await expectAnchorError(
+        earn.methods
+          .addEarner(earnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "InvalidProof" 
+      );
+    });
 
-    //   // Get the ATA for earner one
-    //   const nonEarnerOneATA = await getATA(wrongMint.publicKey, nonEarnerOne.publicKey);
+    // given signer has an earn manager account initialized
+    // given earn manager account is active
+    // given the earner does not already have an earner account
+    // given merkle proof for user exclusion from earner list is valid
+    // given user token account is for the wrong token mint
+    // it reverts with an token mint constraint error
+    test("User token account is for the wrong token mint", async () => {
+      // Create a new mint for the user token account
+      const wrongMint = new Keypair();
+      await createMint(wrongMint, nonAdmin);
 
-    //   // Get the exclusion proof for the earner against the earner merkle tree
-    //   const { proof, sibling } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+      // Get the ATA for earner one
+      const nonEarnerOneATA = await getATA(wrongMint.publicKey, nonEarnerOne.publicKey);
 
-    //   // Setup the instruction
-    //   prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+      // Get the exclusion proof for the earner against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
-    //   // Attempt to add earner with user token account for wrong token mint
-    //   await expectAnchorError(
-    //     earn.methods
-    //       .addEarner(nonEarnerOne.publicKey, proof, sibling)
-    //       .accounts({ ...accounts })
-    //       .signers([earnManagerOne])
-    //       .rpc(),
-    //     "ConstraintAddress"
-    //   );
-    // });
+      // Setup the instruction
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
 
-    // // given signer has an earn manager account initialized
-    // // given earn manager account is active
-    // // given the earner does not already have an earner account
-    // // given merkle proof for user exclusion from earner list is valid
-    // // given user token account authority does not match the user pubkey
-    // // it reverts with an address constraint error
-    // test("User token account authority does not match user pubkey", async () => {
-    //   // Get the ATA for earner one (not the same as the user)
-    //   const earnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+      // Attempt to add earner with user token account for wrong token mint
+      await expectAnchorError(
+        earn.methods
+          .addEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "ConstraintTokenMint"
+      );
+    });
 
-    //   // Get the exclusion proof for the earner against the earner merkle tree
-    //   const { proof, sibling } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+    // given signer has an earn manager account initialized
+    // given earn manager account is active
+    // given the earner does not already have an earner account
+    // given merkle proof for user exclusion from earner list is valid
+    // given user token account authority does not match the user pubkey
+    // it reverts with an address constraint error
+    test("User token account authority does not match user pubkey", async () => {
+      // Get the ATA for random user (not the same as the user)
+      const randomATA = await getATA(mint.publicKey, nonAdmin.publicKey);
 
-    //   // Setup the instruction
-    //   prepAddEarner(earnManagerOne, earnManagerOne.publicKey, earnerOneATA);
+      // Get the exclusion proof for the earner against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
-    //   // Attempt to add earner with user token account for wrong token mint
-    //   await expectAnchorError(
-    //     earn.methods
-    //       .addEarner(nonEarnerOne.publicKey, proof, sibling)
-    //       .accounts({ ...accounts })
-    //       .signers([earnManagerOne])
-    //       .rpc(),
-    //     "ConstraintAddress"
-    //   );
-    // });
+      // Setup the instruction
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, randomATA);
+
+      // Attempt to add earner with user token account for wrong token mint
+      await expectAnchorError(
+        earn.methods
+          .addEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "ConstraintTokenOwner"
+      );
+    });
 
     // given signer has an earn manager account initialized
     // given earn manager account is active
@@ -1638,18 +1689,17 @@ describe("Earn unit tests", () => {
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Get the exclusion proof for the earner against the earner merkle tree
-      const { proof, sibling } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
       const { earnerAccount } = prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
 
       // Add earner one to the earn manager's list
       await earn.methods
-        .addEarner(nonEarnerOne.publicKey, proof, sibling)
+        .addEarner(nonEarnerOne.publicKey, proofs, neighbors)
         .accounts({ ...accounts })
         .signers([earnManagerOne])
         .rpc();
-
 
       // Verify the earner account was initialized correctly
       await expectEarnerState(
@@ -1660,10 +1710,7 @@ describe("Earn unit tests", () => {
           lastClaimIndex: new BN(1_100_000_000_000)
         }
       );
-
     });
-
-
   });
 
   describe("remove_earner unit tests", () => {

@@ -185,7 +185,7 @@ export class MerkleTree {
         return Array.from(this.root);
     }
 
-    public getInclusionProof(leaf: PublicKey): { proof: ProofElement[] } {
+    public getInclusionProof(leaf: PublicKey, useDuplicate: boolean = false): { proof: ProofElement[] } {
         const leafBuffer = leaf.toBuffer();
 
         // Find the index of the leaf in the leaves
@@ -202,10 +202,12 @@ export class MerkleTree {
         }
 
         // If the raw leaves are an odd length, and the leaf is the last one,
+        // and the caller wants to use the duplicated value,
         // add one to the index so that the proof uses the duplicated value.
-        // This doesn't matter for inclusion proofs, but is necessary for exclusion proofs.
+        // This doesn't matter for inclusion proofs, but is necessary for some exclusion proofs.
         const rawLen = this.rawLeaves.length;
-        if (rawLen % 2 !== 0 && index === rawLen - 1) {
+        if (rawLen % 2 !== 0 && index === rawLen - 1 && useDuplicate) {
+            // console.log("special case triggered");
             index++;
         } 
 
@@ -281,7 +283,7 @@ export class MerkleTree {
                 // index is correct when comparing against the tree size
                 // We have to manually increase this bc the length b/w the 
                 // raw leaves and the first layer of the tree is different
-                index = len % 2 === 0 ? len : len + 1;
+                index = len % 2 === 0 ? len - 1 : len;
             }
         }
 
@@ -304,7 +306,7 @@ export class MerkleTree {
         if (index >= len) {
             // console.log("special case: greater than largest value");
             let neighbor = this.rawLeaves[len - 1];
-            let { proof } = this.getInclusionProof(new PublicKey(neighbor));
+            let { proof } = this.getInclusionProof(new PublicKey(neighbor), true);
             neighbors.push(Array.from(neighbor));
             proofs.push(proof);
             return { proofs, neighbors };

@@ -64,7 +64,7 @@ pub fn verify_in_tree_and_get_index(
             index += 2u64.pow(i as u32);
         }
     }
-
+    msg!("index: {:?}", index);
     msg!("computed hash: {:?}", computed_hash);
     msg!("root: {:?}", root);
     // Check if the computed hash (root) is equal to the provided root
@@ -96,13 +96,15 @@ pub fn verify_not_in_tree(
         let neighbor = neighbors[0];
         let proof = &proofs[0];
 
-        // The value is smaller than the smallest value in the tree
         if value < neighbor {
+            // Value is smaller than the smallest leaf in the tree
             let (neighbor_in_tree, neighbor_index) = verify_in_tree_and_get_index(root, neighbor, proof.clone());
 
             // The neighbor should be the first leaf in the tree
             return neighbor_in_tree && neighbor_index == 0;
         } else if value > neighbor {
+            // Value is larger than the largest leaf in the tree
+
             // Calculate the expected index of the neighbor (last leaf in the tree)
             // based on the length of the proof.
             // @audit I believe this works because we use different bits to hash leafs vs. nodes to protect 
@@ -114,7 +116,7 @@ pub fn verify_not_in_tree(
 
             return neighbor_in_tree && neighbor_index == expected_index;
         } else {
-            // proof is invalid since we should have two neighbors
+            // Can't be the same as the neighbor
             return false;
         }
     }
