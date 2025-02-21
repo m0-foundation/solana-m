@@ -56,7 +56,7 @@ pub fn handler(
         user.to_bytes(),
         proof, 
     ) {
-        return err!(EarnError::NotAuthorized);
+        return err!(EarnError::InvalidProof);
     }
 
     // Initialize the user earning account
