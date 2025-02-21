@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface;
-use ntt_messages::{ntt::EmptyPayload, ntt_manager::NttManagerMessage};
+use ntt_messages::ntt_manager::NttManagerMessage;
 
 use crate::{
     bitmap::Bitmap,
@@ -114,7 +114,7 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
     let message: NttManagerMessage<Payload> =
         transceiver_message.message.ntt_manager_payload.clone();
 
-    let transfer: &NativeTokenTransfer<EmptyPayload>;
+    let transfer: &NativeTokenTransfer;
     match &message.payload {
         Payload::NativeTokenTransfer(ntt) => {
             transfer = ntt;

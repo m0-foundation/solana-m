@@ -1,11 +1,12 @@
 use anchor_lang::prelude::*;
-use ntt_messages::trimmed_amount::TrimmedAmount;
+use ntt_messages::{chain_id::ChainId, trimmed_amount::TrimmedAmount};
 use std::io;
 use wormhole_io::{Readable, Writeable};
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub struct IndexTransfer {
     pub index: u128,
+    pub to_chain: ChainId,
 }
 
 impl IndexTransfer {
@@ -20,17 +21,10 @@ impl Readable for IndexTransfer {
         Self: Sized,
         R: io::Read,
     {
-        let prefix: [u8; 4] = Readable::read(reader)?;
-        if prefix != Self::PREFIX {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid prefix for NativeTokenTransfer",
-            ));
-        }
-
         let index = Readable::read(reader)?;
+        let to_chain = Readable::read(reader)?;
 
-        Ok(Self { index })
+        Ok(Self { index, to_chain })
     }
 }
 

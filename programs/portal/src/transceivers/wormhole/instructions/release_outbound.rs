@@ -1,14 +1,17 @@
 use anchor_lang::prelude::*;
 
 use ntt_messages::{
-    ntt::EmptyPayload, ntt_manager::NttManagerMessage, transceiver::TransceiverMessage,
+    ntt_manager::NttManagerMessage, transceiver::TransceiverMessage,
     transceivers::wormhole::WormholeTransceiver,
 };
 
 use crate::{
     config::*,
     error::NTTError,
-    payloads::{token_transfer::NativeTokenTransfer, Payload},
+    payloads::{
+        token_transfer::{AdditionalPayload, IndexUpdate, NativeTokenTransfer},
+        Payload,
+    },
     queue::outbox::OutboxItem,
     registered_transceiver::*,
     transceivers::wormhole::accounts::*,
@@ -81,7 +84,10 @@ pub fn release_outbound(ctx: Context<ReleaseOutbound>, args: ReleaseOutboundArgs
                 source_token: accs.config.mint.to_bytes(),
                 to: accs.outbox_item.recipient_address,
                 to_chain: accs.outbox_item.recipient_chain,
-                additional_payload: EmptyPayload {},
+                additional_payload: AdditionalPayload::IndexUpdate(IndexUpdate {
+                    index: 0,
+                    destination: Pubkey::default().to_bytes(),
+                }),
             }),
         },
         vec![],

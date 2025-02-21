@@ -2,7 +2,7 @@ pub mod index_transfer;
 pub mod token_transfer;
 
 use anchor_lang::prelude::*;
-use ntt_messages::{chain_id::ChainId, ntt::EmptyPayload};
+use ntt_messages::chain_id::ChainId;
 use std::io;
 use token_transfer::NativeTokenTransfer;
 use wormhole_io::{Readable, TypePrefixedPayload, Writeable};
@@ -13,7 +13,7 @@ const TOKEN_TRANSFER_PREFIX: [u8; 4] = [0x99, 0x4E, 0x54, 0x54];
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub enum Payload {
-    NativeTokenTransfer(NativeTokenTransfer<EmptyPayload>),
+    NativeTokenTransfer(NativeTokenTransfer),
     IndexTransfer(IndexTransfer),
 }
 
@@ -21,7 +21,7 @@ impl Payload {
     pub fn to_chain(&self) -> ChainId {
         match self {
             Payload::NativeTokenTransfer(ntt) => ntt.to_chain,
-            Payload::IndexTransfer(it) => ChainId { id: 1 },
+            Payload::IndexTransfer(it) => it.to_chain,
         }
     }
 }
