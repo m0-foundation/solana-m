@@ -50,7 +50,7 @@ pub fn handler(
         proofs,
         neighbors
     ) {
-        return err!(EarnError::NotAuthorized);
+        return err!(EarnError::InvalidProof);
     }
     
     // We do not close earn manager accounts when they are removed so that orphaned earners can be removed as well

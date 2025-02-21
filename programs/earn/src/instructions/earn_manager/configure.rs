@@ -55,7 +55,7 @@ pub fn handler(
         ctx.accounts.signer.key().to_bytes(),
         proof,
     ) {
-        return err!(EarnError::NotAuthorized);
+        return err!(EarnError::InvalidProof);
     }
 
     // Validate the fee percent is not greater than 100%

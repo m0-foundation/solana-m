@@ -53,7 +53,7 @@ pub fn handler(
         proofs,
         neighbors
     ) {
-        return err!(EarnError::NotAuthorized);
+        return err!(EarnError::InvalidProof);
     }
 
     // Check that the earner does not have an earn_manager, if so, return an error
