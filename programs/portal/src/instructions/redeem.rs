@@ -7,7 +7,7 @@ use crate::{
     config::*,
     error::NTTError,
     messages::ValidatedTransceiverMessage,
-    payloads::{token_transfer::NativeTokenTransfer, Payload},
+    payloads::{token_transfer::NativeTokenTransfer, IndexTransfer, Payload},
     peer::NttManagerPeer,
     queue::{
         inbox::{InboxItem, InboxRateLimit, ReleaseStatus},
@@ -104,23 +104,24 @@ pub struct Redeem<'info> {
 pub struct RedeemArgs {}
 
 pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
-    let accs = ctx.accounts;
-
     let transceiver_message: ValidatedTransceiverMessage<Payload> =
         ValidatedTransceiverMessage::try_from(
-            &accs.transceiver_message,
-            &accs.transceiver.transceiver_address,
+            &ctx.accounts.transceiver_message,
+            &ctx.accounts.transceiver.transceiver_address,
         )?;
+
     let message: NttManagerMessage<Payload> =
         transceiver_message.message.ntt_manager_payload.clone();
 
-    let transfer: &NativeTokenTransfer;
     match &message.payload {
-        Payload::NativeTokenTransfer(ntt) => {
-            transfer = ntt;
-        }
-        _ => return Err(NTTError::InvalidPayload.into()),
+        Payload::NativeTokenTransfer(ntt) => redeem_transfer(ctx, ntt),
+        Payload::IndexTransfer(index) => redeem_index(ctx, index),
+        _ => Err(NTTError::InvalidPayload.into()),
     }
+}
+
+pub fn redeem_transfer(ctx: Context<Redeem>, transfer: &NativeTokenTransfer) -> Result<()> {
+    let accs = ctx.accounts;
 
     // Calculate the scaled amount based on the appropriate decimal encoding for the token.
     // Return an error if the resulting amount overflows.
@@ -169,5 +170,10 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
 
     accs.inbox_item.release_after(release_timestamp)?;
 
+    Ok(())
+}
+
+pub fn redeem_index(_: Context<Redeem>, index: &IndexTransfer) -> Result<()> {
+    msg!("received index update: {:?}", index);
     Ok(())
 }
