@@ -9,8 +9,6 @@ use wormhole_io::{Readable, TypePrefixedPayload, Writeable};
 
 pub use index_transfer::*;
 
-const TOKEN_TRANSFER_PREFIX: [u8; 4] = [0x99, 0x4E, 0x54, 0x54];
-
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub enum Payload {
     NativeTokenTransfer(NativeTokenTransfer),
@@ -37,7 +35,7 @@ impl Readable for Payload {
         let prefix: [u8; 4] = Readable::read(reader)?;
 
         match prefix {
-            TOKEN_TRANSFER_PREFIX => Ok(Self::NativeTokenTransfer(Readable::read(reader)?)),
+            NativeTokenTransfer::PREFIX => Ok(Self::NativeTokenTransfer(Readable::read(reader)?)),
             IndexTransfer::PREFIX => Ok(Self::IndexTransfer(Readable::read(reader)?)),
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
