@@ -376,6 +376,12 @@ const warp = (seconds: BN, increment: boolean) => {
   svm.setClock(clock);
 };
 
+const warpSlot = (slots: BN, increment: boolean) => {
+  const clock = svm.getClock();
+  clock.slot = increment ? clock.slot + BigInt(slots.toString()) : BigInt(slots.toString());
+  svm.setClock(clock);
+}
+
 // instruction convenience functions
 const prepInitialize = (signer: Keypair) => {
   // Get the global PDA
@@ -549,7 +555,7 @@ const prepCompleteClaims = (signer: Keypair) => {
 
 const completeClaims = async () => {
   // Setup the instruction
-  await prepCompleteClaims(earnAuthority);
+  prepCompleteClaims(earnAuthority);
 
   // Send the instruction
   await earn.methods
@@ -799,7 +805,7 @@ describe("Earn unit tests", () => {
       .withBuiltins()        // Add builtin programs
       .withSysvars()         // Setup standard sysvars
       .withPrecompiles()     // Add standard precompiles
-      .withBlockhashCheck(false); // Optional: disable blockhash checking for tests
+      .withBlockhashCheck(true); // Optional: disable blockhash checking for tests
 
     // Create an anchor provider from the liteSVM instance
     provider = new LiteSVMProvider(svm);
@@ -1419,15 +1425,95 @@ describe("Earn unit tests", () => {
 
   });
 
-  describe("complete_claim unit tests", () => {
+  describe("complete_claims unit tests", () => {
     // test cases
-    // [ ] given the earn authority does not sign the transaction
-    //   [ ] it reverts with an address constraint error
-    // [ ] given the earn authority signs the transaction
-    //   [ ] given the most recent claim is complete
-    //     [ ] it reverts with a NoActiveClaim error
-    //   [ ] given the most recent claim is not complete
-    //     [ ] it sets the claim complete flag to true in the global account
+    // [X] given the earn authority does not sign the transaction
+    //   [X] it reverts with an address constraint error
+    // [X] given the earn authority signs the transaction
+    //   [X] given the most recent claim is complete
+    //     [X] it reverts with a NoActiveClaim error
+    //   [X] given the most recent claim is not complete
+    //     [X] it sets the claim complete flag to true in the global account
+
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
+
+      // Warp past the initial cooldown period
+      warp(claimCooldown, true);
+
+      // Propagate a new index to start a new claim cycle
+      await propagateIndex(new BN(1_100_000_000_000));
+    });
+
+    // given the earn authority does not sign the transaction
+    // it reverts with an address constraint error
+    test("Earn authority does not sign - reverts", async () => {
+      // Setup the instruction
+      prepCompleteClaims(nonAdmin);
+
+      // Attempt to complete claim with non-earn authority
+      await expectAnchorError(
+        earn.methods
+          .completeClaims()
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "ConstraintAddress"
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given the most recent claim is complete
+    // it reverts with a NoActiveClaim error
+    test("Claim already complete - reverts", async () => {
+      // Complete the active claim
+      await completeClaims();
+
+      // Expire the blockhash so the same txn can be sent again (in a new block)
+      svm.expireBlockhash();
+
+      // Setup the instruction
+      prepCompleteClaims(earnAuthority);
+
+      // Attempt to complete claim when already complete
+      await expectAnchorError(
+        earn.methods
+          .completeClaims()
+          .accounts({ ...accounts })
+          .signers([earnAuthority])
+          .rpc(),
+        "NoActiveClaim"
+      );
+
+    });
+
+    // given the earn authority signs the transaction
+    // given the most recent claim is not complete
+    // it sets the claim complete flag to true in the global account
+    test("Complete claims - success", async () => {
+      // Setup the instruction
+      const { globalAccount } = prepCompleteClaims(earnAuthority);
+
+      // Complete the claim
+      await earn.methods
+        .completeClaims()
+        .accounts({ ...accounts })
+        .signers([earnAuthority])
+        .rpc();
+
+      // Verify the global state was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          claimComplete: true
+        }
+      );
+    });
 
   });
 
