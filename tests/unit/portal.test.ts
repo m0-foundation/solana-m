@@ -292,21 +292,30 @@ describe("Portal unit tests", () => {
             sender = Wormhole.parseAddress("Solana", signer.address());
         })
 
-        const serializedMessage = (id: string): Uint8Array<ArrayBufferLike> => {
-            // evm web3.js encoding
-            let customPayload = utils.encodePacked(
+        const serializeTransfer = (amount: bigint) => {
+            return utils.encodePacked(
                 { type: 'bytes4', value: '0x994e5454' }, // prefix 
                 { type: 'uint8', value: 8 }, // decimals 
-                { type: 'uint64', value: 10000n }, // amount
+                { type: 'uint64', value: amount }, // amount
                 { type: 'bytes32', value: "FAFA".padStart(64, "0") }, // source token
                 { type: 'bytes32', value: Buffer.from(payer.publicKey.toBytes()).toString('hex') }, // recipient address
                 { type: 'uint16', value: 1 }, // recipient chain
                 { type: 'uint16', value: 48 }, // additionalPayload len
                 { type: 'bytes', value: Buffer.alloc(48).toString('hex') }, // additionalPayload
             )
+        }
 
+        const serializeIndexUpdate = (index: bigint) => {
+            return utils.encodePacked(
+                { type: 'bytes4', value: '0x4d304954' }, // prefix 
+                { type: 'uint128', value: index }, // index 
+                { type: 'uint16', value: 1 }, // to_chain
+            )
+        }
+
+        const serializedMessage = (id: string, payload: string) => {
             // add payload len
-            customPayload = utils.encodePacked({ type: 'uint16', value: Buffer.from(customPayload.slice(2), 'hex').length }) + customPayload.slice(2)
+            let customPayload = utils.encodePacked({ type: 'uint16', value: Buffer.from(payload.slice(2), 'hex').length }) + payload.slice(2)
 
             // nttManager payload
             customPayload = utils.encodePacked(
@@ -328,7 +337,7 @@ describe("Portal unit tests", () => {
         }
 
         it("tokens", async () => {
-            const msg = serializedMessage("1");
+            const msg = serializedMessage("1", serializeTransfer(10000n));
             const published = emitter.publishMessage(0, msg, 200);
             const rawVaa = guardians.addSignatures(published, [0]);
             const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
@@ -338,7 +347,7 @@ describe("Portal unit tests", () => {
         });
 
         it("index update", async () => {
-            const msg = serializedMessage("2");
+            const msg = serializedMessage("2", serializeIndexUpdate(123456n));
             const published = emitter.publishMessage(0, msg, 200);
             const rawVaa = guardians.addSignatures(published, [0]);
             const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
