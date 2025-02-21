@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use ntt_messages::{chain_id::ChainId, ntt::EmptyPayload, trimmed_amount::TrimmedAmount};
+use ntt_messages::{chain_id::ChainId, trimmed_amount::TrimmedAmount};
 use std::io;
 
 use wormhole_io::{Readable, TypePrefixedPayload, Writeable};
@@ -33,6 +33,8 @@ impl Readable for NativeTokenTransfer {
         let source_token = Readable::read(reader)?;
         let to = Readable::read(reader)?;
         let to_chain = Readable::read(reader)?;
+
+        let _additional_payload_len: u16 = Readable::read(reader)?;
         let additional_payload = Readable::read(reader)?;
 
         Ok(Self {
@@ -73,50 +75,22 @@ impl Writeable for NativeTokenTransfer {
         source_token.write(writer)?;
         to.write(writer)?;
         to_chain.write(writer)?;
+
+        let len: u16 = u16::try_from(additional_payload.written_size()).expect("u16 overflow");
+        len.write(writer)?;
         additional_payload.write(writer)?;
 
         Ok(())
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
-pub enum AdditionalPayload {
-    Empty(EmptyPayload),
-    IndexUpdate(IndexUpdate),
-}
-
-impl Readable for AdditionalPayload {
-    const SIZE: Option<usize> = None;
-
-    fn read<R>(reader: &mut R) -> io::Result<Self>
-    where
-        Self: Sized,
-        R: io::Read,
-    {
-        Ok(Self::Empty(EmptyPayload {}))
-    }
-}
-
-impl Writeable for AdditionalPayload {
-    fn written_size(&self) -> usize {
-        0
-    }
-
-    fn write<W>(&self, writer: &mut W) -> io::Result<()>
-    where
-        W: io::Write,
-    {
-        Ok(())
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Default, Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
-pub struct IndexUpdate {
+pub struct AdditionalPayload {
     pub index: u128,
     pub destination: [u8; 32],
 }
 
-impl Readable for IndexUpdate {
+impl Readable for AdditionalPayload {
     const SIZE: Option<usize> = None;
 
     fn read<R>(reader: &mut R) -> io::Result<Self>
@@ -130,7 +104,7 @@ impl Readable for IndexUpdate {
     }
 }
 
-impl Writeable for IndexUpdate {
+impl Writeable for AdditionalPayload {
     fn written_size(&self) -> usize {
         u128::SIZE.unwrap() + self.destination.len()
     }

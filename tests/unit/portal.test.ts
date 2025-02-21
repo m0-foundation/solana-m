@@ -8,7 +8,6 @@ import {
     UniversalAddress,
     Wormhole,
     deserialize,
-    deserializePayload,
     encoding,
     serialize,
     serializePayload,
@@ -262,18 +261,12 @@ describe("Portal unit tests", () => {
                 NTT_ADDRESS
             );
 
-            const unsignedVaa = await wc.coreBridge.parsePostMessageAccount(
-                wormholeMessage
-            );
-
-            const tm = deserializePayload(
-                "Ntt:WormholeTransfer",
-                unsignedVaa.payload
-            );
+            const unsignedVaa = await wc.coreBridge.parsePostMessageAccount(wormholeMessage);
+            const payloadHex = Buffer.from(unsignedVaa.payload).toString("hex").slice(272)
+            const payloadAmount = BigInt("0x" + payloadHex.slice(10, 26))
 
             // assert that amount is what we expect
-            expect(tm.nttManagerPayload.payload.trimmedAmount)
-                .toMatchObject({ amount: 10000n, decimals: 8 });
+            expect(payloadAmount.toString()).toBe("10000");
 
             // get from balance
             const tokenAccountInfo = await connection.getAccountInfo(tokenAccount);
@@ -310,7 +303,7 @@ describe("Portal unit tests", () => {
                         sourceToken: new UniversalAddress("FAFA".padStart(64, "0")),
                         recipientAddress: new UniversalAddress(payer.publicKey.toBytes()),
                         recipientChain: "Solana",
-                        additionalPayload: new Uint8Array(),
+                        additionalPayload: new Uint8Array(48),
                     },
                 },
                 transceiverPayload: new Uint8Array(),

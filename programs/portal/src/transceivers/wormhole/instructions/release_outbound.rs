@@ -9,7 +9,7 @@ use crate::{
     config::*,
     error::NTTError,
     payloads::{
-        token_transfer::{AdditionalPayload, IndexUpdate, NativeTokenTransfer},
+        token_transfer::{AdditionalPayload, NativeTokenTransfer},
         Payload,
     },
     queue::outbox::OutboxItem,
@@ -84,10 +84,7 @@ pub fn release_outbound(ctx: Context<ReleaseOutbound>, args: ReleaseOutboundArgs
                 source_token: accs.config.mint.to_bytes(),
                 to: accs.outbox_item.recipient_address,
                 to_chain: accs.outbox_item.recipient_chain,
-                additional_payload: AdditionalPayload::IndexUpdate(IndexUpdate {
-                    index: 0,
-                    destination: Pubkey::default().to_bytes(),
-                }),
+                additional_payload: AdditionalPayload::default(),
             }),
         },
         vec![],
