@@ -157,6 +157,12 @@ export class MerkleTree {
         // Insert the leaf hash at the same index
         this.leaves.splice(index, 0, leafHash);
 
+        // If the raw leaves are an odd length, and the leaf is the last one,
+        // add the duplicated value to the hashed leaves
+        if (this.rawLeaves.length % 2 !== 0) {
+            this.leaves.push(this.leaves[this.leaves.length - 1]);
+        }
+
         // Update the tree
         this._updateTree();
     }
@@ -171,6 +177,12 @@ export class MerkleTree {
         }
 
         // Remove the leaf hash
+        if (this.rawLeaves.length % 2 !== 0) {
+            // We have to remove the duplicated value
+            // from the hashed leaves
+            this.leaves.pop();
+        } 
+
         this.leaves.splice(index, 1);
 
         // Remove the raw leaf value
@@ -283,7 +295,7 @@ export class MerkleTree {
                 // index is correct when comparing against the tree size
                 // We have to manually increase this bc the length b/w the 
                 // raw leaves and the first layer of the tree is different
-                index = len % 2 === 0 ? len - 1 : len;
+                index = len % 2 === 0 ? len : len + 1;
             }
         }
 

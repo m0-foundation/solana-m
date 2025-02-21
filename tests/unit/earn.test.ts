@@ -1734,22 +1734,22 @@ describe("Earn unit tests", () => {
 
   describe("add_register_earner unit tests", () => {    
     // test cases
-    // [ ] given the user token account is for the wrong token mint
-    //   [ ] it reverts with a constraint token mint error
-    // [ ] given the user token account is not for the user pubkey
-    //   [ ] it reverts with a constraint token owner error
-    // [ ] given the user token account is not initialized
-    //   [ ] it reverts with an account not initialized error
-    // [ ] given the earner account is already initialized
-    //   [ ] it reverts with an account already initialized error
-    // [ ] given all the accounts are valid
-    //   [ ] given the merkle proof for the user in the earner list is invalid
-    //     [ ] it reverts with an AlreadyEarns error
-    //   [ ] given the merkle proof for the user in the earner list is valid
-    //     [ ] it creates the earner account
-    //     [ ] it sets the earner account's is_earning flag to true
-    //     [ ] it sets the earner account's earn_manager to None
-    //     [ ] it sets the earner account's last_claim_index to the current index
+    // [X] given the user token account is for the wrong token mint
+    //   [X] it reverts with a constraint token mint error
+    // [X] given the user token account is not for the user pubkey
+    //   [X] it reverts with a constraint token owner error
+    // [X] given the user token account is not initialized
+    //   [X] it reverts with an account not initialized error
+    // [X] given the earner account is already initialized
+    //   [X] it reverts with an account already initialized error
+    // [X] given all the accounts are valid
+    //   [X] given the merkle proof for the user in the earner list is invalid
+    //     [X] it reverts with an InvalidProof error
+    //   [X] given the merkle proof for the user in the earner list is valid
+    //     [X] it creates the earner account
+    //     [X] it sets the earner account's is_earning flag to true
+    //     [X] it sets the earner account's earn_manager to None
+    //     [X] it sets the earner account's last_claim_index to the current index
 
     beforeEach(async () => {
       // Initialize the program
@@ -1938,25 +1938,188 @@ describe("Earn unit tests", () => {
 
   describe("remove_registrar_earner unit tests", () => {
     // test cases
-    // [ ] given the user token account is for the wrong token mint
-    //   [ ] it reverts with an address constraint error
-    // [ ] given the user token account is not for the user pubkey
-    //   [ ] it reverts with an address constraint error
-    // [ ] given the user token account is not initialized
-    //   [ ] it reverts with an account not initialized error
-    // [ ] given the earner account is not initialized
-    //   [ ] it reverts with an account not initialized error
-    // [ ] given all the accounts are valid
-    //   [ ] given the merkle proof for user's exclusion from the earner list is invalid
-    //     [ ] it reverts with an NotAuthorized error
-    //   [ ] given the merkle proof for user's exclusion from the earner list is valid
-    //     [ ] given the earner account has an earn manager
-    //       [ ] it reverts with a NotAuthorized error
-    //     [ ] given the earner account does not have an earn manager
-    //       [ ] it sets the earner account's is_earning flag to false
-    //       [ ] it closes the earner account and refunds the rent to the signer
+    // [X] given the earner account is not initialized
+    //   [X] it reverts with an account not initialized error
+    // [X] given all the accounts are valid
+    //   [X] given empty merkle proof for user exclusion
+    //     [X] it reverts with an InvalidProof error
+    //   [X] given the merkle proof for user's exclusion from the earner list is invalid
+    //     [X] it reverts with an InvalidProof error
+    //   [X] given the merkle proof for user's exclusion from the earner list is valid
+    //     [X] given the earner account has an earn manager
+    //       [X] it reverts with a NotAuthorized error
+    //     [X] given the earner account does not have an earn manager
+    //       [X] it closes the earner account and refunds the rent to the signer
 
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
 
+      // Populate the earner merkle tree with the initial earners
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
+
+      // Populate the earn manager merkle tree with the initial earn managers
+      earnManagerMerkleTree = new MerkleTree([earnManagerOne.publicKey, earnManagerTwo.publicKey]);
+
+      // Warp time forward past the initial cooldown period
+      warp(claimCooldown, true);
+
+      // Propagate a new index to start a new claim cycle and set the merkle roots
+      await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot());
+
+      // Create an earner account for earner one
+      const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
+      await addRegistrarEarner(earnerOne.publicKey, proof);
+
+      // Remove earner one from the earner merkle tree
+      earnerMerkleTree.removeLeaf(earnerOne.publicKey);
+
+      // Update the earner merkle root on the global account
+      const { globalAccount } = await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot(), new Array(32).fill(0));
+
+      // Confirm the global account is updated
+      expectGlobalState(
+        globalAccount,
+        {
+          index: new BN(1_100_000_000_000),
+          earnerMerkleRoot: earnerMerkleTree.getRoot(),
+          earnManagerMerkleRoot: earnManagerMerkleTree.getRoot()
+        }
+      );
+
+    });
+
+    // given the earner account is not initialized
+    // it reverts with an account not initialized error
+    test("Earner account is not initialized - reverts", async () => {
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Get the exclusion proof for non earner one against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+
+      // Setup the instruction
+      prepRemoveRegistrarEarner(nonAdmin, nonEarnerOneATA);
+
+      // Attempt to remove earner with uninitialized account
+      await expectAnchorError(
+        earn.methods
+          .removeRegistrarEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "AccountNotInitialized"
+      );
+    });
+
+    // given all the accounts are valid
+    // given no proofs or neighbors are provided 
+    // it reverts with an InvalidProof error
+    test("Empty merkle proof for user exclusion - reverts", async () => {
+      // Get the ATA for earner one
+      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
+
+      // Setup the instruction
+      prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
+
+      // Attempt to remove earner with invalid merkle proof
+      await expectAnchorError(
+        earn.methods
+          .removeRegistrarEarner(earnerOne.publicKey, [], [])
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "InvalidProof"
+      );
+    });
+
+    // given all the accounts are valid
+    // given the merkle proof for user's exclusion from the earner list is invalid
+    // it reverts with an InvalidProof error
+    test("Invalid merkle proof for user exclusion - reverts", async () => {
+      // Create earner account for earner two
+      await addRegistrarEarner(earnerTwo.publicKey, earnerMerkleTree.getInclusionProof(earnerTwo.publicKey).proof);
+
+      // Get the ATA for earner two
+      const earnerTwoATA = await getATA(mint.publicKey, earnerTwo.publicKey);
+
+      // Get the exclusion proof for earner one against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
+
+      // Setup the instruction
+      prepRemoveRegistrarEarner(nonAdmin, earnerTwoATA);
+
+      // Attempt to remove earner with invalid merkle proof
+      await expectAnchorError(
+        earn.methods
+          .removeRegistrarEarner(earnerTwo.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "InvalidProof"
+      );
+        
+    });
+
+    // given all the accounts are valid
+    // given the merkle proof for user's exclusion from the earner list is valid
+    // given the earner account has an earn manager
+    // it reverts with a NotAuthorized error
+    test("Earner account has an earn manager - reverts", async () => {
+      // Configure account for earn manager one
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+      await configureEarnManager(earnManagerOne, new BN(100), proof);
+
+      // Add non earner one as an earner under earn manager one
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+      await addEarner(earnManagerOne, nonEarnerOne.publicKey, proofs, neighbors);
+
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Setup the instruction
+      prepRemoveRegistrarEarner(nonAdmin, nonEarnerOneATA);
+
+      // Attempt to remove earner with an earn manager
+      await expectAnchorError(
+        earn.methods
+          .removeRegistrarEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "NotAuthorized"
+      );
+    });
+
+    // given all the accounts are valid
+    // given the merkle proof for user's exclusion from the earner list is valid
+    // given the earner account does not have an earn manager
+    // it sets the earner account's is_earning flag to false
+    // it closes the earner account and refunds the rent to the signer
+    test("Remove registrar earner - success", async () => {
+      // Get the ATA for earner one
+      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
+
+      // Get the exclusion proof for earner one against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
+
+      // Setup the instruction
+      const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
+
+      // Remove earner one from the earn manager's list
+        await earn.methods
+          .removeRegistrarEarner(earnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc();
+
+      // Verify the earner account was closed correctly
+      expectAccountEmpty(earnerAccount);
+    });
   });
 
   describe("remove_earn_manager unit tests", () => {
