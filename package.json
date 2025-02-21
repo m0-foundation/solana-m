@@ -19,7 +19,8 @@
     "@wormhole-foundation/sdk-solana-ntt": "0.7.0-multi-token-alpha.0",
     "anchor-litesvm": "^0.1.1",
     "bn.js": "^5.2.1",
-    "litesvm": "^0.1.0"
+    "litesvm": "^0.1.0",
+    "web3": "^4.16.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",

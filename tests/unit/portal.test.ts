@@ -26,6 +26,7 @@ import { LiteSVMProviderExt, loadKeypair } from "../test-utils";
 import { fromWorkspace } from "anchor-litesvm";
 import { createAssociatedTokenAccountInstruction, createMintToInstruction, createSetAuthorityInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
+import { utils } from "web3";
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -277,43 +278,68 @@ describe("Portal unit tests", () => {
 
 
     describe("Receiving", () => {
-        it("can receive tokens", async () => {
-            const emitter = new testing.mocks.MockEmitter(
+        let emitter: testing.mocks.MockEmitter;
+        let guardians: testing.mocks.MockGuardians;
+        let sender: SolanaAddress;
+
+        beforeAll(async () => {
+            emitter = new testing.mocks.MockEmitter(
                 wc.remoteXcvr.address as UniversalAddress,
                 "Ethereum",
                 0n
             );
+            guardians = new testing.mocks.MockGuardians(0, [GUARDIAN_KEY]);
+            sender = Wormhole.parseAddress("Solana", signer.address());
+        })
 
-            const guardians = new testing.mocks.MockGuardians(0, [GUARDIAN_KEY]);
-            const sender = Wormhole.parseAddress("Solana", signer.address());
+        const serializedMessage = (id: string): Uint8Array<ArrayBufferLike> => {
+            // evm web3.js encoding
+            let customPayload = utils.encodePacked(
+                { type: 'bytes4', value: '0x994e5454' }, // prefix 
+                { type: 'uint8', value: 8 }, // decimals 
+                { type: 'uint64', value: 10000n }, // amount
+                { type: 'bytes32', value: "FAFA".padStart(64, "0") }, // source token
+                { type: 'bytes32', value: Buffer.from(payer.publicKey.toBytes()).toString('hex') }, // recipient address
+                { type: 'uint16', value: 1 }, // recipient chain
+                { type: 'uint16', value: 48 }, // additionalPayload len
+                { type: 'bytes', value: Buffer.alloc(48).toString('hex') }, // additionalPayload
+            )
 
-            const sendingTransceiverMessage = {
-                sourceNttManager: wc.remoteMgr.address as UniversalAddress,
-                recipientNttManager: new UniversalAddress(
-                    ntt.program.programId.toBytes()
-                ),
-                nttManagerPayload: {
-                    id: encoding.bytes.encode("sequence1".padEnd(32, "0")),
-                    sender: new UniversalAddress("FACE".padStart(64, "0")),
-                    payload: {
-                        trimmedAmount: {
-                            amount: 10000n,
-                            decimals: 8,
-                        },
-                        sourceToken: new UniversalAddress("FAFA".padStart(64, "0")),
-                        recipientAddress: new UniversalAddress(payer.publicKey.toBytes()),
-                        recipientChain: "Solana",
-                        additionalPayload: new Uint8Array(48),
-                    },
-                },
-                transceiverPayload: new Uint8Array(),
-            } as const;
+            // add payload len
+            customPayload = utils.encodePacked({ type: 'uint16', value: Buffer.from(customPayload.slice(2), 'hex').length }) + customPayload.slice(2)
 
-            const serialized = serializePayload(
-                "Ntt:WormholeTransfer",
-                sendingTransceiverMessage
-            );
-            const published = emitter.publishMessage(0, serialized, 200);
+            // nttManager payload
+            customPayload = utils.encodePacked(
+                { type: 'bytes32', value: Buffer.from(id.padEnd(32, "0")).toString('hex') }, // id 
+                { type: 'bytes32', value: Buffer.from(payer.publicKey.toBytes()).toString('hex') }, // sender 
+            ) + customPayload.slice(2)
+
+            // nttManager payload len
+            customPayload = utils.encodePacked({ type: 'uint16', value: Buffer.from(customPayload.slice(2), 'hex').length }) + customPayload.slice(2)
+
+            // outer
+            customPayload = utils.encodePacked(
+                { type: 'bytes4', value: '0x9945ff10' }, // transeiver payload prefix
+                { type: 'bytes32', value: Buffer.from(wc.remoteMgr.address.toUint8Array()).toString('hex') }, // sourceNttManager 
+                { type: 'bytes32', value: Buffer.from(ntt.program.programId.toBytes()).toString('hex') }, // recipientNttManager 
+            ) + customPayload.slice(2) + '0000'
+
+            return Buffer.from(customPayload.slice(2), 'hex')
+        }
+
+        it("tokens", async () => {
+            const msg = serializedMessage("1");
+            const published = emitter.publishMessage(0, msg, 200);
+            const rawVaa = guardians.addSignatures(published, [0]);
+            const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
+            const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
+
+            await ssw(ctx, redeemTxs, signer);
+        });
+
+        it("index update", async () => {
+            const msg = serializedMessage("2");
+            const published = emitter.publishMessage(0, msg, 200);
             const rawVaa = guardians.addSignatures(published, [0]);
             const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
             const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
