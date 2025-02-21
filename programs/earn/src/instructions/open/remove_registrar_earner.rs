@@ -18,6 +18,7 @@ use crate::{
 #[derive(Accounts)]
 #[instruction(user: Pubkey)]
 pub struct RemoveRegistrarEarner<'info> {
+    #[account(mut)]
     pub signer: Signer<'info>,
 
     #[account(
