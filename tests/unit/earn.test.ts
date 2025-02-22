@@ -819,6 +819,7 @@ describe("Earn unit tests", () => {
     svm.airdrop(earnAuthority.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
     svm.airdrop(nonAdmin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
     svm.airdrop(earnManagerOne.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+    svm.airdrop(earnManagerTwo.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
     svm.airdrop(nonEarnManagerOne.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
 
     // Create the token mint
@@ -1815,6 +1816,172 @@ describe("Earn unit tests", () => {
     //       [ ] given the earner's earn manager is the signer
     //         [ ] the earner's is_earning flag is set to false
     //         [ ] the earner account is closed and the signer refunded the rent
+
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
+
+      // Populate the earner merkle tree with the initial earners
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
+
+      // Populate the earn manager merkle tree with the initial earn managers
+      earnManagerMerkleTree = new MerkleTree([earnManagerOne.publicKey, earnManagerTwo.publicKey]);
+
+      // Warp time forward past the initial cooldown period
+      warp(claimCooldown, true);
+
+      // Propagate a new index to start a new claim cycle and set the merkle roots
+      await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot());
+
+      // Get inclusion proof for earn manager one in the earn manager tree
+      const { proof: earnManagerOneProof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+
+      // Initialize earn manager one's account
+      await configureEarnManager(earnManagerOne, new BN(100), earnManagerOneProof);
+
+      // Get the exclusion proof for the earner against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+
+      // Add non earner one as an earner under earn manager one
+      await addEarner(earnManagerOne, nonEarnerOne.publicKey, proofs, neighbors);
+    });
+
+    // given signer does not have an earn manager account initialized
+    // it reverts with an account not initialized error
+    test("Signer earn manager account not initialized - reverts", async () => {
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Setup the instruction
+      prepRemoveEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnerOneATA);
+
+      // Attempt to remove earner without an initialized earn manager account
+      await expectAnchorError(
+        earn.methods
+          .removeEarner(nonEarnerOne.publicKey)
+          .accounts({ ...accounts })
+          .signers([nonEarnManagerOne])
+          .rpc(),
+        "AccountNotInitialized"
+      );
+    });
+
+    // given signer has an earn manager account initialized
+    // given earn manager account is not active
+    // it reverts with a NotAuthorized error
+    test("Signer's earn manager account not active - reverts", async () => {
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Remove earn manager one from the earn manager merkle tree
+      earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
+
+      // Update the earn manager merkle root on the global account
+      await propagateIndex(new BN(1_110_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+
+      // Get exclusion proof for earn manager one in the earn manager tree
+      const { proofs, neighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
+
+      // Remove the earn manager account (set it to inactive)
+      await removeEarnManager(earnManagerOne.publicKey, proofs, neighbors);
+
+      // Setup the instruction
+      prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+
+      // Attempt to remove earner with an inactive earn manager account
+      await expectAnchorError(
+        earn.methods
+          .removeEarner(nonEarnerOne.publicKey)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "NotAuthorized"
+      );
+    });
+
+    // given signer has an earn manager account initialized
+    // given earn manager account is active
+    // given the earner account does not have an earn manager
+    // it reverts with a NotAuthorized error
+    test("Earner account does not have an earn manager - reverts", async () => {
+      // Get the inclusion proof for earner one in the earner merkle tree
+      const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
+
+      // Add the earner via the registrar
+      await addRegistrarEarner(earnerOne.publicKey, proof);
+
+      // Get the ATA for earner one
+      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
+
+      // Setup the instruction
+      prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, earnerOneATA);
+
+      // Attempt to remove earner without an earn manager
+      await expectAnchorError(
+        earn.methods
+          .removeEarner(earnerOne.publicKey)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "NotAuthorized"
+      );
+    });
+
+    // given signer has an earn manager account initialized
+    // given earn manager account is active
+    // given the earner account has an earn manager
+    // given the earner's earn manager is not the signer
+    // it reverts with a NotAuthorized error
+    test("Earner's earn manager is not signer - reverts", async () => {
+      // Get the inclusion proof for earn manager two
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerTwo.publicKey);
+
+      // Configure earn manager two's account (and create it)
+      await configureEarnManager(earnManagerTwo, new BN(100), proof);
+
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Setup the instruction
+      prepRemoveEarner(earnManagerTwo, earnManagerTwo.publicKey, nonEarnerOneATA);
+
+      // Attempt to remove earner with the wrong earn manager
+      await expectAnchorError(
+        earn.methods
+          .removeEarner(nonEarnerOne.publicKey)
+          .accounts({ ...accounts })
+          .signers([earnManagerTwo])
+          .rpc(),
+        "NotAuthorized"
+       );
+    });
+
+    // given signer has an earn manager account initialized
+    // given earn manager account is active
+    // given the earner account has an earn manager
+    // given the earner's earn manager is the signer
+    // it closes the earner account and refunds the rent
+    test("Earner's earn manager is signer - success", async () => {
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Setup the instruction
+      const { earnerAccount } = prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+
+      // Remove the earner account
+        await earn.methods
+          .removeEarner(nonEarnerOne.publicKey)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc();
+
+      // Verify the earner account was closed
+      expectAccountEmpty(earnerAccount);
+    });
 
   });
 
