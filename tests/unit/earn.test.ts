@@ -1520,24 +1520,268 @@ describe("Earn unit tests", () => {
 
   describe("configure earn_manager unit tests", () => {
     // test cases
-    // [ ] given the provided merkle proof for the signer is invalid
-    //    [ ] it reverts with a NotAuthorized error
-    // [ ] given the provided merkle proof for the signer is valid
-    //    [ ] given the fee basis points is greater than 100_00 
-    //      [ ] it reverts with an InvalidParam error
-    //    [ ] given the fee basis points is less than or equal to 100_00
-    //      [ ] given the fee_token_account is for the wrong token mint
-    //        [ ] it reverts with an address constraint error
-    //      [ ] given the fee_token_account authority is not the signer
-    //        [ ] it reverts with an address constraint error
-    //      [ ] given the fee_token_account is for the correct token mint and the authority is the signer
-    //        [ ] given the earn manager account does not exist yet
-    //          [ ] it creates the earn manager account and the signer pays for it
-    //          [ ] it sets the earn manager is_active flag to true
-    //          [ ] it sets the fee_bps to the provided value
-    //          [ ] it sets the fee_token_account to the provided token account
+    // [X] given the earn manager account does not match the signer
+    //   [X] it reverts with an address constraint error
+    // [X] given the earn manager account matches the signer
+    //   [X] given the provided merkle proof for the signer is invalid
+    //     [X] it reverts with a InvalidProof error
+    //   [X] given the provided merkle proof for the signer is valid
+    //     [X] given the fee basis points is greater than 100_00 
+    //       [X] it reverts with an InvalidParam error
+    //     [X] given the fee basis points is less than or equal to 100_00
+    //       [X] given the fee_token_account is for the wrong token mint
+    //         [X] it reverts with an address constraint error
+    //       [X] given the fee_token_account authority is not the signer
+    //         [X] it reverts with an address constraint error
+    //       [X] given the fee_token_account is for the correct token mint and the authority is the signer
+    //         [X] given the earn manager account does not exist yet
+    //           [X] it creates the earn manager account and the signer pays for it
+    //           [X] it sets the earn manager is_active flag to true
+    //           [X] it sets the fee_bps to the provided value
+    //           [X] it sets the fee_token_account to the provided token account
+    //         [X] given the earn manager account already exists
+    //           [X] it updates the fee_bps to the provided value
+    //           [X] it updates the fee_token_account to the provided token account
 
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
 
+      // Populate the earner merkle tree with the initial earners
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
+
+      // Populate the earn manager merkle tree with the initial earn managers
+      earnManagerMerkleTree = new MerkleTree([earnManagerOne.publicKey, earnManagerTwo.publicKey]);
+
+      // Warp time forward past the initial cooldown period
+      warp(claimCooldown, true);
+
+      // Propagate a new index to start a new claim cycle and set the merkle roots
+      await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot());
+    });
+
+    // given the earn manager account does not match the signer
+    // it reverts with a seeds constraint error
+    test("Earn manager account does not match signer - reverts", async () => {
+      // Get the ATA for earn manager one
+      const earnManagerOneATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
+
+      // Get the inclusion proof for earn manager one in the earn manager tree
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+
+      // Setup the instruction
+      prepConfigureEarnManager(earnManagerOne, nonEarnManagerOne.publicKey, earnManagerOneATA);
+
+      // Attempt to configure earn manager with non-matching account
+      await expectAnchorError(
+        earn.methods
+          .configureEarnManager(new BN(100), proof)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "ConstraintSeeds"
+      );
+    });
+
+    // given the earn manager account matches the signer
+    // given the provided merkle proof for the signer is invalid
+    // it reverts with an InvalidProof error
+    test("Invalid merkle proof - reverts", async () => {
+      // Get the inclusion proof for earn manager one in the earn manager tree
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+
+      // Get the ATA for non earn manager one
+      const nonEarnManagerOneATA = await getATA(mint.publicKey, nonEarnManagerOne.publicKey);
+
+      // Setup the instruction
+      prepConfigureEarnManager(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnManagerOneATA);
+
+      // Attempt to configure earn manager with invalid merkle proof
+      await expectAnchorError(
+        earn.methods
+          .configureEarnManager(new BN(100), proof)
+          .accounts({ ...accounts })
+          .signers([nonEarnManagerOne])
+          .rpc(),
+        "InvalidProof"
+      );
+    });
+
+    // given the earn manager account matches the signer
+    // given the provided merkle proof for the signer is valid
+    // given the fee basis points is greater than 100_00
+    // it reverts with an InvalidParam error
+    test("Fee basis points > 10000 - reverts", async () => {
+      // Get the inclusion proof for earn manager one in the earn manager tree
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+
+      // Get the ATA for earn manager one
+      const earnManagerOneATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
+
+      // Setup the instruction
+      prepConfigureEarnManager(earnManagerOne, earnManagerOne.publicKey, earnManagerOneATA);
+
+      // Attempt to configure earn manager with invalid fee basis points
+      await expectAnchorError(
+        earn.methods
+          .configureEarnManager(new BN(100_01), proof)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "InvalidParam"
+      );
+    });
+
+    // given the earn manager account matches the signer
+    // given the provided merkle proof for the signer is valid
+    // given the fee basis points is less than or equal to 100_00
+    // given the fee_token_account is for the wrong token mint
+    // it reverts with a constraint token mint error
+    test("Fee token account for wrong mint - reverts", async () => {
+      // Create a new token mint
+      const wrongMint = new Keypair();
+      await createMint(wrongMint, nonAdmin);
+
+      // Get the ATA for earn manager one with the wrong mint
+      const wrongATA = await getATA(wrongMint.publicKey, earnManagerOne.publicKey);
+
+      // Get the inclusion proof for earn manager one in the earn manager tree
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+
+      // Setup the instruction
+      prepConfigureEarnManager(earnManagerOne, earnManagerOne.publicKey, wrongATA);
+
+      // Attempt to configure earn manager with invalid fee token account
+      await expectAnchorError(
+        earn.methods
+          .configureEarnManager(new BN(100), proof)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "ConstraintTokenMint"
+      );
+    });
+
+    // given the earn manager account matches the signer
+    // given the provided merkle proof for the signer is valid
+    // given the fee basis points is less than or equal to 100_00
+    // given the fee_token_account authority is not the signer
+    // it reverts with a constraint token owner error
+    test("Fee token account authority not signer - reverts", async () => {
+      // Get the ATA for earn manager one
+      const nonEarnManagerOneATA = await getATA(mint.publicKey, nonEarnManagerOne.publicKey);
+
+      // Get the inclusion proof for earn manager one in the earn manager tree
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+
+      // Setup the instruction
+      prepConfigureEarnManager(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOneATA);
+
+      // Attempt to configure earn manager with invalid fee token account authority
+      await expectAnchorError(
+        earn.methods
+          .configureEarnManager(new BN(100), proof)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "ConstraintTokenOwner"
+      );
+    });
+
+    // given the earn manager account matches the signer
+    // given the provided merkle proof for the signer is valid
+    // given the fee basis points is less than or equal to 100_00
+    // given the fee_token_account is for the correct token mint and the authority is the signer
+    // given the earn manager account does not exist yet
+    // it creates the earn manager account and the signer pays for it
+    // it sets the earn manager is_active flag to true
+    // it sets the fee_bps to the provided value
+    // it sets the fee_token_account to the provided token account
+    test("Earn manager account does not exist - success", async () => {
+      // Get the ATA for earn manager one
+      const earnManagerOneATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
+
+      // Get the inclusion proof for earn manager one in the earn manager tree
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+
+      // Setup the instruction
+      const { earnManagerAccount } = prepConfigureEarnManager(earnManagerOne, earnManagerOne.publicKey, earnManagerOneATA);
+
+      // Confirm the earn manager account is currently empty
+      expectAccountEmpty(earnManagerAccount);
+
+      // Send the instruction
+      await earn.methods
+        .configureEarnManager(new BN(100), proof)
+        .accounts({ ...accounts })
+        .signers([earnManagerOne])
+        .rpc();
+
+      // Verify the earn manager account is created and updated
+      await expectEarnManagerState(
+        earnManagerAccount,
+        {
+          isActive: true,
+          feeBps: new BN(100),
+          feeTokenAccount: earnManagerOneATA
+        }
+      );
+    });
+
+    // given the earn manager account matches the signer
+    // given the provided merkle proof for the signer is valid
+    // given the fee basis points is less than or equal to 100_00
+    // given the fee_token_account is for the correct token mint and the authority is the signer
+    // given the earn manager account already exists
+    // it updates the fee_bps to the provided value
+    // it updates the fee_token_account to the provided token account
+    test("Earn manager account exists - success", async () => {
+      // Get the inclusion proof for earn manager one in the earn manager tree
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+      
+      // Setup the earn manager account the first time
+      await configureEarnManager(earnManagerOne, new BN(100), proof);
+
+      // Expire the blockhash so the same txn can be sent again (in a new block)
+      svm.expireBlockhash();
+
+      // Get the ATA for earn manager one
+      const earnManagerOneATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
+
+      // Setup the instruction
+      const { earnManagerAccount } = prepConfigureEarnManager(earnManagerOne, earnManagerOne.publicKey, earnManagerOneATA);
+
+      // Confirm the earn manager account has already been created
+      await expectEarnManagerState(
+        earnManagerAccount,
+        {
+          isActive: true,
+          feeBps: new BN(100),
+          feeTokenAccount: earnManagerOneATA
+        }
+      );
+
+      // Send the instruction
+      await earn.methods
+        .configureEarnManager(new BN(101), proof)
+        .accounts({ ...accounts })
+        .signers([earnManagerOne])
+        .rpc();
+
+      // Verify the earn manager account is created and updated
+      await expectEarnManagerState(
+        earnManagerAccount,
+        {
+          isActive: true,
+          feeBps: new BN(101),
+          feeTokenAccount: earnManagerOneATA // TODO create another token account for the earn manager to test this
+        }
+      );
+    });
   });
 
   describe("add_earner unit tests", () => {
@@ -1802,20 +2046,19 @@ describe("Earn unit tests", () => {
 
   describe("remove_earner unit tests", () => {
     // test cases
-    // [ ] given signer does not have an earn manager account initialized
-    //   [ ] it reverts with an account not initialized error
-    // [ ] given signer has an earn manager account initialized
-    //   [ ] given earn manager account is not active
-    //     [ ] it reverts with a NotAuthorized error
-    //   [ ] given earn manager account is active
-    //     [ ] given the earner account does not have an earn manager
-    //       [ ] it reverts with a NotAuthorized error
-    //     [ ] given the earner account has an earn manager
-    //       [ ] given the earner's earn manager is not the signer
-    //         [ ] it reverts with a NotAuthorized error
-    //       [ ] given the earner's earn manager is the signer
-    //         [ ] the earner's is_earning flag is set to false
-    //         [ ] the earner account is closed and the signer refunded the rent
+    // [X] given signer does not have an earn manager account initialized
+    //   [X] it reverts with an account not initialized error
+    // [X] given signer has an earn manager account initialized
+    //   [X] given earn manager account is not active
+    //     [X] it reverts with a NotAuthorized error
+    //   [X] given earn manager account is active
+    //     [X] given the earner account does not have an earn manager
+    //       [X] it reverts with a NotAuthorized error
+    //     [X] given the earner account has an earn manager
+    //       [X] given the earner's earn manager is not the signer
+    //         [X] it reverts with a NotAuthorized error
+    //       [X] given the earner's earn manager is the signer
+    //         [X] the earner account is closed and the signer refunded the rent
 
     beforeEach(async () => {
       // Initialize the program
