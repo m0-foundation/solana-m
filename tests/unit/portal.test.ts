@@ -28,6 +28,7 @@ import { fromWorkspace } from "anchor-litesvm";
 import { createAssociatedTokenAccountInstruction, createMintToInstruction, createSetAuthorityInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import { utils } from "web3";
+import { serializedMessage, serializeIndexUpdate, serializePayload, serializeTransfer } from "../payloads";
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -293,52 +294,6 @@ describe("Portal unit tests", () => {
             sender = Wormhole.parseAddress("Solana", signer.address());
         })
 
-        const serializePayload = (id: string, payload: string) => {
-            // add payload len
-            let customPayload = utils.encodePacked({ type: 'uint16', value: Buffer.from(payload.slice(2), 'hex').length }) + payload.slice(2)
-
-            // nttManager payload
-            return utils.encodePacked(
-                { type: 'bytes32', value: Buffer.from(id.padEnd(32, "0")).toString('hex') }, // id 
-                { type: 'bytes32', value: Buffer.from(payer.publicKey.toBytes()).toString('hex') }, // sender 
-            ) + customPayload.slice(2)
-        }
-
-        const serializeTransfer = (amount: bigint) => {
-            return utils.encodePacked(
-                { type: 'bytes4', value: '0x994e5454' }, // prefix 
-                { type: 'uint8', value: 8 }, // decimals 
-                { type: 'uint64', value: amount }, // amount
-                { type: 'bytes32', value: "FAFA".padStart(64, "0") }, // source token
-                { type: 'bytes32', value: Buffer.from(payer.publicKey.toBytes()).toString('hex') }, // recipient address
-                { type: 'uint16', value: 1 }, // recipient chain
-                { type: 'uint16', value: 48 }, // additionalPayload len
-                { type: 'bytes', value: Buffer.alloc(48).toString('hex') }, // additionalPayload
-            )
-        }
-
-        const serializeIndexUpdate = (index: bigint) => {
-            return utils.encodePacked(
-                { type: 'bytes4', value: '0x4d304954' }, // prefix 
-                { type: 'uint128', value: index }, // index 
-                { type: 'uint16', value: 1 }, // to_chain
-            )
-        }
-
-        const serializedMessage = (payload: string) => {
-            // nttManager payload len
-            let customPayload = utils.encodePacked({ type: 'uint16', value: Buffer.from(payload.slice(2), 'hex').length }) + payload.slice(2)
-
-            // outer
-            customPayload = utils.encodePacked(
-                { type: 'bytes4', value: '0x9945ff10' }, // transeiver payload prefix
-                { type: 'bytes32', value: Buffer.from(wc.remoteMgr.address.toUint8Array()).toString('hex') }, // sourceNttManager 
-                { type: 'bytes32', value: Buffer.from(ntt.program.programId.toBytes()).toString('hex') }, // recipientNttManager 
-            ) + customPayload.slice(2) + '0000'
-
-            return Buffer.from(customPayload.slice(2), 'hex')
-        }
-
         async function* redeemTxns(id: string, msg: Buffer<ArrayBuffer>, payload: string) {
             const published = emitter.publishMessage(0, msg, 200);
             const wormholeNTT = guardians.addSignatures(published, [0]);
@@ -375,7 +330,6 @@ describe("Portal unit tests", () => {
 
             // TODO: fix keccak256 PDA derivation above
             inboxItem = id === "1" ? new PublicKey("HUTZcFFAAkqfkXsDhPKaKpdN5pig7cRsqMso6tNCsQCZ") : new PublicKey("K9bo8KpVK8JFjMZfbwYH1tG8NnRjTt3EdLuQf991BNG")
-
 
             const redeemIx = ntt.program.methods
                 .redeem({})
@@ -430,14 +384,14 @@ describe("Portal unit tests", () => {
         }
 
         it("tokens", async () => {
-            const payload = serializePayload("1", serializeTransfer(10000n))
-            const msg = serializedMessage(payload);
+            const payload = serializePayload("1", serializeTransfer(10000n, payer.publicKey), payer.publicKey)
+            const msg = serializedMessage(payload, wc.remoteMgr);
             await ssw(ctx, redeemTxns("1", msg, payload), signer);
         });
 
         it("index update", async () => {
-            const payload = serializePayload("2", serializeIndexUpdate(123456n))
-            const msg = serializedMessage(payload);
+            const payload = serializePayload("2", serializeIndexUpdate(123456n), payer.publicKey)
+            const msg = serializedMessage(payload, wc.remoteMgr);
             await ssw(ctx, redeemTxns("2", msg, payload), signer);
         });
     });
