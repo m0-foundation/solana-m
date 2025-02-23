@@ -28,6 +28,8 @@ pub struct ReceiveMessage<'info> {
 
     #[account(
         constraint = vaa.message().ntt_manager_payload.payload.to_chain() == config.chain_id @ NTTError::InvalidChainId,
+        // NOTE: we don't replay protect VAAs. Instead, we replay protect
+        // executing the messages themselves with the [`released`] flag.
     )]
     pub vaa: Account<'info, PostedVaa<TransceiverMessage<WormholeTransceiver, Payload>>>,
 
