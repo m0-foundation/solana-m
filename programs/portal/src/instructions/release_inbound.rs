@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface;
+use anchor_spl::{associated_token::get_associated_token_address_with_program_id, token_interface};
 use ntt_messages::mode::Mode;
 use spl_token_2022::onchain;
 
@@ -22,9 +22,14 @@ pub struct ReleaseInbound<'info> {
 
     #[account(
         mut,
-        associated_token::authority = inbox_item.recipient_address,
-        associated_token::mint = mint,
-        associated_token::token_program = token_program,
+        address = match inbox_item.recipient_address {
+            Some(addr) => get_associated_token_address_with_program_id(
+                &addr,
+                &mint.key(),
+                &token_program.key(),
+            ),
+            None => recipient.key(),
+        },
     )]
     pub recipient: InterfaceAccount<'info, token_interface::TokenAccount>,
 
@@ -80,8 +85,20 @@ pub fn release_inbound_mint_multisig<'info>(
     if inbox_item.is_none() {
         return Ok(());
     }
+
     let inbox_item = inbox_item.unwrap();
     assert!(inbox_item.release_status == ReleaseStatus::Released);
+
+    // index update
+    if let Some(index_update) = inbox_item.index_update {
+        msg!("Updating index: {}", index_update);
+        return Ok(());
+    }
+
+    // no transfer on message
+    if inbox_item.amount.is_none() {
+        return Ok(());
+    }
 
     // NOTE: minting tokens is a two-step process:
     // 1. Mint tokens to the custody account
@@ -111,7 +128,7 @@ pub fn release_inbound_mint_multisig<'info>(
             &ctx.accounts.common.custody.key(),
             &ctx.accounts.multisig.key(),
             &[&ctx.accounts.common.token_authority.key()],
-            inbox_item.amount,
+            inbox_item.amount.unwrap(),
         )?,
         &[
             ctx.accounts.common.custody.to_account_info(),
@@ -130,7 +147,7 @@ pub fn release_inbound_mint_multisig<'info>(
         ctx.accounts.common.recipient.to_account_info(),
         ctx.accounts.common.token_authority.to_account_info(),
         ctx.remaining_accounts,
-        inbox_item.amount,
+        inbox_item.amount.unwrap(),
         ctx.accounts.common.mint.decimals,
         token_authority_sig,
     )?;

@@ -114,33 +114,36 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
         transceiver_message.message.ntt_manager_payload.clone();
 
     match &message.payload {
-        Payload::NativeTokenTransfer(ntt) => redeem_transfer(ctx, ntt),
-        Payload::IndexTransfer(index) => redeem_index(ctx, index),
-        _ => Err(NTTError::InvalidPayload.into()),
+        Payload::NativeTokenTransfer(ntt) => {
+            let amount = ntt
+                .amount
+                .untrim(ctx.accounts.mint.decimals)
+                .map_err(NTTError::from)?;
+
+            let recipient_address =
+                Pubkey::try_from(ntt.to).map_err(|_| NTTError::InvalidRecipientAddress)?;
+
+            set_inbox(ctx, Some(amount), Some(recipient_address), None)
+        }
+        Payload::IndexTransfer(update) => set_inbox(ctx, None, None, Some(update.index)),
     }
 }
 
-pub fn redeem_transfer(ctx: Context<Redeem>, transfer: &NativeTokenTransfer) -> Result<()> {
+pub fn set_inbox(
+    ctx: Context<Redeem>,
+    amount: Option<u64>,
+    recipient_address: Option<Pubkey>,
+    index_update: Option<u128>,
+) -> Result<()> {
     let accs = ctx.accounts;
 
-    // Calculate the scaled amount based on the appropriate decimal encoding for the token.
-    // Return an error if the resulting amount overflows.
-    // Ideally this state should never be reached: the sender should avoid sending invalid
-    // amounts when they would cause an error on the receiver.
-    let amount = transfer
-        .amount
-        .untrim(accs.mint.decimals)
-        .map_err(NTTError::from)?;
-
     if !accs.inbox_item.init {
-        let recipient_address =
-            Pubkey::try_from(transfer.to).map_err(|_| NTTError::InvalidRecipientAddress)?;
-
         accs.inbox_item.set_inner(InboxItem {
             init: true,
             bump: ctx.bumps.inbox_item,
             amount,
             recipient_address,
+            index_update,
             release_status: ReleaseStatus::NotApproved,
             votes: Bitmap::new(),
         });
@@ -158,11 +161,17 @@ pub fn redeem_transfer(ctx: Context<Redeem>, transfer: &NativeTokenTransfer) -> 
         return Ok(());
     }
 
-    let release_timestamp = match accs.inbox_rate_limit.rate_limit.consume_or_delay(amount) {
+    let release_timestamp = match accs
+        .inbox_rate_limit
+        .rate_limit
+        .consume_or_delay(amount.unwrap_or(0))
+    {
         RateLimitResult::Consumed(now) => {
             // When receiving a transfer, we refill the outbound rate limit with
             // the same amount (we call this "backflow")
-            accs.outbox_rate_limit.rate_limit.refill(now, amount);
+            accs.outbox_rate_limit
+                .rate_limit
+                .refill(now, amount.unwrap_or(0));
             now
         }
         RateLimitResult::Delayed(release_timestamp) => release_timestamp,
@@ -170,10 +179,5 @@ pub fn redeem_transfer(ctx: Context<Redeem>, transfer: &NativeTokenTransfer) -> 
 
     accs.inbox_item.release_after(release_timestamp)?;
 
-    Ok(())
-}
-
-pub fn redeem_index(_: Context<Redeem>, index: &IndexTransfer) -> Result<()> {
-    msg!("received index update: {:?}", index);
     Ok(())
 }

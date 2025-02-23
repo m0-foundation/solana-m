@@ -14,10 +14,11 @@ pub struct InboxItem {
     // to guard against modifications to the `bump` and `amounts` fields.
     pub init: bool,
     pub bump: u8,
-    pub amount: u64,
-    pub recipient_address: Pubkey,
     pub votes: Bitmap,
     pub release_status: ReleaseStatus,
+    pub amount: Option<u64>,
+    pub recipient_address: Option<Pubkey>,
+    pub index_update: Option<u128>,
 }
 
 /// The status of an InboxItem. This determines whether the tokens are minted/unlocked to the recipient. As
