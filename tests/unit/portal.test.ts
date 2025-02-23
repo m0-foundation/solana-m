@@ -7,7 +7,6 @@ import {
     ChainContext,
     Signer,
     UniversalAddress,
-    VAA,
     Wormhole,
     encoding,
     keccak256,
@@ -27,7 +26,6 @@ import { LiteSVMProviderExt, loadKeypair } from "../test-utils";
 import { fromWorkspace } from "anchor-litesvm";
 import { createAssociatedTokenAccountInstruction, createMintToInstruction, createSetAuthorityInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
-import { utils } from "web3";
 import { serializedMessage, serializeIndexUpdate, serializePayload, serializeTransfer } from "../payloads";
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
@@ -280,26 +278,22 @@ describe("Portal unit tests", () => {
 
 
     describe("Receiving", () => {
-        let emitter: testing.mocks.MockEmitter;
-        let guardians: testing.mocks.MockGuardians;
-        let sender: SolanaAddress;
+        let guardians = new testing.mocks.MockGuardians(0, [GUARDIAN_KEY]);
+        let emitter = new testing.mocks.MockEmitter(
+            wc.remoteXcvr.address as UniversalAddress,
+            "Ethereum",
+            0n
+        );
 
-        beforeAll(async () => {
-            emitter = new testing.mocks.MockEmitter(
-                wc.remoteXcvr.address as UniversalAddress,
-                "Ethereum",
-                0n
-            );
-            guardians = new testing.mocks.MockGuardians(0, [GUARDIAN_KEY]);
-            sender = Wormhole.parseAddress("Solana", signer.address());
-        })
-
-        async function* redeemTxns(id: string, msg: Buffer<ArrayBuffer>, payload: string) {
+        const redeemTxns = async (id: string, msg: Buffer<ArrayBuffer>, payload: string) => {
             const published = emitter.publishMessage(0, msg, 200);
             const wormholeNTT = guardians.addSignatures(published, [0]);
             const msgID = Buffer.from(id.padEnd(32, "0"));
 
-            yield* ntt.core.postVaa(payer.publicKey, wormholeNTT);
+            async function* postVaa() {
+                for await (const tx of ntt.core.postVaa(payer.publicKey, wormholeNTT)) yield tx;
+            }
+            await ssw(ctx, postVaa(), signer);
 
             const whTransceiver = await ntt.getWormholeTransceiver();
             const senderAddress = new SolanaAddress(payer.publicKey).unwrap();
@@ -378,21 +372,30 @@ describe("Portal unit tests", () => {
 
             const tx = new Transaction();
             tx.feePayer = senderAddress;
+            tx.recentBlockhash = provider.client.latestBlockhash();
             tx.add(...(await Promise.all([receiveMessageIx, redeemIx, releaseIx])));
+            tx.sign(payer);
 
-            yield ntt.createUnsignedTx({ transaction: tx }, "Ntt.Redeem");
+            const results = await provider.client.sendTransaction(tx);
+            return results['logs']?.()
         }
 
         it("tokens", async () => {
             const payload = serializePayload("1", serializeTransfer(10000n, payer.publicKey), payer.publicKey)
             const msg = serializedMessage(payload, wc.remoteMgr);
-            await ssw(ctx, redeemTxns("1", msg, payload), signer);
+            const logs = await redeemTxns("1", msg, payload)
+
+            expect(logs).toContain("Program log: Instruction: ReleaseInboundMintMultisig");
+            expect(logs).toContain("Program log: Transferred 100000 tokens to TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM");
         });
 
         it("index update", async () => {
             const payload = serializePayload("2", serializeIndexUpdate(123456n), payer.publicKey)
             const msg = serializedMessage(payload, wc.remoteMgr);
-            await ssw(ctx, redeemTxns("2", msg, payload), signer);
+            const logs = await redeemTxns("2", msg, payload)
+
+            expect(logs).toContain("Program log: Instruction: ReleaseInboundMintMultisig");
+            expect(logs).toContain("Program log: Updating index: 123456");
         });
     });
 

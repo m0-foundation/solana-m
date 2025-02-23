@@ -151,6 +151,13 @@ pub fn release_inbound_mint_multisig<'info>(
         ctx.accounts.common.mint.decimals,
         token_authority_sig,
     )?;
+
+    msg!(
+        "Transferred {} tokens to {}",
+        inbox_item.amount.unwrap(),
+        inbox_item.recipient_address.unwrap()
+    );
+
     Ok(())
 }
 

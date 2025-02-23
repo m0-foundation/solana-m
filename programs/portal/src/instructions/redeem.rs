@@ -7,7 +7,7 @@ use crate::{
     config::*,
     error::NTTError,
     messages::ValidatedTransceiverMessage,
-    payloads::{token_transfer::NativeTokenTransfer, IndexTransfer, Payload},
+    payloads::Payload,
     peer::NttManagerPeer,
     queue::{
         inbox::{InboxItem, InboxRateLimit, ReleaseStatus},
