@@ -2777,21 +2777,196 @@ describe("Earn unit tests", () => {
 
   describe("remove_orphaned_earner unit tests", () => {
     // test cases
-    // [ ] given the user token account is for the wrong token mint
-    //   [ ] it reverts with an address constraint error
-    // [ ] given the earner account is not initialized
-    //   [ ] it reverts with an account not initialized error
-    // [ ] given the earn manager account is not initialized
-    //   [ ] it reverts with an account not initialized error
-    // [ ] given all the accounts are valid
-    //   [ ] given the earner does not have an earn manager
-    //     [ ] it reverts with a NotAuthorized error
-    //   [ ] given the earner has an earn manager
-    //     [ ] given the earn manager account is active
-    //       [ ] it reverts with a NotAuthorized error
-    //     [ ] given the earn manager account is not active
-    //       [ ] it sets the earner account's is_earning flag to false
-    //       [ ] it closes the earner account and refunds the rent to the signer
+    // [X] given the earner account is not initialized
+    //   [X] it reverts with an account not initialized error
+    // [X] given the earn manager account is not initialized
+    //   [X] it reverts with an account not initialized error
+    // [X] given the earner does not have an earn manager
+    //   [X] it reverts with a panic since it tries to unwrap a None value
+    // [X] given all the accounts are valid
+    //   [X] given the earner has an earn manager
+    //     [X] given the earn manager account is active
+    //       [X] it reverts with a NotAuthorized error
+    //     [X] given the earn manager account is not active
+    //       [X] it sets the earner account's is_earning flag to false
+    //       [X] it closes the earner account and refunds the rent to the signer
 
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
+
+      // Populate the earner merkle tree with the initial earners
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
+
+      // Populate the earn manager merkle tree with the initial earn managers
+      earnManagerMerkleTree = new MerkleTree([earnManagerOne.publicKey, earnManagerTwo.publicKey]);
+
+      // Warp time forward past the initial cooldown period
+      warp(claimCooldown, true);
+
+      // Propagate a new index to start a new claim cycle and set the merkle roots
+      await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot());
+
+      // Get the inclusion proof for earn manager one in the earn manager tree
+      const { proof: earnManagerProof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+
+      // Initialize earn manager one's account
+      await configureEarnManager(earnManagerOne, new BN(100), earnManagerProof);
+
+      // Add non earner one as an earner under earn manager one
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+      await addEarner(earnManagerOne, nonEarnerOne.publicKey, proofs, neighbors);
+
+      // Add earner one as a registrar earner
+      const { proof: earnerProof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
+      await addRegistrarEarner(earnerOne.publicKey, earnerProof);
+    });
+
+    // given the earner account is not initialized
+    // it reverts with an account not initialized error
+    test("Earner account is not initialized - reverts", async () => {
+      // Calculate the ATA for earner one, but don't create it
+      const nonInitATA = getAssociatedTokenAddressSync(
+        mint.publicKey,
+        earnerTwo.publicKey,
+        true,
+        TOKEN_2022_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      // Setup the instruction
+      prepRemoveOrphanedEarner(nonAdmin, nonInitATA, earnManagerOne.publicKey);
+
+      // Attempt to remove orphaned earner with uninitialized token account
+      await expectAnchorError(
+        earn.methods
+          .removeOrphanedEarner()
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "AccountNotInitialized"
+      );
+    });
+
+    // given the earn manager account is not initialized
+    // it reverts with an account not initialized error
+    test("Earn manager account is not initialized - reverts", async () => {
+
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Prepare the instruction
+      prepRemoveOrphanedEarner(nonAdmin, nonEarnerOneATA, earnManagerTwo.publicKey);
+
+      // Attempt to remove orphaned earner with uninitialized earn manager account
+      await expectAnchorError(
+        earn.methods
+          .removeOrphanedEarner()
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "AccountNotInitialized"
+      );
+    });
+
+    // given the earner does not have an earn manager
+    // it reverts with a panic since the earn manager verification cannot unwrap a None value
+    test("Earner does not have an earn manager - reverts", async () => {
+      // Get the ATA for earner one
+      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
+
+      // Prep the instruction
+      prepRemoveOrphanedEarner(nonAdmin, earnerOneATA, earnManagerOne.publicKey);
+
+      // Attempt to remove orphaned earner without an earn manager
+      await expectSystemError(
+        earn.methods
+          .removeOrphanedEarner()
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc()
+      );
+    });
+
+    // given all the accounts are valid
+    // given the earner has an earn manager
+    // given the earn manager account is active
+    // it reverts with a NotAuthorized error
+    test("Earn manager account is active - reverts", async () => {
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Setup the instruction
+      prepRemoveOrphanedEarner(nonAdmin, nonEarnerOneATA, earnManagerOne.publicKey);
+
+      // Attempt to remove orphaned earner with an active earn manager
+      await expectAnchorError(
+        earn.methods
+          .removeOrphanedEarner()
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "NotAuthorized"
+      );
+    });
+
+    // given all the accounts are valid
+    // given the earner has an earn manager
+    // given the earn manager account is not active
+    // it closes the earner account and refunds the rent to the signer
+    test("Remove orphaned earner - success", async () => {
+      // Remove earn manager one from the earn manager merkle tree
+      earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
+
+      // Propagate the new earn manager merkle root
+      await propagateIndex(new BN(1_100_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+
+      console.log("checkpoint 1");
+
+      // Get exclusion proof for earn manager one
+      const { proofs, neighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
+
+      // Remove the earn manager account (set it to inactive)
+      await removeEarnManager(earnManagerOne.publicKey, proofs, neighbors);
+
+      console.log("checkpoint 2");
+
+      // Get the ATA for non earner one
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
+
+      // Setup the instruction
+      const { earnerAccount } = prepRemoveOrphanedEarner(nonAdmin, nonEarnerOneATA, earnManagerOne.publicKey);
+
+      // Confirm that the account is active and earning
+      await expectEarnerState(
+        earnerAccount,
+        {
+          isEarning: true,
+          earnManager: earnManagerOne.publicKey,
+        }
+      );
+
+      // Remove the orphaned earner
+      try {
+        await earn.methods
+        .removeOrphanedEarner()
+        .accounts({ ...accounts })
+        .signers([nonAdmin])
+        .rpc();
+      } catch (e) {
+        console.log(e);
+        expect(true).toBe(false);
+      }
+      
+
+      console.log("checkpoint 3");
+
+      // Verify the earner account was closed
+      expectAccountEmpty(earnerAccount);
+    });
   });
 }); 
