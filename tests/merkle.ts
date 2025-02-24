@@ -7,6 +7,19 @@ export interface ProofElement {
     onRight: boolean
 }
 
+const bufferSort = (a: Buffer, b: Buffer) => {
+    const iA = BigInt("0x" + a.toString("hex"));
+    const iB = BigInt("0x" + b.toString("hex"));
+
+    if (iA < iB) {
+        return -1;
+    } else if (iA > iB) {
+        return 1;
+    } else {
+        return 0;
+    }
+};
+
 export class MerkleTree {
     // Array of raw leaves, stored as buffers
     private rawLeaves: Buffer[];
@@ -20,12 +33,11 @@ export class MerkleTree {
     private hasher = new Keccak(256);
 
     constructor (leaves: PublicKey[]) {
-
         // Process the leaves
         this.rawLeaves = leaves.map(leaf => leaf.toBuffer());
 
         // Sort the leaves
-        this.rawLeaves.sort();
+        this.rawLeaves.sort(bufferSort);
 
         // Hash the leaves and store the hashes
         this.leaves = this.rawLeaves.map(leaf => this._hashLeaf(leaf));
@@ -128,6 +140,14 @@ export class MerkleTree {
         return -1;
     }
 
+    public getRawLeaves(): PublicKey[] {
+        return this.rawLeaves.map(leaf => new PublicKey(leaf));
+    }
+
+    public getTree(): Buffer[][] {
+        return this.tree;
+    }
+
     public addLeaf(leaf: PublicKey) {
         const leafBuffer = leaf.toBuffer();
 
@@ -146,7 +166,7 @@ export class MerkleTree {
         this.rawLeaves.push(leafBuffer);
 
         // Sort the leaves
-        this.rawLeaves.sort();
+        this.rawLeaves.sort(bufferSort);
 
         // Get the index of the leaf hash
         let index = this.rawLeaves.indexOf(leafBuffer);
