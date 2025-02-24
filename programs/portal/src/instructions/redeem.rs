@@ -10,7 +10,7 @@ use crate::{
     payloads::Payload,
     peer::NttManagerPeer,
     queue::{
-        inbox::{InboxItem, InboxRateLimit, ReleaseStatus},
+        inbox::{InboxItem, InboxRateLimit, InboxValue, ReleaseStatus},
         outbox::OutboxRateLimit,
         rate_limit::RateLimitResult,
     },
@@ -110,40 +110,28 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
             &ctx.accounts.transceiver.transceiver_address,
         )?;
 
-    let message: NttManagerMessage<Payload> =
-        transceiver_message.message.ntt_manager_payload.clone();
+    let message: NttManagerMessage<Payload> = transceiver_message.message.ntt_manager_payload;
+    let decimals = ctx.accounts.mint.decimals.clone();
 
     match &message.payload {
-        Payload::NativeTokenTransfer(ntt) => {
-            let amount = ntt
-                .amount
-                .untrim(ctx.accounts.mint.decimals)
-                .map_err(NTTError::from)?;
-
-            let recipient_address =
-                Pubkey::try_from(ntt.to).map_err(|_| NTTError::InvalidRecipientAddress)?;
-
-            set_inbox(ctx, Some(amount), Some(recipient_address), None)
-        }
-        Payload::IndexTransfer(update) => set_inbox(ctx, None, None, Some(update.index)),
+        Payload::NativeTokenTransfer(ntt) => set_inbox(ctx, InboxValue::from_ntt(ntt, decimals)?),
+        Payload::IndexTransfer(update) => set_inbox(ctx, InboxValue::from_index_update(update)?),
     }
 }
 
-pub fn set_inbox(
-    ctx: Context<Redeem>,
-    amount: Option<u64>,
-    recipient_address: Option<Pubkey>,
-    index_update: Option<u128>,
-) -> Result<()> {
+pub fn set_inbox(ctx: Context<Redeem>, value: InboxValue) -> Result<()> {
     let accs = ctx.accounts;
+
+    let amount = match value {
+        InboxValue::TokenTransfer(ref tt) => tt.amount,
+        _ => 0,
+    };
 
     if !accs.inbox_item.init {
         accs.inbox_item.set_inner(InboxItem {
             init: true,
             bump: ctx.bumps.inbox_item,
-            amount,
-            recipient_address,
-            index_update,
+            value,
             release_status: ReleaseStatus::NotApproved,
             votes: Bitmap::new(),
         });
@@ -161,17 +149,11 @@ pub fn set_inbox(
         return Ok(());
     }
 
-    let release_timestamp = match accs
-        .inbox_rate_limit
-        .rate_limit
-        .consume_or_delay(amount.unwrap_or(0))
-    {
+    let release_timestamp = match accs.inbox_rate_limit.rate_limit.consume_or_delay(amount) {
         RateLimitResult::Consumed(now) => {
             // When receiving a transfer, we refill the outbound rate limit with
             // the same amount (we call this "backflow")
-            accs.outbox_rate_limit
-                .rate_limit
-                .refill(now, amount.unwrap_or(0));
+            accs.outbox_rate_limit.rate_limit.refill(now, amount);
             now
         }
         RateLimitResult::Delayed(release_timestamp) => release_timestamp,
