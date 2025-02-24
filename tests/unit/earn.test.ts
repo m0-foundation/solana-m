@@ -9,6 +9,7 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import {
+  ACCOUNT_SIZE,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
   createInitializeMintInstruction,
@@ -17,6 +18,7 @@ import {
   getMintLen,
   getMinimumBalanceForRentExemptMultisig,
   getAssociatedTokenAddressSync,
+  createInitializeAccountInstruction,
   createInitializeMultisigInstruction,
   createMintToCheckedInstruction,
 } from "@solana/spl-token";
@@ -77,7 +79,7 @@ interface Global {
 interface Earner {
   earnManager?: PublicKey;
   lastClaimIndex?: BN;
-  isEarning: boolean;
+  isEarning?: boolean;
 }
 
 interface EarnManager {
@@ -197,8 +199,8 @@ const expectEarnManagerState = async (
   if (expected.feeTokenAccount) expect(state.feeTokenAccount).toEqual(expected.feeTokenAccount);
 };
 
-const getTokenBalance = async (tokenAccount: PublicKey) => {
-  return (
+const expectTokenBalance = async (tokenAccount: PublicKey, expectedBalance: BN) => {
+  const balance = (
     await getAccount(
       provider.connection,
       tokenAccount,
@@ -206,6 +208,8 @@ const getTokenBalance = async (tokenAccount: PublicKey) => {
       TOKEN_2022_PROGRAM_ID
     )
   ).amount;
+
+  expect(balance.toString()).toEqual(expectedBalance.toString());
 };
 
 const createATA = async (mint: PublicKey, owner: PublicKey) => {
@@ -252,6 +256,32 @@ const getATA = async (mint: PublicKey, owner: PublicKey) => {
   return tokenAccount;
 }
 
+const createTokenAccount = async (mint: PublicKey, owner: PublicKey) => {
+  // We want to create a token account that is not the ATA
+  const tokenAccount = new Keypair();
+  
+  let tx = new Transaction();
+  tx.add(
+    SystemProgram.createAccount({
+      fromPubkey: admin.publicKey,
+      newAccountPubkey: tokenAccount.publicKey,
+      space: ACCOUNT_SIZE,
+      lamports: await provider.connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE),
+      programId: TOKEN_2022_PROGRAM_ID
+    }),
+    createInitializeAccountInstruction(
+      tokenAccount.publicKey,
+      mint,
+      owner,
+      TOKEN_2022_PROGRAM_ID
+    )
+  );
+
+  await provider.sendAndConfirm(tx, [admin, tokenAccount]);
+
+  return { tokenAccount: tokenAccount.publicKey };
+};
+
 const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
 
   // Create and initialize mint account
@@ -259,7 +289,7 @@ const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
   const mintLen = getMintLen([]);
   const mintLamports =
     await provider.connection.getMinimumBalanceForRentExemption(mintLen);
-  const createMintWithMultisigAccount = SystemProgram.createAccount({
+  const createMintAccount = SystemProgram.createAccount({
     fromPubkey: admin.publicKey,
     newAccountPubkey: mint.publicKey,
     space: mintLen,
@@ -276,7 +306,7 @@ const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
   );
 
   let tx = new Transaction();
-  tx.add(createMintWithMultisigAccount, initializeMint);
+  tx.add(createMintAccount, initializeMint);
 
   await provider.sendAndConfirm(tx, [admin, mint]);
 
@@ -509,6 +539,7 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
   accounts.globalAccount = globalAccount;
   accounts.earnerAccount = earnerAccount;
   accounts.mint = mint;
+  accounts.mintAuthority = mintAuthority.publicKey;
   accounts.userTokenAccount = earnerATA;
 
   if (earnManager) {
@@ -522,6 +553,9 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
     accounts.earnManagerTokenAccount = earnManagerATA;
 
     return { globalAccount, earnerAccount, earnerATA, earnManagerAccount, earnManagerATA };
+  } else {
+    accounts.earnManagerAccount = null;
+    accounts.earnManagerTokenAccount = null;
   }
   
   return { globalAccount, earnerAccount, earnerATA };
@@ -1337,33 +1371,12 @@ describe("Earn unit tests", () => {
   });
 
   describe("claim_for unit tests", () => {
-    // beforeEach(async () => {
-    //   // Initialize the program
-    //   await initialize(
-    //     earnAuthority.publicKey,
-    //     initialIndex,
-    //     claimCooldown
-    //   );
-
-    //   // Warp past the initial cooldown period
-    //   warp(claimCooldown, true);
-
-    //   // Propagate a new index to start a new claim cycle
-    //   await propagateIndex(new BN(1_100_000_000_000));
-    // });
-
     // test cases
     // [ ] given the earn authority does not sign the transaction
     //   [ ] it reverts with an address constraint error
     // [ ] given the earn authority signs the transaction
-    //   [ ] given the token mint is the wrong account
-    //     [ ] it reverts with an address constraint error
-    //   [ ] given the user token account is for the wrong token mint
-    //     [ ] it reverts with an address constraint error
     //   [ ] given the user token account's earner account is not initialized
     //     [ ] it reverts with an account not initialized error
-    //   [ ] given the earner's is_earning status is false
-    //     [ ] it reverts with a NotEarning error
     //   [ ] given the earner's last claim index is the current index
     //     [ ] it reverts with an AlreadyClaimed error
     //   [ ] given the amonut to be minted causes the total distributed to exceed the max yield
@@ -1386,44 +1399,369 @@ describe("Earn unit tests", () => {
     //         [ ] the fee amount is minted to the earn manager token account
     //         [ ] the total rewards minus the fee is minted to the earner token account  
     
-    // beforeEach(async () => {
-    //   // Initialize the program
-    //   await initialize(
-    //     earnAuthority.publicKey,
-    //     initialIndex,
-    //     claimCooldown
-    //   );
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
 
-    //   // Warp past the initial cooldown period
-    //   warp(claimCooldown, true);
+      // Populate the earner merkle tree with the initial earners
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
 
-    //   // Propagate a new index to start a new claim cycle
-    //   await propagateIndex(new BN(1_100_000_000_000));
-    // });
+      // Populate the earn manager merkle tree with the initial earn managers
+      earnManagerMerkleTree = new MerkleTree([earnManagerOne.publicKey, earnManagerTwo.publicKey]);
 
-    // // given the earn authority doesn't sign the transaction
-    // // it reverts with an address constraint error
-    // test("Non-earn authority cannot claim", async () => {
-    //   // Setup the instruction
-    //   const { globalAccount } = prepClaimFor(nonAdmin);
+      // Warp past the initial cooldown period
+      warp(claimCooldown, true);
 
-    //   // Attempt to claim with non-earn authority
-    //   await expectAnchorError(
-    //     earn.methods
-    //       .claimFor(new BN(100_000_000))
-    //       .accounts({ ...accounts })
-    //       .signers([nonAdmin])
-    //       .rpc(),
-    //     "ConstraintAddress"
-    //   );
-    // });
+      // Propagate the earner and earn manager merkle roots so we can add earners
+      await propagateIndex(initialIndex, earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot());
 
+      // Add earner one as a registrar earner
+      const { proof: earnerOneProof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
+      await addRegistrarEarner(earnerOne.publicKey, earnerOneProof);
+
+      // Add earn manager one as an earn manager and configure a 100 bps fee
+      const { proof: earnManagerOneProof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+      await configureEarnManager(earnManagerOne, new BN(100), earnManagerOneProof);
+
+      // Add non earner one as an earner under earn manager one
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
+      await addEarner(earnManagerOne, nonEarnerOne.publicKey, proofs, neighbors);
+
+      // Send earner one 10 tokens so they have a positive balance
+      await mintM(earnerOne.publicKey, new BN(10_000_000));
+
+      // Send non earner one 10 tokens so they have a positive balance
+      await mintM(nonEarnerOne.publicKey, new BN(10_000_000));
+    });
+
+    // given the earn authority doesn't sign the transaction
+    // it reverts with an address constraint error
+    test("Non-earn authority cannot claim - reverts", async () => {
+      // Setup the instruction
+      await prepClaimFor(nonAdmin, mint.publicKey, earnerOne.publicKey);
+
+      // Attempt to claim with non-earn authority
+      await expectAnchorError(
+        earn.methods
+          .claimFor(new BN(100_000_000))
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "ConstraintAddress"
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given the user token account's earner account is not initialized
+    // it reverts with an account not initialized error
+    test("Earner account not initialized - reverts", async () => {
+      // Setup the instruction
+      await prepClaimFor(earnAuthority, mint.publicKey, earnerTwo.publicKey);
+
+      // Attempt to claim for non-initialized earner
+      await expectAnchorError(
+        earn.methods
+          .claimFor(new BN(10_000_000))
+          .accounts({ ...accounts })
+          .signers([earnAuthority])
+          .rpc(),
+        "AccountNotInitialized"
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given the earner's last claim index is the current index
+    // it reverts with an AlreadyClaimed error
+    test("Earner already claimed - reverts", async () => {
+      // Setup the instruction
+      await prepClaimFor(earnAuthority, mint.publicKey, earnerOne.publicKey);
+
+      // Attempt to claim, but the earner is already up to date
+      await expectAnchorError(
+        earn.methods
+          .claimFor(new BN(10_000_000))
+          .accounts({ ...accounts })
+          .signers([earnAuthority])
+          .rpc(),
+        "AlreadyClaimed"
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given the amount to be minted causes the total distributed to exceed the max yield
+    // it reverts with an ExceedsMaxYield error
+    test("Exceeds max yield - reverts", async () => {
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      await prepClaimFor(earnAuthority, mint.publicKey, earnerOne.publicKey);
+
+      // Attempt to claim an amount that exceeds the max yield
+      await expectAnchorError(
+        earn.methods
+          .claimFor(new BN(120_000_001))
+          .accounts({ ...accounts })
+          .signers([earnAuthority])
+          .rpc(),
+        "ExceedsMaxYield"
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given the earner doesn't have an earn manager
+    // the correct amount is minted to the earner's token account
+    test("Earner has no earn manager - success", async () => {
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      const { earnerAccount, earnerATA } = await prepClaimFor(earnAuthority, mint.publicKey, earnerOne.publicKey);
+
+      // Verify the starting values
+      await expectTokenBalance(earnerATA, new BN(10_000_000));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: initialIndex
+        }
+      );
+
+      // Claim for the earner
+      await earn.methods
+        .claimFor(new BN(10_000_000))
+        .accounts({ ...accounts })
+        .signers([earnAuthority])
+        .rpc();
+
+      // Verify the user token account was minted the correct amount
+      // and the last claim index was updated
+      await expectTokenBalance(earnerATA, new BN(11_000_000));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: new BN(1_100_000_000_000)
+        }
+      );
+
+    });
+
+    // given the earn authority signs the transaction
+    // given the earner does have an earn manager
+    // given no earn manager account is provided
+    // it reverts with a RequiredAccountMissing error
+    test("No earn manager account provided - reverts", async () => {
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      await prepClaimFor(earnAuthority, mint.publicKey, nonEarnerOne.publicKey);
+
+      // Attempt to claim without an earn manager account
+      await expectAnchorError(
+        earn.methods
+          .claimFor(new BN(10_000_000))
+          .accounts({ ...accounts })
+          .signers([earnAuthority])
+          .rpc(),
+        "RequiredAccountMissing"
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given the earner does have an earn manager
+    // given no earn manager token account is provided
+    // it reverts with a RequiredAccountMissing error
+    test("No earn manager token account provided - reverts", async () => {
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      await prepClaimFor(earnAuthority, mint.publicKey, nonEarnerOne.publicKey, earnManagerOne.publicKey);
+
+      // Manually remove the earn manager token account
+      accounts.earnManagerTokenAccount = null;
+
+      // Attempt to claim without an earn manager token account
+      await expectAnchorError(
+        earn.methods
+          .claimFor(new BN(10_000_000))
+          .accounts({ ...accounts })
+          .signers([earnAuthority])
+          .rpc(),
+        "RequiredAccountMissing"
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given an earn manager token account is provided, but it doesn't match the fee recipient token account in the earn manager's configuration
+    // it reverts with an InvalidAccount error
+    test("Invalid earn manager token account - reverts", async () => {
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      await prepClaimFor(earnAuthority, mint.publicKey, nonEarnerOne.publicKey, earnManagerOne.publicKey);
+
+      // Manually change the earn manager token account to a different mint
+      const { tokenAccount: newEarnManagerTokenAccount } = await createTokenAccount(mint.publicKey, earnManagerOne.publicKey);
+      accounts.earnManagerTokenAccount = newEarnManagerTokenAccount;
+
+      // Attempt to claim with an invalid earn manager token account
+      await expectAnchorError(
+        earn.methods
+          .claimFor(new BN(10_000_000))
+          .accounts({ ...accounts })
+          .signers([earnAuthority])
+          .rpc(),
+        "InvalidAccount"
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given the earn manager account and earn manager token account are provided correctly
+    // when the fee percent is zero
+    // the full amount is minted to the earner
+    test("Claim with fee percent zero - success", async () => {
+      // Change the earn manager's fee percent to zero
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+      await configureEarnManager(earnManagerOne, new BN(0), proof);
+
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      const { earnerAccount, earnerATA } = await prepClaimFor(earnAuthority, mint.publicKey, nonEarnerOne.publicKey, earnManagerOne.publicKey);
+      const earnManagerATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
+
+      console.log("accounts", accounts);
+
+      // Verify the starting values
+      await expectTokenBalance(earnerATA, new BN(10_000_000));
+      await expectTokenBalance(earnManagerATA, new BN(0));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: initialIndex
+        }
+      );
+
+      // Claim for the earner
+      try{
+      await earn.methods
+        .claimFor(new BN(10_000_000))
+        .accounts({ ...accounts })
+        .signers([earnAuthority])
+        .rpc();
+      } catch (e) {
+        console.log(e);
+        expect(true).toBe(false);
+      }
+
+      // Verify the user token account was minted the correct amount
+      // and the last claim index was updated
+      await expectTokenBalance(earnerATA, new BN(11_000_000));
+      await expectTokenBalance(earnManagerATA, new BN(0));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: new BN(1_100_000_000_000)
+        }
+      );
+
+    });
     
+    // given the earn authority signs the transaction
+    // given the earn manager account and earn manager token account are provided correctly
+    // when the fee percent is not zero, but the actual fee rounds to zero
+    // the full amount is minted to the earner
+    test("Claim with fee that rounds to zero - success", async () => {
+      // Change the earn manager's fee percent to 1
+      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+      await configureEarnManager(earnManagerOne, new BN(1), proof);
 
+      // Update the index so there a tiny amount of outstanding yield
+      await propagateIndex(new BN(1_000_001_000_000));
 
+      // Setup the instruction
+      const { earnerAccount, earnerATA } = await prepClaimFor(earnAuthority, mint.publicKey, nonEarnerOne.publicKey, earnManagerOne.publicKey);
+      const earnManagerATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
 
+      // Verify the starting values
+      await expectTokenBalance(earnerATA, new BN(10_000_000));
+      await expectTokenBalance(earnManagerATA, new BN(0));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: initialIndex
+        }
+      );
 
+      // Claim for the earner
+      await earn.methods
+        .claimFor(new BN(10_000_000))
+        .accounts({ ...accounts })
+        .signers([earnAuthority])
+        .rpc();
 
+      // Verify the user token account was minted the correct amount
+      // and the last claim index was updated
+      await expectTokenBalance(earnerATA, new BN(10_000_010));
+      await expectTokenBalance(earnManagerATA, new BN(0));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: new BN(1_100_000_000_000)
+        }
+      );
+
+    });
+
+    // given the earn authority signs the transaction
+    // given the earn manager account and earn manager token account are provided correctly
+    // when the fee is non-zero
+    // the fee amount is minted to the earn manager token account
+    // the total rewards minus the fee is minted to the earner token account
+    test("Claim with non-zero fee - success", async () => {
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      const { earnerAccount, earnerATA } = await prepClaimFor(earnAuthority, mint.publicKey, nonEarnerOne.publicKey, earnManagerOne.publicKey);
+      const earnManagerATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
+
+      // Verify the starting values
+      await expectTokenBalance(earnerATA, new BN(10_000_000));
+      await expectTokenBalance(earnManagerATA, new BN(0));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: initialIndex
+        }
+      );
+
+      // Claim for the earner
+      await earn.methods
+        .claimFor(new BN(10_000_000))
+        .accounts({ ...accounts })
+        .signers([earnAuthority])
+        .rpc();
+
+      // Verify the user token account was minted the correct amount
+      // and the last claim index was updated
+      await expectTokenBalance(earnerATA, new BN(10_990_000));
+      await expectTokenBalance(earnManagerATA, new BN(10_000));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: new BN(1_100_000_000_000)
+        }
+      );
+    });
   });
 
   describe("complete_claims unit tests", () => {
@@ -2925,15 +3263,11 @@ describe("Earn unit tests", () => {
       // Propagate the new earn manager merkle root
       await propagateIndex(new BN(1_100_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
 
-      console.log("checkpoint 1");
-
       // Get exclusion proof for earn manager one
       const { proofs, neighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
 
       // Remove the earn manager account (set it to inactive)
       await removeEarnManager(earnManagerOne.publicKey, proofs, neighbors);
-
-      console.log("checkpoint 2");
 
       // Get the ATA for non earner one
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
@@ -2962,9 +3296,6 @@ describe("Earn unit tests", () => {
         expect(true).toBe(false);
       }
       
-
-      console.log("checkpoint 3");
-
       // Verify the earner account was closed
       expectAccountEmpty(earnerAccount);
     });
