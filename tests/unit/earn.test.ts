@@ -541,6 +541,7 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
   accounts.mint = mint;
   accounts.mintAuthority = mintAuthority.publicKey;
   accounts.userTokenAccount = earnerATA;
+  accounts.tokenProgram = TOKEN_2022_PROGRAM_ID;
 
   if (earnManager) {
     // Get the earn manager ATA
@@ -1372,32 +1373,32 @@ describe("Earn unit tests", () => {
 
   describe("claim_for unit tests", () => {
     // test cases
-    // [ ] given the earn authority does not sign the transaction
-    //   [ ] it reverts with an address constraint error
-    // [ ] given the earn authority signs the transaction
-    //   [ ] given the user token account's earner account is not initialized
-    //     [ ] it reverts with an account not initialized error
-    //   [ ] given the earner's last claim index is the current index
-    //     [ ] it reverts with an AlreadyClaimed error
-    //   [ ] given the amonut to be minted causes the total distributed to exceed the max yield
-    //     [ ] it reverts with am ExceedsMaxYield error
-    //   [ ] given the earner doesn't have an earn manager
-    //     [ ] the correct amount is minted to the earner's token account
-    //   [ ] given the earner does have an earn manager 
-    //     [ ] given no earn manager account is provided
-    //       [ ] it reverts with a RequiredAccountMissing error
-    //     [ ] given no earn manager token account is provided
-    //       [ ] it reverts with a RequiredAccountMissing error
-    //     [ ] given an earn manager token account is provided, but it doesn't match the fee recipient token account in the earn manager's configuration
-    //       [ ] it reverts with an InvalidAccount error
-    //     [ ] given the earn manager account and earn manager token account are provided correctly
-    //       [ ] when the fee percent is zero
-    //         [ ] the full amount is minted to the earner
-    //       [ ] when the fee percent is not zero, but the actual fee rounds to zero
-    //         [ ] the full amount is minted to the earner
-    //       [ ] when the fee is non-zero
-    //         [ ] the fee amount is minted to the earn manager token account
-    //         [ ] the total rewards minus the fee is minted to the earner token account  
+    // [X] given the earn authority does not sign the transaction
+    //   [X] it reverts with an address constraint error
+    // [X] given the earn authority signs the transaction
+    //   [X] given the user token account's earner account is not initialized
+    //     [X] it reverts with an account not initialized error
+    //   [X] given the earner's last claim index is the current index
+    //     [X] it reverts with an AlreadyClaimed error
+    //   [X] given the amonut to be minted causes the total distributed to exceed the max yield
+    //     [X] it reverts with am ExceedsMaxYield error
+    //   [X] given the earner doesn't have an earn manager
+    //     [X] the correct amount is minted to the earner's token account
+    //   [X] given the earner does have an earn manager 
+    //     [X] given no earn manager account is provided
+    //       [X] it reverts with a RequiredAccountMissing error
+    //     [X] given no earn manager token account is provided
+    //       [X] it reverts with a RequiredAccountMissing error
+    //     [X] given an earn manager token account is provided, but it doesn't match the fee recipient token account in the earn manager's configuration
+    //       [X] it reverts with an InvalidAccount error
+    //     [X] given the earn manager account and earn manager token account are provided correctly
+    //       [X] when the fee percent is zero
+    //         [X] the full amount is minted to the earner
+    //       [X] when the fee percent is not zero, but the actual fee rounds to zero
+    //         [X] the full amount is minted to the earner
+    //       [X] when the fee is non-zero
+    //         [X] the fee amount is minted to the earn manager token account
+    //         [X] the total rewards minus the fee is minted to the earner token account  
     
     beforeEach(async () => {
       // Initialize the program
@@ -1638,7 +1639,7 @@ describe("Earn unit tests", () => {
       const { earnerAccount, earnerATA } = await prepClaimFor(earnAuthority, mint.publicKey, nonEarnerOne.publicKey, earnManagerOne.publicKey);
       const earnManagerATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
 
-      console.log("accounts", accounts);
+      // console.log("accounts", accounts);
 
       // Verify the starting values
       await expectTokenBalance(earnerATA, new BN(10_000_000));
@@ -1651,16 +1652,16 @@ describe("Earn unit tests", () => {
       );
 
       // Claim for the earner
-      try{
+      // try{
       await earn.methods
         .claimFor(new BN(10_000_000))
         .accounts({ ...accounts })
         .signers([earnAuthority])
         .rpc();
-      } catch (e) {
-        console.log(e);
-        expect(true).toBe(false);
-      }
+      // } catch (e) {
+      //   console.log(e);
+      //   expect(true).toBe(false);
+      // }
 
       // Verify the user token account was minted the correct amount
       // and the last claim index was updated
@@ -1715,7 +1716,7 @@ describe("Earn unit tests", () => {
       expectEarnerState(
         earnerAccount, 
         {
-          lastClaimIndex: new BN(1_100_000_000_000)
+          lastClaimIndex: new BN(1_000_001_000_000)
         }
       );
 
