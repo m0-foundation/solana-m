@@ -37,6 +37,7 @@ import {
     signSendWait,
 } from "@wormhole-foundation/sdk";
 
+
 const PROGRAMS = {
     mainnet: {
         portal: new PublicKey("11111111111111111111111111111111"),
@@ -47,7 +48,6 @@ const PROGRAMS = {
         earn: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c")
     }
 }
-
 
 async function main() {
     const program = new Command();
@@ -111,9 +111,7 @@ async function main() {
             const multisig = new PublicKey(options.multisig);
             const mint = loadKeypair(options.mint);
 
-            const signer = new SolanaSendSigner(connection, "Solana", owner, false, { min: 300_000 });
-            const sender = Wormhole.parseAddress("Solana", signer.address());
-            const { ctx, ntt } = NttManager(connection, options.network, mint.publicKey);
+            const { ctx, ntt, sender, signer } = NttManager(connection, owner, options.network, mint.publicKey);
 
             const initTxs = ntt.initialize(sender, {
                 mint: mint.publicKey,
@@ -138,8 +136,7 @@ async function main() {
             const owner = loadKeypair(options.owner);
             const mint = loadKeypair(options.mint);
 
-            const signer = new SolanaSendSigner(connection, "Solana", owner, false, { min: 300_000 });
-            const { ctx, ntt } = NttManager(connection, options.network, mint.publicKey);
+            const { ctx, ntt, signer } = NttManager(connection, owner, options.network, mint.publicKey);
 
             const lutTxn = ntt.initializeOrUpdateLUT({ payer: owner.publicKey });
             await signSendWait(ctx, lutTxn, signer);
@@ -149,7 +146,10 @@ async function main() {
     await program.parseAsync(process.argv);
 }
 
-function NttManager(connection: Connection, network: "devnet" | "mainnet", mint: PublicKey) {
+function NttManager(connection: Connection, owner: Keypair, network: "devnet" | "mainnet", mint: PublicKey) {
+    const signer = new SolanaSendSigner(connection, "Solana", owner, false, { min: 300_000 });
+    const sender = Wormhole.parseAddress("Solana", signer.address());
+
     const wormholeNetwork = network === "devnet" ? "Testnet" : "Mainnet";
     const wh = new Wormhole(wormholeNetwork, [SolanaPlatform]);
     const ctx = wh.getChain("Solana");
@@ -171,7 +171,7 @@ function NttManager(connection: Connection, network: "devnet" | "mainnet", mint:
         "3.0.0",
     );
 
-    return { ctx, ntt }
+    return { ctx, ntt, signer, sender }
 }
 
 async function createToken2022Mint(
