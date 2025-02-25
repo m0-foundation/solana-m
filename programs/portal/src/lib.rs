@@ -18,11 +18,7 @@ use transceivers::wormhole::instructions::*;
 
 use instructions::*;
 
-#[cfg(feature = "devnet")]
 declare_id!("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr");
-
-#[cfg(feature = "mainnet")]
-declare_id!("11111111111111111111111111111111");
 
 pub const TOKEN_AUTHORITY_SEED: &[u8] = b"token_authority";
 

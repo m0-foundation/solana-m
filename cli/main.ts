@@ -33,20 +33,26 @@ import {
     SolanaSendSigner,
 } from "@wormhole-foundation/sdk-solana";
 import {
+    Chain,
+    ChainAddress,
+    UniversalAddress,
     Wormhole,
     signSendWait,
 } from "@wormhole-foundation/sdk";
 
 
 const PROGRAMS = {
-    mainnet: {
-        portal: new PublicKey("11111111111111111111111111111111"),
-        earn: new PublicKey("11111111111111111111111111111111")
-    },
-    devnet: {
-        portal: new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr"),
-        earn: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c")
-    }
+    // program id the same for devnet and mainnet
+    portal: new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr"),
+    earn: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"),
+    // addresses the same across L2s 
+    evmTransiever: "0x0763196A091575adF99e2306E5e90E0Be5154841",
+    evmPeer: "0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd"
+}
+
+const RATE_LIMITS_24 = {
+    inbound: 100_000_000n,
+    outbound: 100_000_000n,
 }
 
 async function main() {
@@ -64,8 +70,8 @@ async function main() {
             const multisig = Keypair.generate();
 
             // token authorities for both programs
-            const [tokenAuthPortal] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], PROGRAMS[options.network].portal)
-            const [tokenAuthEarn] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], PROGRAMS[options.network].earn)
+            const [tokenAuthPortal] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], PROGRAMS.portal)
+            const [tokenAuthEarn] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], PROGRAMS.earn)
 
             await createMultisig(
                 connection,
@@ -115,13 +121,13 @@ async function main() {
 
             const initTxs = ntt.initialize(sender, {
                 mint: mint.publicKey,
-                outboundLimit: 100_000_000n, // over 24h
+                outboundLimit: RATE_LIMITS_24.outbound,
                 mode: "burning",
                 multisig,
             });
 
             await signSendWait(ctx, initTxs, signer);
-            console.log(`Portal initialized: ${PROGRAMS[options.network].portal.toBase58()}`);
+            console.log(`Portal initialized: ${PROGRAMS.portal.toBase58()}`);
         });
 
     program
@@ -140,8 +146,44 @@ async function main() {
 
             const lutTxn = ntt.initializeOrUpdateLUT({ payer: owner.publicKey });
             await signSendWait(ctx, lutTxn, signer);
-            console.log(`LUT updated`);
+            console.log('LUT updated');
         });
+
+    program
+        .command('register-transeiver')
+        .description('Initialize or update the LUT for the portal program')
+        .option('--mint <filepath>', 'mint keypair', 'tests/keys/mint.json')
+        .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
+        .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
+        .option('--network <string>', 'target devnet or mainnet', 'devnet')
+        .action(async (options) => {
+            const connection = new Connection(options.rpcUrl);
+            const owner = loadKeypair(options.owner);
+            const mint = loadKeypair(options.mint);
+
+            const { ctx, ntt, signer, sender } = NttManager(connection, owner, options.network, mint.publicKey);
+
+            // register wormhole xcvr
+            const registerTxs = ntt.registerWormholeTransceiver({ payer: sender, owner: sender });
+            await signSendWait(ctx, registerTxs, signer);
+
+            for (const chain of (["Ethereum", "Arbitrum", "Optimism"] as Chain[])) {
+                console.log(`Registering transceiver and peer for ${chain}`);
+
+                // set wormhole xcvr peer
+                const remoteXcvr: ChainAddress = { chain, address: new UniversalAddress(PROGRAMS.evmTransiever) }
+                const setXcvrPeerTxs = ntt.setWormholeTransceiverPeer(remoteXcvr, sender);
+                await signSendWait(ctx, setXcvrPeerTxs, signer);
+
+                // set manager peer
+                const remoteMgr: ChainAddress = { chain, address: new UniversalAddress(PROGRAMS.evmPeer) }
+                const setPeerTxs = ntt.setPeer(remoteMgr, 9, RATE_LIMITS_24.inbound, sender);
+                await signSendWait(ctx, setPeerTxs, signer);
+            }
+
+            console.log('Transceiver and peers registered');
+        });
+
 
     await program.parseAsync(process.argv);
 }

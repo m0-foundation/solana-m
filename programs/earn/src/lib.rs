@@ -11,11 +11,7 @@ use anchor_lang::prelude::*;
 use instructions::*;
 use utils::merkle_proof::ProofElement;
 
-#[cfg(feature = "devnet")]
 declare_id!("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c");
-
-#[cfg(feature = "mainnet")]
-declare_id!("11111111111111111111111111111111");
 
 #[program]
 pub mod earn {
