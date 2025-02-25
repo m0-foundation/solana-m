@@ -17,7 +17,6 @@ import {
     ExtensionType,
     getMintLen,
     LENGTH_SIZE,
-    setAuthority,
     TOKEN_2022_PROGRAM_ID,
     TYPE_SIZE,
 } from '@solana/spl-token';
@@ -28,6 +27,15 @@ import {
     TokenMetadata,
 } from "@solana/spl-token-metadata";
 import { loadKeypair } from '../tests/test-utils';
+import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
+import {
+    SolanaPlatform,
+    SolanaSendSigner,
+} from "@wormhole-foundation/sdk-solana";
+import {
+    Wormhole,
+    signSendWait,
+} from "@wormhole-foundation/sdk";
 
 const PORTAL_PID = new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr")
 const EARN_PID = new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c")
@@ -79,7 +87,79 @@ async function main() {
             console.log(`Mint created: ${mint.publicKey.toBase58()}`);
         });
 
+    program
+        .command('initialize-portal')
+        .description('Initialize the portal program')
+        .option('--mint <filepath>', 'mint keypair', 'tests/keys/mint.json')
+        .option('--multisig <pubkey>', 'multisig pubkey', '9vR8GRGVXaNq62aiPmUrq5jiE4CXWGFUwJRuo4r2wZgF')
+        .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
+        .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
+        .option('--network <string>', 'target devnet or mainnet', 'Testnet')
+        .action(async (options) => {
+            const connection = new Connection(options.rpcUrl);
+            const owner = loadKeypair(options.owner);
+            const multisig = new PublicKey(options.multisig);
+            const mint = loadKeypair(options.mint);
+
+
+            const signer = new SolanaSendSigner(connection, "Solana", owner, false, { min: 300_000 });
+            const sender = Wormhole.parseAddress("Solana", signer.address());
+            const { ctx, ntt } = NttManager(connection, options.network, mint.publicKey);
+
+            const initTxs = ntt.initialize(sender, {
+                mint: mint.publicKey,
+                outboundLimit: 100_000_000n, // over 24h
+                mode: "burning",
+                multisig,
+            });
+
+            await signSendWait(ctx, initTxs, signer);
+        });
+
+    program
+        .command('update-lut')
+        .description('Initialize or update the LUT for the portal program')
+        .option('--mint <filepath>', 'mint keypair', 'tests/keys/mint.json')
+        .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
+        .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
+        .option('--network <string>', 'target devnet or mainnet', 'Testnet')
+        .action(async (options) => {
+            const connection = new Connection(options.rpcUrl);
+            const owner = loadKeypair(options.owner);
+            const mint = loadKeypair(options.mint);
+
+            const signer = new SolanaSendSigner(connection, "Solana", owner, false, { min: 300_000 });
+            const { ctx, ntt } = NttManager(connection, options.network, mint.publicKey);
+
+            const lutTxn = ntt.initializeOrUpdateLUT({ payer: owner.publicKey });
+            await signSendWait(ctx, lutTxn, signer);
+        });
+
     await program.parseAsync(process.argv);
+}
+
+function NttManager(connection: Connection, network: "Testnet" | "Mainnet", mint: PublicKey) {
+    const wh = new Wormhole(network, [SolanaPlatform]);
+    const ctx = wh.getChain("Solana");
+
+    const ntt = new SolanaNtt(
+        network,
+        "Solana",
+        connection,
+        {
+            ...ctx.config.contracts,
+            ntt: {
+                token: mint.toBase58(),
+                manager: PORTAL_PID.toBase58(),
+                transceiver: {
+                    wormhole: PORTAL_PID.toBase58(),
+                },
+            },
+        },
+        "3.0.0",
+    );
+
+    return { ctx, ntt }
 }
 
 async function createToken2022Mint(
@@ -93,7 +173,7 @@ async function createToken2022Mint(
         mint: mint.publicKey,
         name: "M by M^0",
         symbol: "M",
-        uri: "https://etherscan.io/token/images/m0token_new_32.png",
+        uri: "https://etherscan.io/token/images/m0token_new_32.png", // update to higher resolution permalink
         additionalMetadata: [["evm", "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b"]],
     };
 
