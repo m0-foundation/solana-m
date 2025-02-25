@@ -37,12 +37,13 @@ impl Readable for NativeTokenTransfer {
         // additional payload
         let mut additional_payload = AdditionalPayload::default();
         let payload_len: u16 = Readable::read(reader)?;
+        msg!("additional payload length: {}", payload_len);
 
-        if payload_len >= 64 {
+        if payload_len >= 48 {
             additional_payload.index = Some(Readable::read(reader)?);
             additional_payload.destination = Some(Readable::read(reader)?);
         }
-        if payload_len >= 128 {
+        if payload_len >= 112 {
             additional_payload.earner_root = Some(Readable::read(reader)?);
             additional_payload.earn_manager_root = Some(Readable::read(reader)?);
         }

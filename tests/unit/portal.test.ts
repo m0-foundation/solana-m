@@ -12,6 +12,9 @@ import {
     keccak256,
     signSendWait as ssw,
     toChainId,
+    serialize,
+    deserialize,
+    serializePayload,
 } from "@wormhole-foundation/sdk";
 import * as testing from "@wormhole-foundation/sdk-definitions/testing";
 import {
@@ -26,7 +29,8 @@ import { LiteSVMProviderExt, loadKeypair } from "../test-utils";
 import { fromWorkspace } from "anchor-litesvm";
 import { createAssociatedTokenAccountInstruction, createMintToInstruction, createSetAuthorityInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
-import { serializedMessage, serializeIndexUpdate, serializePayload, serializeTransfer } from "../payloads";
+import { utils } from "web3";
+
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -285,117 +289,70 @@ describe("Portal unit tests", () => {
             0n
         );
 
-        const redeemTxns = async (id: string, msg: Buffer<ArrayBuffer>, payload: string) => {
-            const published = emitter.publishMessage(0, msg, 200);
-            const wormholeNTT = guardians.addSignatures(published, [0]);
-            const msgID = Buffer.from(id.padEnd(32, "0"));
-
-            async function* postVaa() {
-                for await (const tx of ntt.core.postVaa(payer.publicKey, wormholeNTT)) yield tx;
-            }
-            await ssw(ctx, postVaa(), signer);
-
-            const whTransceiver = await ntt.getWormholeTransceiver();
-            const senderAddress = new SolanaAddress(payer.publicKey).unwrap();
-            const config = await ntt.getConfig();
-            const pdas = NTT.pdas(ntt.program.programId);
-            const tPDAs = NTT.transceiverPdas(whTransceiver.programId);
-
-            const [vaa] = PublicKey.findProgramAddressSync(
-                [Buffer.from('PostedVAA'), Buffer.from(wormholeNTT.hash)],
-                WORMHOLE_PID,
-            )
-
-            const receiveMessageIx = whTransceiver.program.methods
-                .receiveWormholeMessage()
-                .accounts({
-                    payer: payer.publicKey,
-                    config: { config: whTransceiver.manager.pdas.configAccount() },
-                    peer: whTransceiver.pdas.transceiverPeerAccount('Ethereum'),
-                    vaa,
-                    transceiverMessage: whTransceiver.pdas.transceiverMessageAccount("Ethereum", msgID),
-                })
-                .instruction();
-
-            let [inboxItem] = PublicKey.findProgramAddressSync(
-                [Buffer.from("inbox_item"), messageDigest("Ethereum", Buffer.from(payload.slice(2), 'hex'))],
-                ntt.program.programId
-            )
-
-            // TODO: fix keccak256 PDA derivation above
-            inboxItem = id === "1" ? new PublicKey("HUTZcFFAAkqfkXsDhPKaKpdN5pig7cRsqMso6tNCsQCZ") : new PublicKey("K9bo8KpVK8JFjMZfbwYH1tG8NnRjTt3EdLuQf991BNG")
-
-            const redeemIx = ntt.program.methods
-                .redeem({})
-                .accounts({
-                    payer: senderAddress,
-                    config: pdas.configAccount(),
-                    peer: pdas.peerAccount('Ethereum'),
-                    transceiverMessage: tPDAs.transceiverMessageAccount(
-                        "Ethereum",
-                        msgID
-                    ),
-                    transceiver: pdas.registeredTransceiver(whTransceiver.programId),
-                    mint: config.mint,
-                    inboxItem,
-                    inboxRateLimit: pdas.inboxRateLimitAccount("Ethereum"),
-                    outboxRateLimit: pdas.outboxRateLimitAccount(),
-                })
-                .instruction();
-
-            const releaseIx = await ntt.program.methods
-                .releaseInboundMintMultisig({ revertOnDelay: false })
-                .accountsStrict({
-                    common: {
-                        payer: payer.publicKey,
-                        config: { config: pdas.configAccount() },
-                        inboxItem,
-                        recipient: getAssociatedTokenAddressSync(
-                            config.mint,
-                            payer.publicKey,
-                            true,
-                            config.tokenProgram
-                        ),
-                        mint: config.mint,
-                        tokenAuthority: pdas.tokenAuthority(),
-                        tokenProgram: config.tokenProgram,
-                        custody: getAssociatedTokenAddressSync(
-                            config.mint,
-                            pdas.tokenAuthority(),
-                            true,
-                            config.tokenProgram
-                        ),
+        // transfer payload builder with custom additional data
+        let sequenceCount = 0
+        const transferPayload = (additionalPayload: string) => {
+            return {
+                sourceNttManager: wc.remoteMgr.address as UniversalAddress,
+                recipientNttManager: new UniversalAddress(
+                    ntt.program.programId.toBytes()
+                ),
+                nttManagerPayload: {
+                    id: encoding.bytes.encode((sequenceCount++).toString().padEnd(32, "0")),
+                    sender: new UniversalAddress("FACE".padStart(64, "0")),
+                    payload: {
+                        trimmedAmount: {
+                            amount: 10_000n,
+                            decimals: 8,
+                        },
+                        sourceToken: new UniversalAddress("FAFA".padStart(64, "0")),
+                        recipientAddress: new UniversalAddress(payer.publicKey.toBytes()),
+                        recipientChain: "Solana",
+                        additionalPayload: Buffer.from(additionalPayload.slice(2), 'hex'),
                     },
-                    multisig: multisig.publicKey,
-                })
-                .instruction();
-
-            const tx = new Transaction();
-            tx.feePayer = senderAddress;
-            tx.recentBlockhash = provider.client.latestBlockhash();
-            tx.add(...(await Promise.all([receiveMessageIx, redeemIx, releaseIx])));
-            tx.sign(payer);
-
-            const results = await provider.client.sendTransaction(tx);
-            return results['logs']?.()
+                },
+                transceiverPayload: new Uint8Array(),
+            } as const;
         }
 
         it("tokens", async () => {
-            const payload = serializePayload("1", serializeTransfer(10000n, payer.publicKey), payer.publicKey)
-            const msg = serializedMessage(payload, wc.remoteMgr);
-            const logs = await redeemTxns("1", msg, payload)
+            const additionalPayload = utils.encodePacked(
+                { type: 'uint128', value: 123456 }, // index 
+                { type: 'bytes32', value: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b' }, // destination
+            )
 
-            expect(logs).toContain("Program log: Instruction: ReleaseInboundMintMultisig");
-            expect(logs).toContain("Program log: Transferred 100000 tokens to TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM");
+            const serialized = serializePayload(
+                "Ntt:WormholeTransfer",
+                transferPayload(additionalPayload)
+            );
+
+            const published = emitter.publishMessage(0, serialized, 200);
+            const rawVaa = guardians.addSignatures(published, [0]);
+            const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
+            const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
+
+            await ssw(ctx, redeemTxs, signer);
         });
 
-        it("index update", async () => {
-            const payload = serializePayload("2", serializeIndexUpdate(123456n), payer.publicKey)
-            const msg = serializedMessage(payload, wc.remoteMgr);
-            const logs = await redeemTxns("2", msg, payload)
+        it("tokens with merkle roots", async () => {
+            const additionalPayload = utils.encodePacked(
+                { type: 'uint128', value: 123456 }, // index 
+                { type: 'bytes32', value: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b' }, // destination
+                { type: 'bytes32', value: '0x1111111111111111111111111111111111111111' }, // earner root
+                { type: 'bytes32', value: '0x2222222222222222222222222222222222222222' }, // earner manager root
+            )
 
-            expect(logs).toContain("Program log: Instruction: ReleaseInboundMintMultisig");
-            expect(logs).toContain("Program log: Updating index: 123456");
+            const serialized = serializePayload(
+                "Ntt:WormholeTransfer",
+                transferPayload(additionalPayload)
+            );
+
+            const published = emitter.publishMessage(0, serialized, 200);
+            const rawVaa = guardians.addSignatures(published, [0]);
+            const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
+            const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
+
+            await ssw(ctx, redeemTxs, signer);
         });
     });
 
@@ -460,13 +417,4 @@ function getWormholeContext(connection: Connection) {
         coreBridge: CORE_BRIDGE_ADDRESS,
     });
     return { ctx, coreBridge, remoteXcvr, remoteMgr };
-}
-
-function messageDigest(chain: Chain, message: Buffer): Uint8Array {
-    return keccak256(
-        encoding.bytes.concat(
-            encoding.bignum.toBytes(toChainId(chain), 2),
-            message
-        )
-    );
 }
