@@ -13,7 +13,7 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "tests/keys/user.json"
 
 [scripts]
 test = "yarn run jest --preset ts-jest"

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface;
+use anchor_spl::{associated_token::get_associated_token_address_with_program_id, token_interface};
 use ntt_messages::mode::Mode;
+use solana_program::program::invoke_signed;
 use spl_token_2022::onchain;
 
 use crate::{
@@ -22,9 +23,14 @@ pub struct ReleaseInbound<'info> {
 
     #[account(
         mut,
-        associated_token::authority = inbox_item.recipient_address,
-        associated_token::mint = mint,
-        associated_token::token_program = token_program,
+        address = match &inbox_item.transfer {
+            Some(tt) => get_associated_token_address_with_program_id(
+                &tt.recipient,
+                &mint.key(),
+                &token_program.key(),
+            ),
+            _ => recipient.key(),
+        },
     )]
     pub recipient: InterfaceAccount<'info, token_interface::TokenAccount>,
 
@@ -76,76 +82,60 @@ pub fn release_inbound_mint_multisig<'info>(
     ctx: Context<'_, '_, '_, 'info, ReleaseInboundMintMultisig<'info>>,
     args: ReleaseInboundArgs,
 ) -> Result<()> {
-    let inbox_item = release_inbox_item(&mut ctx.accounts.common.inbox_item, args.revert_on_delay)?;
-    if inbox_item.is_none() {
+    let inbox_item = &mut ctx.accounts.common.inbox_item;
+
+    if !inbox_item.try_release()? {
+        if args.revert_on_delay {
+            return Err(NTTError::CantReleaseYet.into());
+        }
         return Ok(());
     }
-    let inbox_item = inbox_item.unwrap();
+
     assert!(inbox_item.release_status == ReleaseStatus::Released);
 
-    // NOTE: minting tokens is a two-step process:
-    // 1. Mint tokens to the custody account
-    // 2. Transfer the tokens from the custody account to the recipient
-    //
-    // This is done to ensure that if the token has a transfer hook defined, it
-    // will be called after the tokens are minted.
-    // Unfortunately the Token2022 program doesn't trigger transfer hooks when
-    // minting tokens, so we have to do it "manually" via a transfer.
-    //
-    // If we didn't do this, transfer hooks could be bypassed by transferring
-    // the tokens out through NTT first, then back in to the intended recipient.
-    //
-    // The [`transfer_burn`] function operates in a similar way
-    // (transfer to custody from sender, *then* burn).
+    if let Some(tt) = &inbox_item.transfer {
+        let token_authority_sig: &[&[&[u8]]] = &[&[
+            crate::TOKEN_AUTHORITY_SEED,
+            &[ctx.bumps.common.token_authority],
+        ]];
 
-    let token_authority_sig: &[&[&[u8]]] = &[&[
-        crate::TOKEN_AUTHORITY_SEED,
-        &[ctx.bumps.common.token_authority],
-    ]];
+        // Mint then transfer to ensure transfer hook is called
+        invoke_signed(
+            &spl_token_2022::instruction::mint_to(
+                &ctx.accounts.common.token_program.key(),
+                &ctx.accounts.common.mint.key(),
+                &ctx.accounts.common.custody.key(),
+                &ctx.accounts.multisig.key(),
+                &[&ctx.accounts.common.token_authority.key()],
+                tt.amount,
+            )?,
+            &[
+                ctx.accounts.common.custody.to_account_info(),
+                ctx.accounts.common.mint.to_account_info(),
+                ctx.accounts.common.token_authority.to_account_info(),
+                ctx.accounts.multisig.to_account_info(),
+            ],
+            token_authority_sig,
+        )?;
 
-    // Step 1: mint tokens to the custody account
-    solana_program::program::invoke_signed(
-        &spl_token_2022::instruction::mint_to(
+        onchain::invoke_transfer_checked(
             &ctx.accounts.common.token_program.key(),
-            &ctx.accounts.common.mint.key(),
-            &ctx.accounts.common.custody.key(),
-            &ctx.accounts.multisig.key(),
-            &[&ctx.accounts.common.token_authority.key()],
-            inbox_item.amount,
-        )?,
-        &[
             ctx.accounts.common.custody.to_account_info(),
             ctx.accounts.common.mint.to_account_info(),
+            ctx.accounts.common.recipient.to_account_info(),
             ctx.accounts.common.token_authority.to_account_info(),
-            ctx.accounts.multisig.to_account_info(),
-        ],
-        token_authority_sig,
-    )?;
+            ctx.remaining_accounts,
+            tt.amount,
+            ctx.accounts.common.mint.decimals,
+            token_authority_sig,
+        )?;
 
-    // Step 2: transfer the tokens from the custody account to the recipient
-    onchain::invoke_transfer_checked(
-        &ctx.accounts.common.token_program.key(),
-        ctx.accounts.common.custody.to_account_info(),
-        ctx.accounts.common.mint.to_account_info(),
-        ctx.accounts.common.recipient.to_account_info(),
-        ctx.accounts.common.token_authority.to_account_info(),
-        ctx.remaining_accounts,
-        inbox_item.amount,
-        ctx.accounts.common.mint.decimals,
-        token_authority_sig,
-    )?;
-    Ok(())
-}
-
-fn release_inbox_item(
-    inbox_item: &mut InboxItem,
-    revert_on_delay: bool,
-) -> Result<Option<&mut InboxItem>> {
-    if inbox_item.try_release()? {
-        Ok(Some(inbox_item))
-    } else if revert_on_delay {
-        Err(NTTError::CantReleaseYet.into())
-    } else {
-        Ok(None)
+        msg!("Transferred {} tokens to {}", tt.amount, tt.recipient);
     }
+
+    if let Some(index) = inbox_item.index_update {
+        msg!("Updating index: {}", index);
+    }
+
+    Ok(())
 }

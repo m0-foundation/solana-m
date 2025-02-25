@@ -29,15 +29,16 @@ import { loadKeypair } from "../test-utils";
 import { Earn } from "../../target/types/earn";
 import { randomInt } from "crypto";
 const EARN_IDL = require("../../target/idl/earn.json");
+const EARN_PROGRAM_ID = new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c");
 
 // Unit tests for earn program
 
 const ZERO_WORD = new Array(32).fill(0);
 
 // Setup wallets once at the beginning of the test suite
-const admin: Keypair = loadKeypair("test-addr/admin.json");
-const portal: Keypair = loadKeypair("test-addr/portal.json");
-const mint: Keypair = loadKeypair("test-addr/mint.json");
+const admin: Keypair = loadKeypair("tests/keys/admin.json");
+const portal: Keypair = loadKeypair("tests/keys/portal.json");
+const mint: Keypair = loadKeypair("tests/keys/mint.json");
 const earnAuthority: Keypair = new Keypair();
 const mintAuthority: Keypair = new Keypair();
 const nonAdmin: Keypair = new Keypair();
@@ -327,7 +328,7 @@ const createMintWithMultisig = async (mint: Keypair, mintAuthority: Keypair) => 
   const multisigLen = 355;
   // const multisigLamports = await provider.connection.getMinimumBalanceForRentExemption(multisigLen);
   const multisigLamports = await getMinimumBalanceForRentExemptMultisig(provider.connection);
-  
+
   const createMultisigAccount = SystemProgram.createAccount({
     fromPubkey: admin.publicKey,
     newAccountPubkey: mintAuthority.publicKey,
@@ -447,11 +448,11 @@ const initialize = async (
   // Confirm the global account state
   await expectGlobalState(
     globalAccount,
-    { 
-        earnAuthority,
-        index: initialIndex,
-        claimCooldown,
-        claimComplete: true
+    {
+      earnAuthority,
+      index: initialIndex,
+      claimCooldown,
+      claimComplete: true
     });
 
   return globalAccount;
@@ -470,23 +471,23 @@ const prepSetEarnAuthority = (signer: Keypair) => {
 };
 
 const setEarnAuthority = async (newEarnAuthority: PublicKey) => {
-    // Setup the instruction call
-    const { globalAccount } = prepSetEarnAuthority(admin);
+  // Setup the instruction call
+  const { globalAccount } = prepSetEarnAuthority(admin);
 
-    // Send the instruction
-    await earn.methods
-        .setEarnAuthority(newEarnAuthority)
-        .accounts({...accounts})
-        .signers([admin])
-        .rpc();
+  // Send the instruction
+  await earn.methods
+    .setEarnAuthority(newEarnAuthority)
+    .accounts({ ...accounts })
+    .signers([admin])
+    .rpc();
 
-    // Confirm the global state has been updated
-    await expectGlobalState(
-        globalAccount,
-        {
-            earnAuthority: newEarnAuthority
-        }
-    );
+  // Confirm the global state has been updated
+  await expectGlobalState(
+    globalAccount,
+    {
+      earnAuthority: newEarnAuthority
+    }
+  );
 };
 
 const prepPropagateIndex = (signer: Keypair) => {
@@ -513,11 +514,11 @@ const propagateIndex = async (
   // Send the instruction
   await earn.methods
     .propagateIndex(
-        newIndex,
-        earnerMerkleRoot,
-        earnManagerMerkleRoot
+      newIndex,
+      earnerMerkleRoot,
+      earnManagerMerkleRoot
     )
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([portal])
     .rpc();
 
@@ -588,7 +589,7 @@ const prepCompleteClaims = (signer: Keypair) => {
   accounts.signer = signer.publicKey;
   accounts.globalAccount = globalAccount;
 
-  return { globalAccount }; 
+  return { globalAccount };
 };
 
 const completeClaims = async () => {
@@ -598,7 +599,7 @@ const completeClaims = async () => {
   // Send the instruction
   await earn.methods
     .completeClaims()
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([earnAuthority])
     .rpc();
 };
@@ -849,7 +850,7 @@ describe("Earn unit tests", () => {
     provider = new LiteSVMProvider(svm);
 
     // Create program instances
-    earn = new Program<Earn>(EARN_IDL, EARN_IDL.metadata.address, provider);
+    earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM_ID, provider);
 
     // Fund the wallets
     svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
@@ -887,9 +888,9 @@ describe("Earn unit tests", () => {
       // Create and send the transaction
       await earn.methods
         .initialize(
-            earnAuthority.publicKey, 
-            initialIndex, 
-            claimCooldown
+          earnAuthority.publicKey,
+          initialIndex,
+          claimCooldown
         )
         .accounts({ ...accounts })
         .signers([admin])
@@ -936,12 +937,12 @@ describe("Earn unit tests", () => {
     //      [X] the transaction reverts with an address constraint error
 
     beforeEach(async () => {
-        // Initialize the program
-        await initialize(
-          earnAuthority.publicKey,
-          initialIndex,
-          claimCooldown
-        );
+      // Initialize the program
+      await initialize(
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
     });
 
     test("Admin can set new earn authority", async () => {
@@ -954,7 +955,7 @@ describe("Earn unit tests", () => {
       // Send the transaction
       await earn.methods
         .setEarnAuthority(newEarnAuthority.publicKey)
-        .accounts({...accounts})
+        .accounts({ ...accounts })
         .signers([admin])
         .rpc();
 
@@ -969,11 +970,11 @@ describe("Earn unit tests", () => {
       const newEarnAuthority = new Keypair();
 
       prepSetEarnAuthority(nonAdmin);
-      
+
       await expectAnchorError(
         earn.methods
           .setEarnAuthority(newEarnAuthority.publicKey)
-          .accounts({...accounts})
+          .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         "ConstraintAddress"
