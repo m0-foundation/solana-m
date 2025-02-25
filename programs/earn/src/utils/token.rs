@@ -6,10 +6,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::{
     token_interface::{
         transfer_checked,
-        Burn, 
-        burn, 
         Mint,
-        // mint_to, 
         TokenAccount, 
         TokenInterface, 
         TransferChecked

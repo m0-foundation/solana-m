@@ -6,13 +6,13 @@ use anchor_spl::token_interface::Mint;
 
 // local dependencies
 use crate::{
-    errors::EarnError,
     constants::{MINT, PORTAL_SIGNER},
     state::{Global, GLOBAL_SEED},
 };
 
 #[derive(Accounts)]
 pub struct PropagateIndex<'info> {
+    #[account(address = PORTAL_SIGNER)]
     pub signer: Signer<'info>,
 
     #[account(
@@ -34,11 +34,6 @@ pub fn handler(
     earner_merkle_root: [u8; 32],
     earn_manager_merkle_root: [u8; 32]
 ) -> Result<()> {
-    // Validate that the signer is the Portal's PDA
-    if ctx.accounts.signer.key() != PORTAL_SIGNER {
-        return err!(EarnError::NotAuthorized);
-    }
-
     // Cache the current supply of the M token
     let current_supply = ctx.accounts.mint.supply;
 
