@@ -2,17 +2,19 @@ import * as spl from "@solana/spl-token";
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import {
     AccountAddress,
+    Chain,
     ChainAddress,
     ChainContext,
     Signer,
     UniversalAddress,
     Wormhole,
-    deserialize,
-    deserializePayload,
     encoding,
-    serialize,
-    serializePayload,
+    keccak256,
     signSendWait as ssw,
+    toChainId,
+    serialize,
+    deserialize,
+    serializePayload,
 } from "@wormhole-foundation/sdk";
 import * as testing from "@wormhole-foundation/sdk-definitions/testing";
 import {
@@ -22,11 +24,13 @@ import {
     SolanaUnsignedTransaction,
 } from "@wormhole-foundation/sdk-solana";
 import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
-import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
+import { NTT, SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
 import { LiteSVMProviderExt, loadKeypair } from "../test-utils";
 import { fromWorkspace } from "anchor-litesvm";
 import { createAssociatedTokenAccountInstruction, createMintToInstruction, createSetAuthorityInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
+import { utils } from "web3";
+
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
@@ -262,18 +266,12 @@ describe("Portal unit tests", () => {
                 NTT_ADDRESS
             );
 
-            const unsignedVaa = await wc.coreBridge.parsePostMessageAccount(
-                wormholeMessage
-            );
-
-            const tm = deserializePayload(
-                "Ntt:WormholeTransfer",
-                unsignedVaa.payload
-            );
+            const unsignedVaa = await wc.coreBridge.parsePostMessageAccount(wormholeMessage);
+            const payloadHex = Buffer.from(unsignedVaa.payload).toString("hex").slice(272)
+            const payloadAmount = BigInt("0x" + payloadHex.slice(10, 26))
 
             // assert that amount is what we expect
-            expect(tm.nttManagerPayload.payload.trimmedAmount)
-                .toMatchObject({ amount: 10000n, decimals: 8 });
+            expect(payloadAmount.toString()).toBe("10000");
 
             // get from balance
             const tokenAccountInfo = await connection.getAccountInfo(tokenAccount);
@@ -284,42 +282,71 @@ describe("Portal unit tests", () => {
 
 
     describe("Receiving", () => {
-        it("can receive tokens", async () => {
-            const emitter = new testing.mocks.MockEmitter(
-                wc.remoteXcvr.address as UniversalAddress,
-                "Ethereum",
-                0n
-            );
+        let guardians = new testing.mocks.MockGuardians(0, [GUARDIAN_KEY]);
+        let emitter = new testing.mocks.MockEmitter(
+            wc.remoteXcvr.address as UniversalAddress,
+            "Ethereum",
+            0n
+        );
 
-            const guardians = new testing.mocks.MockGuardians(0, [GUARDIAN_KEY]);
-            const sender = Wormhole.parseAddress("Solana", signer.address());
-
-            const sendingTransceiverMessage = {
+        // transfer payload builder with custom additional data
+        let sequenceCount = 0
+        const transferPayload = (additionalPayload: string) => {
+            return {
                 sourceNttManager: wc.remoteMgr.address as UniversalAddress,
                 recipientNttManager: new UniversalAddress(
                     ntt.program.programId.toBytes()
                 ),
                 nttManagerPayload: {
-                    id: encoding.bytes.encode("sequence1".padEnd(32, "0")),
+                    id: encoding.bytes.encode((sequenceCount++).toString().padEnd(32, "0")),
                     sender: new UniversalAddress("FACE".padStart(64, "0")),
                     payload: {
                         trimmedAmount: {
-                            amount: 10000n,
+                            amount: 10_000n,
                             decimals: 8,
                         },
                         sourceToken: new UniversalAddress("FAFA".padStart(64, "0")),
                         recipientAddress: new UniversalAddress(payer.publicKey.toBytes()),
                         recipientChain: "Solana",
-                        additionalPayload: new Uint8Array(),
+                        additionalPayload: Buffer.from(additionalPayload.slice(2), 'hex'),
                     },
                 },
                 transceiverPayload: new Uint8Array(),
             } as const;
+        }
+
+        it("tokens", async () => {
+            const additionalPayload = utils.encodePacked(
+                { type: 'uint64', value: 123456 }, // index 
+                { type: 'bytes32', value: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b' }, // destination
+            )
 
             const serialized = serializePayload(
                 "Ntt:WormholeTransfer",
-                sendingTransceiverMessage
+                transferPayload(additionalPayload)
             );
+
+            const published = emitter.publishMessage(0, serialized, 200);
+            const rawVaa = guardians.addSignatures(published, [0]);
+            const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
+            const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
+
+            await ssw(ctx, redeemTxs, signer);
+        });
+
+        it("tokens with merkle roots", async () => {
+            const additionalPayload = utils.encodePacked(
+                { type: 'uint64', value: 123456 }, // index 
+                { type: 'bytes32', value: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b' }, // destination
+                { type: 'bytes32', value: '0x1111111111111111111111111111111111111111' }, // earner root
+                { type: 'bytes32', value: '0x2222222222222222222222222222222222222222' }, // earner manager root
+            )
+
+            const serialized = serializePayload(
+                "Ntt:WormholeTransfer",
+                transferPayload(additionalPayload)
+            );
+
             const published = emitter.publishMessage(0, serialized, 200);
             const rawVaa = guardians.addSignatures(published, [0]);
             const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));

@@ -8,16 +8,28 @@ use super::rate_limit::RateLimitState;
 
 #[account]
 #[derive(InitSpace)]
-// TODO: generalise this to arbitrary inbound messages (via a generic parameter in place of amount and recipient info)
 pub struct InboxItem {
     // Whether the InboxItem has already been initialized. This is used during the redeem process
     // to guard against modifications to the `bump` and `amounts` fields.
     pub init: bool,
     pub bump: u8,
-    pub amount: u64,
-    pub recipient_address: Pubkey,
     pub votes: Bitmap,
     pub release_status: ReleaseStatus,
+    pub transfer: Option<TokenTransfer>,
+    pub index_update: Option<u64>,
+    pub root_updates: Option<RootUpdates>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct TokenTransfer {
+    pub amount: u64,
+    pub recipient: Pubkey,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct RootUpdates {
+    pub earner_root: [u8; 32],
+    pub earn_manager_root: [u8; 32],
 }
 
 /// The status of an InboxItem. This determines whether the tokens are minted/unlocked to the recipient. As
