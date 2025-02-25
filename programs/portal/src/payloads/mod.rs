@@ -1,4 +1,3 @@
-pub mod index_transfer;
 pub mod token_transfer;
 
 use anchor_lang::prelude::*;
@@ -7,19 +6,15 @@ use std::io;
 use token_transfer::NativeTokenTransfer;
 use wormhole_io::{Readable, TypePrefixedPayload, Writeable};
 
-pub use index_transfer::*;
-
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub enum Payload {
     NativeTokenTransfer(NativeTokenTransfer),
-    IndexTransfer(IndexTransfer),
 }
 
 impl Payload {
     pub fn to_chain(&self) -> ChainId {
         match self {
             Payload::NativeTokenTransfer(ntt) => ntt.to_chain,
-            Payload::IndexTransfer(it) => it.to_chain,
         }
     }
 }
@@ -36,7 +31,6 @@ impl Readable for Payload {
 
         match prefix {
             NativeTokenTransfer::PREFIX => Ok(Self::NativeTokenTransfer(Readable::read(reader)?)),
-            IndexTransfer::PREFIX => Ok(Self::IndexTransfer(Readable::read(reader)?)),
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Invalid payload type prefix",
@@ -49,7 +43,6 @@ impl Writeable for Payload {
     fn written_size(&self) -> usize {
         match self {
             Payload::NativeTokenTransfer(ntt) => ntt.written_size(),
-            Payload::IndexTransfer(it) => it.written_size(),
         }
     }
 
@@ -59,7 +52,6 @@ impl Writeable for Payload {
     {
         match self {
             Payload::NativeTokenTransfer(ntt) => ntt.write(writer),
-            Payload::IndexTransfer(it) => it.write(writer),
         }
     }
 }

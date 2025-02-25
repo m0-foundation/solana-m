@@ -154,9 +154,6 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
                     });
                 }
             }
-            Payload::IndexTransfer(update) => {
-                inbox_item.index_update = Some(update.index);
-            }
         };
 
         accs.inbox_item.set_inner(inbox_item);

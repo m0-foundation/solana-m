@@ -317,7 +317,7 @@ describe("Portal unit tests", () => {
 
         it("tokens", async () => {
             const additionalPayload = utils.encodePacked(
-                { type: 'uint128', value: 123456 }, // index 
+                { type: 'uint64', value: 123456 }, // index 
                 { type: 'bytes32', value: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b' }, // destination
             )
 
@@ -336,7 +336,7 @@ describe("Portal unit tests", () => {
 
         it("tokens with merkle roots", async () => {
             const additionalPayload = utils.encodePacked(
-                { type: 'uint128', value: 123456 }, // index 
+                { type: 'uint64', value: 123456 }, // index 
                 { type: 'bytes32', value: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b' }, // destination
                 { type: 'bytes32', value: '0x1111111111111111111111111111111111111111' }, // earner root
                 { type: 'bytes32', value: '0x2222222222222222222222222222222222222222' }, // earner manager root

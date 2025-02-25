@@ -39,11 +39,11 @@ impl Readable for NativeTokenTransfer {
         let payload_len: u16 = Readable::read(reader)?;
         msg!("additional payload length: {}", payload_len);
 
-        if payload_len >= 48 {
+        if payload_len >= 40 {
             additional_payload.index = Some(Readable::read(reader)?);
             additional_payload.destination = Some(Readable::read(reader)?);
         }
-        if payload_len >= 112 {
+        if payload_len >= 104 {
             additional_payload.earner_root = Some(Readable::read(reader)?);
             additional_payload.earn_manager_root = Some(Readable::read(reader)?);
         }
@@ -97,7 +97,7 @@ impl Writeable for NativeTokenTransfer {
 
 #[derive(Debug, PartialEq, Eq, Default, Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub struct AdditionalPayload {
-    pub index: Option<u128>,
+    pub index: Option<u64>,
     pub destination: Option<[u8; 32]>,
     pub earner_root: Option<[u8; 32]>,
     pub earn_manager_root: Option<[u8; 32]>,
@@ -107,7 +107,7 @@ impl Writeable for AdditionalPayload {
     fn written_size(&self) -> usize {
         let mut size = 0;
         if self.index.is_some() && self.destination.is_some() {
-            size += u128::SIZE.unwrap() + self.destination.unwrap().len();
+            size += u64::SIZE.unwrap() + self.destination.unwrap().len();
         }
         if self.earner_root.is_some() && self.earn_manager_root.is_some() {
             size += self.earner_root.unwrap().len() + self.earn_manager_root.unwrap().len();
