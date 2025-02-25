@@ -27,9 +27,12 @@ import { MerkleTree, ProofElement } from "../merkle";
 import { loadKeypair } from "../test-utils";
 
 import { Earn } from "../../target/types/earn";
+import { randomInt } from "crypto";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 // Unit tests for earn program
+
+const ZERO_WORD = new Array(32).fill(0);
 
 // Setup wallets once at the beginning of the test suite
 const admin: Keypair = loadKeypair("test-addr/admin.json");
@@ -501,8 +504,8 @@ const prepPropagateIndex = (signer: Keypair) => {
 
 const propagateIndex = async (
     newIndex: BN,
-    earnerMerkleRoot: number[] = new Array(32).fill(0),
-    earnManagerMerkleRoot: number[] = new Array(32).fill(0)
+    earnerMerkleRoot: number[] = ZERO_WORD,
+    earnManagerMerkleRoot: number[] = ZERO_WORD
 ) => {
   // Setup the instruction
   const { globalAccount } = prepPropagateIndex(portal);
@@ -900,8 +903,8 @@ describe("Earn unit tests", () => {
             index: initialIndex,
             claimCooldown,
             claimComplete: true,
-            earnerMerkleRoot: new Array(32).fill(0),
-            earnManagerMerkleRoot: new Array(32).fill(0)
+            earnerMerkleRoot: ZERO_WORD,
+            earnManagerMerkleRoot: ZERO_WORD
         }
       );
     });
@@ -984,67 +987,66 @@ describe("Earn unit tests", () => {
     // [X] given the portal does not sign the transaction
     //   [X] the transaction fails with a not authorized error
     // [X] given the portal does sign the transaction
-    //   [ ] given the new index is less than the existing index
-    //     [ ] given the new earner merkle root is empty
-    //       [ ] it is not updated
-    //     [ ] given the new earner merkle is not empty
-    //       [ ] it is not updated
-    //     [ ] given the new earn_manager merkle root is empty
-    //       [ ] it is not updated
-    //     [ ] given the new earn_manager merkle is not empty
-    //       [ ] it is not updated
-    //   [ ] given the new index is greater than or eqal to the existing index
-    //     [ ] given the new earner merkle root is empty
-    //       [ ] it is not updated
-    //     [ ] given the new earner merkle is not empty
-    //       [ ] it is updated
-    //     [ ] given the new earn_manager merkle root is empty
-    //       [ ] it is not updated
-    //     [ ] given the new earn_manager merkle is not empty
-    //       [ ] it is updated
+    //   [X] given the new index is less than the existing index
+    //     [X] given the new earner merkle root is empty
+    //       [X] it is not updated
+    //     [X] given the new earner merkle is not empty
+    //       [X] it is not updated
+    //     [X] given the new earn_manager merkle root is empty
+    //       [X] it is not updated
+    //     [X] given the new earn_manager merkle is not empty
+    //       [X] it is not updated
+    //   [X] given the new index is greater than or eqal to the existing index
+    //     [X] given the new earner merkle root is empty
+    //       [X] it is not updated
+    //     [X] given the new earner merkle is not empty
+    //       [X] it is updated
+    //     [X] given the new earn_manager merkle root is empty
+    //       [X] it is not updated
+    //     [X] given the new earn_manager merkle is not empty
+    //       [X] it is updated
     //   [X] given the last claim hasn't been completed
     //     [X] given the time is within the cooldown period
-    //       [ ] given the new index is less than or equal to the existing index
+    //       [X] given the new index is less than or equal to the existing index
     //         [X] given current supply is less than or equal to max supply
     //           [X] nothing is updated
     //         [X] given current supply is greater than max supply
     //           [X] max supply is updated to the current supply
-    //       [ ] given the new index is greater the existing index
-    //         [ ] given current supply is less than or equal to max supply
-    //           [ ] nothing is updated
-    //         [ ] given current supply is greater than max supply
-    //           [ ] max supply is updated to the current supply
-
+    //       [X] given the new index is greater the existing index
+    //         [X] given current supply is less than or equal to max supply
+    //           [X] nothing is updated
+    //         [X] given current supply is greater than max supply
+    //           [X] max supply is updated to the current supply
     //     [X] given the time is past the cooldown period
-    //       [ ] given the new index is less than or equal to the existing index
+    //       [X] given the new index is less than or equal to the existing index
     //         [X] given the current supply is less than or equal to max supply
     //           [X] nothing is updated
     //         [X] given the current supply is greater than max supply
     //           [X] max supply is updated to the current supply
-    //       [ ] given the new index is greater the existing index
-    //         [ ] given current supply is less than or equal to max supply
-    //           [ ] nothing is updated
-    //         [ ] given current supply is greater than max supply
-    //           [ ] max supply is updated to the current supply
+    //       [X] given the new index is greater the existing index
+    //         [X] given current supply is less than or equal to max supply
+    //           [X] nothing is updated
+    //         [X] given current supply is greater than max supply
+    //           [X] max supply is updated to the current supply
     //   [X] given the last claim has been completed
     //     [X] given the time is within the cooldown period
-    //       [ ] given the new index is less than or equal to the existing index
+    //       [X] given the new index is less than or equal to the existing index
     //         [X] given current supply is greater than max supply
     //           [X] max supply is updated to the current supply
     //         [X] given current supply is less than or equal to max supply
     //           [X] nothing is updated
-    //       [ ] given the new index is greater the existing index
-    //         [ ] given current supply is less than or equal to max supply
-    //           [ ] nothing is updated
-    //         [ ] given current supply is greater than max supply
-    //           [ ] max supply is updated to the current supply
+    //       [X] given the new index is greater the existing index
+    //         [X] given current supply is less than or equal to max supply
+    //           [X] nothing is updated
+    //         [X] given current supply is greater than max supply
+    //           [X] max supply is updated to the current supply
     //     [X] given the time is past the cooldown period
-    //       [ ] given the new index is less than or equal to the existing index
-    //         [ ] given current supply is less than or equal to max supply
-    //           [ ] nothing is updated
-    //         [ ] given current supply is greater than max supply
-    //           [ ] max supply is updated to the current supply
-    //       [ ] given the new index is greater the existing index
+    //       [X] given the new index is less than or equal to the existing index
+    //         [X] given current supply is less than or equal to max supply
+    //           [X] nothing is updated
+    //         [X] given current supply is greater than max supply
+    //           [X] max supply is updated to the current supply
+    //       [X] given the new index is greater the existing index
     //         [X] a new claim cycle starts:
     //           [X] index is updated to the provided value
     //           [X] timestamp is updated to the current timestamp
@@ -1062,43 +1064,22 @@ describe("Earn unit tests", () => {
         claimCooldown
       );
 
+      // Populate the earner merkle tree with the initial earners
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
+
+      // Populate the earn manager merkle tree with the initial earn managers
+      earnManagerMerkleTree = new MerkleTree([earnManagerOne.publicKey, earnManagerTwo.publicKey]);
+
+      // Propagate the earner and earn manager merkle roots so they are set to non-zero values
+      await propagateIndex(initialIndex, earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot());
+
       // Warp past the initial cooldown period
       warp(claimCooldown, true);
     });
 
-    // given the portal signs the transaction
-    // the transaction succeeds
-    test("Portal can update index and Merkle roots", async () => {
-      const newIndex = new BN(1_100_000_000_000); // 1.1
-      const newEarnerRoot = Array(32).fill(1);
-      const newManagerRoot = Array(32).fill(2);
-
-      const { globalAccount } = prepPropagateIndex(portal);
-      
-      await earn.methods
-        .propagateIndex(
-            newIndex,
-            newEarnerRoot,
-            newManagerRoot
-        )
-        .accounts({...accounts})
-        .signers([portal])
-        .rpc();
-
-      // Verify the global state was updated
-      await expectGlobalState(
-        globalAccount,
-        {
-          index: newIndex,
-          earnerMerkleRoot: newEarnerRoot,
-          earnManagerMerkleRoot: newManagerRoot
-        }
-      );
-    });
-
     // given the portal does not sign the transaction
-    // the transaction fails with a not authorized error
-    test("Non-portal cannot update index", async () => {
+    // the transaction fails with an address constraint error
+    test("Non-portal cannot update index - reverts", async () => {
       const newIndex = new BN(1_100_000_000_000);
       const newEarnerRoot = Array(32).fill(1);
       const newManagerRoot = Array(32).fill(2);
@@ -1115,95 +1096,268 @@ describe("Earn unit tests", () => {
           .accounts({...accounts})
           .signers([nonAdmin])
           .rpc(),
-        "NotAuthorized"
+        "ConstraintAddress"
       );
     });
 
-    // given the last claim hasn't been completed
-    // given the time is within the cooldown period
-    // given current supply is less than or equal to max supply
+    // given new index is less than the existing index
+    // given new earner merkle root is empty
+    // given new earn manager merkle root is empty
     // nothing is updated
-    test("propagate index - claim not complete, within cooldown period, supply <= max supply", async () => {
-      // Update the index initially
-      const newIndex = new BN(1_100_000_000_000);
-      const newEarnerRoot = Array(32).fill(1);
-      const newManagerRoot = Array(32).fill(2);
-      const { globalAccount } = await propagateIndex(newIndex, newEarnerRoot, newManagerRoot);
-      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+    test("new index < existing index, new earner root empty, new earn manager root empty", async () => {
+      // Try to propagate a new index with a lower value
+      const lowerIndex = new BN(999_999_999_999);
+      const emptyEarnerRoot = ZERO_WORD;
+      const emptyEarnManagerRoot = ZERO_WORD;
 
-      // Confirm that the index, timestamp, and Merkle roots are updated
-      await expectGlobalState(
-        globalAccount,
-        {
-          index: newIndex,
-          timestamp: startTimestamp,
-          maxSupply: initialSupply,
-          earnerMerkleRoot: newEarnerRoot,
-          earnManagerMerkleRoot: newManagerRoot
-        }
-      );
-
-      // Propagate another new index immediately with different roots,
-      // only the Merkle roots should be updated
-      const newNewIndex = new BN(1_150_000_000_000);
-      const newerEarnerRoot = Array(32).fill(3);
-      const newerManagerRoot = Array(32).fill(4);
-
-      await propagateIndex(newNewIndex, newerEarnerRoot, newerManagerRoot);
+      const { globalAccount } = await propagateIndex(lowerIndex, emptyEarnerRoot, emptyEarnManagerRoot);
 
       // Check the state
       await expectGlobalState(
         globalAccount,
         {
-          index: newIndex,
-          timestamp: startTimestamp,
-          maxSupply: initialSupply,
-          earnerMerkleRoot: newerEarnerRoot,
-          earnManagerMerkleRoot: newerManagerRoot
+          earnerMerkleRoot: earnerMerkleTree.getRoot(),
+          earnManagerMerkleRoot: earnManagerMerkleTree.getRoot()
         }
       );
     });
 
+    // given new index is less than the existing index
+    // given new earner merkle root is not empty
+    // given new earn manager merkle root is empty
+    // nothing is updated
+    test("new index < existing index, new earner root not empty, new earn manager root empty", async () => {
+      // Try to propagate a new index with a lower value
+      const lowerIndex = new BN(999_999_999_999);
+      const newEarnerRoot = new Array(32).fill(1);
+      const emptyEarnManagerRoot = ZERO_WORD;
+
+      const { globalAccount } = await propagateIndex(lowerIndex, newEarnerRoot, emptyEarnManagerRoot);
+
+      // Check the state
+      await expectGlobalState(
+        globalAccount,
+        {
+          earnerMerkleRoot: earnerMerkleTree.getRoot(),
+          earnManagerMerkleRoot: earnManagerMerkleTree.getRoot()
+        }
+      );
+    });
+
+    // given new index is less than the existing index
+    // given new earner merkle root is empty
+    // given new earn manager merkle root is not empty
+    // nothing is updated
+    test("new index < existing index, new earner root empty, new earn manager root not empty", async () => {
+      // Try to propagate a new index with a lower value
+      const lowerIndex = new BN(999_999_999_999);
+      const emptyEarnerRoot = ZERO_WORD;
+      const newManagerRoot = new Array(32).fill(1);
+
+      const { globalAccount } = await propagateIndex(lowerIndex, emptyEarnerRoot, newManagerRoot);
+
+      // Check the state
+      await expectGlobalState(
+        globalAccount,
+        {
+          earnerMerkleRoot: earnerMerkleTree.getRoot(),
+          earnManagerMerkleRoot: earnManagerMerkleTree.getRoot()
+        }
+      );
+    });
+
+    // given new index is less than the existing index
+    // given new earner merkle root is not empty
+    // given new earn manager merkle root is not empty
+    // nothing is updated
+    test("new index < existing index, new earner root not empty, new earn manager root not empty", async () => {
+      // Try to propagate a new index with a lower value
+      const lowerIndex = new BN(999_999_999_999);
+      const newEarnerRoot = new Array(32).fill(2);
+      const newManagerRoot = new Array(32).fill(1);
+
+      const { globalAccount } = await propagateIndex(lowerIndex, newEarnerRoot, newManagerRoot);
+
+      // Check the state
+      await expectGlobalState(
+        globalAccount,
+        {
+          earnerMerkleRoot: earnerMerkleTree.getRoot(),
+          earnManagerMerkleRoot: earnManagerMerkleTree.getRoot()
+        }
+      );
+    });
+
+    // given new index is greater than or equal to the existing index
+    // given new earner merkle root is empty
+    // given new earn manager merkle root is empty
+    // nothing is updated
+    test("new index >= existing index, new earner root empty, new earn manager root empty", async () => {
+      // Try to propagate a new index with a higher value
+      const randomIncrement = randomInt(0, 2**32);
+      const higherIndex = initialIndex.add(new BN(randomIncrement));
+      const emptyEarnerRoot = ZERO_WORD;
+      const emptyEarnManagerRoot = ZERO_WORD;
+
+      const { globalAccount } = await propagateIndex(higherIndex, emptyEarnerRoot, emptyEarnManagerRoot);
+
+      // Check the state
+      await expectGlobalState(
+        globalAccount,
+        {
+          earnerMerkleRoot: earnerMerkleTree.getRoot(),
+          earnManagerMerkleRoot: earnManagerMerkleTree.getRoot()
+        }
+      );
+    });
+
+    // given new index is greater than or equal to the existing index
+    // given new earner merkle root is not empty
+    // given new earn manager merkle root is empty
+    // earner merkle root is updated
+    // earn manager merkle root is not updated
+    test("new index >= existing index, new earner root not empty, new earn manager root empty", async () => {
+      // Try to propagate a new index with a higher value
+      const randomIncrement = randomInt(0, 2**32);
+      const higherIndex = initialIndex.add(new BN(randomIncrement));
+      const newEarnerRoot = new Array(32).fill(1);
+      const emptyEarnManagerRoot = ZERO_WORD;
+
+      const { globalAccount } = await propagateIndex(higherIndex, newEarnerRoot, emptyEarnManagerRoot);
+
+      // Check the state
+      await expectGlobalState(
+        globalAccount,
+        {
+          earnerMerkleRoot: newEarnerRoot,
+          earnManagerMerkleRoot: earnManagerMerkleTree.getRoot()
+        }
+      );
+    });
+
+    // given new index is greater than or equal to the existing index
+    // given new earner merkle root is empty
+    // given new earn manager merkle root is not empty
+    // earner merkle root is not updated
+    // earn manager merkle root is updated
+    test("new index >= existing index, new earner root empty, new earn manager root not empty", async () => {
+      // Try to propagate a new index with a higher value
+      const randomIncrement = randomInt(0, 2**32);
+      const higherIndex = initialIndex.add(new BN(randomIncrement));
+      const emptyEarnerRoot = ZERO_WORD;
+      const newManagerRoot = new Array(32).fill(1);
+
+      const { globalAccount } = await propagateIndex(higherIndex, emptyEarnerRoot, newManagerRoot);
+
+      // Check the state
+      await expectGlobalState(
+        globalAccount,
+        {
+          earnerMerkleRoot: earnerMerkleTree.getRoot(),
+          earnManagerMerkleRoot: newManagerRoot
+        }
+      );
+    });
+
+    // given new index is greater than or equal to the existing index
+    // given new earner merkle root is not empty
+    // given new earn manager merkle root is not empty
+    // both merkle roots are updated
+    test("new index >= existing index, new earner root not empty, new earn manager root not empty", async () => {
+      // Try to propagate a new index with a higher value
+      const randomIncrement = randomInt(0, 2**32);
+      const higherIndex = initialIndex.add(new BN(randomIncrement));
+      const newEarnerRoot = new Array(32).fill(1);
+      const newManagerRoot = new Array(32).fill(2);
+
+      const { globalAccount } = await propagateIndex(higherIndex, newEarnerRoot, newManagerRoot);
+
+      // Check the state
+      await expectGlobalState(
+        globalAccount,
+        {
+          earnerMerkleRoot: newEarnerRoot,
+          earnManagerMerkleRoot: newManagerRoot
+        }
+      );
+    });
+
+    // given new index <= existing index
+    // given the last claim hasn't been completed
+    // given the time is within the cooldown period
+    // given current supply is less than or equal to max supply
+    // nothing is updated
+    test("new index <= existing index, claim not complete, within cooldown period, supply <= max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
+      
+      // Expire the blockhash
+      svm.expireBlockhash();
+      
+      // Update the index again with the same or lower value
+      const randomDecrement = randomInt(0, startIndex.toNumber());
+      const newIndex = startIndex.sub(new BN(randomDecrement));
+      
+      await propagateIndex(newIndex);
+      
+      // Confirm that the index, timestamp, and Merkle roots are updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: startIndex,
+          timestamp: startTimestamp,
+          maxSupply: initialSupply,
+        }
+      );
+    });
+
+    // given new index <= existing index
     // given the last claim hasn't been completed
     // given the time is within the cooldown period
     // given current supply is greater than max supply
     // max supply is updated to the current supply
-    test("propagate index - claim not complete, within cooldown period, supply > max supply", async () => {
-      // Update the index initially
-      const newIndex = new BN(1_100_000_000_000);
-      const { globalAccount } = await propagateIndex(newIndex);
+    test("new index <= existing index, claim not complete, within cooldown period, supply > max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
-
+      const { globalAccount } = await propagateIndex(startIndex);
+      
       // Mint more tokens to increase supply
       const additionalSupply = new BN(50_000_000);
       await mintM(admin.publicKey, additionalSupply);
       const newSupply = initialSupply.add(additionalSupply);
-
-      // Try to propagate new index
-      const newNewIndex = new BN(1_150_000_000);
-      await propagateIndex(newNewIndex);
+      
+      // Warp forward in time slightly
+      warp(new BN(1), true);
+      
+      // Update the index again with the same or lower value
+      const randomDecrement = randomInt(0, startIndex.toNumber());
+      const newIndex = startIndex.sub(new BN(randomDecrement));
+      await propagateIndex(newIndex);
 
       // Check that only max supply was updated
-      const clock = svm.getClock();
       await expectGlobalState(
         globalAccount,
         {
-          index: newIndex,
+          index: startIndex,
           timestamp: startTimestamp,
           maxSupply: newSupply
         }
       );
     });
 
+    // given new index <= existing index
     // given the last claim has been completed
     // given the time is within the cooldown period
     // given current supply is greater than max supply
     // max supply is updated to the current supply
-    test("propagate index - claim complete, within cooldown period, supply > max supply", async () => {
-      // Update the index initially 
-      const newIndex = new BN(1_100_000_000_000);
-      const { globalAccount } = await propagateIndex(newIndex);
+    test("new index <= existing index, claim complete, within cooldown period, supply > max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
 
       // Set claim complete
       await completeClaims();
@@ -1213,156 +1367,384 @@ describe("Earn unit tests", () => {
       await mintM(admin.publicKey, additionalSupply);
       const newSupply = initialSupply.add(additionalSupply);
 
-      // Try to propagate new index
-      const newNewIndex = new BN(1_150_000_000_000);
-      await propagateIndex(newNewIndex);
+      // Warp forward in time slightly
+      warp(new BN(1), true);
+      
+      // Update the index again with the same or lower value
+      const randomDecrement = randomInt(0, startIndex.toNumber());
+      const newIndex = startIndex.sub(new BN(randomDecrement));
+      await propagateIndex(newIndex);
 
       // Check that only max supply was updated
       await expectGlobalState(
         globalAccount,
         {
-          index: newIndex,
+          index: startIndex,
           timestamp: startTimestamp, 
           maxSupply: newSupply,
-          claimComplete: true
         }
       );
     });
 
+    // given new index <= existing index
     // given the last claim has been completed
     // given the time is within the cooldown period
     // given current supply is less than or equal to max supply
     // nothing is updated
-    test("propagate index - claim complete, within cooldown period, supply <= max supply", async () => {
-      // Update the index initially
-      const newIndex = new BN(1_100_000_000_000);
-      const { globalAccount } = await propagateIndex(newIndex);
+    test("new index <= existing index, claim complete, within cooldown period, supply <= max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
 
       // Set claim complete
       await completeClaims();
 
-      // Try to propagate new index
-      const newNewIndex = new BN(1_150_000_000_000);
-      await propagateIndex(newNewIndex);
+      // Warp forward in time slightly
+      warp(new BN(1), true);
+      
+      // Update the index again with the same or lower value
+      const randomDecrement = randomInt(0, startIndex.toNumber());
+      const newIndex = startIndex.sub(new BN(randomDecrement));
+      await propagateIndex(newIndex);
 
       // Check that nothing was updated
       await expectGlobalState(
         globalAccount,
         {
-          index: newIndex,
+          index: startIndex,
           timestamp: startTimestamp,
           maxSupply: initialSupply,
-          claimComplete: true
         }
       );
     });
 
+    // given new index <= existing index
     // given the last claim hasn't been completed
     // given the time is past the cooldown period
     // given the current supply is greater than max supply
     // max supply is updated to the current supply
-    test("propagate index - claim not complete, past cooldown period, supply > max supply", async () => {
-      // Update the index initially
-      const newIndex = new BN(1_100_000_000_000);
-      const { globalAccount } = await propagateIndex(newIndex);
+    test("new index <= existing index, claim not complete, past cooldown period, supply > max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
-
-      // Warp past cooldown
-      warp(claimCooldown.add(new BN(1)), true);
+      const { globalAccount } = await propagateIndex(startIndex);
 
       // Mint more tokens
       const additionalSupply = new BN(50_000_000);
       await mintM(admin.publicKey, additionalSupply);
       const newSupply = initialSupply.add(additionalSupply);
 
-      // Try to propagate new index
-      const newNewIndex = new BN(1_150_000_000_000);
-      await propagateIndex(newNewIndex);
+      // Expire the blockhash
+      svm.expireBlockhash();
+
+      // Warp forward past the cooldown period
+      warp(claimCooldown.add(new BN(1)), true);
+      
+      // Update the index again with the same or lower value
+      const randomDecrement = randomInt(0, startIndex.toNumber());
+      const newIndex = startIndex.sub(new BN(randomDecrement));
+      await propagateIndex(newIndex);
 
       // Check that only max supply was updated
       await expectGlobalState(
         globalAccount,
         {
-          index: newIndex,
+          index: startIndex,
           timestamp: startTimestamp,
           maxSupply: newSupply
         }
       );
     });
 
+    // given new index <= existing index
     // given the last claim hasn't been completed
     // given the time is past the cooldown period
     // given the current supply is less than or equal to max supply
     // nothing is updated
-    test("propagate index - claim not complete, past cooldown period, supply <= max supply", async () => {
-      // Update the index initially
-      const newIndex = new BN(1_100_000_000_000);
-      const { globalAccount } = await propagateIndex(newIndex);
+    test("new index <= existing index, claim not complete, past cooldown period, supply <= max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
 
-      // Warp past cooldown
+      // Expire the blockhash
+      svm.expireBlockhash();
+
+      // Warp forward past the cooldown period
       warp(claimCooldown.add(new BN(1)), true);
-
-      // Try to propagate new index
-      const newNewIndex = new BN(1_150_000_000_000);
-      await propagateIndex(newNewIndex);
+      
+      // Update the index again with the same or lower value
+      const randomDecrement = randomInt(0, startIndex.toNumber());
+      const newIndex = startIndex.sub(new BN(randomDecrement));
+      await propagateIndex(newIndex);
 
       // Check that nothing was updated
       await expectGlobalState(
         globalAccount,
         {
-          index: newIndex,
+          index: startIndex,
           timestamp: startTimestamp, 
           maxSupply: initialSupply
         }
       );
     });
 
+    // given new index > existing index
+    // given the last claim hasn't been completed
+    // given the time is within the cooldown period
+    // given current supply is less than or equal to max supply
+    // nothing is updated
+    test("new index > existing index, claim not complete, within cooldown period, supply <= max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
+
+      // Expire the blockhash
+      svm.expireBlockhash();
+
+      // Warp forward slightly
+      warp(new BN(1), true);
+
+      // Update the index again with a higher value
+      const randomIncrement = randomInt(1, 2**32);
+      const newIndex = startIndex.add(new BN(randomIncrement));
+      await propagateIndex(newIndex);
+
+      // Check that nothing was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: startIndex,
+          timestamp: startTimestamp,
+          maxSupply: initialSupply
+        }
+      );
+    });
+
+    // given new index > existing index
+    // given the last claim hasn't been completed
+    // given the time is within the cooldown period
+    // given current supply is greater than max supply
+    // max supply is updated to the current supply
+    test("new index > existing index, claim not complete, within cooldown period, supply > max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
+
+      // Mint more tokens
+      const additionalSupply = new BN(50_000_000);
+      await mintM(admin.publicKey, additionalSupply);
+      const newSupply = initialSupply.add(additionalSupply);
+
+      // Warp forward slightly
+      warp(new BN(1), true);
+
+      // Update the index again with a higher value
+      const randomIncrement = randomInt(1, 2**32);
+      const newIndex = startIndex.add(new BN(randomIncrement));
+      await propagateIndex(newIndex);
+
+      // Check that only max supply was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: startIndex,
+          timestamp: startTimestamp,
+          maxSupply: newSupply
+        }
+      );
+    });
+
+    // given new index > existing index
     // given the last claim has been completed
-    // given the time is past the cooldown period
-    // a new claim cycle starts:
-    // index is updated to the provided value
-    // timestamp is updated to the current timestamp
-    // max supply is set to the current supply
-    // distributed is set to 0
-    // rewards per token is updated
-    // max yield is updated
-    // claim complete is set to false
-    test("propagate index - claim complete, past cooldown period, new cycle starts", async () => {
-      // Update the index initially
-      const newIndex = new BN(1_100_000_000_000);
-      const { globalAccount } = await propagateIndex(newIndex);
+    // given the time is within the cooldown period
+    // given current supply is less than or equal to max supply
+    // nothing is updated
+    test("new index > existing index, claim complete, within cooldown period, supply <= max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
 
       // Set claim complete
       await completeClaims();
 
-      // Warp past cooldown
+      // Warp forward slightly
+      warp(new BN(1), true);
+
+      // Update the index again with a higher value
+      const randomIncrement = randomInt(1, 2**32);
+      const newIndex = startIndex.add(new BN(randomIncrement));
+      await propagateIndex(newIndex);
+
+      // Check that nothing was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: startIndex,
+          timestamp: startTimestamp,
+          maxSupply: initialSupply
+        }
+      );
+    });
+
+    // given new index > existing index
+    // given the last claim has been completed
+    // given the time is within the cooldown period
+    // given current supply is greater than max supply
+    // max supply is updated to the current supply
+    test("new index > existing index, claim complete, within cooldown period, supply > max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
+
+      // Set claim complete
+      await completeClaims();
+
+      // Mint more tokens
+      const additionalSupply = new BN(50_000_000);
+      await mintM(admin.publicKey, additionalSupply);
+      const newSupply = initialSupply.add(additionalSupply);
+
+      // Warp forward slightly
+      warp(new BN(1), true);
+
+      // Update the index again with a higher value
+      const randomIncrement = randomInt(1, 2**32);
+      const newIndex = startIndex.add(new BN(randomIncrement));
+      await propagateIndex(newIndex);
+
+      // Check that only max supply was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: startIndex,
+          timestamp: startTimestamp,
+          maxSupply: newSupply
+        }
+      );
+    });
+
+    // given new index > existing index
+    // given the last claim hasn't been completed
+    // given the time is past the cooldown period
+    // given current supply is less than or equal to max supply
+    // nothing is updated
+    test("new index > existing index, claim not complete, past cooldown period, supply <= max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
+
+      // Expire the blockhash
+      svm.expireBlockhash();
+
+      // Warp forward past the cooldown period
       warp(claimCooldown.add(new BN(1)), true);
 
-      // Try to propagate new index
-      const newNewIndex = new BN(1_150_000_000_000);
-      try {
-        await propagateIndex(newNewIndex);
-      } catch (e) {
-        console.log(e);
-        expect(true).toBe(false);
-      }
+      // Update the index again with a higher value
+      const randomIncrement = randomInt(1, 2**32);
+      const newIndex = startIndex.add(new BN(randomIncrement));
+      await propagateIndex(newIndex);
+
+      // Check that nothing was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: startIndex,
+          timestamp: startTimestamp,
+          maxSupply: initialSupply
+        }
+      );
+    });
+
+    // given new index > existing index
+    // given the last claim hasn't been completed
+    // given the time is past the cooldown period
+    // given current supply is greater than max supply
+    // max supply is updated to the current supply
+    test("new index > existing index, claim not complete, past cooldown period, supply > max supply", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
+      const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
+      const { globalAccount } = await propagateIndex(startIndex);
+
+      // Mint more tokens
+      const additionalSupply = new BN(50_000_000);
+      await mintM(admin.publicKey, additionalSupply);
+      const newSupply = initialSupply.add(additionalSupply);
+
+      // Expire the blockhash
+      svm.expireBlockhash();
+
+      // Warp forward past the cooldown period
+      warp(claimCooldown.add(new BN(1)), true);
+
+      // Update the index again with a higher value
+      const randomIncrement = randomInt(1, 2**32);
+      const newIndex = startIndex.add(new BN(randomIncrement));
+      await propagateIndex(newIndex);
+
+      // Check that only max supply was updated
+      await expectGlobalState(
+        globalAccount,
+        {
+          index: startIndex,
+          timestamp: startTimestamp,
+          maxSupply: newSupply
+        }
+      );
+    });
+
+    // given new index > existing index
+    // given the last claim has been completed
+    // given the time is past the cooldown period
+    // the index is updated to the provided value
+    // max supply is set to the current supply
+    // distributed is set to 0
+    // max yield is updated
+    // claim complete is set to false
+    test("new index > existing index, claim complete, past cooldown period, new cycle starts", async () => {
+      // Update the index initially so the claim is not complete and the time is within the cooldown period
+      const startIndex = new BN(1_100_000_000_000);
+      const { globalAccount } = await propagateIndex(startIndex);
+      const startGlobalState = await earn.account.global.fetch(globalAccount);
+      
+      // Set claim complete
+      await completeClaims();
+
+      // Mint more tokens
+      const additionalSupply = new BN(50_000_000);
+      await mintM(admin.publicKey, additionalSupply);
+      const newSupply = initialSupply.add(additionalSupply);
+
+      // Warp forward past the cooldown period
+      warp(claimCooldown.add(new BN(1)), true);
+
+      // Update the index again with a higher value
+      const randomIncrement = randomInt(1, 2**32);
+      const newIndex = startIndex.add(new BN(randomIncrement));
+      await propagateIndex(newIndex);
 
       // Calculate expected rewards per token and max yield
       const maxYield = initialSupply
-        .mul(newNewIndex)
-        .div(newIndex)
-        .sub(initialSupply);
+        .mul(newIndex)
+        .div(startIndex)
+        .sub(initialSupply)
+        .add(startGlobalState.maxYield);
 
-      // Check that new cycle started with all updates
+      // Check that a new cycle started with all updates
       const clock = svm.getClock();
       await expectGlobalState(
         globalAccount,
         {
-          index: newNewIndex,
+          index: newIndex,
           timestamp: new BN(clock.unixTimestamp.toString()),
-          maxSupply: initialSupply,
+          maxSupply: newSupply,
           maxYield,
           distributed: new BN(0),
           claimComplete: false
@@ -2208,7 +2590,7 @@ describe("Earn unit tests", () => {
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
 
       // Update the earn manager merkle root on the global account
-      await propagateIndex(new BN(1_110_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+      await propagateIndex(new BN(1_110_000_000_000), ZERO_WORD, earnManagerMerkleTree.getRoot());
       
       // Get the exclusion proof for earn manager one against the earn manager merkle tree
       const { proofs: earnManagerOneProofs, neighbors: earnManagerOneNeighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
@@ -2463,7 +2845,7 @@ describe("Earn unit tests", () => {
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
 
       // Update the earn manager merkle root on the global account
-      await propagateIndex(new BN(1_110_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+      await propagateIndex(new BN(1_110_000_000_000), ZERO_WORD, earnManagerMerkleTree.getRoot());
 
       // Get exclusion proof for earn manager one in the earn manager tree
       const { proofs, neighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
@@ -2814,7 +3196,7 @@ describe("Earn unit tests", () => {
       earnerMerkleTree.removeLeaf(earnerOne.publicKey);
 
       // Update the earner merkle root on the global account
-      const { globalAccount } = await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot(), new Array(32).fill(0));
+      const { globalAccount } = await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot(), ZERO_WORD);
 
       // Confirm the global account is updated
       expectGlobalState(
@@ -2985,7 +3367,7 @@ describe("Earn unit tests", () => {
       warp(claimCooldown, true);
 
       // Propagate a new index to start a new claim cycle and set the merkle roots
-      await propagateIndex(new BN(1_100_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+      await propagateIndex(new BN(1_100_000_000_000), ZERO_WORD, earnManagerMerkleTree.getRoot());
 
       // Get the inclusion proof for earn manager one in the earn manager tree
       const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
@@ -3023,7 +3405,7 @@ describe("Earn unit tests", () => {
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
 
       // Update the earn manager merkle root on the global account
-      await propagateIndex(new BN(1_100_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+      await propagateIndex(new BN(1_100_000_000_000), ZERO_WORD, earnManagerMerkleTree.getRoot());
 
       // Get the exclusion proof for earn manager one in the earn manager tree
       const { proofs, neighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
@@ -3079,7 +3461,7 @@ describe("Earn unit tests", () => {
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
 
       // Update the earn manager merkle root on the global account
-      const { globalAccount } = await propagateIndex(new BN(1_100_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+      const { globalAccount } = await propagateIndex(new BN(1_100_000_000_000), ZERO_WORD, earnManagerMerkleTree.getRoot());
 
       // Get the exclusion proof for earn manager one in the earn manager tree
       const { proofs, neighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
@@ -3262,7 +3644,7 @@ describe("Earn unit tests", () => {
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
 
       // Propagate the new earn manager merkle root
-      await propagateIndex(new BN(1_100_000_000_000), new Array(32).fill(0), earnManagerMerkleTree.getRoot());
+      await propagateIndex(new BN(1_100_000_000_000), ZERO_WORD, earnManagerMerkleTree.getRoot());
 
       // Get exclusion proof for earn manager one
       const { proofs, neighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
