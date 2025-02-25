@@ -1,16 +1,5 @@
 use anchor_lang::prelude::*;
 
-// TODO: is there a more elegant way of checking that these 3 features are mutually exclusive?
-
-#[cfg(all(feature = "mainnet", feature = "solana-devnet"))]
-compile_error!("Cannot enable both mainnet and solana-devnet features at the same time");
-
-#[cfg(all(feature = "mainnet", feature = "tilt-devnet"))]
-compile_error!("Cannot enable both mainnet and tilt-devnet features at the same time");
-
-#[cfg(all(feature = "solana-devnet", feature = "tilt-devnet"))]
-compile_error!("Cannot enable both solana-devnet and tilt-devnet features at the same time");
-
 pub mod bitmap;
 pub mod clock;
 pub mod config;
@@ -29,15 +18,11 @@ use transceivers::wormhole::instructions::*;
 
 use instructions::*;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "tilt-devnet2")] {
-        declare_id!("NTTManager222222222222222222222222222222222");
-    } else if #[cfg(feature = "tilt-devnet")] {
-        declare_id!("NTTManager111111111111111111111111111111111");
-    } else {
-        declare_id!("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr");
-    }
-}
+#[cfg(feature = "devnet")]
+declare_id!("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr");
+
+#[cfg(feature = "mainnet")]
+declare_id!("11111111111111111111111111111111");
 
 pub const TOKEN_AUTHORITY_SEED: &[u8] = b"token_authority";
 

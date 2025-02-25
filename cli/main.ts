@@ -37,8 +37,17 @@ import {
     signSendWait,
 } from "@wormhole-foundation/sdk";
 
-const PORTAL_PID = new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr")
-const EARN_PID = new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c")
+const PROGRAMS = {
+    mainnet: {
+        portal: new PublicKey("11111111111111111111111111111111"),
+        earn: new PublicKey("11111111111111111111111111111111")
+    },
+    devnet: {
+        portal: new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr"),
+        earn: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c")
+    }
+}
+
 
 async function main() {
     const program = new Command();
@@ -48,14 +57,15 @@ async function main() {
         .description('Create multisig for the mint authority')
         .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
         .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
+        .option('--network <string>', 'target devnet or mainnet', 'devnet')
         .action(async (options) => {
             const connection = new Connection(options.rpcUrl);
             const owner = loadKeypair(options.owner);
             const multisig = Keypair.generate();
 
             // token authorities for both programs
-            const [tokenAuthPortal] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], PORTAL_PID)
-            const [tokenAuthEarn] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], EARN_PID)
+            const [tokenAuthPortal] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], PROGRAMS[options.network].portal)
+            const [tokenAuthEarn] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], PROGRAMS[options.network].earn)
 
             await createMultisig(
                 connection,
@@ -94,13 +104,12 @@ async function main() {
         .option('--multisig <pubkey>', 'multisig pubkey', '9vR8GRGVXaNq62aiPmUrq5jiE4CXWGFUwJRuo4r2wZgF')
         .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
         .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
-        .option('--network <string>', 'target devnet or mainnet', 'Testnet')
+        .option('--network <string>', 'target devnet or mainnet', 'devnet')
         .action(async (options) => {
             const connection = new Connection(options.rpcUrl);
             const owner = loadKeypair(options.owner);
             const multisig = new PublicKey(options.multisig);
             const mint = loadKeypair(options.mint);
-
 
             const signer = new SolanaSendSigner(connection, "Solana", owner, false, { min: 300_000 });
             const sender = Wormhole.parseAddress("Solana", signer.address());
@@ -114,6 +123,7 @@ async function main() {
             });
 
             await signSendWait(ctx, initTxs, signer);
+            console.log(`Portal initialized: ${PROGRAMS[options.network].portal.toBase58()}`);
         });
 
     program
@@ -122,7 +132,7 @@ async function main() {
         .option('--mint <filepath>', 'mint keypair', 'tests/keys/mint.json')
         .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
         .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
-        .option('--network <string>', 'target devnet or mainnet', 'Testnet')
+        .option('--network <string>', 'target devnet or mainnet', 'devnet')
         .action(async (options) => {
             const connection = new Connection(options.rpcUrl);
             const owner = loadKeypair(options.owner);
@@ -133,26 +143,28 @@ async function main() {
 
             const lutTxn = ntt.initializeOrUpdateLUT({ payer: owner.publicKey });
             await signSendWait(ctx, lutTxn, signer);
+            console.log(`LUT updated`);
         });
 
     await program.parseAsync(process.argv);
 }
 
-function NttManager(connection: Connection, network: "Testnet" | "Mainnet", mint: PublicKey) {
-    const wh = new Wormhole(network, [SolanaPlatform]);
+function NttManager(connection: Connection, network: "devnet" | "mainnet", mint: PublicKey) {
+    const wormholeNetwork = network === "devnet" ? "Testnet" : "Mainnet";
+    const wh = new Wormhole(wormholeNetwork, [SolanaPlatform]);
     const ctx = wh.getChain("Solana");
 
     const ntt = new SolanaNtt(
-        network,
+        wormholeNetwork,
         "Solana",
         connection,
         {
             ...ctx.config.contracts,
             ntt: {
                 token: mint.toBase58(),
-                manager: PORTAL_PID.toBase58(),
+                manager: PROGRAMS[network].portal.toBase58(),
                 transceiver: {
-                    wormhole: PORTAL_PID.toBase58(),
+                    wormhole: PROGRAMS[network].portal.toBase58(),
                 },
             },
         },

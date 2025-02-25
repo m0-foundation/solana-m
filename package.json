@@ -3,11 +3,14 @@
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "op::program-keypairs": "mkdir -p target/deploy && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/portal-keypair' > target/deploy/portal-keypair.json && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/earn-keypair' > target/deploy/earn-keypair.json",
-    "op::devnet-authority": "op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/devnet-authority' > devnet-key.json",
+    "op:program-keypairs": "mkdir -p target/deploy && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/portal-keypair' > target/deploy/portal-keypair.json && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/earn-keypair' > target/deploy/earn-keypair.json",
+    "op:devnet-authority": "op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/devnet-authority' > devnet-key.json",
     "test": "yarn run jest --preset ts-jest --verbose",
     "build": "anchor build",
-    "cli": "ts-node cli/main.ts"
+    "cli": "ts-node cli/main.ts",
+    "build:devnet": "anchor build -- --features devnet --no-default-features",
+    "write-upgrade:devnet": "solana program write-buffer --with-compute-unit-price 300000 --keypair devnet-key.json --max-sign-attempts 5 target/deploy/portal.so",
+    "upgrade:devnet": "sh -c 'solana program upgrade --keypair devnet-key.json ${0} mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr'"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
