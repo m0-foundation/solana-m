@@ -133,7 +133,7 @@ pub fn release_inbound_mint_multisig<'info>(
         msg!("Transferred {} tokens to {}", tt.amount, tt.recipient);
     }
 
-    if let Some(index) = inbox_item.index_udpate {
+    if let Some(index) = inbox_item.index_update {
         msg!("Updating index: {}", index);
     }
 

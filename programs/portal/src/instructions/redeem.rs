@@ -122,7 +122,7 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
             release_status: ReleaseStatus::NotApproved,
             votes: Bitmap::new(),
             transfer: None,
-            index_udpate: None,
+            index_update: None,
             root_updates: None,
         };
 
@@ -144,7 +144,7 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
 
                 // payloads from L2s might have an index update
                 let payload = &ntt.additional_payload;
-                inbox_item.index_udpate = payload.index;
+                inbox_item.index_update = payload.index;
 
                 // payloads from mainnet might have merkle root updates
                 if payload.earn_manager_root.is_some() && payload.earner_root.is_some() {
@@ -155,7 +155,7 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
                 }
             }
             Payload::IndexTransfer(update) => {
-                inbox_item.index_udpate = Some(update.index);
+                inbox_item.index_update = Some(update.index);
             }
         };
 
