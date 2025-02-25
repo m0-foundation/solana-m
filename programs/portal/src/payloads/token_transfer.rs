@@ -34,8 +34,18 @@ impl Readable for NativeTokenTransfer {
         let to = Readable::read(reader)?;
         let to_chain = Readable::read(reader)?;
 
-        let _additional_payload_len: u16 = Readable::read(reader)?;
-        let additional_payload = Readable::read(reader)?;
+        // additional payload
+        let mut additional_payload = AdditionalPayload::default();
+        let payload_len: u16 = Readable::read(reader)?;
+
+        if payload_len >= 64 {
+            additional_payload.index = Some(Readable::read(reader)?);
+            additional_payload.destination = Some(Readable::read(reader)?);
+        }
+        if payload_len >= 128 {
+            additional_payload.earner_root = Some(Readable::read(reader)?);
+            additional_payload.earn_manager_root = Some(Readable::read(reader)?);
+        }
 
         Ok(Self {
             amount,
@@ -86,35 +96,36 @@ impl Writeable for NativeTokenTransfer {
 
 #[derive(Debug, PartialEq, Eq, Default, Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub struct AdditionalPayload {
-    pub index: u128,
-    pub destination: [u8; 32],
-}
-
-impl Readable for AdditionalPayload {
-    const SIZE: Option<usize> = None;
-
-    fn read<R>(reader: &mut R) -> io::Result<Self>
-    where
-        Self: Sized,
-        R: io::Read,
-    {
-        let index = Readable::read(reader)?;
-        let destination = Readable::read(reader)?;
-        Ok(Self { index, destination })
-    }
+    pub index: Option<u128>,
+    pub destination: Option<[u8; 32]>,
+    pub earner_root: Option<[u8; 32]>,
+    pub earn_manager_root: Option<[u8; 32]>,
 }
 
 impl Writeable for AdditionalPayload {
     fn written_size(&self) -> usize {
-        u128::SIZE.unwrap() + self.destination.len()
+        let mut size = 0;
+        if self.index.is_some() && self.destination.is_some() {
+            size += u128::SIZE.unwrap() + self.destination.unwrap().len();
+        }
+        if self.earner_root.is_some() && self.earn_manager_root.is_some() {
+            size += self.earner_root.unwrap().len() + self.earn_manager_root.unwrap().len();
+        }
+        size
     }
 
     fn write<W>(&self, writer: &mut W) -> io::Result<()>
     where
         W: io::Write,
     {
-        self.index.write(writer)?;
-        self.destination.write(writer)?;
+        if self.index.is_some() && self.destination.is_some() {
+            self.index.unwrap().write(writer)?;
+            self.destination.unwrap().write(writer)?;
+        }
+        if self.earner_root.is_some() && self.earn_manager_root.is_some() {
+            self.earner_root.unwrap().write(writer)?;
+            self.earn_manager_root.unwrap().write(writer)?;
+        }
         Ok(())
     }
 }

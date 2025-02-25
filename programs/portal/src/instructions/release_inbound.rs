@@ -7,7 +7,7 @@ use spl_token_2022::onchain;
 use crate::{
     config::*,
     error::NTTError,
-    queue::inbox::{InboxItem, InboxValue, ReleaseStatus},
+    queue::inbox::{InboxItem, ReleaseStatus},
     spl_multisig::SplMultisig,
 };
 
@@ -23,9 +23,9 @@ pub struct ReleaseInbound<'info> {
 
     #[account(
         mut,
-        address = match &inbox_item.value {
-            InboxValue::TokenTransfer(tt) => get_associated_token_address_with_program_id(
-                &tt.recipient_address,
+        address = match &inbox_item.transfer {
+            Some(tt) => get_associated_token_address_with_program_id(
+                &tt.recipient,
                 &mint.key(),
                 &token_program.key(),
             ),
@@ -93,54 +93,48 @@ pub fn release_inbound_mint_multisig<'info>(
 
     assert!(inbox_item.release_status == ReleaseStatus::Released);
 
-    match &inbox_item.value {
-        InboxValue::TokenTransfer(tt) => {
-            let token_authority_sig: &[&[&[u8]]] = &[&[
-                crate::TOKEN_AUTHORITY_SEED,
-                &[ctx.bumps.common.token_authority],
-            ]];
+    if let Some(tt) = &inbox_item.transfer {
+        let token_authority_sig: &[&[&[u8]]] = &[&[
+            crate::TOKEN_AUTHORITY_SEED,
+            &[ctx.bumps.common.token_authority],
+        ]];
 
-            // Mint then transfer to ensure transfer hook is called
-            invoke_signed(
-                &spl_token_2022::instruction::mint_to(
-                    &ctx.accounts.common.token_program.key(),
-                    &ctx.accounts.common.mint.key(),
-                    &ctx.accounts.common.custody.key(),
-                    &ctx.accounts.multisig.key(),
-                    &[&ctx.accounts.common.token_authority.key()],
-                    tt.amount,
-                )?,
-                &[
-                    ctx.accounts.common.custody.to_account_info(),
-                    ctx.accounts.common.mint.to_account_info(),
-                    ctx.accounts.common.token_authority.to_account_info(),
-                    ctx.accounts.multisig.to_account_info(),
-                ],
-                token_authority_sig,
-            )?;
-
-            onchain::invoke_transfer_checked(
+        // Mint then transfer to ensure transfer hook is called
+        invoke_signed(
+            &spl_token_2022::instruction::mint_to(
                 &ctx.accounts.common.token_program.key(),
+                &ctx.accounts.common.mint.key(),
+                &ctx.accounts.common.custody.key(),
+                &ctx.accounts.multisig.key(),
+                &[&ctx.accounts.common.token_authority.key()],
+                tt.amount,
+            )?,
+            &[
                 ctx.accounts.common.custody.to_account_info(),
                 ctx.accounts.common.mint.to_account_info(),
-                ctx.accounts.common.recipient.to_account_info(),
                 ctx.accounts.common.token_authority.to_account_info(),
-                ctx.remaining_accounts,
-                tt.amount,
-                ctx.accounts.common.mint.decimals,
-                token_authority_sig,
-            )?;
+                ctx.accounts.multisig.to_account_info(),
+            ],
+            token_authority_sig,
+        )?;
 
-            msg!(
-                "Transferred {} tokens to {}",
-                tt.amount,
-                tt.recipient_address,
-            );
-        }
-        InboxValue::IndexUpdate(index) => {
-            msg!("Updating index: {}", index);
-            return Ok(());
-        }
+        onchain::invoke_transfer_checked(
+            &ctx.accounts.common.token_program.key(),
+            ctx.accounts.common.custody.to_account_info(),
+            ctx.accounts.common.mint.to_account_info(),
+            ctx.accounts.common.recipient.to_account_info(),
+            ctx.accounts.common.token_authority.to_account_info(),
+            ctx.remaining_accounts,
+            tt.amount,
+            ctx.accounts.common.mint.decimals,
+            token_authority_sig,
+        )?;
+
+        msg!("Transferred {} tokens to {}", tt.amount, tt.recipient);
+    }
+
+    if let Some(index) = inbox_item.index_udpate {
+        msg!("Updating index: {}", index);
     }
 
     Ok(())

@@ -10,7 +10,7 @@ use crate::{
     payloads::Payload,
     peer::NttManagerPeer,
     queue::{
-        inbox::{InboxItem, InboxRateLimit, InboxValue, ReleaseStatus},
+        inbox::{InboxItem, InboxRateLimit, ReleaseStatus, RootUpdates, TokenTransfer},
         outbox::OutboxRateLimit,
         rate_limit::RateLimitResult,
     },
@@ -104,37 +104,62 @@ pub struct Redeem<'info> {
 pub struct RedeemArgs {}
 
 pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
+    let accs = ctx.accounts;
+
     let transceiver_message: ValidatedTransceiverMessage<Payload> =
         ValidatedTransceiverMessage::try_from(
-            &ctx.accounts.transceiver_message,
-            &ctx.accounts.transceiver.transceiver_address,
+            &accs.transceiver_message,
+            &accs.transceiver.transceiver_address,
         )?;
 
     let message: NttManagerMessage<Payload> = transceiver_message.message.ntt_manager_payload;
-    let decimals = ctx.accounts.mint.decimals.clone();
-
-    match &message.payload {
-        Payload::NativeTokenTransfer(ntt) => set_inbox(ctx, InboxValue::from_ntt(ntt, decimals)?),
-        Payload::IndexTransfer(update) => set_inbox(ctx, InboxValue::from_index_update(update)?),
-    }
-}
-
-pub fn set_inbox(ctx: Context<Redeem>, value: InboxValue) -> Result<()> {
-    let accs = ctx.accounts;
-
-    let amount = match value {
-        InboxValue::TokenTransfer(ref tt) => tt.amount,
-        _ => 0,
-    };
+    let mut amount = 0;
 
     if !accs.inbox_item.init {
-        accs.inbox_item.set_inner(InboxItem {
+        let mut inbox_item = InboxItem {
             init: true,
             bump: ctx.bumps.inbox_item,
-            value,
             release_status: ReleaseStatus::NotApproved,
             votes: Bitmap::new(),
-        });
+            transfer: None,
+            index_udpate: None,
+            root_updates: None,
+        };
+
+        match &message.payload {
+            Payload::NativeTokenTransfer(ntt) => {
+                // all transfers will have a recipient and amount
+                amount = ntt
+                    .amount
+                    .untrim(accs.mint.decimals)
+                    .map_err(NTTError::from)?;
+
+                if amount > 0 {
+                    inbox_item.transfer = Some(TokenTransfer {
+                        amount,
+                        recipient: Pubkey::try_from(ntt.to)
+                            .map_err(|_| NTTError::InvalidRecipientAddress)?,
+                    });
+                }
+
+                // payloads from L2s might have an index update
+                let payload = &ntt.additional_payload;
+                inbox_item.index_udpate = payload.index;
+
+                // payloads from mainnet might have merkle root updates
+                if payload.earn_manager_root.is_some() && payload.earner_root.is_some() {
+                    inbox_item.root_updates = Some(RootUpdates {
+                        earner_root: payload.earner_root.unwrap(),
+                        earn_manager_root: payload.earn_manager_root.unwrap(),
+                    });
+                }
+            }
+            Payload::IndexTransfer(update) => {
+                inbox_item.index_udpate = Some(update.index);
+            }
+        };
+
+        accs.inbox_item.set_inner(inbox_item);
     }
 
     // idempotent
