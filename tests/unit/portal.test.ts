@@ -1,5 +1,5 @@
 import * as spl from "@solana/spl-token";
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { AccountMeta, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import {
     AccountAddress,
     Chain,
@@ -9,9 +9,7 @@ import {
     UniversalAddress,
     Wormhole,
     encoding,
-    keccak256,
     signSendWait as ssw,
-    toChainId,
     serialize,
     deserialize,
     serializePayload,
@@ -24,18 +22,23 @@ import {
     SolanaUnsignedTransaction,
 } from "@wormhole-foundation/sdk-solana";
 import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
-import { NTT, SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
-import { LiteSVMProviderExt, loadKeypair } from "../test-utils";
+import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
+import { fetchTransactionLogs, LiteSVMProviderExt, loadKeypair } from "../test-utils";
 import { fromWorkspace } from "anchor-litesvm";
 import { createAssociatedTokenAccountInstruction, createMintToInstruction, createSetAuthorityInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import { utils } from "web3";
+import { BN, Program } from "@coral-xyz/anchor";
+import { Earn } from "../../target/types/earn";
+const EARN_IDL = require("../../target/idl/earn.json");
 
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 const GUARDIAN_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const CORE_BRIDGE_ADDRESS = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth";
 const NTT_ADDRESS = new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr")
+const EARN_PROGRAM = new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c")
+const EARN_GLOBAL_ACCOUNT = PublicKey.findProgramAddressSync([Buffer.from("global")], EARN_PROGRAM)[0]
 
 const WORMHOLE_PID = new PublicKey("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth")
 const WORMHOLE_BRIDGE_CONFIG = new PublicKey("2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn")
@@ -52,7 +55,8 @@ describe("Portal unit tests", () => {
     const tokenAddress = mint.publicKey.toBase58();
 
     const payer = loadKeypair("tests/keys/user.json");
-    const owner = loadKeypair("tests/keys/mint.json");
+    const admin = loadKeypair("tests/keys/admin.json");
+    const owner = payer;
 
     const svm = fromWorkspace("")
         .withSplPrograms()
@@ -97,11 +101,13 @@ describe("Portal unit tests", () => {
     // Create an anchor provider from the liteSVM instance
     const provider = new LiteSVMProviderExt(svm, new NodeWallet(payer));
     const connection = provider.connection;
+    const earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM, provider);
 
     const { ctx, ...wc } = getWormholeContext(connection);
 
     beforeAll(async () => {
         svm.airdrop(payer.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+        svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
         signer = new SolanaSendSigner(connection, "Solana", payer, false, {});
         sender = Wormhole.parseAddress("Solana", signer.address());
 
@@ -237,6 +243,13 @@ describe("Portal unit tests", () => {
             const setPeerTxs = ntt.setPeer(wc.remoteMgr, 18, 1000000n, sender);
             await ssw(ctx, setPeerTxs, signer);
         });
+        test("initialize earn", async () => {
+            await earn.methods
+                .initialize(Keypair.generate().publicKey, new BN(1_000_000_000_000), new BN(86_400))
+                .accounts({ globalAccount: EARN_GLOBAL_ACCOUNT, signer: admin.publicKey })
+                .signers([admin])
+                .rpc();
+        });
     })
 
     describe("Sending", () => {
@@ -315,9 +328,9 @@ describe("Portal unit tests", () => {
             } as const;
         }
 
-        it("tokens", async () => {
+        const redeem = (remaining_accounts: AccountMeta[]) => {
             const additionalPayload = utils.encodePacked(
-                { type: 'uint64', value: 123456 }, // index 
+                { type: 'uint64', value: 1000000000001n }, // index 
                 { type: 'bytes32', value: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b' }, // destination
             )
 
@@ -331,7 +344,82 @@ describe("Portal unit tests", () => {
             const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
             const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
 
-            await ssw(ctx, redeemTxs, signer);
+            // return custom generator where the redeem ix has the desired remaining accounts
+            return async function* redeemTxns() {
+                let i = 0
+                for await (const tx of redeemTxs) {
+                    if (++i === 3) {
+                        const t = tx.transaction.transaction as VersionedTransaction
+
+                        const ixs = t.message.compiledInstructions.map(ix => new TransactionInstruction({
+                            programId: t.message.staticAccountKeys[ix.programIdIndex],
+                            keys: ix.accountKeyIndexes.map(idx => ({
+                                pubkey: t.message.staticAccountKeys[idx],
+                                isSigner: t.message.isAccountSigner(idx),
+                                isWritable: t.message.isAccountWritable(idx),
+                            })),
+                            data: Buffer.from(ix.data)
+                        }));
+
+                        ixs[ixs.length - 1].keys.push(...remaining_accounts)
+
+                        const redeemTx = new Transaction().add(...ixs);
+                        redeemTx.feePayer = owner.publicKey;
+                        yield ntt.createUnsignedTx({ transaction: redeemTx }, "Ntt.Redeem");
+                    } else {
+                        yield tx
+                    }
+                }
+            }
+        }
+
+        it("tokens (no remaining accounts)", async () => {
+            const getRedeemTxns = redeem([])
+
+            const txIds = await ssw(ctx, getRedeemTxns(), signer);
+            const logs = await fetchTransactionLogs(provider, txIds[txIds.length - 1].txid)
+            expect(logs).toContain('Program log: Transferred 100000 tokens to TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM')
+            expect(logs).toContain('Program log: Skipping index update: 1000000000001')
+        });
+
+        it("tokens (with remaining accounts)", async () => {
+            const getRedeemTxns = redeem([{
+                pubkey: EARN_PROGRAM,
+                isSigner: false,
+                isWritable: false,
+            }, {
+                pubkey: EARN_GLOBAL_ACCOUNT,
+                isSigner: false,
+                isWritable: true,
+            }])
+
+            const txIds = await ssw(ctx, getRedeemTxns(), signer);
+            const logs = await fetchTransactionLogs(provider, txIds[txIds.length - 1].txid)
+            expect(logs).toContain('Program log: Transferred 100000 tokens to TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM')
+            expect(logs).toContain('Program log: Index update: 1000000000001 | root update: false')
+
+            // verify data was propagated
+            const global = await earn.account.global.fetch(EARN_GLOBAL_ACCOUNT)
+            expect(global.index.toString()).toBe("1000000000001")
+        });
+
+        it("tokens (incorrect remaining accounts)", async () => {
+            const getRedeemTxns = redeem([{
+                pubkey: NTT_ADDRESS, // incorrect
+                isSigner: false,
+                isWritable: false,
+            }, {
+                pubkey: EARN_GLOBAL_ACCOUNT,
+                isSigner: false,
+                isWritable: true,
+            }])
+
+            try {
+                await ssw(ctx, getRedeemTxns(), signer);
+                fail("Expected transaction to fail")
+            } catch (e) {
+                expect(e.message).toContain("Error Code: InvalidRemainingAccount")
+            }
         });
 
         it("tokens with merkle roots", async () => {
