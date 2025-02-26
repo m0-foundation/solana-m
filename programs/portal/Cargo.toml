@@ -32,3 +32,4 @@ wormhole-solana-utils = "0.3.0-alpha.1"
 bitmaps = "3.2.1"
 cfg-if.workspace = true
 solana-address-lookup-table-program.workspace = true
+earn = { path = "../earn", features = ["cpi"] }

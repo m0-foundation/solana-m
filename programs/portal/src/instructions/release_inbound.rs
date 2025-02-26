@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token::get_associated_token_address_with_program_id, token_interface};
+use earn::cpi::accounts::PropagateIndex;
 use ntt_messages::mode::Mode;
 use solana_program::program::invoke_signed;
 use spl_token_2022::onchain;
@@ -93,12 +94,12 @@ pub fn release_inbound_mint_multisig<'info>(
 
     assert!(inbox_item.release_status == ReleaseStatus::Released);
 
-    if let Some(tt) = &inbox_item.transfer {
-        let token_authority_sig: &[&[&[u8]]] = &[&[
-            crate::TOKEN_AUTHORITY_SEED,
-            &[ctx.bumps.common.token_authority],
-        ]];
+    let token_authority_sig: &[&[&[u8]]] = &[&[
+        crate::TOKEN_AUTHORITY_SEED,
+        &[ctx.bumps.common.token_authority],
+    ]];
 
+    if let Some(tt) = &inbox_item.transfer {
         // Mint then transfer to ensure transfer hook is called
         invoke_signed(
             &spl_token_2022::instruction::mint_to(
@@ -133,8 +134,48 @@ pub fn release_inbound_mint_multisig<'info>(
         msg!("Transferred {} tokens to {}", tt.amount, tt.recipient);
     }
 
+    // Send update to the earn program
     if let Some(index) = inbox_item.index_update {
-        msg!("Updating index: {}", index);
+        let expected_accounts = &ctx
+            .accounts
+            .common
+            .config
+            .release_inbound_remaining_accounts;
+
+        if ctx.remaining_accounts.len() < expected_accounts.len() {
+            msg!("Skipping index update: {}", index);
+            return Ok(());
+        }
+
+        for (i, account) in expected_accounts.iter().enumerate() {
+            if account.pubkey != ctx.remaining_accounts[i].key() {
+                return err!(NTTError::InvalidRemainingAccount);
+            }
+        }
+
+        let ctx = CpiContext::new_with_signer(
+            ctx.remaining_accounts[0].clone(),
+            PropagateIndex {
+                signer: ctx.accounts.common.token_authority.to_account_info(),
+                global_account: ctx.remaining_accounts[1].clone(),
+                mint: ctx.accounts.common.mint.to_account_info(),
+            },
+            token_authority_sig,
+        );
+
+        let root_updates = inbox_item.root_updates.clone().unwrap_or_default();
+        earn::cpi::propagate_index(
+            ctx,
+            index,
+            root_updates.earner_root,
+            root_updates.earner_root,
+        )?;
+
+        msg!(
+            "Index update: {} | root update: {}",
+            index,
+            inbox_item.root_updates.is_some()
+        );
     }
 
     Ok(())

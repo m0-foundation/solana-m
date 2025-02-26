@@ -55,6 +55,25 @@ pub struct Config {
     pub paused: bool,
     /// The custody account that holds tokens in locking mode.
     pub custody: Pubkey,
+    /// remaining accounts required for CPI call to the earn program
+    pub release_inbound_remaining_accounts: [RemainingAccount; 2],
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct RemainingAccount {
+    pub pubkey: Pubkey,
+    pub is_signer: bool,
+    pub is_writable: bool,
+}
+
+impl RemainingAccount {
+    pub fn new(pubkey: Pubkey, is_writable: bool) -> Self {
+        Self {
+            pubkey,
+            is_writable,
+            is_signer: false,
+        }
+    }
 }
 
 impl Config {
