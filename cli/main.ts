@@ -37,6 +37,7 @@ import {
     ChainAddress,
     UniversalAddress,
     Wormhole,
+    assertChain,
     signSendWait,
 } from "@wormhole-foundation/sdk";
 
@@ -61,13 +62,9 @@ async function main() {
     program
         .command('create-multisig')
         .description('Create multisig for the mint authority')
-        .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
-        .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
-        .option('--network <string>', 'target devnet or mainnet', 'devnet')
-        .action(async (options) => {
-            const connection = new Connection(options.rpcUrl);
-            const owner = loadKeypair(options.owner);
-            const multisig = Keypair.generate();
+        .action(async () => {
+            const connection = new Connection(process.env.RPC_URL);
+            const [owner, multisig] = keysFromEnv(["OWNER_KEYPAIR", "MULTISIG_KEYPAIR"]);
 
             // token authorities for both programs
             const [tokenAuthPortal] = PublicKey.findProgramAddressSync([Buffer.from("token_authority")], PROGRAMS.portal)
@@ -89,33 +86,20 @@ async function main() {
     program
         .command('create-mint')
         .description('Create a new Token-2022 mint')
-        .option('--mint <filepath>', 'mint keypair', 'tests/keys/mint.json')
-        .option('--multisig <pubkey>', 'multisig pubkey', '9vR8GRGVXaNq62aiPmUrq5jiE4CXWGFUwJRuo4r2wZgF')
-        .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
-        .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
-        .action(async (options) => {
-            const connection = new Connection(options.rpcUrl);
-            const owner = loadKeypair(options.owner);
-            const mint = loadKeypair(options.mint);
-            const multisig = new PublicKey(options.multisig);
+        .action(async () => {
+            const connection = new Connection(process.env.RPC_URL);
+            const [owner, mint, multisig] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR", "MULTISIG_KEYPAIR"]);
 
-            await createToken2022Mint(connection, owner, mint, multisig)
+            await createToken2022Mint(connection, owner, mint, multisig.publicKey)
             console.log(`Mint created: ${mint.publicKey.toBase58()}`);
         });
 
     program
         .command('initialize-portal')
         .description('Initialize the portal program')
-        .option('--mint <filepath>', 'mint keypair', 'tests/keys/mint.json')
-        .option('--multisig <pubkey>', 'multisig pubkey', '9vR8GRGVXaNq62aiPmUrq5jiE4CXWGFUwJRuo4r2wZgF')
-        .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
-        .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
-        .option('--network <string>', 'target devnet or mainnet', 'devnet')
         .action(async (options) => {
-            const connection = new Connection(options.rpcUrl);
-            const owner = loadKeypair(options.owner);
-            const multisig = new PublicKey(options.multisig);
-            const mint = loadKeypair(options.mint);
+            const connection = new Connection(process.env.RPC_URL);
+            const [owner, mint, multisig] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR", "MULTISIG_KEYPAIR"]);
 
             const { ctx, ntt, sender, signer } = NttManager(connection, owner, options.network, mint.publicKey);
 
@@ -123,7 +107,7 @@ async function main() {
                 mint: mint.publicKey,
                 outboundLimit: RATE_LIMITS_24.outbound,
                 mode: "burning",
-                multisig,
+                multisig: multisig.publicKey,
             });
 
             await signSendWait(ctx, initTxs, signer);
@@ -133,14 +117,13 @@ async function main() {
     program
         .command('update-lut')
         .description('Initialize or update the LUT for the portal program')
-        .option('--mint <filepath>', 'mint keypair', 'tests/keys/mint.json')
+        .option('--mint <pubkey>', 'mint keypair', 'mz2MZpcKUaprRVWcSD3yP4NC5MvG6K7xkmudQP58jVH')
         .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
         .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
         .option('--network <string>', 'target devnet or mainnet', 'devnet')
         .action(async (options) => {
-            const connection = new Connection(options.rpcUrl);
-            const owner = loadKeypair(options.owner);
-            const mint = loadKeypair(options.mint);
+            const connection = new Connection(process.env.RPC_URL);
+            const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
 
             const { ctx, ntt, signer } = NttManager(connection, owner, options.network, mint.publicKey);
 
@@ -150,16 +133,15 @@ async function main() {
         });
 
     program
-        .command('register-transeiver')
+        .command('register-peers')
         .description('Initialize or update the LUT for the portal program')
-        .option('--mint <filepath>', 'mint keypair', 'tests/keys/mint.json')
+        .option('--mint <pubkey>', 'mint keypair', 'mz2MZpcKUaprRVWcSD3yP4NC5MvG6K7xkmudQP58jVH')
         .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
         .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
         .option('--network <string>', 'target devnet or mainnet', 'devnet')
         .action(async (options) => {
-            const connection = new Connection(options.rpcUrl);
-            const owner = loadKeypair(options.owner);
-            const mint = loadKeypair(options.mint);
+            const connection = new Connection(process.env.RPC_URL);
+            const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
 
             const { ctx, ntt, signer, sender } = NttManager(connection, owner, options.network, mint.publicKey);
 
@@ -167,7 +149,12 @@ async function main() {
             const registerTxs = ntt.registerWormholeTransceiver({ payer: sender, owner: sender });
             await signSendWait(ctx, registerTxs, signer);
 
-            for (const chain of (["Ethereum", "Arbitrum", "Optimism"] as Chain[])) {
+            const chains = (options.network === "mainnet" ?
+                ["Ethereum", "Arbitrum", "Optimism"] :
+                ["Sepolia", "ArbitrumSepolia", "OptimismSepolia"]) as Chain[];
+
+            for (let chain of chains) {
+                assertChain(chain);
                 console.log(`Registering transceiver and peer for ${chain}`);
 
                 // set wormhole xcvr peer
@@ -183,7 +170,6 @@ async function main() {
 
             console.log('Transceiver and peers registered');
         });
-
 
     await program.parseAsync(process.argv);
 }
@@ -204,9 +190,9 @@ function NttManager(connection: Connection, owner: Keypair, network: "devnet" | 
             ...ctx.config.contracts,
             ntt: {
                 token: mint.toBase58(),
-                manager: PROGRAMS[network].portal.toBase58(),
+                manager: PROGRAMS.portal.toBase58(),
                 transceiver: {
-                    wormhole: PROGRAMS[network].portal.toBase58(),
+                    wormhole: PROGRAMS.portal.toBase58(),
                 },
             },
         },
@@ -306,6 +292,9 @@ async function createToken2022Mint(
     await connection.sendTransaction(transaction);
 }
 
+function keysFromEnv(keys: string[]) {
+    return keys.map((key) => Keypair.fromSecretKey(Buffer.from(JSON.parse(process.env[key]))));
+}
 
 main().catch((error) => {
     console.error(error);
