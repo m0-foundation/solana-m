@@ -1793,8 +1793,11 @@ describe("Earn unit tests", () => {
     //       [X] when the fee percent is not zero, but the actual fee rounds to zero
     //         [X] the full amount is minted to the earner
     //       [X] when the fee is non-zero
-    //         [X] the fee amount is minted to the earn manager token account
-    //         [X] the total rewards minus the fee is minted to the earner token account  
+    //         [X] given the earn manager account is active
+    //            [X] the fee amount is minted to the earn manager token account
+    //            [X] the total rewards minus the fee is minted to the earner token account  
+    //         [X] given the earn manager account is not active
+    //           [X] the full amount is minted to the earner
     
     beforeEach(async () => {
       // Initialize the program
@@ -2125,9 +2128,10 @@ describe("Earn unit tests", () => {
     // given the earn authority signs the transaction
     // given the earn manager account and earn manager token account are provided correctly
     // when the fee is non-zero
+    // given the earn manager account is active
     // the fee amount is minted to the earn manager token account
     // the total rewards minus the fee is minted to the earner token account
-    test("Claim with non-zero fee - success", async () => {
+    test("Claim with non-zero fee and earn manager active - success", async () => {
       // Update the index so there is outstanding yield
       await propagateIndex(new BN(1_100_000_000_000));
 
@@ -2158,6 +2162,58 @@ describe("Earn unit tests", () => {
       // and the last claim index was updated
       await expectTokenBalance(earnerATA, new BN(10_990_000));
       await expectTokenBalance(earnManagerATA, new BN(10_000));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: new BN(1_100_000_000_000),
+          lastClaimTimestamp: currentTime
+        }
+      );
+    });
+
+    // given the earn authority signs the transaction
+    // given the earn manager account and earn manager token account are provided correctly
+    // when the fee is non-zero
+    // given the earn manager account is not active
+    // the full amount is minted to the earner
+    test("Claim with non-zero fee and earn manager inactive - success", async () => {
+      // Remove the earn manager from the earn manager merkle tree
+      earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
+
+      // Update the index so there is outstanding yield and update the earn manager merkle root
+      await propagateIndex(new BN(1_100_000_000_000), ZERO_WORD, earnManagerMerkleTree.getRoot());
+
+      // Get the exclusion proof for the earn manager and set their account to inactive
+      const { proofs, neighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
+      await removeEarnManager(earnManagerOne.publicKey, proofs, neighbors);
+
+      // Setup the instruction
+      const { earnerAccount, earnerATA } = await prepClaimFor(earnAuthority, mint.publicKey, nonEarnerOne.publicKey, earnManagerOne.publicKey);
+      const earnManagerATA = await getATA(mint.publicKey, earnManagerOne.publicKey);
+
+      // Verify the starting values
+      await expectTokenBalance(earnerATA, new BN(10_000_000));
+      await expectTokenBalance(earnManagerATA, new BN(0));
+      expectEarnerState(
+        earnerAccount, 
+        {
+          lastClaimIndex: initialIndex
+        }
+      );
+
+      // Claim for the earner
+      await earn.methods
+        .claimFor(new BN(10_000_000))
+        .accounts({ ...accounts })
+        .signers([earnAuthority])
+        .rpc();
+
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
+
+      // Verify the user token account was minted the correct amount
+      // and the last claim index was updated
+      await expectTokenBalance(earnerATA, new BN(11_000_000));
+      await expectTokenBalance(earnManagerATA, new BN(0));
       expectEarnerState(
         earnerAccount, 
         {
