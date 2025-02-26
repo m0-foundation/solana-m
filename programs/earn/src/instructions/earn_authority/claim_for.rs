@@ -15,6 +15,7 @@ use crate::{
         Global, GLOBAL_SEED,
         Earner, EARNER_SEED,
         EarnManager, EARN_MANAGER_SEED,
+        TOKEN_AUTHORITY_SEED,
     },
     utils::token::mint_tokens
 };
@@ -33,6 +34,12 @@ pub struct ClaimFor<'info> {
 
     #[account(mut, address = MINT)]
     pub mint: InterfaceAccount<'info, Mint>,
+
+    #[account(
+        seeds = [TOKEN_AUTHORITY_SEED],
+        bump
+    )]
+    pub token_authority_account: AccountInfo<'info>,
 
     #[account(mut, token::mint = mint)]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
@@ -96,8 +103,8 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
 
     // Setup the signer seeds for the mint CPI(s)
-    let earn_global_seeds: &[&[&[u8]]] = &[&[
-        GLOBAL_SEED, &[ctx.bumps.global_account]
+    let token_authority_seeds: &[&[&[u8]]] = &[&[
+        TOKEN_AUTHORITY_SEED, &[ctx.bumps.token_authority_account]
     ]];
 
     // If the earner has an earn manager, validate the earn manager account and earn manager's token account
@@ -107,9 +114,6 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
             Some(earn_manager_account) => earn_manager_account,
             None => return err!(EarnError::RequiredAccountMissing)
         };
-
-        // TODO should we return an error is the earn manager is not active?
-        // This would happen if an earn manager is removed, but the orphaned earner has not been cleaned up yet
 
         let earn_manager_token_account = match &ctx.accounts.earn_manager_token_account {
             Some(earn_manager_token_account) => if earn_manager_token_account.key() != earn_manager_account.fee_token_account {
@@ -121,7 +125,8 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         };
 
         // If we reach this point, then the correct accounts have been provided and we can calculate the fee split
-        if earn_manager_account.fee_bps > 0 {
+        // If the earn manager is not active, then no fee is taken
+        if earn_manager_account.fee_bps > 0 && earn_manager_account.is_active {
             // Fees are rounded down in favor of the user
             let fee = (rewards * earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
 
@@ -130,9 +135,9 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
                     &earn_manager_token_account, // to
                     &fee, // amount
                     &ctx.accounts.mint, // mint
-                    &ctx.accounts.mint_authority, // multisig mint authority 
-                    &ctx.accounts.global_account.to_account_info(), // signer
-                    earn_global_seeds, // signer seeds
+                    &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
+                    &ctx.accounts.token_authority_account, // signer
+                    token_authority_seeds, // signer seeds
                     &ctx.accounts.token_program // token program
                 )?;
     
@@ -155,8 +160,8 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &rewards, // amount
         &ctx.accounts.mint, // mint
         &ctx.accounts.mint_authority, // multisig mint authority 
-        &ctx.accounts.global_account.to_account_info(), // signer
-        earn_global_seeds, // signer seeds
+        &ctx.accounts.token_authority_account, // signer
+        token_authority_seeds, // signer seeds
         &ctx.accounts.token_program // token program
     )
 }
