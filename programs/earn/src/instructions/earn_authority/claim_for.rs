@@ -164,6 +164,14 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.token_authority_account, // signer
         token_authority_seeds, // signer seeds
         &ctx.accounts.token_program // token program
-    )
+    )?;
+
+    msg!("Claimed for: {} | Index: {} | Timestamp: {}",
+        ctx.accounts.user_token_account.key(),
+        ctx.accounts.earner_account.last_claim_index,
+        ctx.accounts.earner_account.last_claim_timestamp
+    );
+
+    Ok(())
 }
 

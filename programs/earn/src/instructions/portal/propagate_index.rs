@@ -96,5 +96,7 @@ pub fn handler(
     ctx.accounts.global_account.distributed = 0;
     ctx.accounts.global_account.claim_complete = false;
 
+    msg!("New claim cycle started | Index: {} | Timestamp: {}", new_index, ctx.accounts.global_account.max_yield);
+
     Ok(())
 }
