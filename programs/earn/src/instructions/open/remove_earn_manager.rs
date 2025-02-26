@@ -26,6 +26,7 @@ pub struct RemoveEarnManager<'info> {
 
     #[account(
         mut,
+        constraint = earn_manager_account.is_active @ EarnError::NotAuthorized,
         seeds = [EARN_MANAGER_SEED, earn_manager.as_ref()],
         bump
     )]
@@ -38,11 +39,6 @@ pub fn handler(
     proofs: Vec<Vec<ProofElement>>, 
     neighbors: Vec<[u8; 32]>
 ) -> Result<()> {
-    // Check that the earn_manager_account is active
-    if !ctx.accounts.earn_manager_account.is_active {
-        return err!(EarnError::NotAuthorized);
-    }
-
     // Verify the earn manager is not in the approved earn managers list
     if !verify_not_in_tree(
         ctx.accounts.global_account.earn_manager_merkle_root,
