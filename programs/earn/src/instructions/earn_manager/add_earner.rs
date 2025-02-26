@@ -81,5 +81,8 @@ pub fn handler(
     // Set the last claim index on the user's earner account
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
 
+    // Set the last claim timestamp on the user's earner account
+    ctx.accounts.earner_account.last_claim_timestamp = Clock::get()?.unix_timestamp.try_into().unwrap();
+
     Ok(())
 }

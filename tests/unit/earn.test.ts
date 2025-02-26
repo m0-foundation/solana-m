@@ -83,6 +83,7 @@ interface Global {
 interface Earner {
   earnManager?: PublicKey;
   lastClaimIndex?: BN;
+  lastClaimTimestamp?: BN;
   isEarning?: boolean;
 }
 
@@ -100,6 +101,16 @@ const getGlobalAccount = () => {
 
   return globalAccount;
 }
+
+const getEarnTokenAuthority = () => {
+  const [earnTokenAuthority] = PublicKey.findProgramAddressSync(
+    [Buffer.from("token_authority")],
+    earn.programId
+  );
+
+  return earnTokenAuthority;
+};
+
 
 const getEarnerAccount = (ata: PublicKey) => {
   const [earnerAccount] = PublicKey.findProgramAddressSync(
@@ -337,11 +348,11 @@ const createMintWithMultisig = async (mint: Keypair, mintAuthority: Keypair) => 
     programId: TOKEN_2022_PROGRAM_ID
   });
 
-  const globalAccount = getGlobalAccount();
+  const earnTokenAuthority = getEarnTokenAuthority();
 
   const initializeMultisig = createInitializeMultisigInstruction(
     mintAuthority.publicKey, // account
-    [portal, globalAccount],
+    [portal, earnTokenAuthority],
     1,
     TOKEN_2022_PROGRAM_ID
   );
@@ -528,8 +539,9 @@ const propagateIndex = async (
 };
 
 const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey, earnManager?: PublicKey) => {
-  // Get the global PDA
+  // Get the global and token authority PDAs
   const globalAccount = getGlobalAccount();
+  const earnTokenAuthority = getEarnTokenAuthority();
 
   // Get the earner ATA
   const earnerATA = await getATA(mint, earner);
@@ -544,6 +556,7 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
   accounts.earnerAccount = earnerAccount;
   accounts.mint = mint;
   accounts.mintAuthority = mintAuthority.publicKey;
+  accounts.tokenAuthorityAccount = earnTokenAuthority;
   accounts.userTokenAccount = earnerATA;
   accounts.tokenProgram = TOKEN_2022_PROGRAM_ID;
 
@@ -1922,13 +1935,16 @@ describe("Earn unit tests", () => {
         .signers([earnAuthority])
         .rpc();
 
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
+
       // Verify the user token account was minted the correct amount
       // and the last claim index was updated
       await expectTokenBalance(earnerATA, new BN(11_000_000));
       expectEarnerState(
         earnerAccount, 
         {
-          lastClaimIndex: new BN(1_100_000_000_000)
+          lastClaimIndex: new BN(1_100_000_000_000),
+          lastClaimTimestamp: currentTime
         }
       );
 
@@ -2035,16 +2051,13 @@ describe("Earn unit tests", () => {
       );
 
       // Claim for the earner
-      // try{
       await earn.methods
         .claimFor(new BN(10_000_000))
         .accounts({ ...accounts })
         .signers([earnAuthority])
         .rpc();
-      // } catch (e) {
-      //   console.log(e);
-      //   expect(true).toBe(false);
-      // }
+      
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
 
       // Verify the user token account was minted the correct amount
       // and the last claim index was updated
@@ -2053,7 +2066,8 @@ describe("Earn unit tests", () => {
       expectEarnerState(
         earnerAccount, 
         {
-          lastClaimIndex: new BN(1_100_000_000_000)
+          lastClaimIndex: new BN(1_100_000_000_000),
+          lastClaimTimestamp: currentTime
         }
       );
 
@@ -2092,6 +2106,8 @@ describe("Earn unit tests", () => {
         .signers([earnAuthority])
         .rpc();
 
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
+
       // Verify the user token account was minted the correct amount
       // and the last claim index was updated
       await expectTokenBalance(earnerATA, new BN(10_000_010));
@@ -2099,7 +2115,8 @@ describe("Earn unit tests", () => {
       expectEarnerState(
         earnerAccount, 
         {
-          lastClaimIndex: new BN(1_000_001_000_000)
+          lastClaimIndex: new BN(1_000_001_000_000),
+          lastClaimTimestamp: currentTime
         }
       );
 
@@ -2135,6 +2152,8 @@ describe("Earn unit tests", () => {
         .signers([earnAuthority])
         .rpc();
 
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
+
       // Verify the user token account was minted the correct amount
       // and the last claim index was updated
       await expectTokenBalance(earnerATA, new BN(10_990_000));
@@ -2142,7 +2161,8 @@ describe("Earn unit tests", () => {
       expectEarnerState(
         earnerAccount, 
         {
-          lastClaimIndex: new BN(1_100_000_000_000)
+          lastClaimIndex: new BN(1_100_000_000_000),
+          lastClaimTimestamp: currentTime
         }
       );
     });
@@ -2754,13 +2774,16 @@ describe("Earn unit tests", () => {
         .signers([earnManagerOne])
         .rpc();
 
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
+
       // Verify the earner account was initialized correctly
       await expectEarnerState(
         earnerAccount,
         {
           isEarning: true,
           earnManager: earnManagerOne.publicKey,
-          lastClaimIndex: new BN(1_100_000_000_000)
+          lastClaimIndex: new BN(1_100_000_000_000),
+          lastClaimTimestamp: currentTime
         }
       );
     });
@@ -2950,7 +2973,7 @@ describe("Earn unit tests", () => {
 
   });
 
-  describe("add_register_earner unit tests", () => {    
+  describe("add_registrar_earner unit tests", () => {    
     // test cases
     // [X] given the user token account is for the wrong token mint
     //   [X] it reverts with a constraint token mint error
@@ -3141,13 +3164,16 @@ describe("Earn unit tests", () => {
         .signers([nonAdmin])
         .rpc();
 
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
+
       // Verify the earner account was initialized correctly
       await expectEarnerState(
         earnerAccount,
         {
           isEarning: true,
           earnManager: null,
-          lastClaimIndex: new BN(1_100_000_000_000)
+          lastClaimIndex: new BN(1_100_000_000_000),
+          lastClaimTimestamp: currentTime
         }
       );
     });
