@@ -20,6 +20,7 @@
     "anchor-litesvm": "^0.1.1",
     "bn.js": "^5.2.1",
     "litesvm": "^0.1.0",
+    "sha3": "^2.1.4",
     "web3": "^4.16.0"
   },
   "devDependencies": {

@@ -6,14 +6,14 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, BIT, MINT},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
         Earner, EARNER_SEED,
         EarnManager, EARN_MANAGER_SEED,
     },
-    utils::merkle_proof::verify_not_in_tree,
+    utils::merkle_proof::{ProofElement, verify_not_in_tree},
 };
 
 #[derive(Accounts)]
@@ -54,20 +54,25 @@ pub struct AddEarner<'info> {
 
 pub fn handler(
     ctx: Context<AddEarner>, 
-    user: Pubkey, 
-    proof: Vec<[u8; 32]>,
-    sibling: [u8; 32]
+    user: Pubkey,
+    proofs: Vec<Vec<ProofElement>>, 
+    neighbors: Vec<[u8; 32]>,
 ) -> Result<()> {
-    // Verify the user is not already an earner by proving a different value exists at their position
-    let user_leaf = solana_program::keccak::hashv(&[&[BIT], &user.to_bytes()]).to_bytes();
-    if !verify_not_in_tree(
-        proof,
-        ctx.accounts.global_account.earner_merkle_root,
-        user_leaf,
-        sibling
-    ) {
-        return err!(EarnError::AlreadyEarns);
+    // Only active earn managers can add earners
+    if !ctx.accounts.earn_manager_account.is_active {
+        return err!(EarnError::NotAuthorized);
     }
+
+    // Verify the user is not already an earner 
+    if !verify_not_in_tree(
+        ctx.accounts.global_account.earner_merkle_root,
+        user.to_bytes(),
+        proofs,
+        neighbors,
+    ) {
+        return err!(EarnError::InvalidProof);
+    }
+
 
     // Initialize the user earning account
     ctx.accounts.earner_account.is_earning = true;

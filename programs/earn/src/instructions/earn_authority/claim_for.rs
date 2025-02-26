@@ -34,7 +34,7 @@ pub struct ClaimFor<'info> {
     #[account(mut, address = MINT)]
     pub mint: InterfaceAccount<'info, Mint>,
 
-    #[account(token::mint = mint)]
+    #[account(mut, token::mint = mint)]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
@@ -59,7 +59,7 @@ pub struct ClaimFor<'info> {
     /// stored as earn_manager_account.fee_token_account.
     /// We check this manually in the instruction handler
     /// since the earn_manager_account is Optional.
-    #[account(token::mint = mint)]
+    #[account(mut, token::mint = mint)]
     pub earn_manager_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
 }
 
@@ -130,7 +130,8 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
                     &earn_manager_token_account, // to
                     &fee, // amount
                     &ctx.accounts.mint, // mint
-                    &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
+                    &ctx.accounts.mint_authority, // multisig mint authority 
+                    &ctx.accounts.global_account.to_account_info(), // signer
                     earn_global_seeds, // signer seeds
                     &ctx.accounts.token_program // token program
                 )?;
@@ -153,7 +154,8 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.user_token_account, // to
         &rewards, // amount
         &ctx.accounts.mint, // mint
-        &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
+        &ctx.accounts.mint_authority, // multisig mint authority 
+        &ctx.accounts.global_account.to_account_info(), // signer
         earn_global_seeds, // signer seeds
         &ctx.accounts.token_program // token program
     )

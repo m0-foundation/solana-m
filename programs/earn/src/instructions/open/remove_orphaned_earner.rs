@@ -13,6 +13,7 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct RemoveOrphanedEarner<'info> {
+    #[account(mut)]
     pub signer: Signer<'info>,
 
     #[account(token::mint = MINT)]
@@ -34,15 +35,6 @@ pub struct RemoveOrphanedEarner<'info> {
 }
 
 pub fn handler(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
-    // Check that the earner has an earn manager
-    // If not, then it cannot be removed by this method
-    // The validation of the earn manager in the context
-    // doesn't check that earner_account.earn_manager is not
-    // None, so we need to check it here
-    if ctx.accounts.earner_account.earn_manager.is_none() {
-        return err!(EarnError::NotAuthorized);
-    }
-
     // Check that the earn manager is not active
     // If it is, then earners cannot be removed
     if ctx.accounts.earn_manager_account.is_active {

@@ -6,18 +6,19 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{BIT, MINT},
+    constants::MINT,
     errors::EarnError,
     state::{
         Earner, EARNER_SEED,
         Global, GLOBAL_SEED
     },
-    utils::merkle_proof::verify_not_in_tree
+    utils::merkle_proof::{ProofElement, verify_not_in_tree}
 };
 
 #[derive(Accounts)]
 #[instruction(user: Pubkey)]
 pub struct RemoveRegistrarEarner<'info> {
+    #[account(mut)]
     pub signer: Signer<'info>,
 
     #[account(
@@ -41,13 +42,19 @@ pub struct RemoveRegistrarEarner<'info> {
     pub earner_account: Account<'info, Earner>,
 }
 
-pub fn handler(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
-    // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
-    let leaf = solana_program::keccak::hashv(&[&[BIT],&user.to_bytes()]).to_bytes();
-
+pub fn handler(
+    ctx: Context<RemoveRegistrarEarner>,
+    user: Pubkey,
+    proofs: Vec<Vec<ProofElement>>,
+    neighbors: Vec<[u8; 32]>) -> Result<()> {
     // Verify the user is not in the approved earners list
-    if !verify_not_in_tree(proof, ctx.accounts.global_account.earner_merkle_root, leaf, sibling) {
-        return err!(EarnError::NotAuthorized);
+    if !verify_not_in_tree(
+        ctx.accounts.global_account.earner_merkle_root,
+        user.to_bytes(),
+        proofs,
+        neighbors
+    ) {
+        return err!(EarnError::InvalidProof);
     }
 
     // Check that the earner does not have an earn_manager, if so, return an error

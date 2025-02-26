@@ -20,4 +20,8 @@ pub enum EarnError {
     RequiredAccountMissing,
     #[msg("Account does not match the expected key.")]
     InvalidAccount,
+    #[msg("Account is not currently active.")]
+    NotActive,
+    #[msg("Merkle proof verification failed.")]
+    InvalidProof,
 }

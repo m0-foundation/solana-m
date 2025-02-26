@@ -5,13 +5,12 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    constants::BIT,
     errors::EarnError,
     state::{
         EarnManager, EARN_MANAGER_SEED,
         Global, GLOBAL_SEED
     },
-    utils::merkle_proof::verify_not_in_tree,
+    utils::merkle_proof::{ProofElement, verify_not_in_tree},
 };
 
 #[derive(Accounts)]
@@ -27,19 +26,27 @@ pub struct RemoveEarnManager<'info> {
 
     #[account(
         mut,
+        constraint = earn_manager_account.is_active @ EarnError::NotAuthorized,
         seeds = [EARN_MANAGER_SEED, earn_manager.as_ref()],
         bump
     )]
     pub earn_manager_account: Account<'info, EarnManager>,
 }
 
-pub fn handler(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
-    // Create the leaf for verification - this should match how the leaf was created when generating the Merkle tree
-    let leaf = solana_program::keccak::hashv(&[&[BIT],&earn_manager.to_bytes()]).to_bytes();
-
+pub fn handler(
+    ctx: Context<RemoveEarnManager>, 
+    earn_manager: Pubkey, 
+    proofs: Vec<Vec<ProofElement>>, 
+    neighbors: Vec<[u8; 32]>
+) -> Result<()> {
     // Verify the earn manager is not in the approved earn managers list
-    if !verify_not_in_tree(proof, ctx.accounts.global_account.earn_manager_merkle_root, leaf, sibling) {
-        return err!(EarnError::NotAuthorized);
+    if !verify_not_in_tree(
+        ctx.accounts.global_account.earn_manager_merkle_root,
+        earn_manager.to_bytes(),
+        proofs,
+        neighbors
+    ) {
+        return err!(EarnError::InvalidProof);
     }
     
     // We do not close earn manager accounts when they are removed so that orphaned earners can be removed as well

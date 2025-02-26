@@ -3,17 +3,17 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{
-    transfer_checked,
-    Burn, 
-    burn, 
-    Mint, 
-    MintTo, 
-    mint_to, 
-    TokenAccount, 
-    TokenInterface, 
-    TransferChecked
+use anchor_spl::{
+    token_interface::{
+        transfer_checked,
+        Mint,
+        TokenAccount, 
+        TokenInterface, 
+        TransferChecked
+    }, 
+    token_2022::spl_token_2022
 };
+use solana_program::program::invoke_signed;
 
 pub fn transfer_tokens_from_program<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,
@@ -76,48 +76,28 @@ pub fn mint_tokens<'info>(
     to: &InterfaceAccount<'info, TokenAccount>,
     amount: &u64,
     mint: &InterfaceAccount<'info, Mint>,
-    authority: &AccountInfo<'info>,
-    authority_seeds: &[&[&[u8]]],
+    multisig_authority: &AccountInfo<'info>,
+    signer: &AccountInfo<'info>,
+    signer_seeds: &[&[&[u8]]],
     token_program: &Interface<'info, TokenInterface>,
 ) -> Result<()> {
-    // Build the arguments for the mint instruction
-    let mint_options = MintTo {
-        mint: mint.to_account_info(),
-        to: to.to_account_info(),
-        authority: authority.clone(),
-    };
-
-    let cpi_context = CpiContext::new_with_signer(token_program.to_account_info(), mint_options, authority_seeds);
-
-    // Call the mint instruction
-    mint_to(
-        cpi_context,
-        *amount,
-    )?;
-
-    Ok(())
-}
-
-pub fn burn_tokens<'info>(
-    from: &InterfaceAccount<'info, TokenAccount>,
-    amount: &u64,
-    mint: &InterfaceAccount<'info, Mint>,
-    authority: &AccountInfo<'info>,
-    token_program: &Interface<'info, TokenInterface>,
-) -> Result<()> {
-    // Build the arguments for the burn instruction
-    let burn_options = Burn {
-        mint: mint.to_account_info(),
-        from: from.to_account_info(),
-        authority: authority.clone(),
-    };
-
-    let cpi_context = CpiContext::new(token_program.to_account_info(), burn_options);
-
-    // Call the burn instruction
-    burn(
-        cpi_context,
-        *amount,
+    // Send a CPI with the signer seeds as the signer
+    invoke_signed(
+        &spl_token_2022::instruction::mint_to(
+            token_program.to_account_info().key,
+            mint.to_account_info().key,
+            to.to_account_info().key,
+            multisig_authority.key,
+            &[signer.key],
+            *amount,
+        )?,
+        &[
+            mint.to_account_info(),    
+            to.to_account_info(),    
+            multisig_authority.clone(),
+            signer.clone(),
+        ],
+        signer_seeds
     )?;
 
     Ok(())

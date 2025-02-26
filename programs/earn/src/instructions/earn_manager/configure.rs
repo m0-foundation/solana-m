@@ -6,13 +6,13 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, BIT, ONE_HUNDRED_PERCENT, MINT},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE_HUNDRED_PERCENT, MINT},
     errors::EarnError,
     state::{
         Global, GLOBAL_SEED,
         EarnManager, EARN_MANAGER_SEED,
     },
-    utils::merkle_proof::verify_in_tree,
+    utils::merkle_proof::{ProofElement, verify_in_tree},
 };
 
 #[derive(Accounts)]
@@ -47,16 +47,15 @@ pub struct ConfigureEarnManager<'info> {
 pub fn handler(
     ctx: Context<ConfigureEarnManager>, 
     fee_bps: u64,
-    proof: Vec<[u8; 32]>
+    proof: Vec<ProofElement>,
 ) -> Result<()> {
     // Verify the signer is an approved earn manager
-    let leaf = solana_program::keccak::hashv(&[&[BIT],&ctx.accounts.signer.key().to_bytes()]).to_bytes();
     if !verify_in_tree(
-        proof,
         ctx.accounts.global_account.earn_manager_merkle_root,
-        leaf
+        ctx.accounts.signer.key().to_bytes(),
+        proof,
     ) {
-        return err!(EarnError::NotAuthorized);
+        return err!(EarnError::InvalidProof);
     }
 
     // Validate the fee percent is not greater than 100%

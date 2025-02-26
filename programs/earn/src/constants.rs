@@ -5,8 +5,6 @@ use solana_program::pubkey;
 
 pub const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
 
-pub const BIT: u8 = 1;
-
 // TODO add different constants depending on local, devnet, or mainnet feature flags
 pub const ADMIN: Pubkey = pubkey!("8cR6wkZ4umQQnYcxBwS1wfvPwPXHkuW3wf3toxBEaiAP");
 pub const MINT: Pubkey = pubkey!("J4a2cb2G6QbSsAxNiaEQKrshnt6ijnrCnjzDcDdcAbbK");

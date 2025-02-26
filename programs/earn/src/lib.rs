@@ -8,10 +8,8 @@ pub mod utils;
 
 use anchor_lang::prelude::*;
 
-pub use constants::*;
-pub use errors::*;
-pub use instructions::*;
-pub use state::*;
+use instructions::*;
+use utils::merkle_proof::ProofElement;
 
 declare_id!("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c");
 
@@ -70,10 +68,10 @@ pub mod earn {
     pub fn add_earner(
         ctx: Context<AddEarner>, 
         user: Pubkey, 
-        proof: Vec<[u8; 32]>,
-        sibling: [u8; 32]
+        proofs: Vec<Vec<ProofElement>>,
+        neighbors: Vec<[u8; 32]>,
     ) -> Result<()> {
-        instructions::earn_manager::add_earner::handler(ctx, user, proof, sibling)
+        instructions::earn_manager::add_earner::handler(ctx, user, proofs, neighbors)
     }
 
     pub fn remove_earner(ctx: Context<RemoveEarner>, user: Pubkey) -> Result<()> {
@@ -83,7 +81,7 @@ pub mod earn {
     pub fn configure_earn_manager(
         ctx: Context<ConfigureEarnManager>, 
         fee_bps: u64,
-        proof: Vec<[u8; 32]>
+        proof: Vec<ProofElement>
     ) -> Result<()> {
         instructions::earn_manager::configure::handler(ctx, fee_bps, proof)
     }
@@ -93,17 +91,17 @@ pub mod earn {
     pub fn add_registrar_earner(
         ctx: Context<AddRegistrarEarner>, 
         user: Pubkey, 
-        proof: Vec<[u8; 32]>
+        proof: Vec<ProofElement>
     ) -> Result<()> {
         instructions::open::add_registrar_earner::handler(ctx, user, proof)
     }
 
-    pub fn remove_registrar_earner(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
-        instructions::open::remove_registrar_earner::handler(ctx, user, proof, sibling)
+    pub fn remove_registrar_earner(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, proofs: Vec<Vec<ProofElement>>, neighbors: Vec<[u8; 32]>) -> Result<()> {
+        instructions::open::remove_registrar_earner::handler(ctx, user, proofs, neighbors)
     }
 
-    pub fn remove_earn_manager(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proof: Vec<[u8; 32]>, sibling: [u8; 32]) -> Result<()> {
-        instructions::open::remove_earn_manager::handler(ctx, earn_manager, proof, sibling)
+    pub fn remove_earn_manager(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proofs: Vec<Vec<ProofElement>>, neighbors: Vec<[u8; 32]>) -> Result<()> {
+        instructions::open::remove_earn_manager::handler(ctx, earn_manager, proofs, neighbors)
     }
 
     pub fn remove_orphaned_earner(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
