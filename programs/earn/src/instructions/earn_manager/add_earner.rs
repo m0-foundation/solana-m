@@ -6,7 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
+    constants::ANCHOR_DISCRIMINATOR_SIZE,
     errors::EarnError,
     state::{EarnManager, Earner, Global, EARNER_SEED, EARN_MANAGER_SEED, GLOBAL_SEED},
     utils::merkle_proof::{verify_not_in_tree, ProofElement},
@@ -19,8 +19,9 @@ pub struct AddEarner<'info> {
     pub signer: Signer<'info>,
 
     #[account(
+        constraint = earn_manager_account.is_active @ EarnError::NotAuthorized,
         seeds = [EARN_MANAGER_SEED, signer.key().as_ref()],
-        bump
+        bump = earn_manager_account.bump
     )]
     pub earn_manager_account: Account<'info, EarnManager>,
 
@@ -31,7 +32,7 @@ pub struct AddEarner<'info> {
     pub global_account: Account<'info, Global>,
 
     #[account(
-        token::mint = MINT,
+        token::mint = global_account,
         token::authority = user,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
@@ -40,7 +41,7 @@ pub struct AddEarner<'info> {
         init,
         payer = signer,
         space = ANCHOR_DISCRIMINATOR_SIZE + Earner::INIT_SPACE,
-        seeds = [EARNER_SEED, user_token_account.key().as_ref()],
+        seeds = [EARNER_SEED, user.as_ref()],
         bump
     )]
     pub earner_account: Account<'info, Earner>,
@@ -54,11 +55,6 @@ pub fn handler(
     proofs: Vec<Vec<ProofElement>>,
     neighbors: Vec<[u8; 32]>,
 ) -> Result<()> {
-    // Only active earn managers can add earners
-    if !ctx.accounts.earn_manager_account.is_active {
-        return err!(EarnError::NotAuthorized);
-    }
-
     // Verify the user is not already an earner
     if !verify_not_in_tree(
         ctx.accounts.global_account.earner_merkle_root,
@@ -69,16 +65,14 @@ pub fn handler(
         return err!(EarnError::InvalidProof);
     }
 
-    // Initialize the user earning account
-    ctx.accounts.earner_account.is_earning = true;
-    ctx.accounts.earner_account.earn_manager = Some(ctx.accounts.signer.key().clone());
-
-    // Set the last claim index on the user's earner account
-    ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
-
-    // Set the last claim timestamp on the user's earner account
-    ctx.accounts.earner_account.last_claim_timestamp =
-        Clock::get()?.unix_timestamp.try_into().unwrap();
+    ctx.accounts.earner_account.set_inner(Earner {
+        earn_manager: Some(ctx.accounts.signer.key().clone()),
+        last_claim_index: ctx.accounts.global_account.index,
+        last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),
+        is_earning: true,
+        bump: ctx.accounts.earner_account.bump,
+        user,
+    });
 
     Ok(())
 }

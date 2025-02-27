@@ -10,6 +10,7 @@ pub const GLOBAL_SEED: &[u8] = b"global";
 pub struct Global {
     pub admin: Pubkey,                      // can update config values
     pub earn_authority: Pubkey,             // address that can distribute yield
+    pub mint: Pubkey,                       // token mint that yield is being distributed for
     pub index: u64,                         // most recent index that yield is being distributed for
     pub timestamp: u64,                     // timestamp of the most recent index update
     pub claim_cooldown: u64,                // cooldown period between claim cycles

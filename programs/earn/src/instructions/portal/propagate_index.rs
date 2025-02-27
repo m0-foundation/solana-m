@@ -6,7 +6,7 @@ use anchor_spl::token_interface::Mint;
 
 // local dependencies
 use crate::{
-    constants::{MINT, PORTAL_PROGRAM},
+    constants::PORTAL_PROGRAM,
     errors::EarnError,
     state::{Global, GLOBAL_SEED, TOKEN_AUTHORITY_SEED},
 };
@@ -23,14 +23,12 @@ pub struct PropagateIndex<'info> {
 
     #[account(
         mut,
+        has_one = mint,
         seeds = [GLOBAL_SEED],
         bump = global_account.bump,
     )]
     pub global_account: Account<'info, Global>,
 
-    #[account(
-        address = MINT,
-    )]
     pub mint: InterfaceAccount<'info, Mint>,
 }
 

@@ -29,6 +29,7 @@ pub struct Initialize<'info> {
 
 pub fn handler(
     ctx: Context<Initialize>,
+    mint: Pubkey,
     earn_authority: Pubkey,
     initial_index: u64,
     claim_cooldown: u64,
@@ -38,29 +39,21 @@ pub fn handler(
         return err!(EarnError::InvalidParam);
     }
 
-    // Initialize the global account
-    let global = &mut ctx.accounts.global_account;
-    global.admin = ctx.accounts.admin.key();
-    global.earn_authority = earn_authority;
-    global.index = initial_index;
-
-    // Set this to 0 initially so we can call propagate immediately
-    global.timestamp = 0;
-    global.claim_cooldown = claim_cooldown;
-
-    // Set the claim status to complete so that a new index can be propagated to start the first claim
-    global.claim_complete = true;
-
-    // We explicitly set these values to zero for clarity
-    global.max_supply = 0;
-    global.max_yield = 0;
-    global.distributed = 0;
-
-    // Initialize Merkle roots to zero - they will be set by the first propagate_index call
-    global.earner_merkle_root = [0; 32];
-    global.earn_manager_merkle_root = [0; 32];
-
-    global.bump = ctx.bumps.global_account;
+    ctx.accounts.global_account.set_inner(Global {
+        admin: ctx.accounts.admin.key(),
+        earn_authority,
+        mint,
+        index: initial_index,
+        timestamp: 0, // Set this to 0 initially so we can call propagate immediately
+        claim_cooldown,
+        max_supply: 0,
+        max_yield: 0,
+        distributed: 0,
+        claim_complete: true,
+        earner_merkle_root: [0; 32],
+        earn_manager_merkle_root: [0; 32],
+        bump: ctx.bumps.global_account,
+    });
 
     Ok(())
 }

@@ -2,11 +2,10 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
+    constants::ANCHOR_DISCRIMINATOR_SIZE,
     errors::EarnError,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
     utils::merkle_proof::{verify_in_tree, ProofElement},
@@ -19,12 +18,6 @@ pub struct AddRegistrarEarner<'info> {
     pub signer: Signer<'info>,
 
     #[account(
-        token::mint = MINT,
-        token::authority = user
-    )]
-    pub token_account: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
         seeds = [GLOBAL_SEED],
         bump = global_account.bump
     )]
@@ -34,7 +27,7 @@ pub struct AddRegistrarEarner<'info> {
         init,
         payer = signer,
         space = Earner::INIT_SPACE + ANCHOR_DISCRIMINATOR_SIZE,
-        seeds = [EARNER_SEED, token_account.key().as_ref()],
+        seeds = [EARNER_SEED, user.as_ref()],
         bump
     )]
     pub earner_account: Account<'info, Earner>,
@@ -71,9 +64,8 @@ pub fn handler(
 
     // Log the success of the operation
     msg!(
-        "User {}'s token account {} was added as an earner with earning account {}.",
+        "User {} was added as an earner with earning account {}.",
         user,
-        ctx.accounts.token_account.key(),
         ctx.accounts.earner_account.key()
     );
 

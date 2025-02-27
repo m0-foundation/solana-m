@@ -21,11 +21,18 @@ pub mod earn {
 
     pub fn initialize(
         ctx: Context<Initialize>,
+        mint: Pubkey,
         earn_authority: Pubkey,
         initial_index: u64,
         claim_cooldown: u64,
     ) -> Result<()> {
-        instructions::admin::initialize::handler(ctx, earn_authority, initial_index, claim_cooldown)
+        instructions::admin::initialize::handler(
+            ctx,
+            mint,
+            earn_authority,
+            initial_index,
+            claim_cooldown,
+        )
     }
 
     pub fn set_earn_authority(
@@ -72,8 +79,8 @@ pub mod earn {
         instructions::earn_manager::add_earner::handler(ctx, user, proofs, neighbors)
     }
 
-    pub fn remove_earner(ctx: Context<RemoveEarner>, user: Pubkey) -> Result<()> {
-        instructions::earn_manager::remove_earner::handler(ctx, user)
+    pub fn remove_earner(ctx: Context<RemoveEarner>) -> Result<()> {
+        instructions::earn_manager::remove_earner::handler(ctx)
     }
 
     pub fn configure_earn_manager(
@@ -96,11 +103,10 @@ pub mod earn {
 
     pub fn remove_registrar_earner(
         ctx: Context<RemoveRegistrarEarner>,
-        user: Pubkey,
         proofs: Vec<Vec<ProofElement>>,
         neighbors: Vec<[u8; 32]>,
     ) -> Result<()> {
-        instructions::open::remove_registrar_earner::handler(ctx, user, proofs, neighbors)
+        instructions::open::remove_registrar_earner::handler(ctx, proofs, neighbors)
     }
 
     pub fn remove_earn_manager(

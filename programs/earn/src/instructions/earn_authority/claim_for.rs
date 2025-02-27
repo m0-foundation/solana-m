@@ -2,11 +2,15 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::{
+    associated_token::get_associated_token_address_with_program_id,
+    token_2022,
+    token_interface::{Mint, TokenAccount, TokenInterface},
+};
 
 // local dependencies
 use crate::{
-    constants::{MINT, ONE_HUNDRED_PERCENT},
+    constants::ONE_HUNDRED_PERCENT,
     errors::EarnError,
     state::{
         EarnManager, Earner, Global, EARNER_SEED, EARN_MANAGER_SEED, GLOBAL_SEED,
@@ -17,17 +21,18 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct ClaimFor<'info> {
-    #[account(address = global_account.earn_authority)]
-    pub signer: Signer<'info>,
+    pub earn_authority: Signer<'info>,
 
     #[account(
         mut,
+        has_one = mint,
+        has_one = earn_authority,
         seeds = [GLOBAL_SEED],
         bump = global_account.bump,
     )]
     pub global_account: Account<'info, Global>,
 
-    #[account(mut, address = MINT)]
+    #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
@@ -36,13 +41,13 @@ pub struct ClaimFor<'info> {
     )]
     pub token_authority_account: AccountInfo<'info>,
 
-    #[account(mut, token::mint = mint)]
+    #[account(mut, address = get_associated_token_address_with_program_id(&earner_account.user, &global_account.mint, &token_2022::ID))]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
-        seeds = [EARNER_SEED, user_token_account.key().as_ref()],
-        bump
+        seeds = [EARNER_SEED, earner_account.user.as_ref()],
+        bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,
 

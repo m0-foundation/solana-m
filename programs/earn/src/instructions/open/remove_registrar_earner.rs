@@ -6,14 +6,12 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::MINT,
     errors::EarnError,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
     utils::merkle_proof::{verify_not_in_tree, ProofElement},
 };
 
 #[derive(Accounts)]
-#[instruction(user: Pubkey)]
 pub struct RemoveRegistrarEarner<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
@@ -25,30 +23,29 @@ pub struct RemoveRegistrarEarner<'info> {
     pub global_account: Account<'info, Global>,
 
     #[account(
-        token::mint = MINT,
-        token::authority = user,
+        token::mint = global_account.mint,
+        token::authority = earner_account.user,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         close = signer,
-        seeds = [EARNER_SEED, user_token_account.key().as_ref()],
-        bump
+        seeds = [EARNER_SEED, earner_account.user.as_ref()],
+        bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,
 }
 
 pub fn handler(
     ctx: Context<RemoveRegistrarEarner>,
-    user: Pubkey,
     proofs: Vec<Vec<ProofElement>>,
     neighbors: Vec<[u8; 32]>,
 ) -> Result<()> {
     // Verify the user is not in the approved earners list
     if !verify_not_in_tree(
         ctx.accounts.global_account.earner_merkle_root,
-        user.to_bytes(),
+        ctx.accounts.earner_account.user.to_bytes(),
         proofs,
         neighbors,
     ) {
