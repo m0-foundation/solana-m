@@ -245,8 +245,8 @@ describe("Portal unit tests", () => {
         });
         test("initialize earn", async () => {
             await earn.methods
-                .initialize(Keypair.generate().publicKey, new BN(1_000_000_000_000), new BN(0))
-                .accounts({ globalAccount: EARN_GLOBAL_ACCOUNT, signer: admin.publicKey })
+                .initialize(mint.publicKey, Keypair.generate().publicKey, new BN(1_000_000_000_000), new BN(0))
+                .accounts({ globalAccount: EARN_GLOBAL_ACCOUNT, admin: admin.publicKey })
                 .signers([admin])
                 .rpc();
         });

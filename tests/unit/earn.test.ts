@@ -22,12 +22,12 @@ import {
   createInitializeMultisigInstruction,
   createMintToCheckedInstruction,
 } from "@solana/spl-token";
+import { randomInt } from "crypto";
 
 import { MerkleTree, ProofElement } from "../merkle";
 import { loadKeypair } from "../test-utils";
-
 import { Earn } from "../../target/types/earn";
-import { randomInt } from "crypto";
+
 const EARN_IDL = require("../../target/idl/earn.json");
 const EARN_PROGRAM_ID = new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c");
 
@@ -112,9 +112,9 @@ const getEarnTokenAuthority = () => {
 };
 
 
-const getEarnerAccount = (ata: PublicKey) => {
+const getEarnerAccount = (user: PublicKey) => {
   const [earnerAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("earner"), ata.toBuffer()],
+    [Buffer.from("earner"), user.toBuffer()],
     earn.programId
   );
 
@@ -434,7 +434,7 @@ const prepInitialize = (signer: Keypair) => {
 
   // Populate accounts for the instruction
   accounts = {};
-  accounts.signer = signer.publicKey;
+  accounts.admin = signer.publicKey;
   accounts.globalAccount = globalAccount;
   accounts.systemProgram = SystemProgram.programId;
 
@@ -451,7 +451,7 @@ const initialize = async (
 
   // Send the transaction
   await earn.methods
-    .initialize(earnAuthority, initialIndex, claimCooldown)
+    .initialize(mint.publicKey, earnAuthority, initialIndex, claimCooldown)
     .accounts({ ...accounts })
     .signers([admin])
     .rpc();
@@ -475,30 +475,10 @@ const prepSetEarnAuthority = (signer: Keypair) => {
 
   // Populate accounts for the instruction
   accounts = {};
-  accounts.signer = signer.publicKey;
+  accounts.admin = signer.publicKey;
   accounts.globalAccount = globalAccount;
 
   return { globalAccount };
-};
-
-const setEarnAuthority = async (newEarnAuthority: PublicKey) => {
-  // Setup the instruction call
-  const { globalAccount } = prepSetEarnAuthority(admin);
-
-  // Send the instruction
-  await earn.methods
-    .setEarnAuthority(newEarnAuthority)
-    .accounts({ ...accounts })
-    .signers([admin])
-    .rpc();
-
-  // Confirm the global state has been updated
-  await expectGlobalState(
-    globalAccount,
-    {
-      earnAuthority: newEarnAuthority
-    }
-  );
 };
 
 const prepPropagateIndex = (signer: Keypair) => {
@@ -547,7 +527,7 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
   const earnerATA = await getATA(mint, earner);
 
   // Get the earner account
-  const earnerAccount = getEarnerAccount(earnerATA);
+  const earnerAccount = getEarnerAccount(earner);
 
   // Populate accounts
   accounts = {};
@@ -580,26 +560,13 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
 
 };
 
-const claimFor = async (snapshotBalance: BN, earner: PublicKey, earnManager?: PublicKey) => {
-  // Setup the instruction
-  await prepClaimFor(earnAuthority, mint.publicKey, earner, earnManager);
-
-  // Send the instruction
-  await earn.methods
-    .claimFor(snapshotBalance)
-    .accounts({ ...accounts })
-    .signers([earnAuthority])
-    .rpc();
-};
-
-
 const prepCompleteClaims = (signer: Keypair) => {
   // Get the global PDA
   const globalAccount = getGlobalAccount();
 
   // Populate accounts
   accounts = {};
-  accounts.signer = signer.publicKey;
+  accounts.earnAuthority = signer.publicKey;
   accounts.globalAccount = globalAccount;
 
   return { globalAccount };
@@ -651,22 +618,21 @@ const configureEarnManager = async (earnManager: Keypair, feeBps: BN, proof: Pro
 
 };
 
-const prepAddEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: PublicKey) => {
+const prepAddEarner = (signer: Keypair, earnManager: PublicKey, earner: PublicKey) => {
   // Get the global PDA
   const globalAccount = getGlobalAccount();
 
   // Get the earn manager account
-  const earnManagerAccount = getEarnManagerAccount(earnManager);
+  const earnManagerAccount = getEarnManagerAccount(earner);
 
   // Get the earner account
-  const earnerAccount = getEarnerAccount(earnerATA);
+  const earnerAccount = getEarnerAccount(earnManager);
 
   // Populate accounts
   accounts = {};
   accounts.signer = signer.publicKey;
   accounts.earnManagerAccount = earnManagerAccount;
   accounts.globalAccount = globalAccount;
-  accounts.userTokenAccount = earnerATA;
   accounts.earnerAccount = earnerAccount;
   accounts.systemProgram = SystemProgram.programId;
 
@@ -674,11 +640,8 @@ const prepAddEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: Publi
 };
 
 const addEarner = async (earnManager: Keypair, earner: PublicKey, proofs: ProofElement[][], neighbors: number[][]) => {
-  // Get the earner ATA
-  const earnerATA = await getATA(mint.publicKey, earner);
-
   // Setup the instruction
-  prepAddEarner(earnManager, earnManager.publicKey, earnerATA);
+  prepAddEarner(earnManager, earnManager.publicKey, earner);
 
   // Send the instruction
   await earn.methods
@@ -693,7 +656,7 @@ const prepRemoveEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: Pu
   const earnManagerAccount = getEarnManagerAccount(earnManager);
 
   // Get the earner account
-  const earnerAccount = getEarnerAccount(earnerATA);
+  const earnerAccount = getEarnerAccount(earnManager);
 
   // Populate accounts
   accounts = {};
@@ -714,23 +677,22 @@ const removeEarner = async (earnManager: Keypair, earner: PublicKey) => {
 
   // Send the instruction
   await earn.methods
-    .removeEarner(earner)
+    .removeEarner()
     .accounts({ ...accounts })
     .signers([earnManager])
     .rpc();
 };
 
-const prepAddRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
+const prepAddRegistrarEarner = (signer: Keypair, earner: PublicKey) => {
   // Get the global PDA
   const globalAccount = getGlobalAccount();
 
   // Get the earner account
-  const earnerAccount = getEarnerAccount(earnerATA);
+  const earnerAccount = getEarnerAccount(earner);
 
   // Populate accounts
   accounts = {};
   accounts.signer = signer.publicKey;
-  accounts.tokenAccount = earnerATA;
   accounts.globalAccount = globalAccount;
   accounts.earnerAccount = earnerAccount;
   accounts.systemProgram = SystemProgram.programId;
@@ -739,11 +701,8 @@ const prepAddRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
 };
 
 const addRegistrarEarner = async (earner: PublicKey, proof: ProofElement[]) => {
-  // Get the earner ATA
-  const earnerATA = await getATA(mint.publicKey, earner);
-
   // Setup the instruction
-  prepAddRegistrarEarner(nonAdmin, earnerATA);
+  prepAddRegistrarEarner(nonAdmin, earner);
 
   // Send the instruction
   await earn.methods
@@ -753,12 +712,12 @@ const addRegistrarEarner = async (earner: PublicKey, proof: ProofElement[]) => {
     .rpc();
 };
 
-const prepRemoveRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
+const prepRemoveRegistrarEarner = (signer: Keypair, earner: PublicKey, earnerATA: PublicKey) => {
   // Get the global PDA
   const globalAccount = getGlobalAccount();
 
   // Get the earner account
-  const earnerAccount = getEarnerAccount(earnerATA);
+  const earnerAccount = getEarnerAccount(earner);
 
   // Populate accounts
   accounts = {};
@@ -775,11 +734,11 @@ const removeRegistrarEarner = async (earner: PublicKey, proofs: ProofElement[][]
   const earnerATA = await getATA(mint.publicKey, earner);
 
   // Setup the instruction
-  prepRemoveRegistrarEarner(nonAdmin, earnerATA);
+  prepRemoveRegistrarEarner(nonAdmin, earner, earnerATA);
 
   // Send the instruction
   await earn.methods
-    .removeRegistrarEarner(earner, proofs, neighbors)
+    .removeRegistrarEarner(proofs, neighbors)
     .accounts({ ...accounts })
     .signers([nonAdmin])
     .rpc();
@@ -901,6 +860,7 @@ describe("Earn unit tests", () => {
       // Create and send the transaction
       await earn.methods
         .initialize(
+          mint.publicKey,
           earnAuthority.publicKey,
           initialIndex,
           claimCooldown
@@ -922,24 +882,6 @@ describe("Earn unit tests", () => {
         }
       );
     });
-
-    // given a non-admin signs the transaction
-    // the transaction reverts with an address constraint error
-    test("Non-admin cannot initialize earn program", async () => {
-      // Setup the instruction call
-      prepInitialize(nonAdmin);
-
-      // Attempt to initialize with non-admin signer
-      await expectAnchorError(
-        earn.methods
-          .initialize(earnAuthority.publicKey, initialIndex, claimCooldown)
-          .accounts({ ...accounts })
-          .signers([nonAdmin])
-          .rpc(),
-        "ConstraintAddress"
-      );
-    });
-
   });
 
   describe("set_earn_authority unit tests", () => {
@@ -990,7 +932,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "ConstraintAddress"
+        "ConstraintHasOne"
       );
     });
   });
@@ -1851,7 +1793,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "ConstraintAddress"
+        "ConstraintHasOne"
       );
     });
 
@@ -2636,11 +2578,8 @@ describe("Earn unit tests", () => {
     // given signer does not have an earn manager account initialized
     // it reverts with an account not initialized error
     test("Signer earn manager account not initialized - reverts", async () => {
-      // Get the ATA for non earner one
-      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
-
       // Setup the instruction
-      prepAddEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnerOneATA);
+      prepAddEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnManagerOne.publicKey);
 
       // Get the exclusion proof for the earner against the earner merkle tree
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
@@ -2660,9 +2599,6 @@ describe("Earn unit tests", () => {
     // given earn manager account is not active
     // it reverts with a NotAuthorized error
     test("Signer's earn manager account not active - reverts", async () => {
-      // Get the ATA for non earner one
-      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
-
       // Remove earn manager one from the earn manager merkle tree
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
 
@@ -2679,7 +2615,7 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
 
       // Attempt to add earner with an inactive earn manager account
       await expectAnchorError(
@@ -2704,11 +2640,8 @@ describe("Earn unit tests", () => {
       // Add the earner via the registrar
       await addRegistrarEarner(earnerOne.publicKey, proof);
 
-      // Get the ATA for earner one
-      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
-
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, earnerOneATA);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
 
       // Attempt to add earner with an already initialized earner account
       await expectSystemError(
@@ -2726,14 +2659,11 @@ describe("Earn unit tests", () => {
     // given merkle proof for user exclusion from earner list is invalid
     // it reverts with an AlreadyEarns error
     test("Invalid merkle proof for user exclusion - reverts", async () => {
-      // Get the ATA for earner one
-      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
-
       // Get the exclusion proof for a different key against the earner merkle tree
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonAdmin.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, earnerOneATA);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
 
       // Attempt to add earner with invalid merkle proof
       await expectAnchorError(
@@ -2757,14 +2687,11 @@ describe("Earn unit tests", () => {
       const wrongMint = new Keypair();
       await createMint(wrongMint, nonAdmin);
 
-      // Get the ATA for earner one
-      const nonEarnerOneATA = await getATA(wrongMint.publicKey, nonEarnerOne.publicKey);
-
       // Get the exclusion proof for the earner against the earner merkle tree
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
 
       // Attempt to add earner with user token account for wrong token mint
       await expectAnchorError(
@@ -2784,14 +2711,11 @@ describe("Earn unit tests", () => {
     // given user token account authority does not match the user pubkey
     // it reverts with an address constraint error
     test("User token account authority does not match user pubkey - reverts", async () => {
-      // Get the ATA for random user (not the same as the user)
-      const randomATA = await getATA(mint.publicKey, nonAdmin.publicKey);
-
       // Get the exclusion proof for the earner against the earner merkle tree
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, randomATA);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
 
       // Attempt to add earner with user token account for wrong token mint
       await expectAnchorError(
@@ -2814,14 +2738,11 @@ describe("Earn unit tests", () => {
     // it sets the earn_manager to the provided earn manager pubkey
     // it sets the last_claim_index to the current index
     test("Add non-registrar earner - success", async () => {
-      // Get the ATA for non earner one
-      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
-
       // Get the exclusion proof for the earner against the earner merkle tree
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      const { earnerAccount } = prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+      const { earnerAccount } = prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
 
       // Add earner one to the earn manager's list
       await earn.methods
@@ -2906,7 +2827,7 @@ describe("Earn unit tests", () => {
       // Attempt to remove earner without an initialized earn manager account
       await expectAnchorError(
         earn.methods
-          .removeEarner(nonEarnerOne.publicKey)
+          .removeEarner()
           .accounts({ ...accounts })
           .signers([nonEarnManagerOne])
           .rpc(),
@@ -2939,7 +2860,7 @@ describe("Earn unit tests", () => {
       // Attempt to remove earner with an inactive earn manager account
       await expectAnchorError(
         earn.methods
-          .removeEarner(nonEarnerOne.publicKey)
+          .removeEarner()
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
@@ -2967,7 +2888,7 @@ describe("Earn unit tests", () => {
       // Attempt to remove earner without an earn manager
       await expectAnchorError(
         earn.methods
-          .removeEarner(earnerOne.publicKey)
+          .removeEarner()
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
@@ -2996,7 +2917,7 @@ describe("Earn unit tests", () => {
       // Attempt to remove earner with the wrong earn manager
       await expectAnchorError(
         earn.methods
-          .removeEarner(nonEarnerOne.publicKey)
+          .removeEarner()
           .accounts({ ...accounts })
           .signers([earnManagerTwo])
           .rpc(),
@@ -3018,7 +2939,7 @@ describe("Earn unit tests", () => {
 
       // Remove the earner account
       await earn.methods
-        .removeEarner(nonEarnerOne.publicKey)
+        .removeEarner()
         .accounts({ ...accounts })
         .signers([earnManagerOne])
         .rpc();
@@ -3076,14 +2997,11 @@ describe("Earn unit tests", () => {
       const wrongMint = new Keypair();
       await createMint(wrongMint, nonAdmin);
 
-      // Get earner one ATA for the wrong mint
-      const wrongATA = await getATA(wrongMint.publicKey, earnerOne.publicKey);
-
       // Get the inclusion proof for earner one in the earner merkle tree
       const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
-      prepAddRegistrarEarner(nonAdmin, wrongATA);
+      prepAddRegistrarEarner(nonAdmin, earnerOne.publicKey);
 
       // Attempt to add earner with wrong token mint
       await expectAnchorError(
@@ -3099,14 +3017,11 @@ describe("Earn unit tests", () => {
     // given the user token account is not owned by the user pubkey
     // it reverts with a constraint token owner error
     test("User token account authority does not match user pubkey - reverts", async () => {
-      // Get the ATA for a random user
-      const randomATA = await getATA(mint.publicKey, nonAdmin.publicKey);
-
       // Get the inclusion proof for earner one in the earner merkle tree
       const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
-      prepAddRegistrarEarner(nonAdmin, randomATA);
+      prepAddRegistrarEarner(nonAdmin, earnerOne.publicKey);
 
       // Attempt to add earner with wrong token owner
       await expectAnchorError(
@@ -3119,41 +3034,9 @@ describe("Earn unit tests", () => {
       );
     });
 
-    // given the user token account is not initialized
-    // it reverts with an account not initialized error
-    test("User token account is not initialized - reverts", async () => {
-      // Calculate the ATA for earner one, but don't create it
-      const nonInitATA = getAssociatedTokenAddressSync(
-        mint.publicKey,
-        earnerOne.publicKey,
-        true,
-        TOKEN_2022_PROGRAM_ID,
-        ASSOCIATED_TOKEN_PROGRAM_ID
-      );
-
-      // Get the inclusion proof for earner one in the earner merkle tree
-      const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
-
-      // Setup the instruction
-      prepAddRegistrarEarner(nonAdmin, nonInitATA);
-
-      // Attempt to add earner with uninitialized token account
-      await expectAnchorError(
-        earn.methods
-          .addRegistrarEarner(earnerOne.publicKey, proof)
-          .accounts({ ...accounts })
-          .signers([nonAdmin])
-          .rpc(),
-        "AccountNotInitialized"
-      );
-    });
-
     // given the earner account is already initialized
     // it reverts with an account already initialized error
     test("Earner account already initialized - reverts", async () => {
-      // Get the ATA for earner one
-      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
-
       // Get the inclusion proof for earner one in the earner merkle tree
       const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
 
@@ -3161,7 +3044,7 @@ describe("Earn unit tests", () => {
       await addRegistrarEarner(earnerOne.publicKey, proof);
 
       // Setup the instruction
-      prepAddRegistrarEarner(nonAdmin, earnerOneATA);
+      prepAddRegistrarEarner(nonAdmin, earnerOne.publicKey);
 
       // Attempt to add earner with already initialized account
       await expectSystemError(
@@ -3177,14 +3060,11 @@ describe("Earn unit tests", () => {
     // given the merkle proof for the user in the earner list is invalid
     // it reverts with an InvalidProof error
     test("Invalid merkle proof for user inclusion - reverts", async () => {
-      // Get the ATA for non earner one
-      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
-
       // Get the inclusion proof for earner one in the earner merkle tree
       const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
-      prepAddRegistrarEarner(nonAdmin, nonEarnerOneATA);
+      prepAddRegistrarEarner(nonAdmin, earnerOne.publicKey);
 
       // Attempt to add earner with invalid merkle proof
       await expectAnchorError(
@@ -3204,14 +3084,11 @@ describe("Earn unit tests", () => {
     // it sets the earner account's earn_manager to None
     // it sets the earner account's last_claim_index to the current index
     test("Add registrar earner - success", async () => {
-      // Get the ATA for earner one
-      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
-
       // Get the inclusion proof for earner one in the earner merkle tree
       const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
-      const { earnerAccount } = prepAddRegistrarEarner(nonAdmin, earnerOneATA);
+      const { earnerAccount } = prepAddRegistrarEarner(nonAdmin, earnerOne.publicKey);
 
       // Add earner one to the earn manager's list
       await earn.methods
@@ -3303,12 +3180,12 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepRemoveRegistrarEarner(nonAdmin, nonEarnerOneATA);
+      prepRemoveRegistrarEarner(nonAdmin, nonEarnerOne.publicKey, nonEarnerOneATA);
 
       // Attempt to remove earner with uninitialized account
       await expectAnchorError(
         earn.methods
-          .removeRegistrarEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .removeRegistrarEarner(proofs, neighbors)
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
@@ -3324,12 +3201,12 @@ describe("Earn unit tests", () => {
       const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
       // Setup the instruction
-      prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
+      prepRemoveRegistrarEarner(nonAdmin, earnerOne.publicKey, earnerOneATA);
 
       // Attempt to remove earner with invalid merkle proof
       await expectAnchorError(
         earn.methods
-          .removeRegistrarEarner(earnerOne.publicKey, [], [])
+          .removeRegistrarEarner([], [])
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
@@ -3351,12 +3228,12 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
-      prepRemoveRegistrarEarner(nonAdmin, earnerTwoATA);
+      prepRemoveRegistrarEarner(nonAdmin, earnerTwo.publicKey, earnerTwoATA);
 
       // Attempt to remove earner with invalid merkle proof
       await expectAnchorError(
         earn.methods
-          .removeRegistrarEarner(earnerTwo.publicKey, proofs, neighbors)
+          .removeRegistrarEarner(proofs, neighbors)
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
@@ -3382,12 +3259,12 @@ describe("Earn unit tests", () => {
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepRemoveRegistrarEarner(nonAdmin, nonEarnerOneATA);
+      prepRemoveRegistrarEarner(nonAdmin, nonEarnerOne.publicKey, nonEarnerOneATA);
 
       // Attempt to remove earner with an earn manager
       await expectAnchorError(
         earn.methods
-          .removeRegistrarEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .removeRegistrarEarner(proofs, neighbors)
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
@@ -3408,11 +3285,11 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
-      const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
+      const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerOne.publicKey, earnerOneATA);
 
       // Remove earner one from the earn manager's list
       await earn.methods
-        .removeRegistrarEarner(earnerOne.publicKey, proofs, neighbors)
+        .removeRegistrarEarner(proofs, neighbors)
         .accounts({ ...accounts })
         .signers([nonAdmin])
         .rpc();
