@@ -8,16 +8,12 @@ use anchor_spl::token_interface::TokenAccount;
 use crate::{
     constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
     errors::EarnError,
-    state::{
-        Global, GLOBAL_SEED,
-        Earner, EARNER_SEED,
-        EarnManager, EARN_MANAGER_SEED,
-    },
-    utils::merkle_proof::{ProofElement, verify_not_in_tree},
+    state::{EarnManager, Earner, Global, EARNER_SEED, EARN_MANAGER_SEED, GLOBAL_SEED},
+    utils::merkle_proof::{verify_not_in_tree, ProofElement},
 };
 
 #[derive(Accounts)]
-#[instruction(user: Pubkey)]   
+#[instruction(user: Pubkey)]
 pub struct AddEarner<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
@@ -53,9 +49,9 @@ pub struct AddEarner<'info> {
 }
 
 pub fn handler(
-    ctx: Context<AddEarner>, 
+    ctx: Context<AddEarner>,
     user: Pubkey,
-    proofs: Vec<Vec<ProofElement>>, 
+    proofs: Vec<Vec<ProofElement>>,
     neighbors: Vec<[u8; 32]>,
 ) -> Result<()> {
     // Only active earn managers can add earners
@@ -63,7 +59,7 @@ pub fn handler(
         return err!(EarnError::NotAuthorized);
     }
 
-    // Verify the user is not already an earner 
+    // Verify the user is not already an earner
     if !verify_not_in_tree(
         ctx.accounts.global_account.earner_merkle_root,
         user.to_bytes(),
@@ -73,7 +69,6 @@ pub fn handler(
         return err!(EarnError::InvalidProof);
     }
 
-
     // Initialize the user earning account
     ctx.accounts.earner_account.is_earning = true;
     ctx.accounts.earner_account.earn_manager = Some(ctx.accounts.signer.key().clone());
@@ -82,7 +77,8 @@ pub fn handler(
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
 
     // Set the last claim timestamp on the user's earner account
-    ctx.accounts.earner_account.last_claim_timestamp = Clock::get()?.unix_timestamp.try_into().unwrap();
+    ctx.accounts.earner_account.last_claim_timestamp =
+        Clock::get()?.unix_timestamp.try_into().unwrap();
 
     Ok(())
 }

@@ -32,7 +32,7 @@ export class MerkleTree {
     private depth: number;
     private hasher = new Keccak(256);
 
-    constructor (leaves: PublicKey[]) {
+    constructor(leaves: PublicKey[]) {
         // Process the leaves
         this.rawLeaves = leaves.map(leaf => leaf.toBuffer());
 
@@ -201,7 +201,7 @@ export class MerkleTree {
             // We have to remove the duplicated value
             // from the hashed leaves
             this.leaves.pop();
-        } 
+        }
 
         this.leaves.splice(index, 1);
 
@@ -241,7 +241,7 @@ export class MerkleTree {
         if (rawLen % 2 !== 0 && index === rawLen - 1 && useDuplicate) {
             // console.log("special case triggered");
             index++;
-        } 
+        }
 
         // console.log("root", this.root);
         // console.log("tree", this.tree);
@@ -284,7 +284,7 @@ export class MerkleTree {
         return { proof };
     }
 
-    public getExclusionProof(leaf: PublicKey): { proofs: ProofElement[][], neighbors: number[][] }  {
+    public getExclusionProof(leaf: PublicKey): { proofs: ProofElement[][], neighbors: number[][] } {
         let leafBuffer = leaf.toBuffer();
 
         // console.log("raw leaf", leafBuffer);

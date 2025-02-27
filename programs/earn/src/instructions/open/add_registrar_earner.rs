@@ -8,11 +8,8 @@ use anchor_spl::token_interface::TokenAccount;
 use crate::{
     constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
     errors::EarnError,
-    state::{
-        Global, GLOBAL_SEED,
-        Earner, EARNER_SEED,
-    },
-    utils::merkle_proof::{ProofElement, verify_in_tree},
+    state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
+    utils::merkle_proof::{verify_in_tree, ProofElement},
 };
 
 #[derive(Accounts)]
@@ -46,15 +43,15 @@ pub struct AddRegistrarEarner<'info> {
 }
 
 pub fn handler(
-    ctx: Context<AddRegistrarEarner>, 
-    user: Pubkey, 
+    ctx: Context<AddRegistrarEarner>,
+    user: Pubkey,
     proof: Vec<ProofElement>,
 ) -> Result<()> {
     // Verify the user is in the approved earners list
     if !verify_in_tree(
-        ctx.accounts.global_account.earner_merkle_root, 
+        ctx.accounts.global_account.earner_merkle_root,
         user.to_bytes(),
-        proof, 
+        proof,
     ) {
         return err!(EarnError::InvalidProof);
     }
@@ -66,16 +63,17 @@ pub fn handler(
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
 
     // Set the earner's last claim timestamp to the current timestamp
-    ctx.accounts.earner_account.last_claim_timestamp = Clock::get()?.unix_timestamp.try_into().unwrap();
+    ctx.accounts.earner_account.last_claim_timestamp =
+        Clock::get()?.unix_timestamp.try_into().unwrap();
 
     // Set the earner's earn manager to None
     ctx.accounts.earner_account.earn_manager = None;
 
     // Log the success of the operation
     msg!(
-        "User {}'s token account {} was added as an earner with earning account {}.", 
+        "User {}'s token account {} was added as an earner with earning account {}.",
         user,
-        ctx.accounts.token_account.key(), 
+        ctx.accounts.token_account.key(),
         ctx.accounts.earner_account.key()
     );
 

@@ -6,18 +6,13 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // local dependencies
 use crate::{
+    constants::{MINT, ONE_HUNDRED_PERCENT},
     errors::EarnError,
-    constants::{
-        MINT,
-        ONE_HUNDRED_PERCENT,
-    },
     state::{
-        Global, GLOBAL_SEED,
-        Earner, EARNER_SEED,
-        EarnManager, EARN_MANAGER_SEED,
+        EarnManager, Earner, Global, EARNER_SEED, EARN_MANAGER_SEED, GLOBAL_SEED,
         TOKEN_AUTHORITY_SEED,
     },
-    utils::token::mint_tokens
+    utils::token::mint_tokens,
 };
 
 #[derive(Accounts)]
@@ -75,7 +70,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     if !ctx.accounts.earner_account.is_earning {
         return err!(EarnError::NotEarning);
     }
-    
+
     // Validate that the earner account has not already claimed this cycle
     // Earner index should never be > global index, but we check to be safe against an error with index propagation
     if ctx.accounts.earner_account.last_claim_index >= ctx.accounts.global_account.index {
@@ -85,13 +80,22 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // Calculate the amount of tokens to send to the user
     // Cast to u128 for multiplication to avoid overflows
     let mut rewards: u64 = (snapshot_balance as u128)
-        .checked_mul(ctx.accounts.global_account.index.into()).unwrap()
-        .checked_div(ctx.accounts.earner_account.last_claim_index.into()).unwrap()
-        .try_into().unwrap();
+        .checked_mul(ctx.accounts.global_account.index.into())
+        .unwrap()
+        .checked_div(ctx.accounts.earner_account.last_claim_index.into())
+        .unwrap()
+        .try_into()
+        .unwrap();
     rewards -= snapshot_balance; // can't underflow because global index > last claim index
 
     // Validate the rewards do not cause the distributed amount to exceed the max yield
-    let distributed = ctx.accounts.global_account.distributed.checked_add(rewards).unwrap();
+    let distributed = ctx
+        .accounts
+        .global_account
+        .distributed
+        .checked_add(rewards)
+        .unwrap();
+
     if distributed > ctx.accounts.global_account.max_yield {
         return err!(EarnError::ExceedsMaxYield);
     }
@@ -101,28 +105,30 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
     // Set the earner's last claim index to the global index and update the last claim timestamp
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
-    ctx.accounts.earner_account.last_claim_timestamp = Clock::get()?.unix_timestamp.try_into().unwrap();
+    ctx.accounts.earner_account.last_claim_timestamp =
+        Clock::get()?.unix_timestamp.try_into().unwrap();
 
     // Setup the signer seeds for the mint CPI(s)
-    let token_authority_seeds: &[&[&[u8]]] = &[&[
-        TOKEN_AUTHORITY_SEED, &[ctx.bumps.token_authority_account]
-    ]];
+    let token_authority_seeds: &[&[&[u8]]] =
+        &[&[TOKEN_AUTHORITY_SEED, &[ctx.bumps.token_authority_account]]];
 
     // If the earner has an earn manager, validate the earn manager account and earn manager's token account
     // Then, calculate any fee for the earn manager, mint those tokens, and reduce the rewards by the amount sent
     rewards -= if let Some(_) = ctx.accounts.earner_account.earn_manager {
         let earn_manager_account = match &ctx.accounts.earn_manager_account {
             Some(earn_manager_account) => earn_manager_account,
-            None => return err!(EarnError::RequiredAccountMissing)
+            None => return err!(EarnError::RequiredAccountMissing),
         };
 
         let earn_manager_token_account = match &ctx.accounts.earn_manager_token_account {
-            Some(earn_manager_token_account) => if earn_manager_token_account.key() != earn_manager_account.fee_token_account {
-                return err!(EarnError::InvalidAccount);
-            } else {
-                earn_manager_token_account
-            },
-            None => return err!(EarnError::RequiredAccountMissing)
+            Some(earn_manager_token_account) => {
+                if earn_manager_token_account.key() != earn_manager_account.fee_token_account {
+                    return err!(EarnError::InvalidAccount);
+                } else {
+                    earn_manager_token_account
+                }
+            }
+            None => return err!(EarnError::RequiredAccountMissing),
         };
 
         // If we reach this point, then the correct accounts have been provided and we can calculate the fee split
@@ -133,20 +139,20 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
             if fee > 0 {
                 mint_tokens(
-                    &earn_manager_token_account, // to
-                    &fee, // amount
-                    &ctx.accounts.mint, // mint
+                    &earn_manager_token_account,           // to
+                    &fee,                                  // amount
+                    &ctx.accounts.mint,                    // mint
                     &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
                     &ctx.accounts.token_authority_account, // signer
-                    token_authority_seeds, // signer seeds
-                    &ctx.accounts.token_program // token program
+                    token_authority_seeds,        // signer seeds
+                    &ctx.accounts.token_program,  // token program
                 )?;
-    
+
                 // Return the fee to reduce the rewards by
                 fee
             } else {
                 0u64
-            } 
+            }
         } else {
             0u64
         }
@@ -157,16 +163,17 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // Mint the tokens to the user's token aaccount
     // The result of the CPI is the result of the handler
     mint_tokens(
-        &ctx.accounts.user_token_account, // to
-        &rewards, // amount
-        &ctx.accounts.mint, // mint
-        &ctx.accounts.mint_authority, // multisig mint authority 
+        &ctx.accounts.user_token_account,      // to
+        &rewards,                              // amount
+        &ctx.accounts.mint,                    // mint
+        &ctx.accounts.mint_authority,          // multisig mint authority
         &ctx.accounts.token_authority_account, // signer
-        token_authority_seeds, // signer seeds
-        &ctx.accounts.token_program // token program
+        token_authority_seeds,                 // signer seeds
+        &ctx.accounts.token_program,           // token program
     )?;
 
-    msg!("Claimed for: {} | Index: {} | Timestamp: {}",
+    msg!(
+        "Claimed for: {} | Index: {} | Timestamp: {}",
         ctx.accounts.user_token_account.key(),
         ctx.accounts.earner_account.last_claim_index,
         ctx.accounts.earner_account.last_claim_timestamp
@@ -174,4 +181,3 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
     Ok(())
 }
-

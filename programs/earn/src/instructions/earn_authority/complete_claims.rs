@@ -6,9 +6,8 @@ use anchor_lang::prelude::*;
 // local dependencies
 use crate::{
     errors::EarnError,
-    state::{Global, GLOBAL_SEED}
+    state::{Global, GLOBAL_SEED},
 };
-
 
 #[derive(Accounts)]
 pub struct CompleteClaims<'info> {
@@ -34,4 +33,3 @@ pub fn handler(ctx: Context<CompleteClaims>) -> Result<()> {
 
     Ok(())
 }
-

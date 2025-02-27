@@ -6,11 +6,8 @@ use anchor_lang::prelude::*;
 // local dependencies
 use crate::{
     errors::EarnError,
-    state::{
-        EarnManager, EARN_MANAGER_SEED,
-        Global, GLOBAL_SEED
-    },
-    utils::merkle_proof::{ProofElement, verify_not_in_tree},
+    state::{EarnManager, Global, EARN_MANAGER_SEED, GLOBAL_SEED},
+    utils::merkle_proof::{verify_not_in_tree, ProofElement},
 };
 
 #[derive(Accounts)]
@@ -34,21 +31,21 @@ pub struct RemoveEarnManager<'info> {
 }
 
 pub fn handler(
-    ctx: Context<RemoveEarnManager>, 
-    earn_manager: Pubkey, 
-    proofs: Vec<Vec<ProofElement>>, 
-    neighbors: Vec<[u8; 32]>
+    ctx: Context<RemoveEarnManager>,
+    earn_manager: Pubkey,
+    proofs: Vec<Vec<ProofElement>>,
+    neighbors: Vec<[u8; 32]>,
 ) -> Result<()> {
     // Verify the earn manager is not in the approved earn managers list
     if !verify_not_in_tree(
         ctx.accounts.global_account.earn_manager_merkle_root,
         earn_manager.to_bytes(),
         proofs,
-        neighbors
+        neighbors,
     ) {
         return err!(EarnError::InvalidProof);
     }
-    
+
     // We do not close earn manager accounts when they are removed so that orphaned earners can be removed as well
     // Therefore, we just set the is_active flag to false
     ctx.accounts.earn_manager_account.is_active = false;
