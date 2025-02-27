@@ -25,3 +25,4 @@ anchor-lang = { workspace = true, features = [
 ] }
 anchor-spl.workspace = true
 solana-program.workspace = true
+cfg-if.workspace = true
