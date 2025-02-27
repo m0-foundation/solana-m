@@ -6,9 +6,9 @@ A Solana-based system for managing and distributing yield to token holders throu
 
 The purpose of the system is to allow bridging M to Solana and maintaining the yield earning features found on EVM chains.
 
-An updated M index will be propagated to Solana whenever M is bridged or a specific “update index” message is sent. We can use the timestamps of these index propagations to divide yield into chunks from the last update to the new one. By comparing the new index to the previous one and knowing the current supply of M we can determine a “rewards per token” value. This can be multiplied by earner balances at the timestamp to distribute rewards. We can calculate weighted balances for the earner since the last time they claimed and use it to accurately distribute their yield once it reaches an amount worth sending (value > cost).
+An updated M index will be propagated to Solana whenever M is bridged. This bridge event starts a new claim cycle for yield if (a) one is not currently active, (b) the claim cooldown period has passed, and (c) if the index is larger than the one stored at the beginning of the most recent claim cycle.  We can use the timestamps of these index propagations to divide yield into chunks from the last update to the new one. The index is a multiplier that represents the increase in M tokens they would have if they held M from genesis. We can get the amount of M a user should have by multiplying their balance over the period by the new index and then dividing by the old index.
 
-Solana makes it fairly easy to get a list of token account balances for users offchain so we can use the RPC to collect this list when the index is propagated and have a permissioned address (aka “earn authority”) loop through them calling a “claim” function for each earner. The design for the off-chain portion still needs to be fleshed out.
+Yield is distributed in discrete batches and push manually by the "earn authority". Since user balances can change between claims, we will calculate weighted balances for the earner since the last time they claimed and use it to accurately distribute their yield once it reaches an amount worth sending (value > cost). Solana makes it fairly easy to get a list of token account balances for users offchain so we can use the RPC to collect this list when the index is propagated and have a permissioned address (aka “earn authority”) loop through them calling a “claim” function for each earner. The design for the off-chain portion still needs to be fleshed out.
 
 In order to avoid this happening too often, a “cooldown” can be configured to limit how often the yield can be claimed. Additionally, the earn authority will need to “complete” the previous claim before a new one can be started.
 Features
@@ -56,12 +56,12 @@ yarn install
 
 ### Build Programs
 ```bash
-anchor build
+yarn build
 ```
 
 ### Run Tests
 ```bash
-anchor test
+yarn test
 ```
 
 ### Development Commands
