@@ -46,6 +46,7 @@ pub struct ClaimFor<'info> {
 
     #[account(
         mut,
+        constraint = earner_account.earn_manager.is_none() || earn_manager_account.is_some() @ EarnError::RequiredAccountMissing,
         seeds = [EARNER_SEED, earner_account.user.as_ref()],
         bump = earner_account.bump,
     )]
@@ -57,8 +58,9 @@ pub struct ClaimFor<'info> {
     pub mint_multisig: UncheckedAccount<'info>,
 
     #[account(
+        constraint = earn_manager_token_account.is_some() @ EarnError::RequiredAccountMissing,
         seeds = [EARN_MANAGER_SEED, earner_account.earn_manager.unwrap().as_ref()],
-        bump
+        bump=  earn_manager_account.bump,
     )]
     pub earn_manager_account: Option<Account<'info, EarnManager>>,
 
@@ -117,21 +119,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // If the earner has an earn manager, validate the earn manager account and earn manager's token account
     // Then, calculate any fee for the earn manager, mint those tokens, and reduce the rewards by the amount sent
     rewards -= if let Some(_) = ctx.accounts.earner_account.earn_manager {
-        let earn_manager_account = match &ctx.accounts.earn_manager_account {
-            Some(earn_manager_account) => earn_manager_account,
-            None => return err!(EarnError::RequiredAccountMissing),
-        };
-
-        let earn_manager_token_account = match &ctx.accounts.earn_manager_token_account {
-            Some(earn_manager_token_account) => {
-                if earn_manager_token_account.key() != earn_manager_account.fee_token_account {
-                    return err!(EarnError::InvalidAccount);
-                } else {
-                    earn_manager_token_account
-                }
-            }
-            None => return err!(EarnError::RequiredAccountMissing),
-        };
+        let earn_manager_account = &ctx.accounts.earn_manager_account.clone().unwrap();
 
         // If we reach this point, then the correct accounts have been provided and we can calculate the fee split
         // If the earn manager is not active, then no fee is taken
@@ -141,13 +129,13 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
             if fee > 0 {
                 mint_tokens(
-                    &earn_manager_token_account,           // to
-                    &fee,                                  // amount
-                    &ctx.accounts.mint,                    // mint
-                    &ctx.accounts.mint_multisig,           // mint authority
-                    &ctx.accounts.token_authority_account, // signer
-                    token_authority_seeds,                 // signer seeds
-                    &ctx.accounts.token_program,           // token program
+                    &ctx.accounts.earn_manager_token_account.clone().unwrap(), // to
+                    &fee,                                                      // amount
+                    &ctx.accounts.mint,                                        // mint
+                    &ctx.accounts.mint_multisig,                               // mint authority
+                    &ctx.accounts.token_authority_account,                     // signer
+                    token_authority_seeds,                                     // signer seeds
+                    &ctx.accounts.token_program,                               // token program
                 )?;
 
                 // Return the fee to reduce the rewards by
