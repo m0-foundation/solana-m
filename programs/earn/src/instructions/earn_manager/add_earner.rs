@@ -2,7 +2,6 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
@@ -30,12 +29,6 @@ pub struct AddEarner<'info> {
         bump = global_account.bump
     )]
     pub global_account: Account<'info, Global>,
-
-    #[account(
-        token::mint = global_account,
-        token::authority = user,
-    )]
-    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init,

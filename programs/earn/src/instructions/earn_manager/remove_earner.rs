@@ -30,6 +30,7 @@ pub struct RemoveEarner<'info> {
 
     #[account(
         mut,
+        constraint = earn_manager_account.is_active @ EarnError::NotAuthorized,
         seeds = [EARN_MANAGER_SEED, signer.key().as_ref()],
         bump = earn_manager_account.bump
     )]
@@ -37,11 +38,6 @@ pub struct RemoveEarner<'info> {
 }
 
 pub fn handler(ctx: Context<RemoveEarner>) -> Result<()> {
-    // Only active earn managers can remove earners
-    if !ctx.accounts.earn_manager_account.is_active {
-        return err!(EarnError::NotAuthorized);
-    }
-
     // Require that the earner has an earn manager
     // If not, it must be removed from the registrar
     // and a different instruction must be used

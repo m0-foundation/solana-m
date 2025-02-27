@@ -32,10 +32,7 @@ pub struct ConfigureEarnManager<'info> {
     )]
     pub earn_manager_account: Account<'info, EarnManager>,
 
-    #[account(
-        token::mint = global_account.mint,
-        token::authority = signer,
-    )]
+    #[account(token::mint = global_account.mint)]
     pub fee_token_account: InterfaceAccount<'info, TokenAccount>,
 
     pub system_program: Program<'info, System>,

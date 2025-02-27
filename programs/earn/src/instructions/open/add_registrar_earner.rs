@@ -49,25 +49,14 @@ pub fn handler(
         return err!(EarnError::InvalidProof);
     }
 
-    // Initialize the user earning account
-    ctx.accounts.earner_account.is_earning = true;
-
-    // Set the earner's last claim index to the global index
-    ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
-
-    // Set the earner's last claim timestamp to the current timestamp
-    ctx.accounts.earner_account.last_claim_timestamp =
-        Clock::get()?.unix_timestamp.try_into().unwrap();
-
-    // Set the earner's earn manager to None
-    ctx.accounts.earner_account.earn_manager = None;
-
-    // Log the success of the operation
-    msg!(
-        "User {} was added as an earner with earning account {}.",
+    ctx.accounts.earner_account.set_inner(Earner {
+        earn_manager: None,
+        last_claim_index: ctx.accounts.global_account.index,
+        last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),
+        is_earning: true,
+        bump: ctx.bumps.earner_account,
         user,
-        ctx.accounts.earner_account.key()
-    );
+    });
 
     Ok(())
 }

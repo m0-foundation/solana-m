@@ -11,11 +11,11 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct CompleteClaims<'info> {
-    #[account(address = global_account.earn_authority)]
-    pub signer: Signer<'info>,
+    pub earn_authority: Signer<'info>,
 
     #[account(
         mut,
+        has_one = earn_authority,
         seeds = [GLOBAL_SEED],
         bump,
     )]
