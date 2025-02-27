@@ -26,7 +26,7 @@ pub struct TokenTransfer {
     pub recipient: Pubkey,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, Default)]
 pub struct RootUpdates {
     pub earner_root: [u8; 32],
     pub earn_manager_root: [u8; 32],

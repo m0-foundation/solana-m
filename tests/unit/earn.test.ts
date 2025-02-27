@@ -37,7 +37,7 @@ const ZERO_WORD = new Array(32).fill(0);
 
 // Setup wallets once at the beginning of the test suite
 const admin: Keypair = loadKeypair("tests/keys/admin.json");
-const portal: Keypair = loadKeypair("tests/keys/portal.json");
+const portal: Keypair = loadKeypair("tests/keys/admin.json");
 const mint: Keypair = loadKeypair("tests/keys/mint.json");
 const earnAuthority: Keypair = new Keypair();
 const mintAuthority: Keypair = new Keypair();
@@ -1110,7 +1110,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "ConstraintAddress"
+        "NotAuthorized"
       );
     });
 

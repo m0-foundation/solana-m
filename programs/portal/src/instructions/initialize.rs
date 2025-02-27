@@ -8,6 +8,7 @@ use crate::messages::Hack;
 
 use crate::{
     bitmap::Bitmap,
+    config::RemainingAccount,
     error::NTTError,
     queue::{outbox::OutboxRateLimit, rate_limit::RateLimitState},
     spl_multisig::SplMultisig,
@@ -127,6 +128,13 @@ pub fn initialize_multisig(ctx: Context<InitializeMultisig>, args: InitializeArg
         threshold: 1,
         enabled_transceivers: Bitmap::new(),
         custody: common.custody.key(),
+        release_inbound_remaining_accounts: [
+            RemainingAccount::new(earn::ID, false),
+            RemainingAccount::new(
+                Pubkey::find_program_address(&[earn::state::GLOBAL_SEED], &earn::ID).0,
+                true,
+            ),
+        ],
     });
 
     common.rate_limit.set_inner(OutboxRateLimit {
