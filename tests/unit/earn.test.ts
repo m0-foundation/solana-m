@@ -531,7 +531,7 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
 
   // Populate accounts
   accounts = {};
-  accounts.signer = signer.publicKey;
+  accounts.earnAuthority = signer.publicKey;
   accounts.globalAccount = globalAccount;
   accounts.earnerAccount = earnerAccount;
   accounts.mint = mint;
@@ -623,10 +623,10 @@ const prepAddEarner = (signer: Keypair, earnManager: PublicKey, earner: PublicKe
   const globalAccount = getGlobalAccount();
 
   // Get the earn manager account
-  const earnManagerAccount = getEarnManagerAccount(earner);
+  const earnManagerAccount = getEarnManagerAccount(earnManager);
 
   // Get the earner account
-  const earnerAccount = getEarnerAccount(earnManager);
+  const earnerAccount = getEarnerAccount(earner);
 
   // Populate accounts
   accounts = {};
@@ -651,12 +651,12 @@ const addEarner = async (earnManager: Keypair, earner: PublicKey, proofs: ProofE
     .rpc();
 };
 
-const prepRemoveEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: PublicKey) => {
+const prepRemoveEarner = (signer: Keypair, earnManager: PublicKey, earner: PublicKey, earnerATA: PublicKey) => {
   // Get the earn manager account
   const earnManagerAccount = getEarnManagerAccount(earnManager);
 
   // Get the earner account
-  const earnerAccount = getEarnerAccount(earnManager);
+  const earnerAccount = getEarnerAccount(earner);
 
   // Populate accounts
   accounts = {};
@@ -666,21 +666,6 @@ const prepRemoveEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: Pu
   accounts.earnerAccount = earnerAccount;
 
   return { earnManagerAccount, earnerAccount };
-};
-
-const removeEarner = async (earnManager: Keypair, earner: PublicKey) => {
-  // Get the earner ATA
-  const earnerATA = await getATA(mint.publicKey, earner);
-
-  // Setup the instruction
-  prepRemoveEarner(earnManager, earnManager.publicKey, earnerATA);
-
-  // Send the instruction
-  await earn.methods
-    .removeEarner()
-    .accounts({ ...accounts })
-    .signers([earnManager])
-    .rpc();
 };
 
 const prepAddRegistrarEarner = (signer: Keypair, earner: PublicKey) => {
@@ -2579,7 +2564,7 @@ describe("Earn unit tests", () => {
     // it reverts with an account not initialized error
     test("Signer earn manager account not initialized - reverts", async () => {
       // Setup the instruction
-      prepAddEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnManagerOne.publicKey);
+      prepAddEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnerOne.publicKey);
 
       // Get the exclusion proof for the earner against the earner merkle tree
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
@@ -2615,7 +2600,7 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey);
 
       // Attempt to add earner with an inactive earn manager account
       await expectAnchorError(
@@ -2641,7 +2626,7 @@ describe("Earn unit tests", () => {
       await addRegistrarEarner(earnerOne.publicKey, proof);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey);
 
       // Attempt to add earner with an already initialized earner account
       await expectSystemError(
@@ -2663,7 +2648,7 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonAdmin.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey);
 
       // Attempt to add earner with invalid merkle proof
       await expectAnchorError(
@@ -2691,7 +2676,7 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey);
 
       // Attempt to add earner with user token account for wrong token mint
       await expectAnchorError(
@@ -2715,7 +2700,7 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey);
 
       // Attempt to add earner with user token account for wrong token mint
       await expectAnchorError(
@@ -2742,7 +2727,7 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
-      const { earnerAccount } = prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOne.publicKey);
+      const { earnerAccount } = prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey);
 
       // Add earner one to the earn manager's list
       await earn.methods
@@ -2822,7 +2807,7 @@ describe("Earn unit tests", () => {
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepRemoveEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnerOneATA);
+      prepRemoveEarner(nonEarnManagerOne, nonEarnManagerOne.publicKey, nonEarnerOne.publicKey, nonEarnerOneATA);
 
       // Attempt to remove earner without an initialized earn manager account
       await expectAnchorError(
@@ -2855,7 +2840,7 @@ describe("Earn unit tests", () => {
       await removeEarnManager(earnManagerOne.publicKey, proofs, neighbors);
 
       // Setup the instruction
-      prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+      prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey, nonEarnerOneATA);
 
       // Attempt to remove earner with an inactive earn manager account
       await expectAnchorError(
@@ -2883,7 +2868,7 @@ describe("Earn unit tests", () => {
       const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
       // Setup the instruction
-      prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, earnerOneATA);
+      prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, earnerOne.publicKey, earnerOneATA);
 
       // Attempt to remove earner without an earn manager
       await expectAnchorError(
@@ -2912,7 +2897,7 @@ describe("Earn unit tests", () => {
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepRemoveEarner(earnManagerTwo, earnManagerTwo.publicKey, nonEarnerOneATA);
+      prepRemoveEarner(earnManagerTwo, earnManagerTwo.publicKey, nonEarnerOne.publicKey, nonEarnerOneATA);
 
       // Attempt to remove earner with the wrong earn manager
       await expectAnchorError(
@@ -2935,7 +2920,7 @@ describe("Earn unit tests", () => {
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Setup the instruction
-      const { earnerAccount } = prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
+      const { earnerAccount } = prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey, nonEarnerOneATA);
 
       // Remove the earner account
       await earn.methods
