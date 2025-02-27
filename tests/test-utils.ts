@@ -2,7 +2,7 @@ import path from "path";
 import { Commitment, GetAccountInfoConfig, Keypair, PublicKey, SendOptions, Signer, Transaction, TransactionConfirmationStrategy, VersionedTransaction } from "@solana/web3.js";
 import fs from "fs";
 import { LiteSVMProvider } from "anchor-litesvm";
-import { FailedTransactionMetadata, LiteSVM } from "litesvm";
+import { FailedTransactionMetadata, LiteSVM, TransactionMetadata } from "litesvm";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Wallet } from "@coral-xyz/anchor";
 
@@ -20,6 +20,11 @@ export function toFixedSizedArray(buffer: Buffer, size: number): number[] {
     array[index] = value;
   });
   return array;
+}
+
+export async function fetchTransactionLogs(provider: LiteSVMProviderExt, txId: string): Promise<string[]> {
+  const txn = await provider.client.getTransaction(bs58.decode(txId));
+  return (txn as TransactionMetadata).logs() ?? (txn as FailedTransactionMetadata).meta().logs();
 }
 
 export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -54,8 +59,7 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
       // send and check for error
       const result = this.client.sendTransaction(tx);
       if (result instanceof FailedTransactionMetadata) {
-        console.error(result.meta().logs());
-        throw new Error(result.err().toString());
+        throw new Error(result.meta().logs().join('\n'));
       }
 
       return signature

@@ -156,6 +156,16 @@ pub fn initialize_lut(ctx: Context<InitializeLUT>, recent_slot: u64) -> Result<(
     entries.push(crate::ID);
     entries.extend(entries_infos.into_iter().map(|x| x.key));
 
+    // remaining accounts for CPI to earn program
+    entries.extend(
+        ctx.accounts
+            .entries
+            .config
+            .release_inbound_remaining_accounts
+            .clone()
+            .map(|x| x.pubkey),
+    );
+
     let ix = solana_address_lookup_table_program::instruction::extend_lookup_table(
         ctx.accounts.lut_address.key(),
         ctx.accounts.authority.key(),

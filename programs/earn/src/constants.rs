@@ -8,7 +8,6 @@ pub const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
 // TODO add different constants depending on local, devnet, or mainnet feature flags
 pub const ADMIN: Pubkey = pubkey!("8cR6wkZ4umQQnYcxBwS1wfvPwPXHkuW3wf3toxBEaiAP");
 pub const MINT: Pubkey = pubkey!("J4a2cb2G6QbSsAxNiaEQKrshnt6ijnrCnjzDcDdcAbbK");
-// TODO set with Portal Token Authority PDA
-pub const PORTAL_SIGNER: Pubkey = pubkey!("A27rCMHqtKYz95PEkeadsUeMctofs3i4R8MRXNh9We9m");
+pub const PORTAL_PROGRAM: Pubkey = pubkey!("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr");
 
 pub const ONE_HUNDRED_PERCENT: u64 = 100_00; // 1e4

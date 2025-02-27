@@ -1981,6 +1981,7 @@ dependencies = [
  "anchor-spl",
  "bitmaps 3.2.1",
  "cfg-if",
+ "earn",
  "ntt-messages",
  "solana-address-lookup-table-program",
  "solana-program",
