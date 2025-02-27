@@ -274,7 +274,7 @@ const getATA = async (mint: PublicKey, owner: PublicKey) => {
 const createTokenAccount = async (mint: PublicKey, owner: PublicKey) => {
   // We want to create a token account that is not the ATA
   const tokenAccount = new Keypair();
-  
+
   let tx = new Transaction();
   tx.add(
     SystemProgram.createAccount({
@@ -503,7 +503,7 @@ const setEarnAuthority = async (newEarnAuthority: PublicKey) => {
 
 const prepPropagateIndex = (signer: Keypair) => {
   // Get the global PDA
-  const globalAccount = getGlobalAccount(); 
+  const globalAccount = getGlobalAccount();
 
   // Populate accounts
   accounts = {};
@@ -515,9 +515,9 @@ const prepPropagateIndex = (signer: Keypair) => {
 };
 
 const propagateIndex = async (
-    newIndex: BN,
-    earnerMerkleRoot: number[] = ZERO_WORD,
-    earnManagerMerkleRoot: number[] = ZERO_WORD
+  newIndex: BN,
+  earnerMerkleRoot: number[] = ZERO_WORD,
+  earnManagerMerkleRoot: number[] = ZERO_WORD
 ) => {
   // Setup the instruction
   const { globalAccount } = prepPropagateIndex(portal);
@@ -575,7 +575,7 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
     accounts.earnManagerAccount = null;
     accounts.earnManagerTokenAccount = null;
   }
-  
+
   return { globalAccount, earnerAccount, earnerATA };
 
 };
@@ -587,7 +587,7 @@ const claimFor = async (snapshotBalance: BN, earner: PublicKey, earnManager?: Pu
   // Send the instruction
   await earn.methods
     .claimFor(snapshotBalance)
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([earnAuthority])
     .rpc();
 };
@@ -595,7 +595,7 @@ const claimFor = async (snapshotBalance: BN, earner: PublicKey, earnManager?: Pu
 
 const prepCompleteClaims = (signer: Keypair) => {
   // Get the global PDA
-  const globalAccount = getGlobalAccount(); 
+  const globalAccount = getGlobalAccount();
 
   // Populate accounts
   accounts = {};
@@ -645,10 +645,10 @@ const configureEarnManager = async (earnManager: Keypair, feeBps: BN, proof: Pro
   // Send the instruction
   await earn.methods
     .configureEarnManager(feeBps, proof)
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([earnManager])
     .rpc();
-  
+
 };
 
 const prepAddEarner = (signer: Keypair, earnManager: PublicKey, earnerATA: PublicKey) => {
@@ -683,7 +683,7 @@ const addEarner = async (earnManager: Keypair, earner: PublicKey, proofs: ProofE
   // Send the instruction
   await earn.methods
     .addEarner(earner, proofs, neighbors)
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([earnManager])
     .rpc();
 };
@@ -715,7 +715,7 @@ const removeEarner = async (earnManager: Keypair, earner: PublicKey) => {
   // Send the instruction
   await earn.methods
     .removeEarner(earner)
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([earnManager])
     .rpc();
 };
@@ -748,7 +748,7 @@ const addRegistrarEarner = async (earner: PublicKey, proof: ProofElement[]) => {
   // Send the instruction
   await earn.methods
     .addRegistrarEarner(earner, proof)
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([nonAdmin])
     .rpc();
 };
@@ -780,7 +780,7 @@ const removeRegistrarEarner = async (earner: PublicKey, proofs: ProofElement[][]
   // Send the instruction
   await earn.methods
     .removeRegistrarEarner(earner, proofs, neighbors)
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([nonAdmin])
     .rpc();
 };
@@ -808,7 +808,7 @@ const removeEarnManager = async (earnManager: PublicKey, proofs: ProofElement[][
   // Send the instruction
   await earn.methods
     .removeEarnManager(earnManager, proofs, neighbors)
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([nonAdmin])
     .rpc();
 };
@@ -827,7 +827,7 @@ const prepRemoveOrphanedEarner = (signer: Keypair, earnerATA: PublicKey, earnMan
     // Get the earn manager account
     const earnManagerAccount = getEarnManagerAccount(earnManager);
     accounts.earnManagerAccount = earnManagerAccount;
-    
+
     return { earnerAccount, earnManagerAccount };
   }
 
@@ -844,7 +844,7 @@ const removeOrphanedEarner = async (earner: PublicKey, earnManager?: PublicKey) 
   // Send the instruction
   await earn.methods
     .removeOrphanedEarner()
-    .accounts({...accounts})
+    .accounts({ ...accounts })
     .signers([nonAdmin])
     .rpc();
 };
@@ -913,12 +913,12 @@ describe("Earn unit tests", () => {
       await expectGlobalState(
         globalAccount,
         {
-            earnAuthority: earnAuthority.publicKey,
-            index: initialIndex,
-            claimCooldown,
-            claimComplete: true,
-            earnerMerkleRoot: ZERO_WORD,
-            earnManagerMerkleRoot: ZERO_WORD
+          earnAuthority: earnAuthority.publicKey,
+          index: initialIndex,
+          claimCooldown,
+          claimComplete: true,
+          earnerMerkleRoot: ZERO_WORD,
+          earnManagerMerkleRoot: ZERO_WORD
         }
       );
     });
@@ -1099,15 +1099,15 @@ describe("Earn unit tests", () => {
       const newManagerRoot = Array(32).fill(2);
 
       prepPropagateIndex(nonAdmin);
-      
+
       await expectAnchorError(
         earn.methods
           .propagateIndex(
-              newIndex,
-              newEarnerRoot,
-              newManagerRoot
+            newIndex,
+            newEarnerRoot,
+            newManagerRoot
           )
-          .accounts({...accounts})
+          .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         "ConstraintAddress"
@@ -1208,7 +1208,7 @@ describe("Earn unit tests", () => {
     // nothing is updated
     test("new index >= existing index, new earner root empty, new earn manager root empty", async () => {
       // Try to propagate a new index with a higher value
-      const randomIncrement = randomInt(0, 2**32);
+      const randomIncrement = randomInt(0, 2 ** 32);
       const higherIndex = initialIndex.add(new BN(randomIncrement));
       const emptyEarnerRoot = ZERO_WORD;
       const emptyEarnManagerRoot = ZERO_WORD;
@@ -1232,7 +1232,7 @@ describe("Earn unit tests", () => {
     // earn manager merkle root is not updated
     test("new index >= existing index, new earner root not empty, new earn manager root empty", async () => {
       // Try to propagate a new index with a higher value
-      const randomIncrement = randomInt(0, 2**32);
+      const randomIncrement = randomInt(0, 2 ** 32);
       const higherIndex = initialIndex.add(new BN(randomIncrement));
       const newEarnerRoot = new Array(32).fill(1);
       const emptyEarnManagerRoot = ZERO_WORD;
@@ -1256,7 +1256,7 @@ describe("Earn unit tests", () => {
     // earn manager merkle root is updated
     test("new index >= existing index, new earner root empty, new earn manager root not empty", async () => {
       // Try to propagate a new index with a higher value
-      const randomIncrement = randomInt(0, 2**32);
+      const randomIncrement = randomInt(0, 2 ** 32);
       const higherIndex = initialIndex.add(new BN(randomIncrement));
       const emptyEarnerRoot = ZERO_WORD;
       const newManagerRoot = new Array(32).fill(1);
@@ -1279,7 +1279,7 @@ describe("Earn unit tests", () => {
     // both merkle roots are updated
     test("new index >= existing index, new earner root not empty, new earn manager root not empty", async () => {
       // Try to propagate a new index with a higher value
-      const randomIncrement = randomInt(0, 2**32);
+      const randomIncrement = randomInt(0, 2 ** 32);
       const higherIndex = initialIndex.add(new BN(randomIncrement));
       const newEarnerRoot = new Array(32).fill(1);
       const newManagerRoot = new Array(32).fill(2);
@@ -1306,16 +1306,16 @@ describe("Earn unit tests", () => {
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
       const { globalAccount } = await propagateIndex(startIndex);
-      
+
       // Expire the blockhash
       svm.expireBlockhash();
-      
+
       // Update the index again with the same or lower value
       const randomDecrement = randomInt(0, startIndex.toNumber());
       const newIndex = startIndex.sub(new BN(randomDecrement));
-      
+
       await propagateIndex(newIndex);
-      
+
       // Confirm that the index, timestamp, and Merkle roots are updated
       await expectGlobalState(
         globalAccount,
@@ -1337,15 +1337,15 @@ describe("Earn unit tests", () => {
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
       const { globalAccount } = await propagateIndex(startIndex);
-      
+
       // Mint more tokens to increase supply
       const additionalSupply = new BN(50_000_000);
       await mintM(admin.publicKey, additionalSupply);
       const newSupply = initialSupply.add(additionalSupply);
-      
+
       // Warp forward in time slightly
       warp(new BN(1), true);
-      
+
       // Update the index again with the same or lower value
       const randomDecrement = randomInt(0, startIndex.toNumber());
       const newIndex = startIndex.sub(new BN(randomDecrement));
@@ -1383,7 +1383,7 @@ describe("Earn unit tests", () => {
 
       // Warp forward in time slightly
       warp(new BN(1), true);
-      
+
       // Update the index again with the same or lower value
       const randomDecrement = randomInt(0, startIndex.toNumber());
       const newIndex = startIndex.sub(new BN(randomDecrement));
@@ -1394,7 +1394,7 @@ describe("Earn unit tests", () => {
         globalAccount,
         {
           index: startIndex,
-          timestamp: startTimestamp, 
+          timestamp: startTimestamp,
           maxSupply: newSupply,
         }
       );
@@ -1416,7 +1416,7 @@ describe("Earn unit tests", () => {
 
       // Warp forward in time slightly
       warp(new BN(1), true);
-      
+
       // Update the index again with the same or lower value
       const randomDecrement = randomInt(0, startIndex.toNumber());
       const newIndex = startIndex.sub(new BN(randomDecrement));
@@ -1454,7 +1454,7 @@ describe("Earn unit tests", () => {
 
       // Warp forward past the cooldown period
       warp(claimCooldown.add(new BN(1)), true);
-      
+
       // Update the index again with the same or lower value
       const randomDecrement = randomInt(0, startIndex.toNumber());
       const newIndex = startIndex.sub(new BN(randomDecrement));
@@ -1487,7 +1487,7 @@ describe("Earn unit tests", () => {
 
       // Warp forward past the cooldown period
       warp(claimCooldown.add(new BN(1)), true);
-      
+
       // Update the index again with the same or lower value
       const randomDecrement = randomInt(0, startIndex.toNumber());
       const newIndex = startIndex.sub(new BN(randomDecrement));
@@ -1498,7 +1498,7 @@ describe("Earn unit tests", () => {
         globalAccount,
         {
           index: startIndex,
-          timestamp: startTimestamp, 
+          timestamp: startTimestamp,
           maxSupply: initialSupply
         }
       );
@@ -1522,7 +1522,7 @@ describe("Earn unit tests", () => {
       warp(new BN(1), true);
 
       // Update the index again with a higher value
-      const randomIncrement = randomInt(1, 2**32);
+      const randomIncrement = randomInt(1, 2 ** 32);
       const newIndex = startIndex.add(new BN(randomIncrement));
       await propagateIndex(newIndex);
 
@@ -1557,7 +1557,7 @@ describe("Earn unit tests", () => {
       warp(new BN(1), true);
 
       // Update the index again with a higher value
-      const randomIncrement = randomInt(1, 2**32);
+      const randomIncrement = randomInt(1, 2 ** 32);
       const newIndex = startIndex.add(new BN(randomIncrement));
       await propagateIndex(newIndex);
 
@@ -1590,7 +1590,7 @@ describe("Earn unit tests", () => {
       warp(new BN(1), true);
 
       // Update the index again with a higher value
-      const randomIncrement = randomInt(1, 2**32);
+      const randomIncrement = randomInt(1, 2 ** 32);
       const newIndex = startIndex.add(new BN(randomIncrement));
       await propagateIndex(newIndex);
 
@@ -1628,7 +1628,7 @@ describe("Earn unit tests", () => {
       warp(new BN(1), true);
 
       // Update the index again with a higher value
-      const randomIncrement = randomInt(1, 2**32);
+      const randomIncrement = randomInt(1, 2 ** 32);
       const newIndex = startIndex.add(new BN(randomIncrement));
       await propagateIndex(newIndex);
 
@@ -1661,7 +1661,7 @@ describe("Earn unit tests", () => {
       warp(claimCooldown.add(new BN(1)), true);
 
       // Update the index again with a higher value
-      const randomIncrement = randomInt(1, 2**32);
+      const randomIncrement = randomInt(1, 2 ** 32);
       const newIndex = startIndex.add(new BN(randomIncrement));
       await propagateIndex(newIndex);
 
@@ -1699,7 +1699,7 @@ describe("Earn unit tests", () => {
       warp(claimCooldown.add(new BN(1)), true);
 
       // Update the index again with a higher value
-      const randomIncrement = randomInt(1, 2**32);
+      const randomIncrement = randomInt(1, 2 ** 32);
       const newIndex = startIndex.add(new BN(randomIncrement));
       await propagateIndex(newIndex);
 
@@ -1727,7 +1727,7 @@ describe("Earn unit tests", () => {
       const startIndex = new BN(1_100_000_000_000);
       const { globalAccount } = await propagateIndex(startIndex);
       const startGlobalState = await earn.account.global.fetch(globalAccount);
-      
+
       // Set claim complete
       await completeClaims();
 
@@ -1740,7 +1740,7 @@ describe("Earn unit tests", () => {
       warp(claimCooldown.add(new BN(1)), true);
 
       // Update the index again with a higher value
-      const randomIncrement = randomInt(1, 2**32);
+      const randomIncrement = randomInt(1, 2 ** 32);
       const newIndex = startIndex.add(new BN(randomIncrement));
       await propagateIndex(newIndex);
 
@@ -1798,7 +1798,7 @@ describe("Earn unit tests", () => {
     //            [X] the total rewards minus the fee is minted to the earner token account  
     //         [X] given the earn manager account is not active
     //           [X] the full amount is minted to the earner
-    
+
     beforeEach(async () => {
       // Initialize the program
       await initialize(
@@ -1925,7 +1925,7 @@ describe("Earn unit tests", () => {
       // Verify the starting values
       await expectTokenBalance(earnerATA, new BN(10_000_000));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: initialIndex
         }
@@ -1944,7 +1944,7 @@ describe("Earn unit tests", () => {
       // and the last claim index was updated
       await expectTokenBalance(earnerATA, new BN(11_000_000));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: new BN(1_100_000_000_000),
           lastClaimTimestamp: currentTime
@@ -2047,7 +2047,7 @@ describe("Earn unit tests", () => {
       await expectTokenBalance(earnerATA, new BN(10_000_000));
       await expectTokenBalance(earnManagerATA, new BN(0));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: initialIndex
         }
@@ -2059,7 +2059,7 @@ describe("Earn unit tests", () => {
         .accounts({ ...accounts })
         .signers([earnAuthority])
         .rpc();
-      
+
       const currentTime = new BN(svm.getClock().unixTimestamp.toString());
 
       // Verify the user token account was minted the correct amount
@@ -2067,7 +2067,7 @@ describe("Earn unit tests", () => {
       await expectTokenBalance(earnerATA, new BN(11_000_000));
       await expectTokenBalance(earnManagerATA, new BN(0));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: new BN(1_100_000_000_000),
           lastClaimTimestamp: currentTime
@@ -2075,7 +2075,7 @@ describe("Earn unit tests", () => {
       );
 
     });
-    
+
     // given the earn authority signs the transaction
     // given the earn manager account and earn manager token account are provided correctly
     // when the fee percent is not zero, but the actual fee rounds to zero
@@ -2096,7 +2096,7 @@ describe("Earn unit tests", () => {
       await expectTokenBalance(earnerATA, new BN(10_000_000));
       await expectTokenBalance(earnManagerATA, new BN(0));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: initialIndex
         }
@@ -2116,7 +2116,7 @@ describe("Earn unit tests", () => {
       await expectTokenBalance(earnerATA, new BN(10_000_010));
       await expectTokenBalance(earnManagerATA, new BN(0));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: new BN(1_000_001_000_000),
           lastClaimTimestamp: currentTime
@@ -2143,7 +2143,7 @@ describe("Earn unit tests", () => {
       await expectTokenBalance(earnerATA, new BN(10_000_000));
       await expectTokenBalance(earnManagerATA, new BN(0));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: initialIndex
         }
@@ -2163,7 +2163,7 @@ describe("Earn unit tests", () => {
       await expectTokenBalance(earnerATA, new BN(10_990_000));
       await expectTokenBalance(earnManagerATA, new BN(10_000));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: new BN(1_100_000_000_000),
           lastClaimTimestamp: currentTime
@@ -2195,7 +2195,7 @@ describe("Earn unit tests", () => {
       await expectTokenBalance(earnerATA, new BN(10_000_000));
       await expectTokenBalance(earnManagerATA, new BN(0));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: initialIndex
         }
@@ -2215,7 +2215,7 @@ describe("Earn unit tests", () => {
       await expectTokenBalance(earnerATA, new BN(11_000_000));
       await expectTokenBalance(earnManagerATA, new BN(0));
       expectEarnerState(
-        earnerAccount, 
+        earnerAccount,
         {
           lastClaimIndex: new BN(1_100_000_000_000),
           lastClaimTimestamp: currentTime
@@ -2540,7 +2540,7 @@ describe("Earn unit tests", () => {
     test("Earn manager account exists - success", async () => {
       // Get the inclusion proof for earn manager one in the earn manager tree
       const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
-      
+
       // Setup the earn manager account the first time
       await configureEarnManager(earnManagerOne, new BN(100), proof);
 
@@ -2661,14 +2661,14 @@ describe("Earn unit tests", () => {
     // it reverts with a NotAuthorized error
     test("Signer's earn manager account not active - reverts", async () => {
       // Get the ATA for non earner one
-      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey); 
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Remove earn manager one from the earn manager merkle tree
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
 
       // Update the earn manager merkle root on the global account
       await propagateIndex(new BN(1_110_000_000_000), ZERO_WORD, earnManagerMerkleTree.getRoot());
-      
+
       // Get the exclusion proof for earn manager one against the earn manager merkle tree
       const { proofs: earnManagerOneProofs, neighbors: earnManagerOneNeighbors } = earnManagerMerkleTree.getExclusionProof(earnManagerOne.publicKey);
 
@@ -2742,7 +2742,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
-        "InvalidProof" 
+        "InvalidProof"
       );
     });
 
@@ -3001,7 +3001,7 @@ describe("Earn unit tests", () => {
           .signers([earnManagerTwo])
           .rpc(),
         "NotAuthorized"
-       );
+      );
     });
 
     // given signer has an earn manager account initialized
@@ -3017,11 +3017,11 @@ describe("Earn unit tests", () => {
       const { earnerAccount } = prepRemoveEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOneATA);
 
       // Remove the earner account
-        await earn.methods
-          .removeEarner(nonEarnerOne.publicKey)
-          .accounts({ ...accounts })
-          .signers([earnManagerOne])
-          .rpc();
+      await earn.methods
+        .removeEarner(nonEarnerOne.publicKey)
+        .accounts({ ...accounts })
+        .signers([earnManagerOne])
+        .rpc();
 
       // Verify the earner account was closed
       expectAccountEmpty(earnerAccount);
@@ -3029,7 +3029,7 @@ describe("Earn unit tests", () => {
 
   });
 
-  describe("add_registrar_earner unit tests", () => {    
+  describe("add_registrar_earner unit tests", () => {
     // test cases
     // [X] given the user token account is for the wrong token mint
     //   [X] it reverts with a constraint token mint error
@@ -3362,7 +3362,7 @@ describe("Earn unit tests", () => {
           .rpc(),
         "InvalidProof"
       );
-        
+
     });
 
     // given all the accounts are valid
@@ -3411,11 +3411,11 @@ describe("Earn unit tests", () => {
       const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
 
       // Remove earner one from the earn manager's list
-        await earn.methods
-          .removeRegistrarEarner(earnerOne.publicKey, proofs, neighbors)
-          .accounts({ ...accounts })
-          .signers([nonAdmin])
-          .rpc();
+      await earn.methods
+        .removeRegistrarEarner(earnerOne.publicKey, proofs, neighbors)
+        .accounts({ ...accounts })
+        .signers([nonAdmin])
+        .rpc();
 
       // Verify the earner account was closed correctly
       expectAccountEmpty(earnerAccount);
@@ -3576,7 +3576,7 @@ describe("Earn unit tests", () => {
         }
       );
     });
-    
+
   });
 
   describe("remove_orphaned_earner unit tests", () => {
@@ -3753,15 +3753,15 @@ describe("Earn unit tests", () => {
       // Remove the orphaned earner
       try {
         await earn.methods
-        .removeOrphanedEarner()
-        .accounts({ ...accounts })
-        .signers([nonAdmin])
-        .rpc();
+          .removeOrphanedEarner()
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc();
       } catch (e) {
         console.log(e);
         expect(true).toBe(false);
       }
-      
+
       // Verify the earner account was closed
       expectAccountEmpty(earnerAccount);
     });
