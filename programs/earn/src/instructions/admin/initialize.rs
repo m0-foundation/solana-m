@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, ADMIN, ONE},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, ADMIN},
     errors::EarnError,
     state::{Global, GLOBAL_SEED}
 };
@@ -37,8 +37,8 @@ pub fn handler(
     claim_cooldown: u64,
 ) -> Result<()> {
 
-    // Check that the initial index is at least 1
-    if initial_index < ONE {
+    // Check that the initial index is at least 1 (with 12 decimals)
+    if initial_index < 1_000_000_000_000 {
         return err!(EarnError::InvalidParam);
     }
 

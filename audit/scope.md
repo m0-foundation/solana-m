@@ -61,4 +61,4 @@ The Portal is a fork of the Wormhole Native Token Transfer (NTT) program with a 
 - Utilitizing the newly added Token Multisig Mint Authority functionality to allow both the Portal and Earn programs to be able to mint M.
 - Adding a couple accounts and a CPI call to the `Earn` program within the `ReleaseInboundMintMultisig` instruction to store the custom data sent in the `Payload`.
 
-This is not currently included in the scope / lines of code.
+This is not currently included in the lines of code.

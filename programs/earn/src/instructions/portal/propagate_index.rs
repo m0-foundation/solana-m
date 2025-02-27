@@ -89,13 +89,14 @@ pub fn handler(
     // Some max yield can be leftover from the previous period if yield was not claimed for some users.
     // To get the max yield for the next claim cycle, we take the difference between the current max yield 
     // and what was distributed to get the leftover amount. Then, we add the new potential max yield to be
-    // sent out. TODO confirm this won't get too large over time due to some users not earning.
-    // Should this be set to max u64 if it will overflow?
+    // sent out. 
     ctx.accounts.global_account.max_yield = ctx.accounts.global_account.max_yield
         .checked_sub(ctx.accounts.global_account.distributed).unwrap() // can probably remove the checked sub since distributed can't be greater than max yield
         .checked_add(period_max).unwrap();
     ctx.accounts.global_account.distributed = 0;
     ctx.accounts.global_account.claim_complete = false;
+
+    msg!("New claim cycle started | Index: {} | Timestamp: {}", new_index, ctx.accounts.global_account.max_yield);
 
     Ok(())
 }
