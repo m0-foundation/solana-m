@@ -60,7 +60,7 @@ pub struct ClaimFor<'info> {
     #[account(
         constraint = earn_manager_token_account.is_some() @ EarnError::RequiredAccountMissing,
         seeds = [EARN_MANAGER_SEED, earner_account.earn_manager.unwrap().as_ref()],
-        bump=  earn_manager_account.bump,
+        bump = earn_manager_account.bump,
     )]
     pub earn_manager_account: Option<Account<'info, EarnManager>>,
 
