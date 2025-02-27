@@ -21,35 +21,33 @@ pub mod earn {
 
     pub fn initialize(
         ctx: Context<Initialize>,
-        earn_authority: Pubkey, 
+        earn_authority: Pubkey,
         initial_index: u64,
         claim_cooldown: u64,
     ) -> Result<()> {
-        instructions::admin::initialize::handler(
-            ctx, 
-            earn_authority, 
-            initial_index, 
-            claim_cooldown,
-        )
+        instructions::admin::initialize::handler(ctx, earn_authority, initial_index, claim_cooldown)
     }
 
-    pub fn set_earn_authority(ctx: Context<SetEarnAuthority>, new_earn_authority: Pubkey) -> Result<()> {
+    pub fn set_earn_authority(
+        ctx: Context<SetEarnAuthority>,
+        new_earn_authority: Pubkey,
+    ) -> Result<()> {
         instructions::admin::set_earn_authority::handler(ctx, new_earn_authority)
     }
 
     // Portal instrutions
 
     pub fn propagate_index(
-        ctx: Context<PropagateIndex>, 
+        ctx: Context<PropagateIndex>,
         index: u64,
         earner_merkle_root: [u8; 32],
-        earn_manager_merkle_root: [u8; 32]
+        earn_manager_merkle_root: [u8; 32],
     ) -> Result<()> {
         instructions::portal::propagate_index::handler(
-            ctx, 
+            ctx,
             index,
             earner_merkle_root,
-            earn_manager_merkle_root
+            earn_manager_merkle_root,
         )
     }
 
@@ -66,8 +64,8 @@ pub mod earn {
     // Earn manager instructions
 
     pub fn add_earner(
-        ctx: Context<AddEarner>, 
-        user: Pubkey, 
+        ctx: Context<AddEarner>,
+        user: Pubkey,
         proofs: Vec<Vec<ProofElement>>,
         neighbors: Vec<[u8; 32]>,
     ) -> Result<()> {
@@ -79,9 +77,9 @@ pub mod earn {
     }
 
     pub fn configure_earn_manager(
-        ctx: Context<ConfigureEarnManager>, 
+        ctx: Context<ConfigureEarnManager>,
         fee_bps: u64,
-        proof: Vec<ProofElement>
+        proof: Vec<ProofElement>,
     ) -> Result<()> {
         instructions::earn_manager::configure::handler(ctx, fee_bps, proof)
     }
@@ -89,23 +87,32 @@ pub mod earn {
     // Open instructions
 
     pub fn add_registrar_earner(
-        ctx: Context<AddRegistrarEarner>, 
-        user: Pubkey, 
-        proof: Vec<ProofElement>
+        ctx: Context<AddRegistrarEarner>,
+        user: Pubkey,
+        proof: Vec<ProofElement>,
     ) -> Result<()> {
         instructions::open::add_registrar_earner::handler(ctx, user, proof)
     }
 
-    pub fn remove_registrar_earner(ctx: Context<RemoveRegistrarEarner>, user: Pubkey, proofs: Vec<Vec<ProofElement>>, neighbors: Vec<[u8; 32]>) -> Result<()> {
+    pub fn remove_registrar_earner(
+        ctx: Context<RemoveRegistrarEarner>,
+        user: Pubkey,
+        proofs: Vec<Vec<ProofElement>>,
+        neighbors: Vec<[u8; 32]>,
+    ) -> Result<()> {
         instructions::open::remove_registrar_earner::handler(ctx, user, proofs, neighbors)
     }
 
-    pub fn remove_earn_manager(ctx: Context<RemoveEarnManager>, earn_manager: Pubkey, proofs: Vec<Vec<ProofElement>>, neighbors: Vec<[u8; 32]>) -> Result<()> {
+    pub fn remove_earn_manager(
+        ctx: Context<RemoveEarnManager>,
+        earn_manager: Pubkey,
+        proofs: Vec<Vec<ProofElement>>,
+        neighbors: Vec<[u8; 32]>,
+    ) -> Result<()> {
         instructions::open::remove_earn_manager::handler(ctx, earn_manager, proofs, neighbors)
     }
 
     pub fn remove_orphaned_earner(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
         instructions::open::remove_orphaned_earner::handler(ctx)
     }
-
 }

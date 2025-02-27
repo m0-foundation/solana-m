@@ -1,17 +1,10 @@
-
 // earn/utils/token.rs
 
 // external dependencies
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    token_interface::{
-        transfer_checked,
-        Mint,
-        TokenAccount, 
-        TokenInterface, 
-        TransferChecked
-    }, 
-    token_2022::spl_token_2022
+    token_2022::spl_token_2022,
+    token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked},
 };
 use solana_program::program::invoke_signed;
 
@@ -31,14 +24,14 @@ pub fn transfer_tokens_from_program<'info>(
         mint: mint.to_account_info(),
         authority: authority.clone(),
     };
-    let cpi_context = CpiContext::new_with_signer(token_program.to_account_info(), transfer_options, authority_seeds);
+    let cpi_context = CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        transfer_options,
+        authority_seeds,
+    );
 
     // Call the transfer instruction
-    transfer_checked(
-        cpi_context,
-        *amount,
-        mint.decimals,
-    )?;
+    transfer_checked(cpi_context, *amount, mint.decimals)?;
 
     Ok(())
 }
@@ -61,11 +54,7 @@ pub fn transfer_tokens<'info>(
     let cpi_context = CpiContext::new(token_program.to_account_info(), transfer_options);
 
     // Call the transfer instruction
-    transfer_checked(
-        cpi_context,
-        *amount,
-        mint.decimals,
-    )?;
+    transfer_checked(cpi_context, *amount, mint.decimals)?;
 
     Ok(())
 }
@@ -92,12 +81,12 @@ pub fn mint_tokens<'info>(
             *amount,
         )?,
         &[
-            mint.to_account_info(),    
-            to.to_account_info(),    
+            mint.to_account_info(),
+            to.to_account_info(),
             multisig_authority.clone(),
             signer.clone(),
         ],
-        signer_seeds
+        signer_seeds,
     )?;
 
     Ok(())

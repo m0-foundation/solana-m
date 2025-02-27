@@ -8,7 +8,7 @@ use anchor_spl::token_interface::TokenAccount;
 use crate::{
     constants::MINT,
     errors::EarnError,
-    state::{Earner, EARNER_SEED, EarnManager, EARN_MANAGER_SEED}
+    state::{EarnManager, Earner, EARNER_SEED, EARN_MANAGER_SEED},
 };
 
 #[derive(Accounts)]

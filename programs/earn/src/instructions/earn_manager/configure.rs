@@ -6,13 +6,10 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE_HUNDRED_PERCENT, MINT},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT, ONE_HUNDRED_PERCENT},
     errors::EarnError,
-    state::{
-        Global, GLOBAL_SEED,
-        EarnManager, EARN_MANAGER_SEED,
-    },
-    utils::merkle_proof::{ProofElement, verify_in_tree},
+    state::{EarnManager, Global, EARN_MANAGER_SEED, GLOBAL_SEED},
+    utils::merkle_proof::{verify_in_tree, ProofElement},
 };
 
 #[derive(Accounts)]
@@ -37,7 +34,7 @@ pub struct ConfigureEarnManager<'info> {
 
     #[account(
         token::mint = MINT,
-        token::authority = signer, 
+        token::authority = signer,
     )]
     pub fee_token_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -45,7 +42,7 @@ pub struct ConfigureEarnManager<'info> {
 }
 
 pub fn handler(
-    ctx: Context<ConfigureEarnManager>, 
+    ctx: Context<ConfigureEarnManager>,
     fee_bps: u64,
     proof: Vec<ProofElement>,
 ) -> Result<()> {
