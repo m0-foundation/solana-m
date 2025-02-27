@@ -19,7 +19,7 @@ pub struct ConfigureEarnManager<'info> {
 
     #[account(
         seeds = [GLOBAL_SEED],
-        bump
+        bump = global_account.bump
     )]
     pub global_account: Account<'info, Global>,
 

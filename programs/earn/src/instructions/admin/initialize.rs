@@ -5,22 +5,19 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    constants::{ADMIN, ANCHOR_DISCRIMINATOR_SIZE},
+    constants::ANCHOR_DISCRIMINATOR_SIZE,
     errors::EarnError,
     state::{Global, GLOBAL_SEED},
 };
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(
-        mut,
-        address = ADMIN,
-    )]
-    pub signer: Signer<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
 
     #[account(
         init,
-        payer = signer,
+        payer = admin,
         space = ANCHOR_DISCRIMINATOR_SIZE + Global::INIT_SPACE,
         seeds = [GLOBAL_SEED],
         bump
@@ -43,13 +40,12 @@ pub fn handler(
 
     // Initialize the global account
     let global = &mut ctx.accounts.global_account;
+    global.admin = ctx.accounts.admin.key();
     global.earn_authority = earn_authority;
     global.index = initial_index;
 
-    // TODO set this to 0 initially so we can call propagate immediately?
-    let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
-    global.timestamp = current_timestamp;
-
+    // Set this to 0 initially so we can call propagate immediately
+    global.timestamp = 0;
     global.claim_cooldown = claim_cooldown;
 
     // Set the claim status to complete so that a new index can be propagated to start the first claim
@@ -63,6 +59,8 @@ pub fn handler(
     // Initialize Merkle roots to zero - they will be set by the first propagate_index call
     global.earner_merkle_root = [0; 32];
     global.earn_manager_merkle_root = [0; 32];
+
+    global.bump = ctx.bumps.global_account;
 
     Ok(())
 }
