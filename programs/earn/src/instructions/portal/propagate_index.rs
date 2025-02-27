@@ -6,13 +6,18 @@ use anchor_spl::token_interface::Mint;
 
 // local dependencies
 use crate::{
-    constants::{MINT, PORTAL_SIGNER},
+    constants::{ADMIN, MINT, PORTAL_PROGRAM, PORTAL_TOKEN_AUTHORITY_SEED},
     state::{Global, GLOBAL_SEED},
 };
 
 #[derive(Accounts)]
 pub struct PropagateIndex<'info> {
-    #[account(address = PORTAL_SIGNER)]
+    #[account(
+        constraint = signer.key() == ADMIN || signer.key() == Pubkey::find_program_address(
+            &[PORTAL_TOKEN_AUTHORITY_SEED],
+            &PORTAL_PROGRAM
+        ).0,
+    )]
     pub signer: Signer<'info>,
 
     #[account(
