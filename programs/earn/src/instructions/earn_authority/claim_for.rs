@@ -54,7 +54,7 @@ pub struct ClaimFor<'info> {
     pub token_program: Interface<'info, TokenInterface>,
 
     /// CHECK: This account is checked in the CPI to Token2022 program
-    pub mint_authority: UncheckedAccount<'info>,
+    pub mint_multisig: UncheckedAccount<'info>,
 
     #[account(
         seeds = [EARN_MANAGER_SEED, earner_account.earn_manager.unwrap().as_ref()],
@@ -62,11 +62,7 @@ pub struct ClaimFor<'info> {
     )]
     pub earn_manager_account: Option<Account<'info, EarnManager>>,
 
-    /// CHECK: The key of this account needs to equal the key
-    /// stored as earn_manager_account.fee_token_account.
-    /// We check this manually in the instruction handler
-    /// since the earn_manager_account is Optional.
-    #[account(mut, token::mint = mint)]
+    #[account(mut, address = earn_manager_account.clone().unwrap().fee_token_account)]
     pub earn_manager_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
 }
 
@@ -91,6 +87,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         .unwrap()
         .try_into()
         .unwrap();
+
     rewards -= snapshot_balance; // can't underflow because global index > last claim index
 
     // Validate the rewards do not cause the distributed amount to exceed the max yield
@@ -147,10 +144,10 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
                     &earn_manager_token_account,           // to
                     &fee,                                  // amount
                     &ctx.accounts.mint,                    // mint
-                    &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
+                    &ctx.accounts.mint_multisig,           // mint authority
                     &ctx.accounts.token_authority_account, // signer
-                    token_authority_seeds,        // signer seeds
-                    &ctx.accounts.token_program,  // token program
+                    token_authority_seeds,                 // signer seeds
+                    &ctx.accounts.token_program,           // token program
                 )?;
 
                 // Return the fee to reduce the rewards by
@@ -171,7 +168,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.user_token_account,      // to
         &rewards,                              // amount
         &ctx.accounts.mint,                    // mint
-        &ctx.accounts.mint_authority,          // multisig mint authority
+        &ctx.accounts.mint_multisig,           // multisig mint authority
         &ctx.accounts.token_authority_account, // signer
         token_authority_seeds,                 // signer seeds
         &ctx.accounts.token_program,           // token program

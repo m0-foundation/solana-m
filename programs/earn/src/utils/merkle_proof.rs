@@ -17,7 +17,6 @@ pub fn verify_in_tree(root: [u8; 32], value: [u8; 32], proof: Vec<ProofElement>)
 
     let mut computed_hash = leaf;
     for proof_element in proof.into_iter() {
-        msg!("proof element: {:?}", proof_element);
         if proof_element.on_right {
             // Hash(current computed hash + current element of the proof)
             computed_hash = solana_program::keccak::hashv(&[
@@ -37,9 +36,6 @@ pub fn verify_in_tree(root: [u8; 32], value: [u8; 32], proof: Vec<ProofElement>)
         }
     }
 
-    msg!("computed hash: {:?}", computed_hash);
-    msg!("root: {:?}", root);
-    // Check if the computed hash (root) is equal to the provided root
     computed_hash == root
 }
 
@@ -54,7 +50,6 @@ pub fn verify_in_tree_and_get_index(
     let mut index: u64 = 0;
 
     for (i, proof_element) in proof.into_iter().enumerate() {
-        msg!("proof element: {:?}", proof_element);
         if proof_element.on_right {
             // Hash(current computed hash + current element of the proof)
             computed_hash = solana_program::keccak::hashv(&[
@@ -75,10 +70,7 @@ pub fn verify_in_tree_and_get_index(
             index += 2u64.pow(i as u32);
         }
     }
-    msg!("index: {:?}", index);
-    msg!("computed hash: {:?}", computed_hash);
-    msg!("root: {:?}", root);
-    // Check if the computed hash (root) is equal to the provided root
+
     (computed_hash == root, index)
 }
 

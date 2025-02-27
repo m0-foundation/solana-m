@@ -63,10 +63,11 @@ pub fn handler(
     // In this case, we only check if the max observed supply for the next cycle needs to be updated
     // and return early.
     let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
+    let cooldown_target =
+        ctx.accounts.global_account.timestamp + ctx.accounts.global_account.claim_cooldown;
 
     if !ctx.accounts.global_account.claim_complete
-        || current_timestamp
-            < ctx.accounts.global_account.timestamp + ctx.accounts.global_account.claim_cooldown
+        || current_timestamp < cooldown_target
         || new_index <= ctx.accounts.global_account.index
     {
         if current_supply > ctx.accounts.global_account.max_supply {
@@ -87,6 +88,7 @@ pub fn handler(
         .unwrap()
         .try_into()
         .unwrap();
+
     period_max -= ctx.accounts.global_account.max_supply; // can't underflow because new_index > ctx.accounts.global.index
 
     // Update the global state
