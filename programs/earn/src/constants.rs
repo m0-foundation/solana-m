@@ -10,6 +10,4 @@ pub const ADMIN: Pubkey = pubkey!("8cR6wkZ4umQQnYcxBwS1wfvPwPXHkuW3wf3toxBEaiAP"
 pub const MINT: Pubkey = pubkey!("J4a2cb2G6QbSsAxNiaEQKrshnt6ijnrCnjzDcDdcAbbK");
 pub const PORTAL_PROGRAM: Pubkey = pubkey!("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr");
 
-pub const PORTAL_TOKEN_AUTHORITY_SEED: &[u8] = b"token_authority";
-
 pub const ONE_HUNDRED_PERCENT: u64 = 100_00; // 1e4
