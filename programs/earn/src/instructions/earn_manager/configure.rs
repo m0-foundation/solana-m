@@ -6,7 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT, ONE_HUNDRED_PERCENT},
+    constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE_HUNDRED_PERCENT},
     errors::EarnError,
     state::{EarnManager, Global, EARN_MANAGER_SEED, GLOBAL_SEED},
     utils::merkle_proof::{verify_in_tree, ProofElement},
@@ -19,7 +19,7 @@ pub struct ConfigureEarnManager<'info> {
 
     #[account(
         seeds = [GLOBAL_SEED],
-        bump
+        bump = global_account.bump
     )]
     pub global_account: Account<'info, Global>,
 
@@ -32,10 +32,7 @@ pub struct ConfigureEarnManager<'info> {
     )]
     pub earn_manager_account: Account<'info, EarnManager>,
 
-    #[account(
-        token::mint = MINT,
-        token::authority = signer,
-    )]
+    #[account(token::mint = global_account.mint)]
     pub fee_token_account: InterfaceAccount<'info, TokenAccount>,
 
     pub system_program: Program<'info, System>,
@@ -60,11 +57,12 @@ pub fn handler(
         return err!(EarnError::InvalidParam);
     }
 
-    // Configure the earn manager account
-    let earn_manager = &mut ctx.accounts.earn_manager_account;
-    earn_manager.is_active = true;
-    earn_manager.fee_bps = fee_bps;
-    earn_manager.fee_token_account = ctx.accounts.fee_token_account.key();
+    ctx.accounts.earn_manager_account.set_inner(EarnManager {
+        is_active: true,
+        fee_bps,
+        fee_token_account: ctx.accounts.fee_token_account.key(),
+        bump: ctx.bumps.earn_manager_account,
+    });
 
     Ok(())
 }

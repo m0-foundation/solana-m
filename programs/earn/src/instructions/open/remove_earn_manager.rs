@@ -17,7 +17,7 @@ pub struct RemoveEarnManager<'info> {
 
     #[account(
         seeds = [GLOBAL_SEED],
-        bump
+        bump = global_account.bump
     )]
     pub global_account: Account<'info, Global>,
 
@@ -25,7 +25,7 @@ pub struct RemoveEarnManager<'info> {
         mut,
         constraint = earn_manager_account.is_active @ EarnError::NotAuthorized,
         seeds = [EARN_MANAGER_SEED, earn_manager.as_ref()],
-        bump
+        bump = earn_manager_account.bump
     )]
     pub earn_manager_account: Account<'info, EarnManager>,
 }

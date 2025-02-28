@@ -6,7 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::{ANCHOR_DISCRIMINATOR_SIZE, MINT},
+    constants::ANCHOR_DISCRIMINATOR_SIZE,
     errors::EarnError,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
     utils::merkle_proof::{verify_in_tree, ProofElement},
@@ -19,22 +19,22 @@ pub struct AddRegistrarEarner<'info> {
     pub signer: Signer<'info>,
 
     #[account(
-        token::mint = MINT,
-        token::authority = user
-    )]
-    pub token_account: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
         seeds = [GLOBAL_SEED],
-        bump
+        bump = global_account.bump
     )]
     pub global_account: Account<'info, Global>,
+
+    #[account(
+        token::mint = global_account.mint,
+        token::authority = user,
+    )]
+    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init,
         payer = signer,
         space = Earner::INIT_SPACE + ANCHOR_DISCRIMINATOR_SIZE,
-        seeds = [EARNER_SEED, token_account.key().as_ref()],
+        seeds = [EARNER_SEED, user_token_account.key().as_ref()],
         bump
     )]
     pub earner_account: Account<'info, Earner>,
@@ -56,26 +56,15 @@ pub fn handler(
         return err!(EarnError::InvalidProof);
     }
 
-    // Initialize the user earning account
-    ctx.accounts.earner_account.is_earning = true;
-
-    // Set the earner's last claim index to the global index
-    ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
-
-    // Set the earner's last claim timestamp to the current timestamp
-    ctx.accounts.earner_account.last_claim_timestamp =
-        Clock::get()?.unix_timestamp.try_into().unwrap();
-
-    // Set the earner's earn manager to None
-    ctx.accounts.earner_account.earn_manager = None;
-
-    // Log the success of the operation
-    msg!(
-        "User {}'s token account {} was added as an earner with earning account {}.",
+    ctx.accounts.earner_account.set_inner(Earner {
+        earn_manager: None,
+        last_claim_index: ctx.accounts.global_account.index,
+        last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),
+        is_earning: true,
+        bump: ctx.bumps.earner_account,
         user,
-        ctx.accounts.token_account.key(),
-        ctx.accounts.earner_account.key()
-    );
+        user_token_account: ctx.accounts.user_token_account.key(),
+    });
 
     Ok(())
 }

@@ -6,7 +6,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // local dependencies
 use crate::{
-    constants::{MINT, ONE_HUNDRED_PERCENT},
+    constants::ONE_HUNDRED_PERCENT,
     errors::EarnError,
     state::{
         EarnManager, Earner, Global, EARNER_SEED, EARN_MANAGER_SEED, GLOBAL_SEED,
@@ -17,17 +17,18 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct ClaimFor<'info> {
-    #[account(address = global_account.earn_authority)]
-    pub signer: Signer<'info>,
+    pub earn_authority: Signer<'info>,
 
     #[account(
         mut,
+        has_one = mint,
+        has_one = earn_authority @ EarnError::NotAuthorized,
         seeds = [GLOBAL_SEED],
-        bump,
+        bump = global_account.bump,
     )]
     pub global_account: Account<'info, Global>,
 
-    #[account(mut, address = MINT)]
+    #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
@@ -36,32 +37,31 @@ pub struct ClaimFor<'info> {
     )]
     pub token_authority_account: AccountInfo<'info>,
 
-    #[account(mut, token::mint = mint)]
+    #[account(mut)]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
+        constraint = earner_account.earn_manager.is_none() || earn_manager_account.is_some() @ EarnError::RequiredAccountMissing,
+        has_one = user_token_account,
         seeds = [EARNER_SEED, user_token_account.key().as_ref()],
-        bump
+        bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,
 
     pub token_program: Interface<'info, TokenInterface>,
 
     /// CHECK: This account is checked in the CPI to Token2022 program
-    pub mint_authority: UncheckedAccount<'info>,
+    pub mint_multisig: UncheckedAccount<'info>,
 
     #[account(
+        constraint = earn_manager_token_account.is_some() @ EarnError::RequiredAccountMissing,
         seeds = [EARN_MANAGER_SEED, earner_account.earn_manager.unwrap().as_ref()],
-        bump
+        bump = earn_manager_account.bump,
     )]
     pub earn_manager_account: Option<Account<'info, EarnManager>>,
 
-    /// CHECK: The key of this account needs to equal the key
-    /// stored as earn_manager_account.fee_token_account.
-    /// We check this manually in the instruction handler
-    /// since the earn_manager_account is Optional.
-    #[account(mut, token::mint = mint)]
+    #[account(mut, address = earn_manager_account.clone().unwrap().fee_token_account @ EarnError::InvalidAccount)]
     pub earn_manager_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
 }
 
@@ -86,6 +86,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         .unwrap()
         .try_into()
         .unwrap();
+
     rewards -= snapshot_balance; // can't underflow because global index > last claim index
 
     // Validate the rewards do not cause the distributed amount to exceed the max yield
@@ -115,21 +116,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // If the earner has an earn manager, validate the earn manager account and earn manager's token account
     // Then, calculate any fee for the earn manager, mint those tokens, and reduce the rewards by the amount sent
     rewards -= if let Some(_) = ctx.accounts.earner_account.earn_manager {
-        let earn_manager_account = match &ctx.accounts.earn_manager_account {
-            Some(earn_manager_account) => earn_manager_account,
-            None => return err!(EarnError::RequiredAccountMissing),
-        };
-
-        let earn_manager_token_account = match &ctx.accounts.earn_manager_token_account {
-            Some(earn_manager_token_account) => {
-                if earn_manager_token_account.key() != earn_manager_account.fee_token_account {
-                    return err!(EarnError::InvalidAccount);
-                } else {
-                    earn_manager_token_account
-                }
-            }
-            None => return err!(EarnError::RequiredAccountMissing),
-        };
+        let earn_manager_account = &ctx.accounts.earn_manager_account.clone().unwrap();
 
         // If we reach this point, then the correct accounts have been provided and we can calculate the fee split
         // If the earn manager is not active, then no fee is taken
@@ -139,13 +126,13 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
             if fee > 0 {
                 mint_tokens(
-                    &earn_manager_token_account,           // to
-                    &fee,                                  // amount
-                    &ctx.accounts.mint,                    // mint
-                    &ctx.accounts.mint_authority, // mint authority (in this case it should be the multisig account on the token program)
-                    &ctx.accounts.token_authority_account, // signer
-                    token_authority_seeds,        // signer seeds
-                    &ctx.accounts.token_program,  // token program
+                    &ctx.accounts.earn_manager_token_account.clone().unwrap(), // to
+                    &fee,                                                      // amount
+                    &ctx.accounts.mint,                                        // mint
+                    &ctx.accounts.mint_multisig,                               // mint authority
+                    &ctx.accounts.token_authority_account,                     // signer
+                    token_authority_seeds,                                     // signer seeds
+                    &ctx.accounts.token_program,                               // token program
                 )?;
 
                 // Return the fee to reduce the rewards by
@@ -166,7 +153,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.user_token_account,      // to
         &rewards,                              // amount
         &ctx.accounts.mint,                    // mint
-        &ctx.accounts.mint_authority,          // multisig mint authority
+        &ctx.accounts.mint_multisig,           // multisig mint authority
         &ctx.accounts.token_authority_account, // signer
         token_authority_seeds,                 // signer seeds
         &ctx.accounts.token_program,           // token program

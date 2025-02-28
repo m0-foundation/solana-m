@@ -1,8 +1,22 @@
 import path from "path";
-import { Commitment, GetAccountInfoConfig, Keypair, PublicKey, SendOptions, Signer, Transaction, TransactionConfirmationStrategy, VersionedTransaction } from "@solana/web3.js";
+import {
+  Commitment,
+  GetAccountInfoConfig,
+  Keypair,
+  PublicKey,
+  SendOptions,
+  Signer,
+  Transaction,
+  TransactionConfirmationStrategy,
+  VersionedTransaction,
+} from "@solana/web3.js";
 import fs from "fs";
 import { LiteSVMProvider } from "anchor-litesvm";
-import { FailedTransactionMetadata, LiteSVM, TransactionMetadata } from "litesvm";
+import {
+  FailedTransactionMetadata,
+  LiteSVM,
+  TransactionMetadata,
+} from "litesvm";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Wallet } from "@coral-xyz/anchor";
 
@@ -22,55 +36,85 @@ export function toFixedSizedArray(buffer: Buffer, size: number): number[] {
   return array;
 }
 
-export async function fetchTransactionLogs(provider: LiteSVMProviderExt, txId: string): Promise<string[]> {
+export async function fetchTransactionLogs(
+  provider: LiteSVMProviderExt,
+  txId: string
+): Promise<string[]> {
   const txn = await provider.client.getTransaction(bs58.decode(txId));
-  return (txn as TransactionMetadata).logs() ?? (txn as FailedTransactionMetadata).meta().logs();
+  return (
+    (txn as TransactionMetadata).logs() ??
+    (txn as FailedTransactionMetadata).meta().logs()
+  );
 }
 
-export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Extend LiteSVMProvider with missing web3.js methods
 export class LiteSVMProviderExt extends LiteSVMProvider {
   constructor(public client: LiteSVM, wallet?: Wallet) {
     super(client, wallet);
 
-    this.connection.getLatestBlockhash = async () => ({ blockhash: this.client.latestBlockhash(), lastValidBlockHeight: 10 })
-    this.connection.getSlot = async (_) => Number(this.client.getClock().slot)
+    this.connection.getLatestBlockhash = async () => ({
+      blockhash: this.client.latestBlockhash(),
+      lastValidBlockHeight: 10,
+    });
+    this.connection.getSlot = async (_) => Number(this.client.getClock().slot);
 
     // litesvm only has sendAndConfirm which will throw on error so we can assume confirmTransaction will always succeed
-    this.connection.sendTransaction = async (tx: Transaction | VersionedTransaction, s?: Signer[] | SendOptions, _?: SendOptions) => this.sendAndConfirm(tx, s as Signer[])
-    this.connection.confirmTransaction = async (_strat: TransactionConfirmationStrategy | string, _?: Commitment) => ({
+    this.connection.sendTransaction = async (
+      tx: Transaction | VersionedTransaction,
+      s?: Signer[] | SendOptions,
+      _?: SendOptions
+    ) => this.sendAndConfirm(tx, s as Signer[]);
+    this.connection.confirmTransaction = async (
+      _strat: TransactionConfirmationStrategy | string,
+      _?: Commitment
+    ) => ({
       context: { slot: await this.connection.getSlot() },
-      value: { err: null }
-    })
+      value: { err: null },
+    });
 
     // send transaction and thow on error (because transaction immediately confirm)
-    this.connection.sendRawTransaction = async (rawTransaction: Buffer, options?: SendOptions): Promise<string> => {
-      let tx: Transaction | VersionedTransaction
-      let signature: string
+    this.connection.sendRawTransaction = async (
+      rawTransaction: Buffer,
+      options?: SendOptions
+    ): Promise<string> => {
+      let tx: Transaction | VersionedTransaction;
+      let signature: string;
       try {
-        tx = Transaction.from(rawTransaction)
-        signature = bs58.encode(tx.signature)
+        tx = Transaction.from(rawTransaction);
+        signature = bs58.encode(tx.signature);
       } catch {
-        tx = VersionedTransaction.deserialize(rawTransaction)
-        signature = bs58.encode(tx.signatures[0])
+        tx = VersionedTransaction.deserialize(rawTransaction);
+        signature = bs58.encode(tx.signatures[0]);
       }
 
       // send and check for error
       const result = this.client.sendTransaction(tx);
       if (result instanceof FailedTransactionMetadata) {
-        throw new Error(result.meta().logs().join('\n'));
+        throw new Error(result.meta().logs().join("\n"));
       }
 
-      return signature
-    }
+      return signature;
+    };
 
     // these are expected to return null and not throw an error if uninitialized
-    this.connection.getAccountInfo = async (pk: PublicKey, _?: Commitment | GetAccountInfoConfig) => {
+    this.connection.getAccountInfo = async (
+      pk: PublicKey,
+      _?: Commitment | GetAccountInfoConfig
+    ) => {
       const accountInfoBytes = this.client.getAccount(pk);
-      return accountInfoBytes ? { ...accountInfoBytes, data: Buffer.from(accountInfoBytes.data ?? []) } : null;
-    }
-    this.connection.getAccountInfoAndContext = async (pk: PublicKey, _?: Commitment | GetAccountInfoConfig | undefined) => ({
+      return accountInfoBytes
+        ? {
+            ...accountInfoBytes,
+            data: Buffer.from(accountInfoBytes.data ?? []),
+          }
+        : null;
+    };
+    this.connection.getAccountInfoAndContext = async (
+      pk: PublicKey,
+      _?: Commitment | GetAccountInfoConfig | undefined
+    ) => ({
       context: { slot: Number(this.client.getClock().slot) },
       value: await this.connection.getAccountInfo(pk),
     });

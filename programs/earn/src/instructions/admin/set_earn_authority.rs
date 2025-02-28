@@ -5,19 +5,19 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    constants::ADMIN,
-    state::{Global, GLOBAL_SEED},
+    errors::EarnError,
+    state::{Global, GLOBAL_SEED}
 };
 
 #[derive(Accounts)]
 pub struct SetEarnAuthority<'info> {
-    #[account(address = ADMIN)]
-    pub signer: Signer<'info>,
+    pub admin: Signer<'info>,
 
     #[account(
         mut,
         seeds = [GLOBAL_SEED],
-        bump
+        has_one = admin @ EarnError::NotAuthorized,
+        bump = global_account.bump,
     )]
     pub global_account: Account<'info, Global>,
 }

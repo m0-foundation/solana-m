@@ -6,7 +6,7 @@ use anchor_spl::token_interface::Mint;
 
 // local dependencies
 use crate::{
-    constants::{ADMIN, MINT, PORTAL_PROGRAM},
+    constants::PORTAL_PROGRAM,
     errors::EarnError,
     state::{Global, GLOBAL_SEED, TOKEN_AUTHORITY_SEED},
 };
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Accounts)]
 pub struct PropagateIndex<'info> {
     #[account(
-        constraint = signer.key() == ADMIN || signer.key() == Pubkey::find_program_address(
+        constraint = signer.key() == global_account.admin || signer.key() == Pubkey::find_program_address(
             &[TOKEN_AUTHORITY_SEED],
             &PORTAL_PROGRAM
         ).0 @ EarnError::NotAuthorized,
@@ -23,14 +23,12 @@ pub struct PropagateIndex<'info> {
 
     #[account(
         mut,
+        has_one = mint,
         seeds = [GLOBAL_SEED],
-        bump,
+        bump = global_account.bump,
     )]
     pub global_account: Account<'info, Global>,
 
-    #[account(
-        address = MINT,
-    )]
     pub mint: InterfaceAccount<'info, Mint>,
 }
 
@@ -65,10 +63,11 @@ pub fn handler(
     // In this case, we only check if the max observed supply for the next cycle needs to be updated
     // and return early.
     let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
+    let cooldown_target =
+        ctx.accounts.global_account.timestamp + ctx.accounts.global_account.claim_cooldown;
 
     if !ctx.accounts.global_account.claim_complete
-        || current_timestamp
-            < ctx.accounts.global_account.timestamp + ctx.accounts.global_account.claim_cooldown
+        || current_timestamp < cooldown_target
         || new_index <= ctx.accounts.global_account.index
     {
         if current_supply > ctx.accounts.global_account.max_supply {
@@ -89,6 +88,7 @@ pub fn handler(
         .unwrap()
         .try_into()
         .unwrap();
+
     period_max -= ctx.accounts.global_account.max_supply; // can't underflow because new_index > ctx.accounts.global.index
 
     // Update the global state

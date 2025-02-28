@@ -5,22 +5,19 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    constants::{ADMIN, ANCHOR_DISCRIMINATOR_SIZE},
+    constants::ANCHOR_DISCRIMINATOR_SIZE,
     errors::EarnError,
     state::{Global, GLOBAL_SEED},
 };
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(
-        mut,
-        address = ADMIN,
-    )]
-    pub signer: Signer<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
 
     #[account(
         init,
-        payer = signer,
+        payer = admin,
         space = ANCHOR_DISCRIMINATOR_SIZE + Global::INIT_SPACE,
         seeds = [GLOBAL_SEED],
         bump
@@ -32,6 +29,7 @@ pub struct Initialize<'info> {
 
 pub fn handler(
     ctx: Context<Initialize>,
+    mint: Pubkey,
     earn_authority: Pubkey,
     initial_index: u64,
     claim_cooldown: u64,
@@ -41,28 +39,21 @@ pub fn handler(
         return err!(EarnError::InvalidParam);
     }
 
-    // Initialize the global account
-    let global = &mut ctx.accounts.global_account;
-    global.earn_authority = earn_authority;
-    global.index = initial_index;
-
-    // TODO set this to 0 initially so we can call propagate immediately?
-    let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
-    global.timestamp = current_timestamp;
-
-    global.claim_cooldown = claim_cooldown;
-
-    // Set the claim status to complete so that a new index can be propagated to start the first claim
-    global.claim_complete = true;
-
-    // We explicitly set these values to zero for clarity
-    global.max_supply = 0;
-    global.max_yield = 0;
-    global.distributed = 0;
-
-    // Initialize Merkle roots to zero - they will be set by the first propagate_index call
-    global.earner_merkle_root = [0; 32];
-    global.earn_manager_merkle_root = [0; 32];
+    ctx.accounts.global_account.set_inner(Global {
+        admin: ctx.accounts.admin.key(),
+        earn_authority,
+        mint,
+        index: initial_index,
+        timestamp: 0, // Set this to 0 initially so we can call propagate immediately
+        claim_cooldown,
+        max_supply: 0,
+        max_yield: 0,
+        distributed: 0,
+        claim_complete: true,
+        earner_merkle_root: [0; 32],
+        earn_manager_merkle_root: [0; 32],
+        bump: ctx.bumps.global_account,
+    });
 
     Ok(())
 }
