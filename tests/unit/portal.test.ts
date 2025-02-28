@@ -288,7 +288,7 @@ describe("Portal unit tests", () => {
       await ssw(ctx, setXcvrPeerTxs, signer);
 
       // Set manager peer
-      const setPeerTxs = ntt.setPeer(wc.remoteMgr, 18, 1000000n, sender);
+      const setPeerTxs = ntt.setPeer(wc.remoteMgr, 9, 1000000n, sender);
       await ssw(ctx, setPeerTxs, signer);
     });
     test("initialize earn", async () => {
@@ -310,7 +310,7 @@ describe("Portal unit tests", () => {
 
   describe("Sending", () => {
     test("can send tokens", async () => {
-      const amount = 100000n;
+      const amount = 100_000n;
       const sender = Wormhole.parseAddress("Solana", signer.address());
       const receiver = testing.utils.makeUniversalChainAddress("Ethereum");
 
@@ -395,7 +395,7 @@ describe("Portal unit tests", () => {
 
     const redeem = (remaining_accounts: AccountMeta[]) => {
       const additionalPayload = utils.encodePacked(
-        { type: "uint64", value: 1000000000001n }, // index
+        { type: "uint64", value: 1_000_000_000_001n }, // index
         { type: "bytes32", value: "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b" } // destination
       );
 

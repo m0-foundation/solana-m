@@ -26,7 +26,6 @@ import {
     pack,
     TokenMetadata,
 } from "@solana/spl-token-metadata";
-import { loadKeypair } from '../tests/test-utils';
 import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
 import {
     SolanaPlatform,
@@ -97,11 +96,11 @@ async function main() {
     program
         .command('initialize-portal')
         .description('Initialize the portal program')
-        .action(async (options) => {
+        .action(async () => {
             const connection = new Connection(process.env.RPC_URL);
             const [owner, mint, multisig] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR", "MULTISIG_KEYPAIR"]);
 
-            const { ctx, ntt, sender, signer } = NttManager(connection, owner, options.network, mint.publicKey);
+            const { ctx, ntt, sender, signer } = NttManager(connection, owner, mint.publicKey);
 
             const initTxs = ntt.initialize(sender, {
                 mint: mint.publicKey,
@@ -117,15 +116,11 @@ async function main() {
     program
         .command('update-lut')
         .description('Initialize or update the LUT for the portal program')
-        .option('--mint <pubkey>', 'mint keypair', 'mz2MZpcKUaprRVWcSD3yP4NC5MvG6K7xkmudQP58jVH')
-        .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
-        .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
-        .option('--network <string>', 'target devnet or mainnet', 'devnet')
-        .action(async (options) => {
+        .action(async () => {
             const connection = new Connection(process.env.RPC_URL);
             const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
 
-            const { ctx, ntt, signer } = NttManager(connection, owner, options.network, mint.publicKey);
+            const { ctx, ntt, signer } = NttManager(connection, owner, mint.publicKey);
 
             const lutTxn = ntt.initializeOrUpdateLUT({ payer: owner.publicKey });
             await signSendWait(ctx, lutTxn, signer);
@@ -135,21 +130,17 @@ async function main() {
     program
         .command('register-peers')
         .description('Initialize or update the LUT for the portal program')
-        .option('--mint <pubkey>', 'mint keypair', 'mz2MZpcKUaprRVWcSD3yP4NC5MvG6K7xkmudQP58jVH')
-        .option('--owner <filepath>', 'owner and payer', 'devnet-key.json')
-        .option('--rpcUrl <string>', 'RPC URL', 'https://api.devnet.solana.com')
-        .option('--network <string>', 'target devnet or mainnet', 'devnet')
-        .action(async (options) => {
+        .action(async () => {
             const connection = new Connection(process.env.RPC_URL);
             const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
 
-            const { ctx, ntt, signer, sender } = NttManager(connection, owner, options.network, mint.publicKey);
+            const { ctx, ntt, signer, sender } = NttManager(connection, owner, mint.publicKey);
 
             // register wormhole xcvr
             const registerTxs = ntt.registerWormholeTransceiver({ payer: sender, owner: sender });
             await signSendWait(ctx, registerTxs, signer);
 
-            const chains = (options.network === "mainnet" ?
+            const chains = (process.env.NETWORK === "mainnet" ?
                 ["Ethereum", "Arbitrum", "Optimism"] :
                 ["Sepolia", "ArbitrumSepolia", "OptimismSepolia"]) as Chain[];
 
@@ -174,11 +165,11 @@ async function main() {
     await program.parseAsync(process.argv);
 }
 
-function NttManager(connection: Connection, owner: Keypair, network: "devnet" | "mainnet", mint: PublicKey) {
+function NttManager(connection: Connection, owner: Keypair, mint: PublicKey) {
     const signer = new SolanaSendSigner(connection, "Solana", owner, false, { min: 300_000 });
     const sender = Wormhole.parseAddress("Solana", signer.address());
 
-    const wormholeNetwork = network === "devnet" ? "Testnet" : "Mainnet";
+    const wormholeNetwork = process.env.NETWORK === "devnet" ? "Testnet" : "Mainnet";
     const wh = new Wormhole(wormholeNetwork, [SolanaPlatform]);
     const ctx = wh.getChain("Solana");
 
