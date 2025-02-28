@@ -3,7 +3,9 @@ import {
     Connection,
     Keypair,
     PublicKey,
+    sendAndConfirmTransaction,
     SystemProgram,
+    Transaction,
     TransactionMessage,
     VersionedTransaction,
 } from '@solana/web3.js';
@@ -39,6 +41,7 @@ import {
     assertChain,
     signSendWait,
 } from "@wormhole-foundation/sdk";
+import { createSetEvmAddresses } from '../tests/test-utils';
 
 
 const PROGRAMS = {
@@ -47,7 +50,10 @@ const PROGRAMS = {
     earn: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"),
     // addresses the same across L2s 
     evmTransiever: "0x0763196A091575adF99e2306E5e90E0Be5154841",
-    evmPeer: "0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd"
+    evmPeer: "0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd",
+    // destination tokens
+    mToken: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+    wmToken: '0x437cc33344a0B27A429f795ff6B469C72698B291',
 }
 
 const RATE_LIMITS_24 = {
@@ -112,6 +118,25 @@ async function main() {
             await signSendWait(ctx, initTxs, signer);
             console.log(`Portal initialized: ${PROGRAMS.portal.toBase58()}`);
         });
+
+    program
+        .command('set-evm-addresses')
+        .description('Set the EVM addresses to the destination tokens')
+        .action(async () => {
+            const connection = new Connection(process.env.RPC_URL);
+            const [owner] = keysFromEnv(["OWNER_KEYPAIR"]);
+
+            const tx = new Transaction().add(createSetEvmAddresses(
+                PROGRAMS.portal, owner.publicKey, PROGRAMS.mToken, PROGRAMS.wmToken
+            ));
+
+            tx.feePayer = owner.publicKey;
+            tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+            await sendAndConfirmTransaction(connection, tx, [owner]);
+
+            console.log(`EVM addresses set: ${PROGRAMS.mToken} and ${PROGRAMS.wmToken}`);
+        });
+
 
     program
         .command('update-lut')

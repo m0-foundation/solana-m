@@ -8,6 +8,7 @@ import {
   Signer,
   Transaction,
   TransactionConfirmationStrategy,
+  TransactionInstruction,
   VersionedTransaction,
 } from "@solana/web3.js";
 import fs from "fs";
@@ -19,6 +20,8 @@ import {
 } from "litesvm";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Wallet } from "@coral-xyz/anchor";
+import { sha256 } from "@wormhole-foundation/sdk-definitions";
+import { NTT } from "@wormhole-foundation/sdk-solana-ntt";
 
 export function loadKeypair(filePath: string): Keypair {
   const fullPath = path.resolve(filePath);
@@ -119,4 +122,27 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
       value: await this.connection.getAccountInfo(pk),
     });
   }
+}
+
+export function createSetEvmAddresses(pid: PublicKey, admin: PublicKey, M: string, wM: string) {
+  return new TransactionInstruction({
+    programId: pid,
+    keys: [
+      {
+        pubkey: admin,
+        isSigner: true,
+        isWritable: true,
+      },
+      {
+        pubkey: NTT.pdas(pid).configAccount(),
+        isSigner: false,
+        isWritable: true,
+      }
+    ],
+    data: Buffer.concat([
+      sha256("global:set_destination_addresses").slice(0, 8),
+      Buffer.from(M.slice(2).padStart(64, "0"), 'hex'),
+      Buffer.from(wM.slice(2).padStart(64, "0"), 'hex'),
+    ]),
+  })
 }

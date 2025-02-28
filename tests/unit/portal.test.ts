@@ -34,8 +34,9 @@ import {
   SolanaUnsignedTransaction,
 } from "@wormhole-foundation/sdk-solana";
 import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
-import { NTT, SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
+import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
 import {
+  createSetEvmAddresses,
   fetchTransactionLogs,
   LiteSVMProviderExt,
   loadKeypair,
@@ -77,6 +78,9 @@ const WORMHOLE_BRIDGE_CONFIG = new PublicKey(
 const WORMHOLE_BRIDGE_FEE_COLLECTOR = new PublicKey(
   "9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"
 );
+
+const EVM_M = '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b'
+const EVM_WRAPPED_M = '0x437cc33344a0B27A429f795ff6B469C72698B291'
 
 describe("Portal unit tests", () => {
   let ntt: SolanaNtt<"Devnet", "Solana">;
@@ -275,28 +279,9 @@ describe("Portal unit tests", () => {
       await ssw(ctx, onlyInit(), signer);
 
       // set evm destination addresses
-      const setEvmIx = new TransactionInstruction({
-        programId: NTT_ADDRESS,
-        keys: [
-          {
-            pubkey: owner.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-          {
-            pubkey: NTT.pdas(NTT_ADDRESS).configAccount(),
-            isSigner: false,
-            isWritable: true,
-          }
-        ],
-        data: Buffer.concat([
-          sha256("global:set_destination_addresses").slice(0, 8),
-          Buffer.from('866A2BF4E572CbcF37D5071A7a58503Bfb36be1b', 'hex'), // todo: 20 bytes -> 32
-          Buffer.from('437cc33344a0B27A429f795ff6B469C72698B291', 'hex'), // todo: 20 bytes -> 32
-        ]),
-      })
-
-      const tx = new Transaction().add(setEvmIx);
+      const tx = new Transaction().add(
+        createSetEvmAddresses(NTT_ADDRESS, owner.publicKey, EVM_M, EVM_WRAPPED_M)
+      );
       await provider.sendAndConfirm(tx, [owner]);
 
       // register
