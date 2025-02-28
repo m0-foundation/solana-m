@@ -16,9 +16,9 @@ pub struct OutboxItem {
     pub recipient_chain: ChainId,
     pub recipient_ntt_manager: [u8; 32],
     pub recipient_address: [u8; 32],
-    pub destination_token: [u8; 32],
     pub release_timestamp: i64,
     pub released: Bitmap,
+    pub destination_token: [u8; 32],
 }
 
 impl OutboxItem {
