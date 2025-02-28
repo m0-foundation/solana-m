@@ -16,7 +16,7 @@ pub struct InboxItem {
     pub votes: Bitmap,
     pub release_status: ReleaseStatus,
     pub transfer: Option<TokenTransfer>,
-    pub index_update: Option<u64>,
+    pub index_update: u64,
     pub root_updates: Option<RootUpdates>,
 }
 

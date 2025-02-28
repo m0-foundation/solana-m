@@ -78,6 +78,14 @@ pub mod example_native_token_transfers {
         instructions::initialize_multisig(ctx, args)
     }
 
+    pub fn set_destination_addresses(
+        ctx: Context<SetDestinationAddresses>,
+        evm_token: [u8; 32],
+        evm_wrapped_token: [u8; 32],
+    ) -> Result<()> {
+        instructions::set_destination_addresses(ctx, evm_token, evm_wrapped_token)
+    }
+
     pub fn initialize_lut(ctx: Context<InitializeLUT>, recent_slot: u64) -> Result<()> {
         instructions::initialize_lut(ctx, recent_slot)
     }

@@ -285,6 +285,7 @@ fn insert_into_outbox(
         recipient_chain,
         recipient_ntt_manager,
         recipient_address,
+        destination_token: common.config.evm_token,
         release_timestamp,
         released: Bitmap::new(),
     });

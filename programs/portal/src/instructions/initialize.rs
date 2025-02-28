@@ -8,7 +8,7 @@ use crate::messages::Hack;
 
 use crate::{
     bitmap::Bitmap,
-    config::RemainingAccount,
+    config::{Config, RemainingAccount},
     error::NTTError,
     queue::{outbox::OutboxRateLimit, rate_limit::RateLimitState},
     spl_multisig::SplMultisig,
@@ -135,11 +135,38 @@ pub fn initialize_multisig(ctx: Context<InitializeMultisig>, args: InitializeArg
                 true,
             ),
         ],
+        evm_token: [0; 32],
+        evm_wrapped_token: [0; 32],
     });
 
     common.rate_limit.set_inner(OutboxRateLimit {
         rate_limit: RateLimitState::new(args.limit),
     });
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct SetDestinationAddresses<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [Config::SEED_PREFIX],
+        bump
+    )]
+    pub config: Box<Account<'info, Config>>,
+}
+
+pub fn set_destination_addresses(
+    ctx: Context<SetDestinationAddresses>,
+    evm_token: [u8; 32],
+    evm_wrapped_token: [u8; 32],
+) -> Result<()> {
+    ctx.accounts.config.evm_token = evm_token;
+    ctx.accounts.config.evm_wrapped_token = evm_wrapped_token;
 
     Ok(())
 }

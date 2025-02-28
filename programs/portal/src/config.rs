@@ -57,6 +57,9 @@ pub struct Config {
     pub custody: Pubkey,
     /// remaining accounts required for CPI call to the earn program
     pub release_inbound_remaining_accounts: [RemainingAccount; 2],
+    /// destination token addresses
+    pub evm_token: [u8; 32],
+    pub evm_wrapped_token: [u8; 32],
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
