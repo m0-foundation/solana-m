@@ -157,9 +157,6 @@ const expectAnchorError = async (
     expect(err.error.errorCode.code).toStrictEqual(errCode);
     reverted = true;
   } finally {
-    if (!reverted) {
-      console.log(errr);
-    }
     expect(reverted).toBe(true);
   }
 };
