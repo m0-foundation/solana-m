@@ -89,7 +89,7 @@ pub struct Initialize<'info> {
 pub struct InitializeArgs {
     pub chain_id: u16,
     pub limit: u64,
-    pub mode: ntt_messages::mode::Mode,
+    pub mode: Mode,
 }
 
 #[derive(Accounts)]

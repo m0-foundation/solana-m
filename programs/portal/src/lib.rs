@@ -49,7 +49,7 @@ pub const SESSION_AUTHORITY_SEED: &[u8] = b"session_authority";
 pub const VERSION: &str = "3.0.0";
 
 #[program]
-pub mod example_native_token_transfers {
+pub mod portal {
     use super::*;
 
     pub fn initialize_multisig(

@@ -24,6 +24,7 @@ import {
   serialize,
   deserialize,
   serializePayload,
+  sha256,
 } from "@wormhole-foundation/sdk";
 import * as testing from "@wormhole-foundation/sdk-definitions/testing";
 import {
@@ -33,7 +34,7 @@ import {
   SolanaUnsignedTransaction,
 } from "@wormhole-foundation/sdk-solana";
 import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
-import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
+import { NTT, SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
 import {
   fetchTransactionLogs,
   LiteSVMProviderExt,
@@ -272,6 +273,31 @@ describe("Portal unit tests", () => {
         >;
       }
       await ssw(ctx, onlyInit(), signer);
+
+      // set evm destination addresses
+      const setEvmIx = new TransactionInstruction({
+        programId: NTT_ADDRESS,
+        keys: [
+          {
+            pubkey: owner.publicKey,
+            isSigner: true,
+            isWritable: true,
+          },
+          {
+            pubkey: NTT.pdas(NTT_ADDRESS).configAccount(),
+            isSigner: false,
+            isWritable: true,
+          }
+        ],
+        data: Buffer.concat([
+          sha256("global:set_destination_addresses").slice(0, 8),
+          Buffer.from('866A2BF4E572CbcF37D5071A7a58503Bfb36be1b', 'hex'), // todo: 20 bytes -> 32
+          Buffer.from('437cc33344a0B27A429f795ff6B469C72698B291', 'hex'), // todo: 20 bytes -> 32
+        ]),
+      })
+
+      const tx = new Transaction().add(setEvmIx);
+      await provider.sendAndConfirm(tx, [owner]);
 
       // register
       const registerTxs = ntt.registerWormholeTransceiver({

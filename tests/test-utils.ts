@@ -106,9 +106,9 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
       const accountInfoBytes = this.client.getAccount(pk);
       return accountInfoBytes
         ? {
-            ...accountInfoBytes,
-            data: Buffer.from(accountInfoBytes.data ?? []),
-          }
+          ...accountInfoBytes,
+          data: Buffer.from(accountInfoBytes.data ?? []),
+        }
         : null;
     };
     this.connection.getAccountInfoAndContext = async (
