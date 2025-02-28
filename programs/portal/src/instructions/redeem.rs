@@ -122,7 +122,7 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
             release_status: ReleaseStatus::NotApproved,
             votes: Bitmap::new(),
             transfer: None,
-            index_update: None,
+            index_update: 0,
             root_updates: None,
         };
 

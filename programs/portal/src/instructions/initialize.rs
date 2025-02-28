@@ -90,6 +90,8 @@ pub struct InitializeArgs {
     pub chain_id: u16,
     pub limit: u64,
     pub mode: ntt_messages::mode::Mode,
+    pub evm_token: [u8; 32],
+    pub evm_wrapped_token: [u8; 32],
 }
 
 #[derive(Accounts)]
@@ -135,6 +137,8 @@ pub fn initialize_multisig(ctx: Context<InitializeMultisig>, args: InitializeArg
                 true,
             ),
         ],
+        evm_token: args.evm_token,
+        evm_wrapped_token: args.evm_wrapped_token,
     });
 
     common.rate_limit.set_inner(OutboxRateLimit {

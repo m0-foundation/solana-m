@@ -134,19 +134,14 @@ pub fn release_inbound_mint_multisig<'info>(
         msg!("Transferred {} tokens to {}", tt.amount, tt.recipient);
     }
 
+    let expected_accounts = &ctx
+        .accounts
+        .common
+        .config
+        .release_inbound_remaining_accounts;
+
     // Send update to the earn program
-    if let Some(index) = inbox_item.index_update {
-        let expected_accounts = &ctx
-            .accounts
-            .common
-            .config
-            .release_inbound_remaining_accounts;
-
-        if ctx.remaining_accounts.len() < expected_accounts.len() {
-            msg!("Skipping index update: {}", index);
-            return Ok(());
-        }
-
+    if ctx.remaining_accounts.len() >= expected_accounts.len() {
         for (i, account) in expected_accounts.iter().enumerate() {
             if account.pubkey != ctx.remaining_accounts[i].key() {
                 return err!(NTTError::InvalidRemainingAccount);
@@ -166,16 +161,18 @@ pub fn release_inbound_mint_multisig<'info>(
         let root_updates = inbox_item.root_updates.clone().unwrap_or_default();
         earn::cpi::propagate_index(
             ctx,
-            index,
+            inbox_item.index_update,
             root_updates.earner_root,
             root_updates.earn_manager_root,
         )?;
 
         msg!(
             "Index update: {} | root update: {}",
-            index,
+            inbox_item.index_update,
             inbox_item.root_updates.is_some()
         );
+    } else {
+        msg!("Skipping index update: {}", inbox_item.index_update);
     }
 
     Ok(())
