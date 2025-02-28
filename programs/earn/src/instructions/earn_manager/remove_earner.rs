@@ -6,19 +6,13 @@ use anchor_lang::prelude::*;
 // local dependencies
 use crate::{
     errors::EarnError,
-    state::{EarnManager, Earner, Global, EARNER_SEED, EARN_MANAGER_SEED, GLOBAL_SEED},
+    state::{EarnManager, Earner, EARNER_SEED, EARN_MANAGER_SEED},
 };
 
 #[derive(Accounts)]
 pub struct RemoveEarner<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-
-    #[account(
-        seeds = [GLOBAL_SEED],
-        bump = global_account.bump
-    )]
-    pub global_account: Account<'info, Global>,
 
     #[account(
         mut,
