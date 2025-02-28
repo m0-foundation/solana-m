@@ -16,13 +16,14 @@ pub struct RemoveOrphanedEarner<'info> {
 
     #[account(
         mut,
+        close = signer,
         seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,
 
     #[account(
-        constraint = earn_manager_account.is_active @ EarnError::NotAuthorized,
+        constraint = !earn_manager_account.is_active @ EarnError::NotAuthorized,
         seeds = [EARN_MANAGER_SEED, earner_account.earn_manager.unwrap().as_ref()],
         bump = earn_manager_account.bump
     )]
