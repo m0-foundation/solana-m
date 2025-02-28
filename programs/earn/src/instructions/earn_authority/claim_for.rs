@@ -2,11 +2,7 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    associated_token::get_associated_token_address_with_program_id,
-    token_2022,
-    token_interface::{Mint, TokenAccount, TokenInterface},
-};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // local dependencies
 use crate::{
@@ -41,13 +37,14 @@ pub struct ClaimFor<'info> {
     )]
     pub token_authority_account: AccountInfo<'info>,
 
-    #[account(mut, address = get_associated_token_address_with_program_id(&earner_account.user, &global_account.mint, &token_2022::ID))]
+    #[account(mut)]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = earner_account.earn_manager.is_none() || earn_manager_account.is_some() @ EarnError::RequiredAccountMissing,
-        seeds = [EARNER_SEED, earner_account.user.as_ref()],
+        has_one = user_token_account,
+        seeds = [EARNER_SEED, user_token_account.key().as_ref()],
         bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,

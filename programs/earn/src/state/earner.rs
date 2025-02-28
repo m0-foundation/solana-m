@@ -14,4 +14,5 @@ pub struct Earner {
     pub is_earning: bool, // earning flag to prevent claims after an earner is removed but the account has not been deleted
     pub bump: u8,
     pub user: Pubkey,
+    pub user_token_account: Pubkey,
 }

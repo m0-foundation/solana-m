@@ -2,6 +2,7 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
+use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
@@ -31,10 +32,16 @@ pub struct AddEarner<'info> {
     pub global_account: Account<'info, Global>,
 
     #[account(
+        token::mint = global_account.mint,
+        token::authority = user,
+    )]
+    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
         init,
         payer = signer,
         space = ANCHOR_DISCRIMINATOR_SIZE + Earner::INIT_SPACE,
-        seeds = [EARNER_SEED, user.as_ref()],
+        seeds = [EARNER_SEED, user_token_account.key().as_ref()],
         bump
     )]
     pub earner_account: Account<'info, Earner>,
@@ -65,6 +72,7 @@ pub fn handler(
         is_earning: true,
         bump: ctx.accounts.earner_account.bump,
         user,
+        user_token_account: ctx.accounts.user_token_account.key(),
     });
 
     Ok(())

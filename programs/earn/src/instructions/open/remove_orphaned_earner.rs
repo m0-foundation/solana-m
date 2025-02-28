@@ -16,7 +16,7 @@ pub struct RemoveOrphanedEarner<'info> {
 
     #[account(
         mut,
-        seeds = [EARNER_SEED, earner_account.user.as_ref()],
+        seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,

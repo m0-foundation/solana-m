@@ -2,7 +2,6 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
@@ -23,15 +22,9 @@ pub struct RemoveRegistrarEarner<'info> {
     pub global_account: Account<'info, Global>,
 
     #[account(
-        token::mint = global_account.mint,
-        token::authority = earner_account.user,
-    )]
-    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
         mut,
         close = signer,
-        seeds = [EARNER_SEED, earner_account.user.as_ref()],
+        seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,
