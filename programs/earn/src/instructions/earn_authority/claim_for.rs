@@ -22,7 +22,7 @@ pub struct ClaimFor<'info> {
     #[account(
         mut,
         has_one = mint,
-        has_one = earn_authority,
+        has_one = earn_authority @ EarnError::NotAuthorized,
         seeds = [GLOBAL_SEED],
         bump = global_account.bump,
     )]
@@ -61,7 +61,7 @@ pub struct ClaimFor<'info> {
     )]
     pub earn_manager_account: Option<Account<'info, EarnManager>>,
 
-    #[account(mut, address = earn_manager_account.clone().unwrap().fee_token_account)]
+    #[account(mut, address = earn_manager_account.clone().unwrap().fee_token_account @ EarnError::InvalidAccount)]
     pub earn_manager_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
 }
 

@@ -15,7 +15,7 @@ pub struct CompleteClaims<'info> {
 
     #[account(
         mut,
-        has_one = earn_authority,
+        has_one = earn_authority @ EarnError::NotAuthorized,
         seeds = [GLOBAL_SEED],
         bump,
     )]
