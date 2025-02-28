@@ -42,11 +42,12 @@ import {
     signSendWait,
 } from "@wormhole-foundation/sdk";
 import { createSetEvmAddresses } from '../tests/test-utils';
+import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
 
 
 const PROGRAMS = {
     // program id the same for devnet and mainnet
-    portal: new PublicKey("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr"),
+    portal: new PublicKey("mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"),
     earn: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"),
     // addresses the same across L2s 
     evmTransiever: "0x0763196A091575adF99e2306E5e90E0Be5154841",
@@ -236,7 +237,7 @@ async function createToken2022Mint(
     // mint size with extensions
     const metadataExtension = TYPE_SIZE + LENGTH_SIZE;
     const metadataLen = pack(metaData).length;
-    const mintLen = getMintLen([ExtensionType.TransferHook, ExtensionType.MetadataPointer]);
+    const mintLen = getMintLen([ExtensionType.TransferHook, ExtensionType.MetadataPointer, ExtensionType.ConfidentialTransferMint]);
     const lamports = await connection.getMinimumBalanceForRentExemption(
         mintLen + metadataExtension + metadataLen,
     );
@@ -260,6 +261,11 @@ async function createToken2022Mint(
             owner.publicKey, // authority
             PublicKey.default, // no transfer hook
             TOKEN_2022_PROGRAM_ID
+        ),
+        createInitializeConfidentialTransferMintInstruction(
+            mint.publicKey,
+            owner.publicKey,
+            false
         ),
         createInitializeMintInstruction(
             mint.publicKey,

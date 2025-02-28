@@ -18,7 +18,7 @@ use transceivers::wormhole::instructions::*;
 
 use instructions::*;
 
-declare_id!("mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr");
+declare_id!("mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY");
 
 pub const TOKEN_AUTHORITY_SEED: &[u8] = b"token_authority";
 

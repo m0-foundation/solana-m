@@ -59,7 +59,7 @@ const GUARDIAN_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const CORE_BRIDGE_ADDRESS = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth";
 const NTT_ADDRESS = new PublicKey(
-  "mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr"
+  "mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"
 );
 const EARN_PROGRAM = new PublicKey(
   "MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"
