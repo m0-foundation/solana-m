@@ -63,7 +63,7 @@ pub fn handler(
         last_claim_index: ctx.accounts.global_account.index,
         last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),
         is_earning: true,
-        bump: ctx.accounts.earner_account.bump,
+        bump: ctx.bumps.earner_account,
         user,
     });
 

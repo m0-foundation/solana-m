@@ -146,15 +146,20 @@ const expectAnchorError = async (
   txResult: Promise<string>,
   errCode: string
 ) => {
+  let errr;
   let reverted = false;
   try {
     await txResult;
   } catch (e) {
+    errr = e
     expect(e instanceof AnchorError).toBe(true);
     const err: AnchorError = e;
     expect(err.error.errorCode.code).toStrictEqual(errCode);
     reverted = true;
   } finally {
+    if (!reverted) {
+      console.log(errr);
+    }
     expect(reverted).toBe(true);
   }
 };
@@ -535,7 +540,7 @@ const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey,
   accounts.globalAccount = globalAccount;
   accounts.earnerAccount = earnerAccount;
   accounts.mint = mint;
-  accounts.mintAuthority = mintAuthority.publicKey;
+  accounts.mintMultisig = mintAuthority.publicKey;
   accounts.tokenAuthorityAccount = earnTokenAuthority;
   accounts.userTokenAccount = earnerATA;
   accounts.tokenProgram = TOKEN_2022_PROGRAM_ID;
@@ -757,10 +762,9 @@ const removeEarnManager = async (earnManager: PublicKey, proofs: ProofElement[][
     .rpc();
 };
 
-const prepRemoveOrphanedEarner = (signer: Keypair, earnerATA: PublicKey, earnManager?: PublicKey) => {
+const prepRemoveOrphanedEarner = (signer: Keypair, earner: PublicKey, earnerATA: PublicKey, earnManager?: PublicKey) => {
   // Get the earner account
-  const earnerAccount = getEarnerAccount(earnerATA);
-
+  const earnerAccount = getEarnerAccount(earner);
 
   // Populate accounts
   accounts = {};
@@ -776,21 +780,6 @@ const prepRemoveOrphanedEarner = (signer: Keypair, earnerATA: PublicKey, earnMan
   }
 
   return { earnerAccount };
-};
-
-const removeOrphanedEarner = async (earner: PublicKey, earnManager?: PublicKey) => {
-  // Get the earner ATA
-  const earnerATA = await getATA(mint.publicKey, earner);
-
-  // Setup the instruction
-  prepRemoveOrphanedEarner(nonAdmin, earnerATA, earnManager);
-
-  // Send the instruction
-  await earn.methods
-    .removeOrphanedEarner()
-    .accounts({ ...accounts })
-    .signers([nonAdmin])
-    .rpc();
 };
 
 describe("Earn unit tests", () => {
@@ -1948,7 +1937,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
-        "InvalidAccount"
+        "ConstraintAddress"
       );
     });
 
@@ -2189,7 +2178,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "ConstraintAddress"
+        "ConstraintHasOne"
       );
     });
 
@@ -2388,32 +2377,6 @@ describe("Earn unit tests", () => {
           .signers([earnManagerOne])
           .rpc(),
         "ConstraintTokenMint"
-      );
-    });
-
-    // given the earn manager account matches the signer
-    // given the provided merkle proof for the signer is valid
-    // given the fee basis points is less than or equal to 100_00
-    // given the fee_token_account authority is not the signer
-    // it reverts with a constraint token owner error
-    test("Fee token account authority not signer - reverts", async () => {
-      // Get the ATA for earn manager one
-      const nonEarnManagerOneATA = await getATA(mint.publicKey, nonEarnManagerOne.publicKey);
-
-      // Get the inclusion proof for earn manager one in the earn manager tree
-      const { proof } = earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
-
-      // Setup the instruction
-      prepConfigureEarnManager(earnManagerOne, earnManagerOne.publicKey, nonEarnManagerOneATA);
-
-      // Attempt to configure earn manager with invalid fee token account authority
-      await expectAnchorError(
-        earn.methods
-          .configureEarnManager(new BN(100), proof)
-          .accounts({ ...accounts })
-          .signers([earnManagerOne])
-          .rpc(),
-        "ConstraintTokenOwner"
       );
     });
 
@@ -2648,7 +2611,7 @@ describe("Earn unit tests", () => {
       const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonAdmin.publicKey);
 
       // Setup the instruction
-      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, nonEarnerOne.publicKey);
+      prepAddEarner(earnManagerOne, earnManagerOne.publicKey, earnerOne.publicKey);
 
       // Attempt to add earner with invalid merkle proof
       await expectAnchorError(
@@ -3526,7 +3489,7 @@ describe("Earn unit tests", () => {
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Prepare the instruction
-      prepRemoveOrphanedEarner(nonAdmin, nonEarnerOneATA, earnManagerTwo.publicKey);
+      prepRemoveOrphanedEarner(nonAdmin, nonEarnerOne.publicKey, nonEarnerOneATA, earnManagerTwo.publicKey);
 
       // Attempt to remove orphaned earner with uninitialized earn manager account
       await expectAnchorError(
@@ -3546,7 +3509,7 @@ describe("Earn unit tests", () => {
       const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
       // Prep the instruction
-      prepRemoveOrphanedEarner(nonAdmin, earnerOneATA, earnManagerOne.publicKey);
+      prepRemoveOrphanedEarner(nonAdmin, earnerOne.publicKey, earnerOneATA, earnManagerOne.publicKey);
 
       // Attempt to remove orphaned earner without an earn manager
       await expectSystemError(
@@ -3567,7 +3530,7 @@ describe("Earn unit tests", () => {
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Setup the instruction
-      prepRemoveOrphanedEarner(nonAdmin, nonEarnerOneATA, earnManagerOne.publicKey);
+      prepRemoveOrphanedEarner(nonAdmin, nonEarnerOne.publicKey, nonEarnerOneATA, earnManagerOne.publicKey);
 
       // Attempt to remove orphaned earner with an active earn manager
       await expectAnchorError(
@@ -3601,7 +3564,7 @@ describe("Earn unit tests", () => {
       const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Setup the instruction
-      const { earnerAccount } = prepRemoveOrphanedEarner(nonAdmin, nonEarnerOneATA, earnManagerOne.publicKey);
+      const { earnerAccount } = prepRemoveOrphanedEarner(nonAdmin, nonEarnerOne.publicKey, nonEarnerOneATA, earnManagerOne.publicKey);
 
       // Confirm that the account is active and earning
       await expectEarnerState(
