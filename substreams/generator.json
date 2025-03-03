@@ -1,0 +1,11 @@
+{
+  "generator": "sol-transactions",
+  "state": {
+    "name": "portal",
+    "chainName": "",
+    "initialBlock": 300000000,
+    "initialBlockSet": true,
+    "filter": "program:MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c || program:mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr || account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6",
+    "filterContainsAccount": true
+  }
+}

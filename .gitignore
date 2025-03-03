@@ -5,3 +5,9 @@ target
 node_modules
 test-ledger
 .yarn
+
+# substream items
+.substreams.env
+substreams/target/
+substreams/sink-data/
+*.spkg
