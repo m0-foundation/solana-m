@@ -134,7 +134,10 @@ describe("Portal unit tests", () => {
   });
 
   const programData = new PublicKey(
-    "ErL2HKJaMbQvGsLBtCR8tpLJTYfPaF14V81KRCxPUtd9"
+    PublicKey.findProgramAddressSync(
+      [NTT_ADDRESS.toBytes()],
+      new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+    )[0]
   );
   svm.setAccount(programData, {
     executable: false,
