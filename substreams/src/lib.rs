@@ -1,11 +1,11 @@
 mod pb;
-use pb::{mydata::v1 as mydata, sf::substreams::solana::v1::Transactions};
+use pb::{sf::substreams::solana::v1::Transactions, token::v1::TokenTransactionData};
 
 #[substreams::handlers::map]
-fn map_my_data(transactions: Transactions) -> mydata::MyData {
+fn map_token_transaction_data(transactions: Transactions) -> TokenTransactionData {
     // TODO: Modify this code to get the data that you need from the transactions.
 
-    let mut my_data = mydata::MyData::default();
+    let mut my_data = TokenTransactionData::default();
     my_data.transactions = transactions.transactions;
     my_data
 }

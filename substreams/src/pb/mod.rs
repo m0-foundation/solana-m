@@ -1,11 +1,4 @@
 // @generated
-pub mod mydata {
-    // @@protoc_insertion_point(attribute:mydata.v1)
-    pub mod v1 {
-        include!("mydata.v1.rs");
-        // @@protoc_insertion_point(mydata.v1)
-    }
-}
 pub mod sf {
     pub mod solana {
         pub mod r#type {
@@ -27,5 +20,12 @@ pub mod sf {
                 // @@protoc_insertion_point(sf.substreams.solana.v1)
             }
         }
+    }
+}
+pub mod token {
+    // @@protoc_insertion_point(attribute:token.v1)
+    pub mod v1 {
+        include!("token.v1.rs");
+        // @@protoc_insertion_point(token.v1)
     }
 }

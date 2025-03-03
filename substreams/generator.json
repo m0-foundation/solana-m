@@ -1,7 +1,7 @@
 {
-  "generator": "sol-transactions",
+  "generator": "token-transactions",
   "state": {
-    "name": "portal",
+    "name": "m-token-transactions",
     "chainName": "",
     "initialBlock": 300000000,
     "initialBlockSet": true,

@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package mydata.v1;
+package token.v1;
 
 import 'sf/solana/type/v1/type.proto';
 
-message MyData {
+message TokenTransactionData {
   repeated .sf.solana.type.v1.ConfirmedTransaction transactions = 1;
 }
 
