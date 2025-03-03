@@ -5,6 +5,7 @@
     "lib": ["es2020"],
     "module": "Commonjs",
     "target": "es2020",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
   }
 }

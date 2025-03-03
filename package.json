@@ -9,8 +9,12 @@
     "build": "anchor build",
     "cli:dev": "op run --env-file='./dev.env' -- ts-node cli/main.ts",
     "build:devnet": "anchor build -- --features devnet --no-default-features",
-    "write-upgrade:devnet": "solana program write-buffer --with-compute-unit-price 300000 --keypair devnet-keypair.json --max-sign-attempts 5 target/deploy/portal.so",
-    "upgrade:devnet": "sh -c 'solana program upgrade --keypair devnet-keypair.json ${0} mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY'"
+    "write-upgrade:devnet": "sh -c 'solana program write-buffer --with-compute-unit-price 300000 --keypair devnet-keypair.json --max-sign-attempts 5 ${0}'",
+    "write-upgrade:devnet:earn": "yarn write-upgrade:devnet target/deploy/earn.so",
+    "write-upgrade:devnet:portal": "yarn write-upgrade:devnet target/deploy/portal.so",
+    "upgrade:devnet": "sh -c 'solana program upgrade --keypair devnet-keypair.json ${1} ${0}'",
+    "upgrade:devnet:earn": "yarn upgrade:devnet MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c",
+    "upgrade:devnet:portal": "yarn upgrade:devnet mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",

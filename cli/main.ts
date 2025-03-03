@@ -43,7 +43,9 @@ import {
 } from "@wormhole-foundation/sdk";
 import { createSetEvmAddresses } from '../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
-
+import EARN_IDL from "../target/idl/earn.json";
+import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { Earn } from '../target/types/earn';
 
 const PROGRAMS = {
     // program id the same for devnet and mainnet
@@ -118,6 +120,31 @@ async function main() {
 
             await signSendWait(ctx, initTxs, signer);
             console.log(`Portal initialized: ${PROGRAMS.portal.toBase58()}`);
+        });
+
+    program
+        .command('initialize-earn')
+        .description('Initialize the earn program')
+        .action(async () => {
+            const connection = new Connection(process.env.RPC_URL);
+            const [owner, mint, multisig] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR", "MULTISIG_KEYPAIR"]);
+
+            const earn = new Program(EARN_IDL as Earn, PROGRAMS.earn, anchorProvider(connection, owner));
+            const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from("global")], PROGRAMS.earn)
+
+            await earn.methods
+                .initialize(
+                    mint.publicKey,
+                    Keypair.generate().publicKey,
+                    new BN(1_000_000_000_000), // initial index
+                    new BN(0) // cooldown
+                )
+                .accounts({
+                    globalAccount,
+                    admin: owner.publicKey,
+                })
+                .signers([owner])
+                .rpc();
         });
 
     program
@@ -217,6 +244,17 @@ function NttManager(connection: Connection, owner: Keypair, mint: PublicKey) {
     );
 
     return { ctx, ntt, signer, sender }
+}
+
+function anchorProvider(connection: Connection, owner: Keypair) {
+    return new AnchorProvider(
+        connection,
+        new Wallet(owner),
+        {
+            commitment: "confirmed",
+            skipPreflight: false
+        }
+    )
 }
 
 async function createToken2022Mint(
