@@ -230,7 +230,7 @@ async function createToken2022Mint(
         mint: mint.publicKey,
         name: "M by M^0",
         symbol: "M",
-        uri: "https://etherscan.io/token/images/m0token_new_32.png", // update to higher resolution permalink
+        uri: "https://assets.coingecko.com/coins/images/40048/large/M_Symbol_256.png",
         additionalMetadata: [["evm", "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b"]],
     };
 
