@@ -8,7 +8,6 @@ import {
   SystemProgram,
   Transaction,
   TransactionInstruction,
-  TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
 import {
@@ -24,7 +23,6 @@ import {
   serialize,
   deserialize,
   serializePayload,
-  sha256,
 } from "@wormhole-foundation/sdk";
 import * as testing from "@wormhole-foundation/sdk-definitions/testing";
 import {
@@ -55,32 +53,22 @@ import { Earn } from "../../target/types/earn";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
-const GUARDIAN_KEY =
-  "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
-const CORE_BRIDGE_ADDRESS = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth";
-const NTT_ADDRESS = new PublicKey(
-  "mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"
-);
-const EARN_PROGRAM = new PublicKey(
-  "MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"
-);
-const EARN_GLOBAL_ACCOUNT = PublicKey.findProgramAddressSync(
-  [Buffer.from("global")],
-  EARN_PROGRAM
-)[0];
 
-const WORMHOLE_PID = new PublicKey(
-  "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-);
-const WORMHOLE_BRIDGE_CONFIG = new PublicKey(
-  "2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn"
-);
-const WORMHOLE_BRIDGE_FEE_COLLECTOR = new PublicKey(
-  "9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"
-);
-
-const EVM_M = '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b'
-const EVM_WRAPPED_M = '0x437cc33344a0B27A429f795ff6B469C72698B291'
+const config = {
+  GUARDIAN_KEY: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
+  CORE_BRIDGE_ADDRESS: "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth",
+  PORTAL_PROGRAM_ID: new PublicKey("mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"),
+  EARN_PROGRAM: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"),
+  WORMHOLE_PID: new PublicKey("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"),
+  WORMHOLE_BRIDGE_CONFIG: new PublicKey("2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn"),
+  WORMHOLE_BRIDGE_FEE_COLLECTOR: new PublicKey("9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"),
+  EVM_M: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+  EVM_WRAPPED_M: '0x437cc33344a0B27A429f795ff6B469C72698B291',
+  EARN_GLOBAL_ACCOUNT: PublicKey.findProgramAddressSync(
+    [Buffer.from("global")],
+    new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"),
+  )[0],
+}
 
 describe("Portal unit tests", () => {
   let ntt: SolanaNtt<"Devnet", "Solana">;
@@ -103,17 +91,17 @@ describe("Portal unit tests", () => {
     .withBlockhashCheck(false);
 
   // Wormhole program
-  svm.addProgramFromFile(WORMHOLE_PID, "tests/programs/core_bridge.so");
+  svm.addProgramFromFile(config.WORMHOLE_PID, "tests/programs/core_bridge.so");
 
   // Add necessary wormhole accounts
-  svm.setAccount(WORMHOLE_BRIDGE_CONFIG, {
+  svm.setAccount(config.WORMHOLE_BRIDGE_CONFIG, {
     executable: false,
-    owner: WORMHOLE_PID,
+    owner: config.WORMHOLE_PID,
     lamports: 1057920,
     data: Buffer.from("BAAAACQWCRUAAAAAgFEBAGQAAAAAAAAA", "base64"),
   });
 
-  svm.setAccount(WORMHOLE_BRIDGE_FEE_COLLECTOR, {
+  svm.setAccount(config.WORMHOLE_BRIDGE_FEE_COLLECTOR, {
     executable: false,
     owner: new PublicKey("11111111111111111111111111111111"),
     lamports: 2350640070,
@@ -125,7 +113,7 @@ describe("Portal unit tests", () => {
   );
   svm.setAccount(gaurdianSet0, {
     executable: false,
-    owner: WORMHOLE_PID,
+    owner: config.WORMHOLE_PID,
     lamports: 21141440,
     data: Buffer.from(
       "AAAAAAEAAAC++kKdV80Yt/ik2RotqatK8F0PvkPJm2EAAAAA",
@@ -135,7 +123,7 @@ describe("Portal unit tests", () => {
 
   const programData = new PublicKey(
     PublicKey.findProgramAddressSync(
-      [NTT_ADDRESS.toBytes()],
+      [config.PORTAL_PROGRAM_ID.toBytes()],
       new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
     )[0]
   );
@@ -152,7 +140,7 @@ describe("Portal unit tests", () => {
   // Create an anchor provider from the liteSVM instance
   const provider = new LiteSVMProviderExt(svm, new NodeWallet(payer));
   const connection = provider.connection;
-  const earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM, provider);
+  const earn = new Program<Earn>(EARN_IDL, config.EARN_PROGRAM, provider);
 
   const { ctx, ...wc } = getWormholeContext(connection);
 
@@ -223,9 +211,9 @@ describe("Portal unit tests", () => {
         ...ctx.config.contracts,
         ntt: {
           token: tokenAddress,
-          manager: NTT_ADDRESS.toBase58(),
+          manager: config.PORTAL_PROGRAM_ID.toBase58(),
           transceiver: {
-            wormhole: NTT_ADDRESS.toBase58(),
+            wormhole: config.PORTAL_PROGRAM_ID.toBase58(),
           },
         },
       },
@@ -283,7 +271,7 @@ describe("Portal unit tests", () => {
 
       // set evm destination addresses
       const tx = new Transaction().add(
-        createSetEvmAddresses(NTT_ADDRESS, owner.publicKey, EVM_M, EVM_WRAPPED_M)
+        createSetEvmAddresses(config.PORTAL_PROGRAM_ID, owner.publicKey, config.EVM_M, config.EVM_WRAPPED_M)
       );
       await provider.sendAndConfirm(tx, [owner]);
 
@@ -314,7 +302,7 @@ describe("Portal unit tests", () => {
           new BN(0)
         )
         .accounts({
-          globalAccount: EARN_GLOBAL_ACCOUNT,
+          globalAccount: config.EARN_GLOBAL_ACCOUNT,
           admin: admin.publicKey,
         })
         .signers([admin])
@@ -346,7 +334,7 @@ describe("Portal unit tests", () => {
 
       const [wormholeMessage] = PublicKey.findProgramAddressSync(
         [Buffer.from("message"), outboxItem.publicKey.toBytes()],
-        NTT_ADDRESS
+        config.PORTAL_PROGRAM_ID
       );
 
       const unsignedVaa = await wc.coreBridge.parsePostMessageAccount(
@@ -372,7 +360,7 @@ describe("Portal unit tests", () => {
   });
 
   describe("Receiving", () => {
-    let guardians = new testing.mocks.MockGuardians(0, [GUARDIAN_KEY]);
+    let guardians = new testing.mocks.MockGuardians(0, [config.GUARDIAN_KEY]);
     let emitter = new testing.mocks.MockEmitter(
       wc.remoteXcvr.address as UniversalAddress,
       "Ethereum",
@@ -474,12 +462,12 @@ describe("Portal unit tests", () => {
     it("tokens (with remaining accounts)", async () => {
       const getRedeemTxns = redeem([
         {
-          pubkey: EARN_PROGRAM,
+          pubkey: config.EARN_PROGRAM,
           isSigner: false,
           isWritable: false,
         },
         {
-          pubkey: EARN_GLOBAL_ACCOUNT,
+          pubkey: config.EARN_GLOBAL_ACCOUNT,
           isSigner: false,
           isWritable: true,
         },
@@ -498,19 +486,19 @@ describe("Portal unit tests", () => {
       );
 
       // verify data was propagated
-      const global = await earn.account.global.fetch(EARN_GLOBAL_ACCOUNT);
+      const global = await earn.account.global.fetch(config.EARN_GLOBAL_ACCOUNT);
       expect(global.index.toString()).toBe("1000000000001");
     });
 
     it("tokens (incorrect remaining accounts)", async () => {
       const getRedeemTxns = redeem([
         {
-          pubkey: NTT_ADDRESS, // incorrect
+          pubkey: config.PORTAL_PROGRAM_ID, // incorrect
           isSigner: false,
           isWritable: false,
         },
         {
-          pubkey: EARN_GLOBAL_ACCOUNT,
+          pubkey: config.EARN_GLOBAL_ACCOUNT,
           isSigner: false,
           isWritable: true,
         },
@@ -595,7 +583,7 @@ describe("Portal unit tests", () => {
 
 function getWormholeContext(connection: Connection) {
   const w = new Wormhole("Devnet", [SolanaPlatform], {
-    chains: { Solana: { contracts: { coreBridge: CORE_BRIDGE_ADDRESS } } },
+    chains: { Solana: { contracts: { coreBridge: config.CORE_BRIDGE_ADDRESS } } },
   });
   const remoteXcvr: ChainAddress = {
     chain: "Ethereum",
@@ -614,7 +602,7 @@ function getWormholeContext(connection: Connection) {
     .getChain("Solana", connection);
 
   const coreBridge = new SolanaWormholeCore("Devnet", "Solana", connection, {
-    coreBridge: CORE_BRIDGE_ADDRESS,
+    coreBridge: config.CORE_BRIDGE_ADDRESS,
   });
   return { ctx, coreBridge, remoteXcvr, remoteMgr };
 }
