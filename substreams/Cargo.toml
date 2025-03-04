@@ -1,19 +1,23 @@
 [package]
-name = "m-token-substreams"
-version = "0.0.1"
+name = "m_token_tracker"
+version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "substreams"
 crate-type = ["cdylib"]
 
 [dependencies]
-prost = "0.13.3"
-prost-types = "0.13.3"
-substreams = "0.6.0"
-substreams-solana = "0.14.1"
+bs58 = "0.4.0"
+prost = "0.11"
+prost-types = "0.11"
+substreams = "^0.5.0"
+substreams-solana = { git = "https://github.com/streamingfast/substreams-solana", branch = "master" }
+substreams-solana-program-instructions = "0.1"
+thiserror = "1.0.25"
+anyhow = "1.0.72"
+serde_qs = "0.12.0"
+serde = { version = "1.0", features = ["derive"] }
 
-[profile.release]
-lto = true
-opt-level = 's'
-strip = "debuginfo"
+
+[target.wasm32-unknown-unknown.dependencies]
+getrandom = { version = "0.2", features = ["custom"] }
