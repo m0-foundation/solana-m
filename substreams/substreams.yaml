@@ -24,7 +24,7 @@ protobuf:
 binaries:
   default:
     type: wasm/rust-v1+wasm-bindgen-shims
-    file: ./target/wasm32-unknown-unknown/release/substreams.wasm
+    file: ../target/wasm32-unknown-unknown/release/substreams.wasm
 
 modules:
   - name: map_token_transactions
@@ -36,9 +36,9 @@ modules:
     inputs:
     - map: map_token_transactions
     output:
-     type: proto:mydata.v1.TokenTransactionData
+     type: proto:token.v1.TokenTransactionData
 
 network: solana-mainnet-beta
 
 params:
-  map_token_transactions: program:MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c || program:mZEroYvA3c4od5RhrCHxyVcs2zKsp8DTWWCgScFzXPr || account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6
+  map_token_transactions: account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6
