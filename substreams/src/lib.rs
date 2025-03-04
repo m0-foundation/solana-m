@@ -1,18 +1,11 @@
 mod pb;
-
-use pb::token::v1::{TokenTransactionEvent, TokenTransactionEvents};
-use substreams_solana::pb::sf::solana::r#type::v1::Transaction;
-use substreams_solana_utils as utils;
+use pb::{sf::substreams::solana::v1::Transactions, token::v1::TokenTransactionData};
 
 #[substreams::handlers::map]
-fn map_token_transaction_data(transactions: Transaction) -> TokenTransactionEvents {
-    let mut events = TokenTransactionEvents::default();
+fn map_token_transaction_data(transactions: Transactions) -> TokenTransactionData {
+    // TODO: Modify this code to get the data that you need from the transactions.
 
-    for transaction in transactions.transactions.iter() {
-        events.transactions.push(TokenTransactionEvent {
-            signature: utils::transaction::get_signature(transaction),
-        });
-    }
-
-    events
+    let mut my_data = TokenTransactionData::default();
+    my_data.transactions = transactions.transactions;
+    my_data
 }
