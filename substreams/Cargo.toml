@@ -11,5 +11,5 @@ crate-type = ["cdylib"]
 bs58 = "0.5.1"
 prost = "0.11.9"
 substreams = "0.5.22"
-substreams-solana = "0.13.0"
+substreams-solana = { git = "https://github.com/streamingfast/substreams-solana", branch = "master" }
 substreams-solana-utils = { git = "https://github.com/0xpapercut/substreams-solana-utils", tag = "v0.1.5" }
