@@ -9,7 +9,7 @@ message TokenTransactions {
 message TokenTransaction {
   string signature = 1;
   repeated TokenBalanceUpdate balance_updates = 2;
-  repeated Instructions instructions = 3;
+  repeated Instruction instructions = 3;
 }
 
 message TokenBalanceUpdate {
@@ -20,6 +20,22 @@ message TokenBalanceUpdate {
   uint64 post_balance = 5;
 }
 
-message Instructions {
+message Instruction {
   string program_id = 1;
+  repeated string logs = 2;
+
+  oneof update {
+    IndexUpdate index_update = 10;
+  }
+}
+
+message IndexUpdate {
+  uint64 index = 1;
+  bytes earner_merkle_root = 2;
+  bytes earn_manager_merkle_root = 3;
+}
+
+message Claim {
+  string token_account = 1;
+  uint64 amount = 2;
 }

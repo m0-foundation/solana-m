@@ -1,8 +1,7 @@
 use events::Transactions;
-use pb::transfers::v1::{TokenBalanceUpdate, TokenTransaction, TokenTransactions};
+use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
 use substreams_solana_utils::{
     instruction::{self, StructuredInstructions},
-    log::Log,
     transaction,
 };
 
@@ -27,8 +26,10 @@ fn map_my_data(transactions: Transactions) -> TokenTransactions {
         let mut txn = TokenTransaction {
             signature: context.signature.to_string(),
             balance_updates: vec![],
+            instructions: vec![],
         };
 
+        // Parse token account balance updates from mints and transfers
         for token_account in context.token_accounts.values() {
             txn.balance_updates.push(TokenBalanceUpdate {
                 pubkey: token_account.address.to_string(),
@@ -39,16 +40,21 @@ fn map_my_data(transactions: Transactions) -> TokenTransactions {
             });
         }
 
+        // Parse instruction logs and updates
         for ix in instructions {
-            let data_logs: Vec<&Log> = ix
+            let logs: Vec<String> = ix
                 .logs()
                 .as_ref()
                 .unwrap_or(&vec![])
                 .iter()
-                .filter(|log| matches!(log, Log::Data(_)))
+                .map(|log| log.to_string())
                 .collect();
 
-            let program_id = ix.program_id().to_string();
+            txn.instructions.push(Instruction {
+                program_id: ix.program_id().to_string(),
+                logs,
+                update: None,
+            });
         }
 
         events.transactions.push(txn);

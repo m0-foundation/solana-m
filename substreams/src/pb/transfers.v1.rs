@@ -13,6 +13,8 @@ pub struct TokenTransaction {
     pub signature: ::prost::alloc::string::String,
     #[prost(message, repeated, tag="2")]
     pub balance_updates: ::prost::alloc::vec::Vec<TokenBalanceUpdate>,
+    #[prost(message, repeated, tag="3")]
+    pub instructions: ::prost::alloc::vec::Vec<Instruction>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -27,5 +29,42 @@ pub struct TokenBalanceUpdate {
     pub pre_balance: u64,
     #[prost(uint64, tag="5")]
     pub post_balance: u64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Instruction {
+    #[prost(string, tag="1")]
+    pub program_id: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag="2")]
+    pub logs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(oneof="instruction::Update", tags="10")]
+    pub update: ::core::option::Option<instruction::Update>,
+}
+/// Nested message and enum types in `Instruction`.
+pub mod instruction {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Update {
+        #[prost(message, tag="10")]
+        IndexUpdate(super::IndexUpdate),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct IndexUpdate {
+    #[prost(uint64, tag="1")]
+    pub index: u64,
+    #[prost(bytes="vec", tag="2")]
+    pub earner_merkle_root: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes="vec", tag="3")]
+    pub earn_manager_merkle_root: ::prost::alloc::vec::Vec<u8>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Claim {
+    #[prost(string, tag="1")]
+    pub token_account: ::prost::alloc::string::String,
+    #[prost(uint64, tag="2")]
+    pub amount: u64,
 }
 // @@protoc_insertion_point(module)
