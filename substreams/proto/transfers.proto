@@ -8,4 +8,18 @@ message TokenTransactions {
 
 message TokenTransaction {
   string signature = 1;
+  repeated TokenBalanceUpdate balance_updates = 2;
+  repeated Instructions instructions = 3;
+}
+
+message TokenBalanceUpdate {
+  string pubkey = 1;
+  string mint = 2;
+  string owner = 3;
+  uint64 pre_balance = 4;
+  uint64 post_balance = 5;
+}
+
+message Instructions {
+  string program_id = 1;
 }

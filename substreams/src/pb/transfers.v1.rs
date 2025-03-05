@@ -11,5 +11,21 @@ pub struct TokenTransactions {
 pub struct TokenTransaction {
     #[prost(string, tag="1")]
     pub signature: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag="2")]
+    pub balance_updates: ::prost::alloc::vec::Vec<TokenBalanceUpdate>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TokenBalanceUpdate {
+    #[prost(string, tag="1")]
+    pub pubkey: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub mint: ::prost::alloc::string::String,
+    #[prost(string, tag="3")]
+    pub owner: ::prost::alloc::string::String,
+    #[prost(uint64, tag="4")]
+    pub pre_balance: u64,
+    #[prost(uint64, tag="5")]
+    pub post_balance: u64,
 }
 // @@protoc_insertion_point(module)
