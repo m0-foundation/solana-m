@@ -1,4 +1,4 @@
-use events::Transactions;
+use events::{parse_logs, Transactions};
 use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
 use substreams_solana_utils::{
     instruction::{self, StructuredInstructions},
@@ -9,7 +9,7 @@ mod events;
 mod pb;
 
 #[substreams::handlers::map]
-fn map_my_data(transactions: Transactions) -> TokenTransactions {
+fn map_transfer_events(transactions: Transactions) -> TokenTransactions {
     let mut events = TokenTransactions::default();
 
     for t in transactions.transactions {
@@ -50,10 +50,11 @@ fn map_my_data(transactions: Transactions) -> TokenTransactions {
                 .map(|log| log.to_string())
                 .collect();
 
+            // Grab logs and check them for events
             txn.instructions.push(Instruction {
                 program_id: ix.program_id().to_string(),
                 logs,
-                update: None,
+                update: parse_logs(ix.logs().as_ref()),
             });
         }
 

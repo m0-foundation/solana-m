@@ -28,7 +28,7 @@ modules:
     use: solana:transactions_by_programid_and_account_without_votes
     initialBlock: 300000000
   
-  - name: map_my_data
+  - name: map_transfer_events
     kind: map
     inputs:
     - map: map_filtered_transactions

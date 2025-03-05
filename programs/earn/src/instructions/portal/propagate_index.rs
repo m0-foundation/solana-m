@@ -112,11 +112,20 @@ pub fn handler(
     ctx.accounts.global_account.distributed = 0;
     ctx.accounts.global_account.claim_complete = false;
 
-    msg!(
-        "New claim cycle started | Index: {} | Timestamp: {}",
-        new_index,
-        ctx.accounts.global_account.max_yield
-    );
+    emit!(IndexUpdate {
+        index: new_index,
+        ts: current_timestamp,
+        supply: current_supply,
+        max_yield: ctx.accounts.global_account.max_yield,
+    });
 
     Ok(())
+}
+
+#[event]
+pub struct IndexUpdate {
+    pub index: u64,
+    pub ts: u64,
+    pub supply: u64,
+    pub max_yield: u64,
 }

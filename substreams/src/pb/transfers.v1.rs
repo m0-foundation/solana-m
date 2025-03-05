@@ -37,7 +37,7 @@ pub struct Instruction {
     pub program_id: ::prost::alloc::string::String,
     #[prost(string, repeated, tag="2")]
     pub logs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(oneof="instruction::Update", tags="10")]
+    #[prost(oneof="instruction::Update", tags="10, 11")]
     pub update: ::core::option::Option<instruction::Update>,
 }
 /// Nested message and enum types in `Instruction`.
@@ -47,17 +47,21 @@ pub mod instruction {
     pub enum Update {
         #[prost(message, tag="10")]
         IndexUpdate(super::IndexUpdate),
+        #[prost(message, tag="11")]
+        Claim(super::Claim),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct IndexUpdate {
     #[prost(uint64, tag="1")]
     pub index: u64,
-    #[prost(bytes="vec", tag="2")]
-    pub earner_merkle_root: ::prost::alloc::vec::Vec<u8>,
-    #[prost(bytes="vec", tag="3")]
-    pub earn_manager_merkle_root: ::prost::alloc::vec::Vec<u8>,
+    #[prost(uint64, tag="2")]
+    pub ts: u64,
+    #[prost(uint64, tag="3")]
+    pub supply: u64,
+    #[prost(uint64, tag="4")]
+    pub max_yield: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
