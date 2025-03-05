@@ -1,0 +1,14 @@
+[package]
+name = "m_token_transactions"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+name = "substreams"
+crate-type = ["cdylib"]
+
+[dependencies]
+bs58 = "0.5.1"
+prost = "0.13.3"
+substreams = "0.6.0"
+substreams-solana = "0.14.1"

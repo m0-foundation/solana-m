@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package transfers.v1;
+
+message TokenTransactions {
+  repeated TokenTransaction transactions = 1;
+}
+
+message TokenTransaction {
+  string signature = 1;
+}
