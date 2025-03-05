@@ -1,5 +1,5 @@
 use events::Transactions;
-use pb::{TokenTransaction, TokenTransactions};
+use pb::transfers::v1::{TokenTransaction, TokenTransactions};
 
 mod events;
 mod pb;
