@@ -22,7 +22,7 @@ message TokenBalanceUpdate {
 
 message Instruction {
   string program_id = 1;
-  repeated string logs = 2;
+  optional string instruction = 2;
 
   oneof update {
     IndexUpdate index_update = 10;

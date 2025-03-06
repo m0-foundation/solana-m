@@ -1,12 +1,16 @@
-use events::{parse_logs, Transactions};
+use crate::consts::MINT;
+use consts::SYSTEM_PROGRAMS;
 use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
 use substreams_solana_utils::{
-    instruction::{self, StructuredInstructions},
+    instruction::{self},
+    pubkey::Pubkey,
     transaction,
 };
+use utils::{parse_logs_for_events, parse_logs_for_instruction_name, token_accounts, Transactions};
 
-mod events;
+mod consts;
 mod pb;
+mod utils;
 
 #[substreams::handlers::map]
 fn map_transfer_events(transactions: Transactions) -> TokenTransactions {
@@ -19,7 +23,7 @@ fn map_transfer_events(transactions: Transactions) -> TokenTransactions {
         };
 
         let instructions = match instruction::get_structured_instructions(&t) {
-            Ok(instructions) => instructions.flattened(),
+            Ok(instructions) => instructions,
             Err(_) => continue,
         };
 
@@ -30,7 +34,13 @@ fn map_transfer_events(transactions: Transactions) -> TokenTransactions {
         };
 
         // Parse token account balance updates from mints and transfers
-        for token_account in context.token_accounts.values() {
+        for token_account in token_accounts(&t) {
+            if token_account.mint != MINT {
+                continue;
+            }
+            if token_account.pre_balance.unwrap_or(0) == token_account.post_balance.unwrap_or(0) {
+                continue;
+            }
             txn.balance_updates.push(TokenBalanceUpdate {
                 pubkey: token_account.address.to_string(),
                 mint: token_account.mint.to_string(),
@@ -42,19 +52,17 @@ fn map_transfer_events(transactions: Transactions) -> TokenTransactions {
 
         // Parse instruction logs and updates
         for ix in instructions {
-            let logs: Vec<String> = ix
-                .logs()
-                .as_ref()
-                .unwrap_or(&vec![])
-                .iter()
-                .map(|log| log.to_string())
-                .collect();
+            // Ignore system programs
+            let pid = ix.program_id().to_pubkey().unwrap_or(Pubkey::default());
+            if SYSTEM_PROGRAMS.contains(&pid) {
+                continue;
+            }
 
-            // Grab logs and check them for events
+            // Use logs to get events and instruction name
             txn.instructions.push(Instruction {
-                program_id: ix.program_id().to_string(),
-                logs,
-                update: parse_logs(ix.logs().as_ref()),
+                program_id: pid.to_string(),
+                instruction: parse_logs_for_instruction_name(ix.logs().as_ref()),
+                update: parse_logs_for_events(ix.logs().as_ref()),
             });
         }
 

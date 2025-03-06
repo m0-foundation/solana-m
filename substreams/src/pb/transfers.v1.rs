@@ -35,8 +35,8 @@ pub struct TokenBalanceUpdate {
 pub struct Instruction {
     #[prost(string, tag="1")]
     pub program_id: ::prost::alloc::string::String,
-    #[prost(string, repeated, tag="2")]
-    pub logs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, optional, tag="2")]
+    pub instruction: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(oneof="instruction::Update", tags="10, 11")]
     pub update: ::core::option::Option<instruction::Update>,
 }
