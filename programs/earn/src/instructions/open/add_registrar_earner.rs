@@ -58,6 +58,7 @@ pub fn handler(
 
     ctx.accounts.earner_account.set_inner(Earner {
         earn_manager: None,
+        recipient_token_account: None,
         last_claim_index: ctx.accounts.global_account.index,
         last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),
         is_earning: true,
