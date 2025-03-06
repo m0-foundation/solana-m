@@ -1,5 +1,5 @@
 specVersion: 1.0.0
-description: m-token-transactions Substreams-powered-Subgraph
+description: m-token-transactions substreams-subgraph
 indexerHints:
   prune: auto
 schema:

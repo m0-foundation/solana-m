@@ -1,3 +1,42 @@
-type MyEntity @entity {
+type TokenHolder @entity {
     id: ID!
+    mint: Bytes!
+    user: Bytes! @unique
+    token_accounts: [TokenAccount!]!
+}
+
+type TokenAccount @entity {
+    id: ID!
+    pubkey: Bytes! @unique
+    balance: BigInt!
+    claims: [Claim!]!
+    cumulative_claims: BigInt!
+    last_claim_index: BigInt!
+    last_claim_ts: BigInt!
+    transfers: [Transfer!]!
+}
+
+type Claim @entity {
+    id: ID!
+    amount: BigInt!
+    ts: BigInt!
+}
+
+type Transfer @entity {
+    id: ID!
+    amount: BigInt!
+    ts: BigInt!
+}
+
+type IndexUpdates @entity {
+    id: ID!
+    updates: [IndexUpdate!]!
+    last_index: BigInt!
+    last_ts: BigInt!
+}
+
+type IndexUpdate @entity {
+    id: ID!
+    index: BigInt!
+    ts: BigInt!
 }
