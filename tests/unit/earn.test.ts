@@ -153,16 +153,13 @@ const expectAnchorError = async (
   txResult: Promise<string>,
   errCode: string
 ) => {
-  let reverted = false;
   try {
     await txResult;
+    fail("Transaction should have reverted");
   } catch (e) {
     expect(e instanceof AnchorError).toBe(true);
     const err: AnchorError = e;
     expect(err.error.errorCode.code).toStrictEqual(errCode);
-    reverted = true;
-  } finally {
-    expect(reverted).toBe(true);
   }
 };
 
@@ -4026,5 +4023,170 @@ describe("Earn unit tests", () => {
       // Verify the earner account was closed
       expectAccountEmpty(earnerAccount);
     });
+  });
+
+  describe("set_earner_recipient unit tests", () => {
+    beforeEach(async () => {
+      // Initialize the program
+      await initialize(
+        mint.publicKey,
+        earnAuthority.publicKey,
+        initialIndex,
+        claimCooldown
+      );
+
+      // Populate the earner merkle tree with the initial earners
+      earnerMerkleTree = new MerkleTree([
+        admin.publicKey,
+        earnerOne.publicKey,
+      ]);
+
+      // Populate the earn manager merkle tree with the initial earn managers
+      earnManagerMerkleTree = new MerkleTree([
+        earnManagerOne.publicKey,
+      ]);
+
+      // Warp past the initial cooldown period
+      warp(claimCooldown, true);
+
+      // Propagate the earner and earn manager merkle roots so we can add earners
+      await propagateIndex(
+        initialIndex,
+        earnerMerkleTree.getRoot(),
+        earnManagerMerkleTree.getRoot()
+      );
+
+      // Add earner one as a registrar earner
+      const { proof: earnerOneProof } = earnerMerkleTree.getInclusionProof(
+        earnerOne.publicKey
+      );
+      await addRegistrarEarner(earnerOne.publicKey, earnerOneProof);
+
+      // Add earn manager one as an earn manager and configure a 100 bps fee
+      const { proof: earnManagerOneProof } =
+        earnManagerMerkleTree.getInclusionProof(earnManagerOne.publicKey);
+      await configureEarnManager(
+        earnManagerOne,
+        new BN(100),
+        earnManagerOneProof
+      );
+
+      // Add non earner one as an earner under earn manager one
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(
+        nonEarnerOne.publicKey
+      );
+      await addEarner(
+        earnManagerOne,
+        nonEarnerOne.publicKey,
+        proofs,
+        neighbors
+      );
+    });
+
+    test("Setting recipient_token_account when earn_manager is set - reverts", async () => {
+      const nonEarnerOneATA = await getATA(
+        mint.publicKey,
+        nonEarnerOne.publicKey
+      );
+
+      const randomRecipientATA = await getATA(
+        mint.publicKey,
+        new Keypair().publicKey
+      );
+
+      const earnerAccount = getEarnerAccount(nonEarnerOneATA);
+
+      // Attempt to add recipient account with earner that has a manager
+      await expectAnchorError(
+        earn.methods
+          .setEarnerRecipient()
+          .accounts({
+            admin: admin.publicKey,
+            earnerAccount,
+            globalAccount: accounts.globalAccount,
+            recipientTokenAccount: randomRecipientATA,
+          })
+          .signers([admin])
+          .rpc(),
+        "InvalidAccount"
+      );
+    })
+
+    test("Setting recipient_token_account with invalid token account - reverts", async () => {
+      const earnerOneATA = await getATA(
+        mint.publicKey,
+        earnerOne.publicKey
+      );
+
+      const dummyMint = new Keypair();
+      await createMint(dummyMint, nonAdmin)
+
+      const invalidATA = await getATA(
+        dummyMint.publicKey,
+        earnerOne.publicKey
+      );
+
+      const earnerAccount = getEarnerAccount(earnerOneATA);
+
+      // Attempt to add recipient account with the wrong mint
+      await expectAnchorError(
+        earn.methods
+          .setEarnerRecipient()
+          .accounts({
+            admin: admin.publicKey,
+            earnerAccount,
+            globalAccount: accounts.globalAccount,
+            recipientTokenAccount: invalidATA,
+          })
+          .signers([admin])
+          .rpc(),
+        "ConstraintTokenMint"
+      );
+    })
+
+    test("Setting recipient_token_account - success", async () => {
+      const earnerOneATA = await getATA(
+        mint.publicKey,
+        earnerOne.publicKey
+      );
+
+      const randomATA = await getATA(
+        mint.publicKey,
+        new Keypair().publicKey
+      );
+
+      const earnerAccount = getEarnerAccount(earnerOneATA);
+
+      await earn.methods
+        .setEarnerRecipient()
+        .accounts({
+          admin: admin.publicKey,
+          earnerAccount,
+          globalAccount: accounts.globalAccount,
+          recipientTokenAccount: randomATA,
+        })
+        .signers([admin])
+        .rpc()
+    })
+
+    test("Unsetting recipient_token_account - success", async () => {
+      const earnerOneATA = await getATA(
+        mint.publicKey,
+        earnerOne.publicKey
+      );
+
+      const earnerAccount = getEarnerAccount(earnerOneATA);
+
+      await earn.methods
+        .setEarnerRecipient()
+        .accounts({
+          admin: admin.publicKey,
+          earnerAccount,
+          globalAccount: accounts.globalAccount,
+          recipientTokenAccount: earn.programId,
+        })
+        .signers([admin])
+        .rpc()
+    })
   });
 });
