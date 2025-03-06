@@ -4110,6 +4110,9 @@ describe("Earn unit tests", () => {
           .rpc(),
         "InvalidAccount"
       );
+
+      const state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(null);
     })
 
     test("Setting recipient_token_account with invalid token account - reverts", async () => {
@@ -4142,6 +4145,9 @@ describe("Earn unit tests", () => {
           .rpc(),
         "ConstraintTokenMint"
       );
+
+      const state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(null);
     })
 
     test("Setting recipient_token_account - success", async () => {
@@ -4167,6 +4173,10 @@ describe("Earn unit tests", () => {
         })
         .signers([admin])
         .rpc()
+
+      // Verify the account was set correctly
+      const state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(randomATA);
     })
 
     test("Unsetting recipient_token_account - success", async () => {
@@ -4187,6 +4197,42 @@ describe("Earn unit tests", () => {
         })
         .signers([admin])
         .rpc()
+
+      // Verify the account was unset
+      const state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(null);
+    })
+
+    test("Nonadmin setting recipient_token_account - revert", async () => {
+      const earnerOneATA = await getATA(
+        mint.publicKey,
+        earnerOne.publicKey
+      );
+
+      const randomATA = await getATA(
+        mint.publicKey,
+        new Keypair().publicKey
+      );
+
+      const earnerAccount = getEarnerAccount(earnerOneATA);
+
+      // Attempt to add recipient account with the wrong mint
+      await expectAnchorError(
+        earn.methods
+          .setEarnerRecipient()
+          .accounts({
+            admin: nonAdmin.publicKey,
+            earnerAccount,
+            globalAccount: accounts.globalAccount,
+            recipientTokenAccount: randomATA,
+          })
+          .signers([nonAdmin])
+          .rpc(),
+        "NotAuthorized"
+      );
+
+      const state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(null);
     })
   });
 });
