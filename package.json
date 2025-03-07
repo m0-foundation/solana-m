@@ -8,6 +8,7 @@
     "test": "yarn run jest --preset ts-jest --verbose",
     "build": "anchor build",
     "cli:dev": "op run --env-file='./dev.env' -- ts-node cli/main.ts",
+    "cli:test": "op run --env-file='./dev.env' -- ts-node cli/test.ts",
     "build:devnet": "anchor build -- --features devnet --no-default-features",
     "write-upgrade:devnet": "sh -c 'solana program write-buffer --with-compute-unit-price 300000 --keypair devnet-keypair.json --max-sign-attempts 5 ${0}'",
     "write-upgrade:devnet:earn": "yarn write-upgrade:devnet target/deploy/earn.so",
