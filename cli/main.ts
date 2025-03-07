@@ -127,7 +127,7 @@ async function main() {
         .description('Initialize the earn program')
         .action(async () => {
             const connection = new Connection(process.env.RPC_URL);
-            const [owner, mint, multisig] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR", "MULTISIG_KEYPAIR"]);
+            const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
 
             const earn = new Program(EARN_IDL as Earn, PROGRAMS.earn, anchorProvider(connection, owner));
             const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from("global")], PROGRAMS.earn)
@@ -136,8 +136,8 @@ async function main() {
                 .initialize(
                     mint.publicKey,
                     Keypair.generate().publicKey,
-                    new BN(1_000_000_000_000), // initial index
-                    new BN(0) // cooldown
+                    new BN(1001886486057), // initial index
+                    new BN(5 * 60) // cooldown
                 )
                 .accounts({
                     globalAccount,
