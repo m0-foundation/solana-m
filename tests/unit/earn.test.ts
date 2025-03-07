@@ -52,6 +52,7 @@ const earnManagerOne: Keypair = new Keypair();
 const earnManagerTwo: Keypair = new Keypair();
 const nonEarnerOne: Keypair = new Keypair();
 const nonEarnManagerOne: Keypair = new Keypair();
+const yieldRecipient: Keypair = new Keypair();
 
 let svm: LiteSVM;
 let provider: LiteSVMProvider;
@@ -4156,12 +4157,14 @@ describe("Earn unit tests", () => {
         earnerOne.publicKey
       );
 
-      const randomATA = await getATA(
+      const recipientATA = await getATA(
         mint.publicKey,
-        new Keypair().publicKey
+        yieldRecipient.publicKey
       );
 
       const earnerAccount = getEarnerAccount(earnerOneATA);
+      let state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(null);
 
       await earn.methods
         .setEarnerRecipient()
@@ -4169,14 +4172,107 @@ describe("Earn unit tests", () => {
           admin: admin.publicKey,
           earnerAccount,
           globalAccount: accounts.globalAccount,
-          recipientTokenAccount: randomATA,
+          recipientTokenAccount: recipientATA,
         })
         .signers([admin])
         .rpc()
 
       // Verify the account was set correctly
+      state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(recipientATA);
+    })
+
+    test("claim_for on recipient account - success", async () => {
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      const { earnerAccount, earnerATA } = await prepClaimFor(
+        earnAuthority,
+        mint.publicKey,
+        earnerOne.publicKey
+      );
+
+      const recipientATA = await getATA(
+        mint.publicKey,
+        yieldRecipient.publicKey
+      );
+
+      // set recipient account
+      await earn.methods
+        .setEarnerRecipient()
+        .accounts({
+          admin: admin.publicKey,
+          earnerAccount,
+          globalAccount: accounts.globalAccount,
+          recipientTokenAccount: recipientATA,
+        })
+        .signers([admin])
+        .rpc()
+
+      // Verify the recipient is set
       const state = await earn.account.earner.fetch(earnerAccount);
-      expect(state.recipientTokenAccount).toEqual(randomATA);
+      expect(state.recipientTokenAccount).toEqual(recipientATA);
+
+      // Verify the starting values
+      await expectTokenBalance(recipientATA, new BN(0));
+      await expectTokenBalance(earnerATA, new BN(0));
+
+      // Claim for the earner
+      await earn.methods
+        .claimFor(new BN(10_000_000))
+        .accounts({ ...accounts, userTokenAccount: recipientATA })
+        .signers([earnAuthority])
+        .rpc();
+
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
+
+      // Verify the recipient token account was minted the correct amount
+      // and not the user's token account
+      await expectTokenBalance(recipientATA, new BN(1_000_000));
+      await expectTokenBalance(earnerATA, new BN(0));
+    })
+
+    test("claim_for on should be to recipient - revert", async () => {
+      // Update the index so there is outstanding yield
+      await propagateIndex(new BN(1_100_000_000_000));
+
+      // Setup the instruction
+      const { earnerAccount, earnerATA } = await prepClaimFor(
+        earnAuthority,
+        mint.publicKey,
+        earnerOne.publicKey
+      );
+
+      const recipientATA = await getATA(
+        mint.publicKey,
+        yieldRecipient.publicKey
+      );
+
+      // set recipient account
+      await earn.methods
+        .setEarnerRecipient()
+        .accounts({
+          admin: admin.publicKey,
+          earnerAccount,
+          globalAccount: accounts.globalAccount,
+          recipientTokenAccount: recipientATA,
+        })
+        .signers([admin])
+        .rpc()
+
+      // Verify the recipient is set
+      const state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(recipientATA);
+
+      await expectAnchorError(
+        earn.methods
+          .claimFor(new BN(10_000_000))
+          .accounts({ ...accounts })
+          .signers([earnAuthority])
+          .rpc(),
+        "ConstraintAddress"
+      );
     })
 
     test("Unsetting recipient_token_account - success", async () => {
@@ -4185,8 +4281,30 @@ describe("Earn unit tests", () => {
         earnerOne.publicKey
       );
 
+      const recipientATA = await getATA(
+        mint.publicKey,
+        yieldRecipient.publicKey
+      );
+
       const earnerAccount = getEarnerAccount(earnerOneATA);
 
+      // set recipient account
+      await earn.methods
+        .setEarnerRecipient()
+        .accounts({
+          admin: admin.publicKey,
+          earnerAccount,
+          globalAccount: accounts.globalAccount,
+          recipientTokenAccount: recipientATA,
+        })
+        .signers([admin])
+        .rpc()
+
+
+      let state = await earn.account.earner.fetch(earnerAccount);
+      expect(state.recipientTokenAccount).toEqual(recipientATA);
+
+      // unset recipient account
       await earn.methods
         .setEarnerRecipient()
         .accounts({
@@ -4199,7 +4317,7 @@ describe("Earn unit tests", () => {
         .rpc()
 
       // Verify the account was unset
-      const state = await earn.account.earner.fetch(earnerAccount);
+      state = await earn.account.earner.fetch(earnerAccount);
       expect(state.recipientTokenAccount).toEqual(null);
     })
 
