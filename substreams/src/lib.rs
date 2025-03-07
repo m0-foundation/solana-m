@@ -1,22 +1,36 @@
 use crate::consts::MINT;
 use consts::SYSTEM_PROGRAMS;
 use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
+use substreams_solana::pb::sf::solana::r#type::v1::Block;
 use substreams_solana_utils::{
     instruction::{self},
     pubkey::Pubkey,
     transaction,
 };
-use utils::{parse_logs_for_events, parse_logs_for_instruction_name, token_accounts, Transactions};
+use utils::{parse_logs_for_events, parse_logs_for_instruction_name, token_accounts};
 
 mod consts;
 mod pb;
 mod utils;
 
 #[substreams::handlers::map]
-fn map_transfer_events(transactions: Transactions) -> TokenTransactions {
-    let mut events = TokenTransactions::default();
+fn map_transfer_events(block: Block) -> TokenTransactions {
+    let mut events = TokenTransactions {
+        blockhash: block.blockhash,
+        slot: block.slot,
+        block_time: 0,
+        block_height: 0,
+        transactions: vec![],
+    };
 
-    for t in transactions.transactions {
+    if let Some(height) = block.block_height {
+        events.block_height = height.block_height;
+    }
+    if let Some(time) = block.block_time {
+        events.block_time = time.timestamp;
+    }
+
+    for t in block.transactions {
         let context = match transaction::get_context(&t) {
             Ok(context) => context,
             Err(_) => continue,

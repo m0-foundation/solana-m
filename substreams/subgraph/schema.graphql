@@ -2,6 +2,7 @@ type TokenHolder @entity {
     id: ID!
     mint: Bytes!
     user: Bytes! @unique
+    balance: BigInt!
     token_accounts: [TokenAccount!]!
 }
 
@@ -11,21 +12,20 @@ type TokenAccount @entity {
     balance: BigInt!
     claims: [Claim!]!
     cumulative_claims: BigInt!
-    last_claim_index: BigInt!
-    last_claim_ts: BigInt!
     transfers: [Transfer!]!
 }
 
 type Claim @entity {
     id: ID!
     amount: BigInt!
-    ts: BigInt!
+    index: BigInt!
+    ts: Timestamp!
 }
 
 type Transfer @entity {
     id: ID!
     amount: BigInt!
-    ts: BigInt!
+    ts: Timestamp!
 }
 
 type IndexUpdates @entity {
@@ -38,5 +38,11 @@ type IndexUpdates @entity {
 type IndexUpdate @entity {
     id: ID!
     index: BigInt!
+    ts: Timestamp!
+}
+
+type Timestamp @entity {
+    id: ID!
     ts: BigInt!
+    block: BigInt!
 }

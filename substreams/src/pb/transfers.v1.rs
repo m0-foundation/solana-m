@@ -5,6 +5,14 @@
 pub struct TokenTransactions {
     #[prost(message, repeated, tag="1")]
     pub transactions: ::prost::alloc::vec::Vec<TokenTransaction>,
+    #[prost(string, tag="2")]
+    pub blockhash: ::prost::alloc::string::String,
+    #[prost(uint64, tag="3")]
+    pub slot: u64,
+    #[prost(int64, tag="4")]
+    pub block_time: i64,
+    #[prost(uint64, tag="5")]
+    pub block_height: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

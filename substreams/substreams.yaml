@@ -4,7 +4,7 @@ package:
   version: v0.1.0
 
 imports:
-  solana: https://spkg.io/streamingfast/solana-common-v0.3.3.spkg
+  solana: https://spkg.io/streamingfast/solana-block-stream-v0.1.0.spkg
 
 protobuf:
   files:
@@ -25,8 +25,8 @@ binaries:
 
 modules:
   - name: map_filtered_transactions
-    use: solana:transactions_by_programid_and_account_without_votes
-    initialBlock: 353501463
+    use: solana:map_block_with_filtered_transactions
+    initialBlock: 325191460
   
   - name: map_transfer_events
     kind: map
@@ -35,7 +35,7 @@ modules:
     output:
      type: proto:transfers.v1.TokenTransactions
 
-network: solana-devnet
+network: solana-mainnet-beta
 
 params:
-  map_filtered_transactions: program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb && account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6
+  map_filtered_transactions: program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb && account:2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo

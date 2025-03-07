@@ -4,6 +4,10 @@ package transfers.v1;
 
 message TokenTransactions {
   repeated TokenTransaction transactions = 1;
+  string blockhash = 2;
+  uint64 slot = 3;
+  int64 block_time = 4;
+  uint64 block_height = 5;
 }
 
 message TokenTransaction {

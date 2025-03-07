@@ -10,12 +10,6 @@ use substreams_solana_utils::{
 
 const DISCRIMINATOR_SIZE: usize = 8;
 
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Transactions {
-    #[prost(message, repeated, tag = "1")]
-    pub transactions: ::prost::alloc::vec::Vec<ConfirmedTransaction>,
-}
-
 #[event]
 pub struct IndexUpdate {
     pub index: u64,
