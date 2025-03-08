@@ -37,14 +37,19 @@ pub struct ClaimFor<'info> {
     )]
     pub token_authority_account: AccountInfo<'info>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        address = match earner_account.recipient_token_account {
+            Some(token_account) => token_account,
+            None => earner_account.user_token_account,
+        },
+    )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         constraint = earner_account.earn_manager.is_none() || earn_manager_account.is_some() @ EarnError::RequiredAccountMissing,
-        has_one = user_token_account,
-        seeds = [EARNER_SEED, user_token_account.key().as_ref()],
+        seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,
