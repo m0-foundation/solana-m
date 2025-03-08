@@ -19,6 +19,7 @@ async function main() {
             console.log(`Current index: ${index}`)
 
             const recipient = bs58.decode('6Z9CUFDEjeFXodLu3dtAB5C1Q5ybYZ1TiLZZVRRRkxnk')
+            console.log(`Recipient: 0x${recipient.toString('hex')}`)
             const from = web3.eth.accounts.wallet[0].address
 
             const transfer = portal.methods.transfer(5_000_000, 1, recipient)
@@ -27,6 +28,7 @@ async function main() {
 
             const tx = await transfer.send({
                 from,
+                value: web3.utils.toWei('0.0001', 'ether'),
                 gasPrice: gasPrice.toString(),
                 gas: Math.ceil(Number(gasLimit) * 1.2).toString()
             })
