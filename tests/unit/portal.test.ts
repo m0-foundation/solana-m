@@ -12,7 +12,6 @@ import {
 } from "@solana/web3.js";
 import {
   AccountAddress,
-  Chain,
   ChainAddress,
   ChainContext,
   Signer,
@@ -36,6 +35,7 @@ import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
 import {
   createSetEvmAddresses,
   fetchTransactionLogs,
+  getWormholeContext,
   LiteSVMProviderExt,
   loadKeypair,
 } from "../test-utils";
@@ -580,29 +580,3 @@ describe("Portal unit tests", () => {
     });
   });
 });
-
-function getWormholeContext(connection: Connection) {
-  const w = new Wormhole("Devnet", [SolanaPlatform], {
-    chains: { Solana: { contracts: { coreBridge: config.CORE_BRIDGE_ADDRESS } } },
-  });
-  const remoteXcvr: ChainAddress = {
-    chain: "Ethereum",
-    address: new UniversalAddress(
-      encoding.bytes.encode("transceiver".padStart(32, "\0"))
-    ),
-  };
-  const remoteMgr: ChainAddress = {
-    chain: "Ethereum",
-    address: new UniversalAddress(
-      encoding.bytes.encode("nttManager".padStart(32, "\0"))
-    ),
-  };
-  const ctx: ChainContext<"Devnet", "Solana"> = w
-    .getPlatform("Solana")
-    .getChain("Solana", connection);
-
-  const coreBridge = new SolanaWormholeCore("Devnet", "Solana", connection, {
-    coreBridge: config.CORE_BRIDGE_ADDRESS,
-  });
-  return { ctx, coreBridge, remoteXcvr, remoteMgr };
-}
