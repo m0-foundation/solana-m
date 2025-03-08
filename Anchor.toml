@@ -19,4 +19,4 @@ wallet = "tests/keys/user.json"
 upgradeable = true
 
 [scripts]
-test = "yarn run jest --preset ts-jest"
+test = "yarn run jest --preset ts-jest --verbose --testPathPattern=tests/unit"
