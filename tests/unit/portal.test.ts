@@ -1,7 +1,6 @@
 import * as spl from "@solana/spl-token";
 import {
   AccountMeta,
-  Connection,
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
@@ -12,8 +11,6 @@ import {
 } from "@solana/web3.js";
 import {
   AccountAddress,
-  ChainAddress,
-  ChainContext,
   Signer,
   UniversalAddress,
   Wormhole,
@@ -26,12 +23,10 @@ import {
 import * as testing from "@wormhole-foundation/sdk-definitions/testing";
 import {
   SolanaAddress,
-  SolanaPlatform,
   SolanaSendSigner,
   SolanaUnsignedTransaction,
 } from "@wormhole-foundation/sdk-solana";
-import { SolanaWormholeCore } from "@wormhole-foundation/sdk-solana-core";
-import { SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
+import { NTT, SolanaNtt } from "@wormhole-foundation/sdk-solana-ntt";
 import {
   createSetEvmAddresses,
   fetchTransactionLogs,
@@ -395,6 +390,8 @@ describe("Portal unit tests", () => {
       } as const;
     };
 
+    let inboxItem: PublicKey;
+
     const redeem = (remaining_accounts: AccountMeta[]) => {
       const additionalPayload = utils.encodePacked(
         { type: "uint64", value: 1_000_000_000_001n }, // index
@@ -410,6 +407,9 @@ describe("Portal unit tests", () => {
       const rawVaa = guardians.addSignatures(published, [0]);
       const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
       const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
+
+      const pdas = NTT.pdas(config.PORTAL_PROGRAM_ID)
+      inboxItem = pdas.inboxItemAccount(vaa.emitterChain, vaa.payload.nttManagerPayload)
 
       // return custom generator where the redeem ix has the desired remaining accounts
       return async function* redeemTxns() {
@@ -457,6 +457,12 @@ describe("Portal unit tests", () => {
       expect(logs).toContain(
         "Program log: Skipping index update: 1000000000001"
       );
+
+      // verify inbox item was released
+      const item = await ntt.program.account.inboxItem.fetch(inboxItem);
+      expect(JSON.stringify(item.releaseStatus.released)).toBeDefined();
+      expect(item.recipientAddress.toBase58()).toBe("TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM")
+      expect(item.amount.toString()).toBe("100000")
     });
 
     it("tokens (with remaining accounts)", async () => {
@@ -488,6 +494,10 @@ describe("Portal unit tests", () => {
       // verify data was propagated
       const global = await earn.account.global.fetch(config.EARN_GLOBAL_ACCOUNT);
       expect(global.index.toString()).toBe("1000000000001");
+
+      // verify inbox item was released
+      const item = await ntt.program.account.inboxItem.fetch(inboxItem);
+      expect(JSON.stringify(item.releaseStatus.released)).toBeDefined();
     });
 
     it("tokens (incorrect remaining accounts)", async () => {
