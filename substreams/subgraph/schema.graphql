@@ -1,48 +1,52 @@
 type TokenHolder @entity {
-    id: ID!
+    id: Bytes!
     mint: Bytes!
     user: Bytes! @unique
     balance: BigInt!
-    token_accounts: [TokenAccount!]!
+    token_accounts: [TokenAccount!]! @derivedFrom(field: "owner")
 }
 
 type TokenAccount @entity {
-    id: ID!
+    id: Bytes!
     pubkey: Bytes! @unique
+    owner: TokenHolder!
     balance: BigInt!
-    claims: [Claim!]!
+    claims: [Claim!]! @derivedFrom(field: "token_account")
     cumulative_claims: BigInt!
-    transfers: [Transfer!]!
+    transfers: [BalanceUpdate!]! @derivedFrom(field: "token_account")
 }
 
-type Claim @entity {
-    id: ID!
+type Claim @entity(immutable: true) {
+    id: Bytes!
     amount: BigInt!
     index: BigInt!
     ts: Timestamp!
+    token_account: TokenAccount!
 }
 
-type Transfer @entity {
-    id: ID!
+type BalanceUpdate @entity(immutable: true) {
+    id: Bytes!
     amount: BigInt!
     ts: Timestamp!
+    token_account: TokenAccount!
 }
 
 type IndexUpdates @entity {
-    id: ID!
+    id: Bytes!
     updates: [IndexUpdate!]!
     last_index: BigInt!
     last_ts: BigInt!
 }
 
-type IndexUpdate @entity {
-    id: ID!
+type IndexUpdate @entity(immutable: true) {
+    id: Bytes!
     index: BigInt!
     ts: Timestamp!
 }
 
-type Timestamp @entity {
-    id: ID!
+type Timestamp @entity(immutable: true) {
+    id: Bytes!
     ts: BigInt!
     block: BigInt!
+    signature: Bytes!
 }

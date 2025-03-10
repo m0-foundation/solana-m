@@ -14,6 +14,18 @@ export class TokenTransactions {
       TokenTransaction.encode(transactions[i], writer);
       writer.ldelim();
     }
+
+    writer.uint32(18);
+    writer.string(message.blockhash);
+
+    writer.uint32(24);
+    writer.uint64(message.slot);
+
+    writer.uint32(32);
+    writer.int64(message.blockTime);
+
+    writer.uint32(40);
+    writer.uint64(message.blockHeight);
   }
 
   static decode(reader: Reader, length: i32): TokenTransactions {
@@ -29,6 +41,22 @@ export class TokenTransactions {
           );
           break;
 
+        case 2:
+          message.blockhash = reader.string();
+          break;
+
+        case 3:
+          message.slot = reader.uint64();
+          break;
+
+        case 4:
+          message.blockTime = reader.int64();
+          break;
+
+        case 5:
+          message.blockHeight = reader.uint64();
+          break;
+
         default:
           reader.skipType(tag & 7);
           break;
@@ -39,8 +67,22 @@ export class TokenTransactions {
   }
 
   transactions: Array<TokenTransaction>;
+  blockhash: string;
+  slot: u64;
+  blockTime: i64;
+  blockHeight: u64;
 
-  constructor(transactions: Array<TokenTransaction> = []) {
+  constructor(
+    transactions: Array<TokenTransaction> = [],
+    blockhash: string = "",
+    slot: u64 = 0,
+    blockTime: i64 = 0,
+    blockHeight: u64 = 0
+  ) {
     this.transactions = transactions;
+    this.blockhash = blockhash;
+    this.slot = slot;
+    this.blockTime = blockTime;
+    this.blockHeight = blockHeight;
   }
 }
