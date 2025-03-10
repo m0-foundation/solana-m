@@ -22,6 +22,8 @@ import {
   createInitializeMultisigInstruction,
   createMintToCheckedInstruction,
   getAccountLen,
+  createInitializeImmutableOwnerInstruction,
+  ExtensionType,
 } from "@solana/spl-token";
 import { randomInt } from "crypto";
 
@@ -2916,8 +2918,68 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
-        "ConstraintTokenOwner"
+        "ImmutableOwner"
       );
+    });
+
+    test("Add non-registrar earner - success", async () => {
+      const tokenAccountKeypair = Keypair.generate();
+      const tokenAccountLen = getAccountLen([ExtensionType.ImmutableOwner]);
+      const lamports = await provider.connection.getMinimumBalanceForRentExemption(tokenAccountLen);
+
+      // Create token account without the immutable owner extension
+      const transaction = new Transaction().add(
+        SystemProgram.createAccount({
+          fromPubkey: earnManagerOne.publicKey,
+          newAccountPubkey: tokenAccountKeypair.publicKey,
+          space: tokenAccountLen,
+          lamports,
+          programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializeImmutableOwnerInstruction(
+          tokenAccountKeypair.publicKey,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+        createInitializeAccountInstruction(
+          tokenAccountKeypair.publicKey,
+          mint.publicKey,
+          nonEarnerOne.publicKey,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+      );
+
+      await provider.send(transaction, [earnManagerOne, tokenAccountKeypair]);
+
+      // Get the exclusion proof for the earner against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(
+        nonEarnerOne.publicKey
+      );
+
+      // Setup the instruction
+      const { earnerAccount } = prepAddEarner(
+        earnManagerOne,
+        earnManagerOne.publicKey,
+        tokenAccountKeypair.publicKey
+      );
+
+      // Add earner one to the earn manager's list
+      await earn.methods
+        .addEarner(nonEarnerOne.publicKey, proofs, neighbors)
+        .accounts({ ...accounts })
+        .signers([earnManagerOne])
+        .rpc();
+
+      const currentTime = new BN(svm.getClock().unixTimestamp.toString());
+
+      // Verify the earner account was initialized correctly
+      await expectEarnerState(earnerAccount, {
+        isEarning: true,
+        earnManager: earnManagerOne.publicKey,
+        lastClaimIndex: new BN(1_100_000_000_000),
+        lastClaimTimestamp: currentTime,
+        user: nonEarnerOne.publicKey,
+        userTokenAccount: tokenAccountKeypair.publicKey,
+      });
     });
 
     // given signer has an earn manager account initialized
@@ -2929,7 +2991,7 @@ describe("Earn unit tests", () => {
     // it sets the earner is_active flag to true
     // it sets the earn_manager to the provided earn manager pubkey
     // it sets the last_claim_index to the current index
-    test("Add non-registrar earner - success", async () => {
+    test("Add non-registrar earner ata - success", async () => {
       // Get the ATA for non earner one
       const nonEarnerOneATA = await getATA(
         mint.publicKey,

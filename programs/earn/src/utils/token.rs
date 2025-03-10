@@ -1,6 +1,10 @@
 // earn/utils/token.rs
 
 // external dependencies
+use ::spl_token_2022::extension::immutable_owner::ImmutableOwner;
+use ::spl_token_2022::extension::BaseStateWithExtensionsMut;
+use ::spl_token_2022::extension::PodStateWithExtensionsMut;
+use ::spl_token_2022::pod::PodAccount;
 use anchor_lang::prelude::*;
 use anchor_spl::{
     token_2022::spl_token_2022,
@@ -37,4 +41,14 @@ pub fn mint_tokens<'info>(
     )?;
 
     Ok(())
+}
+
+pub fn has_immutable_owner<'info>(token_account: &InterfaceAccount<'info, TokenAccount>) -> bool {
+    let account_info = token_account.to_account_info();
+    let mut data = account_info.data.borrow_mut();
+
+    match PodStateWithExtensionsMut::<PodAccount>::unpack(&mut data) {
+        Ok(mut account) => account.get_extension_mut::<ImmutableOwner>().is_ok(),
+        Err(_) => return false,
+    }
 }
