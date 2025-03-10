@@ -121,7 +121,7 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
             bump: ctx.bumps.inbox_item,
             release_status: ReleaseStatus::NotApproved,
             votes: Bitmap::new(),
-            transfer: None,
+            transfer: TokenTransfer::default(),
             index_update: 0,
             root_updates: None,
         };
@@ -135,11 +135,11 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
                     .map_err(NTTError::from)?;
 
                 if amount > 0 {
-                    inbox_item.transfer = Some(TokenTransfer {
+                    inbox_item.transfer = TokenTransfer {
                         amount,
                         recipient: Pubkey::try_from(ntt.to)
                             .map_err(|_| NTTError::InvalidRecipientAddress)?,
-                    });
+                    };
                 }
 
                 // payloads from L2s might have an index update

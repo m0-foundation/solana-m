@@ -13,14 +13,14 @@ pub struct InboxItem {
     // to guard against modifications to the `bump` and `amounts` fields.
     pub init: bool,
     pub bump: u8,
+    pub transfer: TokenTransfer,
     pub votes: Bitmap,
     pub release_status: ReleaseStatus,
-    pub transfer: Option<TokenTransfer>,
     pub index_update: u64,
     pub root_updates: Option<RootUpdates>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, Default)]
 pub struct TokenTransfer {
     pub amount: u64,
     pub recipient: Pubkey,
