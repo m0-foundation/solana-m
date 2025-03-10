@@ -34,6 +34,7 @@ pub struct ClaimFor<'info> {
     )]
     pub mint: InterfaceAccount<'info, Mint>,
 
+    /// CHECK: This account is checked in the CPI to Token2022 program
     #[account(
         seeds = [TOKEN_AUTHORITY_SEED],
         bump
