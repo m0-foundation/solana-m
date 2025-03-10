@@ -10,7 +10,7 @@ use crate::{
     payloads::Payload,
     peer::NttManagerPeer,
     queue::{
-        inbox::{self, InboxItem, InboxRateLimit, ReleaseStatus, RootUpdates, TokenTransfer},
+        inbox::{InboxItem, InboxRateLimit, ReleaseStatus, RootUpdates, TokenTransfer},
         outbox::OutboxRateLimit,
         rate_limit::RateLimitResult,
     },
