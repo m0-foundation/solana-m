@@ -1,0 +1,25 @@
+name: Devnet Build and Deploy - Earn
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "programs/earn/**"
+
+jobs:
+  deploy-earn:
+    uses: solana-developers/github-workflows/.github/workflows/reusable-build.yaml@v0.2.5
+    with:
+      program: "portal"
+      network: "devnet"
+      deploy: true
+      upload_idl: true
+      verify: false
+      use-squads: false
+      priority-fee: "300000"
+    secrets:
+      DEVNET_SOLANA_DEPLOY_URL: ${{ secrets.DEVNET_SOLANA_DEPLOY_URL }}
+      DEVNET_DEPLOYER_KEYPAIR: ${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}
+      PROGRAM_ADDRESS_KEYPAIR: ${{ secrets.PROGRAM_ADDRESS_KEYPAIR_EARN }}
