@@ -10,7 +10,7 @@ use crate::{
     payloads::Payload,
     peer::NttManagerPeer,
     queue::{
-        inbox::{InboxItem, InboxRateLimit, ReleaseStatus, RootUpdates, TokenTransfer},
+        inbox::{self, InboxItem, InboxRateLimit, ReleaseStatus, RootUpdates, TokenTransfer},
         outbox::OutboxRateLimit,
         rate_limit::RateLimitResult,
     },
@@ -135,11 +135,9 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
                     .map_err(NTTError::from)?;
 
                 if amount > 0 {
-                    inbox_item.transfer = TokenTransfer {
-                        amount,
-                        recipient: Pubkey::try_from(ntt.to)
-                            .map_err(|_| NTTError::InvalidRecipientAddress)?,
-                    };
+                    inbox_item.transfer.amount = amount;
+                    inbox_item.transfer.recipient =
+                        Pubkey::try_from(ntt.to).map_err(|_| NTTError::InvalidRecipientAddress)?;
                 }
 
                 // payloads from L2s might have an index update
