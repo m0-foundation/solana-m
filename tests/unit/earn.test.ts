@@ -21,6 +21,7 @@ import {
   createInitializeAccountInstruction,
   createInitializeMultisigInstruction,
   createMintToCheckedInstruction,
+  getAccountLen,
 } from "@solana/spl-token";
 import { randomInt } from "crypto";
 
@@ -156,9 +157,9 @@ const expectAnchorError = async (
 ) => {
   try {
     await txResult;
-    fail("Transaction should have reverted");
+    throw new Error("Transaction should have reverted");
   } catch (e) {
-    expect(e instanceof AnchorError).toBe(true);
+    if (!(e instanceof AnchorError)) throw new Error(`Expected AnchorError, got ${e}`);
     const err: AnchorError = e;
     expect(err.error.errorCode.code).toStrictEqual(errCode);
   }
@@ -2863,6 +2864,52 @@ describe("Earn unit tests", () => {
       prepAddEarner(earnManagerOne, earnManagerOne.publicKey, randomATA);
 
       // Attempt to add earner with user token account for wrong token mint
+      await expectAnchorError(
+        earn.methods
+          .addEarner(nonEarnerOne.publicKey, proofs, neighbors)
+          .accounts({ ...accounts })
+          .signers([earnManagerOne])
+          .rpc(),
+        "ConstraintTokenOwner"
+      );
+    });
+
+    test("Add earner with mutable token account - reverts", async () => {
+      const tokenAccountKeypair = Keypair.generate();
+      const tokenAccountLen = getAccountLen([]);
+      const lamports = await provider.connection.getMinimumBalanceForRentExemption(tokenAccountLen);
+
+      // Create token account without the immutable owner extension
+      const transaction = new Transaction().add(
+        SystemProgram.createAccount({
+          fromPubkey: earnManagerOne.publicKey,
+          newAccountPubkey: tokenAccountKeypair.publicKey,
+          space: tokenAccountLen,
+          lamports,
+          programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializeAccountInstruction(
+          tokenAccountKeypair.publicKey,
+          mint.publicKey,
+          nonEarnerOne.publicKey,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+      );
+
+      await provider.send(transaction, [earnManagerOne, tokenAccountKeypair]);
+
+      // Get the exclusion proof for the earner against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(
+        nonEarnerOne.publicKey
+      );
+
+      // Setup the instruction
+      prepAddEarner(
+        earnManagerOne,
+        earnManagerOne.publicKey,
+        tokenAccountKeypair.publicKey
+      );
+
       await expectAnchorError(
         earn.methods
           .addEarner(nonEarnerOne.publicKey, proofs, neighbors)
