@@ -28,16 +28,10 @@ import {
     pack,
     TokenMetadata,
 } from "@solana/spl-token-metadata";
-import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
-import {
-    SolanaPlatform,
-    SolanaSendSigner,
-} from "@wormhole-foundation/sdk-solana";
 import {
     Chain,
     ChainAddress,
     UniversalAddress,
-    Wormhole,
     assertChain,
     signSendWait,
 } from "@wormhole-foundation/sdk";
@@ -46,6 +40,7 @@ import { createInitializeConfidentialTransferMintInstruction } from './confident
 import EARN_IDL from "../target/idl/earn.json";
 import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { Earn } from '../target/types/earn';
+import { keysFromEnv, NttManager } from './utils';
 
 const PROGRAMS = {
     // program id the same for devnet and mainnet
@@ -218,34 +213,6 @@ async function main() {
     await program.parseAsync(process.argv);
 }
 
-function NttManager(connection: Connection, owner: Keypair, mint: PublicKey) {
-    const signer = new SolanaSendSigner(connection, "Solana", owner, false, { min: 300_000 });
-    const sender = Wormhole.parseAddress("Solana", signer.address());
-
-    const wormholeNetwork = process.env.NETWORK === "devnet" ? "Testnet" : "Mainnet";
-    const wh = new Wormhole(wormholeNetwork, [SolanaPlatform]);
-    const ctx = wh.getChain("Solana");
-
-    const ntt = new SolanaNtt(
-        wormholeNetwork,
-        "Solana",
-        connection,
-        {
-            ...ctx.config.contracts,
-            ntt: {
-                token: mint.toBase58(),
-                manager: PROGRAMS.portal.toBase58(),
-                transceiver: {
-                    wormhole: PROGRAMS.portal.toBase58(),
-                },
-            },
-        },
-        "3.0.0",
-    );
-
-    return { ctx, ntt, signer, sender }
-}
-
 function anchorProvider(connection: Connection, owner: Keypair) {
     return new AnchorProvider(
         connection,
@@ -350,10 +317,6 @@ async function createToken2022Mint(
     transaction.sign([owner, mint]);
 
     await connection.sendTransaction(transaction);
-}
-
-function keysFromEnv(keys: string[]) {
-    return keys.map((key) => Keypair.fromSecretKey(Buffer.from(JSON.parse(process.env[key]))));
 }
 
 main().catch((error) => {
