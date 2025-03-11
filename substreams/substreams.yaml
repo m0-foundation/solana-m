@@ -35,7 +35,7 @@ modules:
     output:
      type: proto:transfers.v1.TokenTransactions
 
-network: solana-mainnet-beta
+network: solana-devnet
 
 params:
-  map_filtered_transactions: program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb && account:2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo
+  map_filtered_transactions: program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb && account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6

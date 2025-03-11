@@ -434,17 +434,12 @@ export class IndexUpdates extends Entity {
     this.set("id", Value.fromBytes(value));
   }
 
-  get updates(): Array<Bytes> {
-    let value = this.get("updates");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBytesArray();
-    }
-  }
-
-  set updates(value: Array<Bytes>) {
-    this.set("updates", Value.fromBytesArray(value));
+  get updates(): IndexUpdateLoader {
+    return new IndexUpdateLoader(
+      "IndexUpdates",
+      this.get("id")!.toBytes().toHexString(),
+      "updates",
+    );
   }
 
   get last_index(): BigInt {
@@ -460,17 +455,17 @@ export class IndexUpdates extends Entity {
     this.set("last_index", Value.fromBigInt(value));
   }
 
-  get last_ts(): BigInt {
+  get last_ts(): Bytes {
     let value = this.get("last_ts");
     if (!value || value.kind == ValueKind.NULL) {
       throw new Error("Cannot return null for a required field.");
     } else {
-      return value.toBigInt();
+      return value.toBytes();
     }
   }
 
-  set last_ts(value: BigInt) {
-    this.set("last_ts", Value.fromBigInt(value));
+  set last_ts(value: Bytes) {
+    this.set("last_ts", Value.fromBytes(value));
   }
 }
 
@@ -541,6 +536,19 @@ export class IndexUpdate extends Entity {
 
   set ts(value: Bytes) {
     this.set("ts", Value.fromBytes(value));
+  }
+
+  get updates(): Bytes {
+    let value = this.get("updates");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set updates(value: Bytes) {
+    this.set("updates", Value.fromBytes(value));
   }
 }
 
@@ -678,5 +686,23 @@ export class BalanceUpdateLoader extends Entity {
   load(): BalanceUpdate[] {
     let value = store.loadRelated(this._entity, this._id, this._field);
     return changetype<BalanceUpdate[]>(value);
+  }
+}
+
+export class IndexUpdateLoader extends Entity {
+  _entity: string;
+  _field: string;
+  _id: string;
+
+  constructor(entity: string, id: string, field: string) {
+    super();
+    this._entity = entity;
+    this._id = id;
+    this._field = field;
+  }
+
+  load(): IndexUpdate[] {
+    let value = store.loadRelated(this._entity, this._id, this._field);
+    return changetype<IndexUpdate[]>(value);
   }
 }

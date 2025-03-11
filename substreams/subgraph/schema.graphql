@@ -1,5 +1,5 @@
 type TokenHolder @entity {
-    id: Bytes!
+    id: Bytes! # owner pubkey
     mint: Bytes!
     user: Bytes! @unique
     balance: BigInt!
@@ -7,7 +7,7 @@ type TokenHolder @entity {
 }
 
 type TokenAccount @entity {
-    id: Bytes!
+    id: Bytes! # token account pubkey
     pubkey: Bytes! @unique
     owner: TokenHolder!
     balance: BigInt!
@@ -17,35 +17,35 @@ type TokenAccount @entity {
 }
 
 type Claim @entity(immutable: true) {
-    id: Bytes!
+    id: Bytes! # claim-<signature>
     amount: BigInt!
-    index: BigInt!
     ts: Timestamp!
     token_account: TokenAccount!
 }
 
 type BalanceUpdate @entity(immutable: true) {
-    id: Bytes!
+    id: Bytes! # balance-update-<signature>
     amount: BigInt!
     ts: Timestamp!
     token_account: TokenAccount!
 }
 
 type IndexUpdates @entity {
-    id: Bytes!
-    updates: [IndexUpdate!]!
+    id: Bytes! # index-updates
+    updates: [IndexUpdate!]! @derivedFrom(field: "updates")
     last_index: BigInt!
-    last_ts: BigInt!
+    last_ts: Timestamp!
 }
 
 type IndexUpdate @entity(immutable: true) {
-    id: Bytes!
+    id: Bytes! # index-udpate-<signature>
     index: BigInt!
     ts: Timestamp!
+    updates: IndexUpdates!
 }
 
 type Timestamp @entity(immutable: true) {
-    id: Bytes!
+    id: Bytes! # signature
     ts: BigInt!
     block: BigInt!
     signature: Bytes!
