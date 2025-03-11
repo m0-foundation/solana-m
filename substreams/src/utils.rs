@@ -21,6 +21,7 @@ pub struct IndexUpdate {
 #[event]
 pub struct RewardsClaim {
     pub token_account: Pubkey,
+    pub recipient_token_account: Pubkey,
     pub amount: u64,
     pub ts: u64,
     pub index: u64,
@@ -90,6 +91,7 @@ pub fn parse_log_for_events(log: &log::DataLog) -> Option<Update> {
         return Some(Update::Claim(v1::Claim {
             amount: claim.amount,
             token_account: claim.token_account.to_string(),
+            recipient_token_account: claim.recipient_token_account.to_string(),
         }));
     }
 

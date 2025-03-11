@@ -62,8 +62,7 @@ export function handleTriggers(bytes: Uint8Array): void {
         claim.amount = BigInt.fromI64(ix.claim.amount);
         claim.ts = ts.id;
         claim.token_account = b58(ix.claim.tokenAccount);
-
-        // TODO: claim on recipient account
+        claim.recipient_token_account = b58(ix.claim.recipientTokenAccount);
 
         claim.save()
       }

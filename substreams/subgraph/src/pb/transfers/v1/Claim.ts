@@ -9,7 +9,10 @@ export class Claim {
     writer.uint32(10);
     writer.string(message.tokenAccount);
 
-    writer.uint32(16);
+    writer.uint32(18);
+    writer.string(message.recipientTokenAccount);
+
+    writer.uint32(24);
     writer.uint64(message.amount);
   }
 
@@ -25,6 +28,10 @@ export class Claim {
           break;
 
         case 2:
+          message.recipientTokenAccount = reader.string();
+          break;
+
+        case 3:
           message.amount = reader.uint64();
           break;
 
@@ -38,10 +45,16 @@ export class Claim {
   }
 
   tokenAccount: string;
+  recipientTokenAccount: string;
   amount: u64;
 
-  constructor(tokenAccount: string = "", amount: u64 = 0) {
+  constructor(
+    tokenAccount: string = "",
+    recipientTokenAccount: string = "",
+    amount: u64 = 0
+  ) {
     this.tokenAccount = tokenAccount;
+    this.recipientTokenAccount = recipientTokenAccount;
     this.amount = amount;
   }
 }

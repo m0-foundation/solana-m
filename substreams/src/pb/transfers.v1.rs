@@ -76,7 +76,9 @@ pub struct IndexUpdate {
 pub struct Claim {
     #[prost(string, tag="1")]
     pub token_account: ::prost::alloc::string::String,
-    #[prost(uint64, tag="2")]
+    #[prost(string, tag="2")]
+    pub recipient_token_account: ::prost::alloc::string::String,
+    #[prost(uint64, tag="3")]
     pub amount: u64,
 }
 // @@protoc_insertion_point(module)

@@ -21,6 +21,7 @@ type Claim @entity(immutable: true) {
     amount: BigInt!
     ts: Timestamp!
     token_account: TokenAccount!
+    recipient_token_account: TokenAccount!
 }
 
 type BalanceUpdate @entity(immutable: true) {

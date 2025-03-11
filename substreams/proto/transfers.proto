@@ -43,5 +43,6 @@ message IndexUpdate {
 
 message Claim {
   string token_account = 1;
-  uint64 amount = 2;
+  string recipient_token_account = 2;
+  uint64 amount = 3;
 }

@@ -268,19 +268,6 @@ export class Claim extends Entity {
     this.set("amount", Value.fromBigInt(value));
   }
 
-  get index(): BigInt {
-    let value = this.get("index");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set index(value: BigInt) {
-    this.set("index", Value.fromBigInt(value));
-  }
-
   get ts(): Bytes {
     let value = this.get("ts");
     if (!value || value.kind == ValueKind.NULL) {
@@ -305,6 +292,19 @@ export class Claim extends Entity {
 
   set token_account(value: Bytes) {
     this.set("token_account", Value.fromBytes(value));
+  }
+
+  get recipient_token_account(): Bytes {
+    let value = this.get("recipient_token_account");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set recipient_token_account(value: Bytes) {
+    this.set("recipient_token_account", Value.fromBytes(value));
   }
 }
 
