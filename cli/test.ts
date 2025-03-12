@@ -44,7 +44,7 @@ async function main() {
         .command('send-testnet')
         .description('Bridge 1 M from solana devnet to ethereum sepolia')
         .argument('[string]', 'recipient evm address', '0x12b1A4226ba7D9Ad492779c924b0fC00BDCb6217')
-        .argument('[number]', 'amount', "100_000")
+        .argument('[number]', 'amount', "100000")
         .action(async (receiver, amount) => {
             const connection = new Connection(process.env.RPC_URL);
             const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
@@ -56,9 +56,9 @@ async function main() {
                 BigInt(amount),
                 {
                     address: new UniversalAddress(receiver, "hex"),
-                    chain: "Ethereum"
+                    chain: "Sepolia",
                 },
-                { queue: false, automatic: false, gasDropoff: 0n },
+                { queue: false, automatic: true, gasDropoff: 0n },
                 outboxItem
             );
 
