@@ -29,6 +29,7 @@ export function NttManager(connection: Connection, owner: Keypair, mint: PublicK
                 transceiver: {
                     wormhole: PORTAL.toBase58(),
                 },
+                quoter: "Nqd6XqA8LbsCuG8MLWWuP865NV6jR1MbXeKxD4HLKDJ"
             },
         },
         "3.0.0",
