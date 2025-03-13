@@ -28,7 +28,10 @@ pub struct ClaimFor<'info> {
     )]
     pub global_account: Account<'info, Global>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        owner = token_program.key(),
+    )]
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
