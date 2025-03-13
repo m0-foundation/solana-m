@@ -11,3 +11,11 @@ test-local-validator:
 	solana airdrop 25 TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM -ul && \
 	anchor test --skip-local-validator ; \
 	kill $$pid
+
+test-sdk:
+	solana-test-validator -r --bpf-program MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c target/deploy/earn.so > /dev/null 2>&1 & \
+	pid=$$! && \
+	sleep 5 && \
+	solana airdrop 25 TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM -ul && \
+	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
+	kill $$pid
