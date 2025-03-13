@@ -19,35 +19,23 @@ type TokenAccount @entity {
 type Claim @entity(immutable: true) {
     id: Bytes! # claim-<signature>
     amount: BigInt!
-    ts: Timestamp!
     token_account: TokenAccount!
     recipient_token_account: TokenAccount!
+    ts: BigInt!
+    signature: Bytes!
 }
 
 type BalanceUpdate @entity(immutable: true) {
     id: Bytes! # balance-update-<signature>
     amount: BigInt!
-    ts: Timestamp!
     token_account: TokenAccount!
-}
-
-type IndexUpdates @entity {
-    id: Bytes! # index-updates
-    updates: [IndexUpdate!]! @derivedFrom(field: "updates")
-    last_index: BigInt!
-    last_ts: Timestamp!
+    ts: BigInt!
+    signature: Bytes!
 }
 
 type IndexUpdate @entity(immutable: true) {
-    id: Bytes! # index-udpate-<signature>
+    id: Bytes! # index-update-<signature>
     index: BigInt!
-    ts: Timestamp!
-    updates: IndexUpdates!
-}
-
-type Timestamp @entity(immutable: true) {
-    id: Bytes! # signature
     ts: BigInt!
-    block: BigInt!
     signature: Bytes!
 }

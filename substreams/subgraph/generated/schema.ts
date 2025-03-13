@@ -268,19 +268,6 @@ export class Claim extends Entity {
     this.set("amount", Value.fromBigInt(value));
   }
 
-  get ts(): Bytes {
-    let value = this.get("ts");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBytes();
-    }
-  }
-
-  set ts(value: Bytes) {
-    this.set("ts", Value.fromBytes(value));
-  }
-
   get token_account(): Bytes {
     let value = this.get("token_account");
     if (!value || value.kind == ValueKind.NULL) {
@@ -305,6 +292,32 @@ export class Claim extends Entity {
 
   set recipient_token_account(value: Bytes) {
     this.set("recipient_token_account", Value.fromBytes(value));
+  }
+
+  get ts(): BigInt {
+    let value = this.get("ts");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set ts(value: BigInt) {
+    this.set("ts", Value.fromBigInt(value));
+  }
+
+  get signature(): Bytes {
+    let value = this.get("signature");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set signature(value: Bytes) {
+    this.set("signature", Value.fromBytes(value));
   }
 }
 
@@ -364,19 +377,6 @@ export class BalanceUpdate extends Entity {
     this.set("amount", Value.fromBigInt(value));
   }
 
-  get ts(): Bytes {
-    let value = this.get("ts");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBytes();
-    }
-  }
-
-  set ts(value: Bytes) {
-    this.set("ts", Value.fromBytes(value));
-  }
-
   get token_account(): Bytes {
     let value = this.get("token_account");
     if (!value || value.kind == ValueKind.NULL) {
@@ -389,61 +389,9 @@ export class BalanceUpdate extends Entity {
   set token_account(value: Bytes) {
     this.set("token_account", Value.fromBytes(value));
   }
-}
 
-export class IndexUpdates extends Entity {
-  constructor(id: Bytes) {
-    super();
-    this.set("id", Value.fromBytes(id));
-  }
-
-  save(): void {
-    let id = this.get("id");
-    assert(id != null, "Cannot save IndexUpdates entity without an ID");
-    if (id) {
-      assert(
-        id.kind == ValueKind.BYTES,
-        `Entities of type IndexUpdates must have an ID of type Bytes but the id '${id.displayData()}' is of type ${id.displayKind()}`,
-      );
-      store.set("IndexUpdates", id.toBytes().toHexString(), this);
-    }
-  }
-
-  static loadInBlock(id: Bytes): IndexUpdates | null {
-    return changetype<IndexUpdates | null>(
-      store.get_in_block("IndexUpdates", id.toHexString()),
-    );
-  }
-
-  static load(id: Bytes): IndexUpdates | null {
-    return changetype<IndexUpdates | null>(
-      store.get("IndexUpdates", id.toHexString()),
-    );
-  }
-
-  get id(): Bytes {
-    let value = this.get("id");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBytes();
-    }
-  }
-
-  set id(value: Bytes) {
-    this.set("id", Value.fromBytes(value));
-  }
-
-  get updates(): IndexUpdateLoader {
-    return new IndexUpdateLoader(
-      "IndexUpdates",
-      this.get("id")!.toBytes().toHexString(),
-      "updates",
-    );
-  }
-
-  get last_index(): BigInt {
-    let value = this.get("last_index");
+  get ts(): BigInt {
+    let value = this.get("ts");
     if (!value || value.kind == ValueKind.NULL) {
       throw new Error("Cannot return null for a required field.");
     } else {
@@ -451,12 +399,12 @@ export class IndexUpdates extends Entity {
     }
   }
 
-  set last_index(value: BigInt) {
-    this.set("last_index", Value.fromBigInt(value));
+  set ts(value: BigInt) {
+    this.set("ts", Value.fromBigInt(value));
   }
 
-  get last_ts(): Bytes {
-    let value = this.get("last_ts");
+  get signature(): Bytes {
+    let value = this.get("signature");
     if (!value || value.kind == ValueKind.NULL) {
       throw new Error("Cannot return null for a required field.");
     } else {
@@ -464,8 +412,8 @@ export class IndexUpdates extends Entity {
     }
   }
 
-  set last_ts(value: Bytes) {
-    this.set("last_ts", Value.fromBytes(value));
+  set signature(value: Bytes) {
+    this.set("signature", Value.fromBytes(value));
   }
 }
 
@@ -525,76 +473,6 @@ export class IndexUpdate extends Entity {
     this.set("index", Value.fromBigInt(value));
   }
 
-  get ts(): Bytes {
-    let value = this.get("ts");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBytes();
-    }
-  }
-
-  set ts(value: Bytes) {
-    this.set("ts", Value.fromBytes(value));
-  }
-
-  get updates(): Bytes {
-    let value = this.get("updates");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBytes();
-    }
-  }
-
-  set updates(value: Bytes) {
-    this.set("updates", Value.fromBytes(value));
-  }
-}
-
-export class Timestamp extends Entity {
-  constructor(id: Bytes) {
-    super();
-    this.set("id", Value.fromBytes(id));
-  }
-
-  save(): void {
-    let id = this.get("id");
-    assert(id != null, "Cannot save Timestamp entity without an ID");
-    if (id) {
-      assert(
-        id.kind == ValueKind.BYTES,
-        `Entities of type Timestamp must have an ID of type Bytes but the id '${id.displayData()}' is of type ${id.displayKind()}`,
-      );
-      store.set("Timestamp", id.toBytes().toHexString(), this);
-    }
-  }
-
-  static loadInBlock(id: Bytes): Timestamp | null {
-    return changetype<Timestamp | null>(
-      store.get_in_block("Timestamp", id.toHexString()),
-    );
-  }
-
-  static load(id: Bytes): Timestamp | null {
-    return changetype<Timestamp | null>(
-      store.get("Timestamp", id.toHexString()),
-    );
-  }
-
-  get id(): Bytes {
-    let value = this.get("id");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBytes();
-    }
-  }
-
-  set id(value: Bytes) {
-    this.set("id", Value.fromBytes(value));
-  }
-
   get ts(): BigInt {
     let value = this.get("ts");
     if (!value || value.kind == ValueKind.NULL) {
@@ -606,19 +484,6 @@ export class Timestamp extends Entity {
 
   set ts(value: BigInt) {
     this.set("ts", Value.fromBigInt(value));
-  }
-
-  get block(): BigInt {
-    let value = this.get("block");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toBigInt();
-    }
-  }
-
-  set block(value: BigInt) {
-    this.set("block", Value.fromBigInt(value));
   }
 
   get signature(): Bytes {
@@ -686,23 +551,5 @@ export class BalanceUpdateLoader extends Entity {
   load(): BalanceUpdate[] {
     let value = store.loadRelated(this._entity, this._id, this._field);
     return changetype<BalanceUpdate[]>(value);
-  }
-}
-
-export class IndexUpdateLoader extends Entity {
-  _entity: string;
-  _field: string;
-  _id: string;
-
-  constructor(entity: string, id: string, field: string) {
-    super();
-    this._entity = entity;
-    this._id = id;
-    this._field = field;
-  }
-
-  load(): IndexUpdate[] {
-    let value = store.loadRelated(this._entity, this._id, this._field);
-    return changetype<IndexUpdate[]>(value);
   }
 }

@@ -26,7 +26,7 @@ binaries:
 modules:
   - name: map_filtered_transactions
     use: solana:map_block_with_filtered_transactions
-    initialBlock: 325191460
+    initialBlock: 326322628
   
   - name: map_transfer_events
     kind: map
@@ -35,7 +35,7 @@ modules:
     output:
      type: proto:transfers.v1.TokenTransactions
 
-network: solana-devnet
+network: solana-mainnet-beta
 
 params:
-  map_filtered_transactions: program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb && account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6
+  map_filtered_transactions: program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb && account:2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo

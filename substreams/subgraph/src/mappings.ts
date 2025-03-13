@@ -1,7 +1,7 @@
 import { Protobuf } from "as-proto/assembly";
 import { TokenTransactions as protoTokenTransactions } from "./pb/transfers/v1/TokenTransactions";
 import { BigInt, Bytes } from "@graphprotocol/graph-ts";
-import { TokenHolder, TokenAccount, BalanceUpdate, Timestamp, IndexUpdate, IndexUpdates, Claim } from "../generated/schema";
+import { TokenHolder, TokenAccount, BalanceUpdate, IndexUpdate, Claim } from "../generated/schema";
 import { TokenBalanceUpdate } from "./pb/transfers/v1/TokenBalanceUpdate";
 import { decode } from "as-base58";
 
@@ -10,13 +10,6 @@ export function handleTriggers(bytes: Uint8Array): void {
 
   for (let i = 0; i < input.transactions.length; i++) {
     const txn = input.transactions[i];
-
-    // Timestamp
-    const ts = new Timestamp(b58(txn.signature));
-    ts.ts = BigInt.fromI64(input.blockTime);
-    ts.block = BigInt.fromU64(input.blockHeight);
-    ts.signature = b58(txn.signature);
-    ts.save();
 
     // Token Transfers
     for (let j = 0; j < txn.balanceUpdates.length; j++) {
@@ -32,14 +25,16 @@ export function handleTriggers(bytes: Uint8Array): void {
       // BalanceUpdate
       const balanceUpdate = new BalanceUpdate(id("balance-update", txn.signature));
       balanceUpdate.amount = delta;
-      balanceUpdate.ts = ts.id;
+      balanceUpdate.ts = BigInt.fromI64(input.blockTime)
+      balanceUpdate.signature = b58(txn.signature)
+      balanceUpdate.token_account = tokenAccount.id;
 
       // TokenAccount
       tokenAccount.balance = tokenAccount.balance.plus(delta);
 
       tokenHolder.save();
-      balanceUpdate.save();
       tokenAccount.save();
+      balanceUpdate.save();
     }
 
     // Events
@@ -47,29 +42,22 @@ export function handleTriggers(bytes: Uint8Array): void {
       const ix = txn.instructions[j];
 
       if (ix.indexUpdate) {
-        // Index Updates
-        let updates = IndexUpdates.load(Bytes.fromUTF8("index-update"));
-        if (!updates) updates = new IndexUpdates(Bytes.fromUTF8("index-update"));
-
-        updates.last_index = BigInt.fromI64(ix.indexUpdate!.index);
-        updates.last_ts = ts.id;
-
         // Index Update
         const update = new IndexUpdate(id("index-update", txn.signature));
         update.index = BigInt.fromI64(ix.indexUpdate!.index);
-        update.ts = ts.id;
-        update.updates = updates.id;
+        update.ts = BigInt.fromI64(input.blockTime)
+        update.signature = b58(txn.signature)
 
-        updates.save();
         update.save();
       }
       if (ix.claim) {
         // Claim
         const claim = new Claim(id("claim", txn.signature));
         claim.amount = BigInt.fromI64(ix.claim!.amount);
-        claim.ts = ts.id;
         claim.token_account = b58(ix.claim!.tokenAccount);
         claim.recipient_token_account = b58(ix.claim!.recipientTokenAccount);
+        claim.ts = BigInt.fromI64(input.blockTime)
+        claim.signature = b58(txn.signature)
 
         claim.save();
       }
