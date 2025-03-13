@@ -76,6 +76,11 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         return err!(EarnError::NotEarning);
     }
 
+    // Validate there is an active claim cycle
+    if ctx.accounts.global_account.claim_complete {
+        return err!(EarnError::NoActiveClaim);
+    }
+
     // Validate that the earner account has not already claimed this cycle
     // Earner index should never be > global index, but we check to be safe against an error with index propagation
     if ctx.accounts.earner_account.last_claim_index >= ctx.accounts.global_account.index {
