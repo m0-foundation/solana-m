@@ -29,22 +29,33 @@ describe("SDK unit tests", () => {
         )
 
         // create mint
-        await spl.createMint(
-            provider.connection,
-            signer,
-            signer.publicKey,
-            null,
-            9,
-            mint,
-            { skipPreflight: true },
-            spl.TOKEN_2022_PROGRAM_ID,
+        const mintLen = spl.getMintLen([]);
+        const lamports = await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+
+        const tx = new Transaction().add(
+            SystemProgram.createAccount({
+                fromPubkey: signer.publicKey,
+                newAccountPubkey: mint.publicKey,
+                space: mintLen,
+                lamports,
+                programId: spl.TOKEN_2022_PROGRAM_ID,
+            }),
+            spl.createInitializeMintInstruction(
+                mint.publicKey,
+                9,
+                signer.publicKey,
+                null,
+                spl.TOKEN_2022_PROGRAM_ID
+            )
         );
+
+        await provider.sendAndConfirm(tx, [signer, mint]);
 
         // intialize the program
         await earn.methods
             .initialize(
-                new PublicKey("mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6"),
                 mint.publicKey,
+                new Keypair().publicKey,
                 new BN(1_000_000_000_000),
                 new BN(0)
             )
@@ -72,7 +83,35 @@ describe("SDK unit tests", () => {
             })
             .signers([signer])
             .rpc();
-    }, 10_000);
+
+        const earnerATA = await spl.createAssociatedTokenAccount(
+            provider.connection,
+            signer,
+            mint.publicKey,
+            signer.publicKey,
+            undefined,
+            spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const [earnerAccount] = PublicKey.findProgramAddressSync(
+            [Buffer.from("earner"), earnerATA.toBytes()],
+            earn.programId,
+        )
+
+        // add earner from root
+        await earn.methods
+            .addRegistrarEarner(
+                earnerA.publicKey,
+                earnerMerkleTree.getInclusionProof(earnerA.publicKey).proof
+            )
+            .accounts({
+                signer: signer.publicKey,
+                globalAccount,
+                earnerAccount,
+                userTokenAccount: earnerATA,
+            })
+            .rpc();
+    });
 
     test("no earners", async () => {
         const earners = await client.getRegistrarEarners();
