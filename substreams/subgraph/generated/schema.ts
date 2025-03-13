@@ -415,6 +415,19 @@ export class BalanceUpdate extends Entity {
   set signature(value: Bytes) {
     this.set("signature", Value.fromBytes(value));
   }
+
+  get instructions(): Array<string> {
+    let value = this.get("instructions");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toStringArray();
+    }
+  }
+
+  set instructions(value: Array<string>) {
+    this.set("instructions", Value.fromStringArray(value));
+  }
 }
 
 export class IndexUpdate extends Entity {

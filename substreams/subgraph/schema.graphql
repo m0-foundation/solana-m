@@ -31,6 +31,7 @@ type BalanceUpdate @entity(immutable: true) {
     token_account: TokenAccount!
     ts: BigInt!
     signature: Bytes!
+    instructions: [String!]!
 }
 
 type IndexUpdate @entity(immutable: true) {
