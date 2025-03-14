@@ -1,9 +1,10 @@
 import { Connection, GetProgramAccountsFilter, PublicKey } from '@solana/web3.js';
-import { Earner, EarnManager, PROGRAM_ID } from './generated';
+import { Earner, PROGRAM_ID } from './generated';
+import { EarnManager } from './earn_manager';
 
 type Commitment = 'processed' | 'confirmed' | 'finalized';
 
-type AccountResult<T> = {
+export type AccountResult<T> = {
     account: T;
     pubkey: PublicKey;
 };
@@ -16,33 +17,17 @@ export class SolanaM {
     }
 
     async getRegistrarEarners(): Promise<AccountResult<Earner>[]> {
-        return this._getEarners();
-    }
-
-    async getEarners(manager: PublicKey): Promise<AccountResult<Earner>[]> {
-        return this._getEarners(manager);
-    }
-
-    async getManager(manager: PublicKey): Promise<AccountResult<EarnManager>> {
-        const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-            [Buffer.from("earn-manager"), manager.toBytes()],
-            PROGRAM_ID,
-        )
-        const account = await EarnManager.fromAccountAddress(this.connection, earnManagerAccount)
-        return { account, pubkey: earnManagerAccount }
-    }
-
-    private async _getEarners(manager?: PublicKey): Promise<AccountResult<Earner>[]> {
         const filters: GetProgramAccountsFilter[] = [
-            { memcmp: { offset: 8, bytes: manager ? '2' : '1' } }, // optional manager field
+            { memcmp: { offset: 8, bytes: '1' } }, // optional manager field is not set
             { dataSize: 156 },
         ];
 
-        // filter by manager
-        if (manager) filters.push({ memcmp: { offset: 9, bytes: manager.toBase58() } });
-
         const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
         return accounts.map(({ account, pubkey }) => ({ account: Earner.fromAccountInfo(account)[0], pubkey })).filter((a) => a.account.isEarning);
+    }
+
+    async getManager(manager: PublicKey): Promise<EarnManager> {
+        return await EarnManager.fromManagerAddress(this.connection, manager)
     }
 }
 

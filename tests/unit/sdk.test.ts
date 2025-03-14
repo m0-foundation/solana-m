@@ -179,14 +179,15 @@ describe("SDK unit tests", () => {
         expect(earners[0].pubkey).toEqual(earnerAccountA);
     })
 
-    test("manager earners", async () => {
-        const earners = await client.getEarners(signer.publicKey);
-        expect(earners).toHaveLength(1);
-        expect(earners[0].pubkey).toEqual(earnerAccountB);
-    })
-
     test("get earn manager", async () => {
         const manager = await client.getManager(signer.publicKey);
-        expect(manager.account.feeBps.toString()).toEqual("10");
+        expect(manager.feeBps).toEqual(10);
+    })
+
+    test("manager earners", async () => {
+        const manager = await client.getManager(signer.publicKey)
+        const earners = await manager.getEarners();
+        expect(earners).toHaveLength(1);
+        expect(earners[0].pubkey).toEqual(earnerAccountB);
     })
 })
