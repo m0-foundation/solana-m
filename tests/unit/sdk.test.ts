@@ -5,7 +5,7 @@ import * as spl from "@solana/spl-token";
 import { loadKeypair } from "../test-utils";
 import { MerkleTree } from "../merkle";
 import { Earn } from "../../target/types/earn";
-import { PROGRAM_ID as EARN_PROGRAM } from "../../sdk/src/generated";
+import { PROGRAM_ID as EARN_PROGRAM } from "../../sdk/src";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 describe("SDK unit tests", () => {
