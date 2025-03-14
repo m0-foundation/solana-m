@@ -13,6 +13,10 @@ export class SolanaM {
         this.connection = new Connection(rpcUrl, commitment);
     }
 
+    async getManager(manager: PublicKey): Promise<EarnManager> {
+        return await EarnManager.fromManagerAddress(this.connection, manager)
+    }
+
     async getRegistrarEarners(): Promise<Earner[]> {
         const filters: GetProgramAccountsFilter[] = [
             { memcmp: { offset: 8, bytes: '1' } }, // optional manager field is not set
@@ -21,10 +25,6 @@ export class SolanaM {
 
         const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
         return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data))
-    }
-
-    async getManager(manager: PublicKey): Promise<EarnManager> {
-        return await EarnManager.fromManagerAddress(this.connection, manager)
     }
 }
 

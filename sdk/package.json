@@ -13,7 +13,8 @@
     "dependencies": {
         "@solana/addresses": "^2.1.0",
         "@solana/codecs": "^2.1.0",
-        "@solana/web3.js": "^1.87.6"
+        "@solana/web3.js": "^1.87.6",
+        "graphql-request": "6.1.0"
     },
     "devDependencies": {
         "@types/node": "^20.10.0",

@@ -6,6 +6,7 @@ import { loadKeypair } from "../test-utils";
 import { MerkleTree } from "../merkle";
 import { Earn } from "../../target/types/earn";
 import { PROGRAM_ID as EARN_PROGRAM } from "../../sdk/src";
+import { Graph } from "../../sdk/src/graph";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 describe("SDK unit tests", () => {
@@ -173,21 +174,31 @@ describe("SDK unit tests", () => {
             .rpc();
     });
 
-    test("registrar earners", async () => {
-        const earners = await client.getRegistrarEarners();
-        expect(earners).toHaveLength(1);
-        expect(earners[0].pubkey).toEqual(earnerAccountA);
-    })
+    describe("rpc", () => {
+        test("registrar earners", async () => {
+            const earners = await client.getRegistrarEarners();
+            expect(earners).toHaveLength(1);
+            expect(earners[0].pubkey).toEqual(earnerAccountA);
+        })
 
-    test("get earn manager", async () => {
-        const manager = await client.getManager(signer.publicKey);
-        expect(manager.feeBps).toEqual(10);
-    })
+        test("get earn manager", async () => {
+            const manager = await client.getManager(signer.publicKey);
+            expect(manager.feeBps).toEqual(10);
+        })
 
-    test("manager earners", async () => {
-        const manager = await client.getManager(signer.publicKey)
-        const earners = await manager.getEarners();
-        expect(earners).toHaveLength(1);
-        expect(earners[0].pubkey).toEqual(earnerAccountB);
-    })
+        test("manager earners", async () => {
+            const manager = await client.getManager(signer.publicKey)
+            const earners = await manager.getEarners();
+            expect(earners).toHaveLength(1);
+            expect(earners[0].pubkey).toEqual(earnerAccountB);
+        })
+    });
+
+    describe("subgraph", () => {
+        test("token holders", async () => {
+            const graph = new Graph();
+            const accounts = await graph.getTokenAccounts(3);
+            console.log("accounts", accounts)
+        })
+    });
 })
