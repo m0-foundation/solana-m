@@ -198,7 +198,13 @@ describe("SDK unit tests", () => {
         test("token holders", async () => {
             const graph = new Graph();
             const accounts = await graph.getTokenAccounts(3);
-            console.log("accounts", accounts)
+            expect(accounts).toHaveLength(3);
+        })
+
+        test("weighted balance", async () => {
+            const graph = new Graph();
+            const balance = await graph.getWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 1741939199n);
+            expect(balance).toEqual(0n);
         })
     });
 })
