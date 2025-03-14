@@ -1,18 +1,23 @@
 import { AnchorProvider, BN, getProvider, Program, Wallet } from "@coral-xyz/anchor";
-import SolanaM, { EARN_PROGRAM } from "../../sdk/src";
-import { Earn } from "../../sdk/src/earn/earn";
+import SolanaM from "../../sdk/src";
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import { loadKeypair } from "../test-utils";
 import { MerkleTree } from "../merkle";
-const EARN_IDL = require("../../sdk/src/earn/earn.json");
+import { Earn } from "../../target/types/earn";
+import { PROGRAM_ID as EARN_PROGRAM } from "../../sdk/src/generated";
+const EARN_IDL = require("../../target/idl/earn.json");
 
 describe("SDK unit tests", () => {
-    const client = new SolanaM("http://localhost:8899");
+    const client = new SolanaM("http://localhost:8899", 'processed');
+    const connection = new Connection("http://localhost:8899");
+
     const signer = loadKeypair("tests/keys/user.json");
     const earnerA = new Keypair();
     const earnerB = new Keypair();
     const mint = loadKeypair("tests/keys/mint.json");
+
+    let earnerAccountA, earnerAccountB: PublicKey
 
     beforeAll(async () => {
         const provider = new AnchorProvider(
@@ -84,19 +89,37 @@ describe("SDK unit tests", () => {
             .signers([signer])
             .rpc();
 
-        const earnerATA = await spl.createAssociatedTokenAccount(
-            provider.connection,
-            signer,
-            mint.publicKey,
-            signer.publicKey,
-            undefined,
-            spl.TOKEN_2022_PROGRAM_ID,
-        );
+        const ataTransaction = new Transaction()
 
-        const [earnerAccount] = PublicKey.findProgramAddressSync(
-            [Buffer.from("earner"), earnerATA.toBytes()],
+        const atas = [earnerA, earnerB].map((earner) => {
+            const earnerATA = spl.getAssociatedTokenAddressSync(
+                mint.publicKey,
+                earner.publicKey,
+                true,
+                spl.TOKEN_2022_PROGRAM_ID,
+            );
+            ataTransaction.add(
+                spl.createAssociatedTokenAccountInstruction(
+                    signer.publicKey,
+                    earnerATA,
+                    earner.publicKey,
+                    mint.publicKey,
+                    spl.TOKEN_2022_PROGRAM_ID,
+                ),
+            );
+            return earnerATA
+        });
+
+        await provider.sendAndConfirm(ataTransaction, [signer]);
+
+        earnerAccountA = PublicKey.findProgramAddressSync(
+            [Buffer.from("earner"), atas[0].toBytes()],
             earn.programId,
-        )
+        )[0]
+        earnerAccountB = PublicKey.findProgramAddressSync(
+            [Buffer.from("earner"), atas[1].toBytes()],
+            earn.programId,
+        )[0]
 
         // add earner from root
         await earn.methods
@@ -107,14 +130,58 @@ describe("SDK unit tests", () => {
             .accounts({
                 signer: signer.publicKey,
                 globalAccount,
-                earnerAccount,
-                userTokenAccount: earnerATA,
+                earnerAccount: earnerAccountA,
+                userTokenAccount: atas[0],
+            })
+            .rpc();
+
+        // add manager
+        const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+            [Buffer.from("earn-manager"), signer.publicKey.toBytes()],
+            earn.programId,
+        )
+
+        await earn.methods
+            .configureEarnManager(
+                new BN(0),
+                earnManagerMerkleTree.getInclusionProof(signer.publicKey).proof,
+            )
+            .accounts({
+                signer: signer.publicKey,
+                globalAccount,
+                earnManagerAccount,
+                feeTokenAccount: atas[0],
+            })
+            .rpc();
+
+        // add earners from root
+        const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerB.publicKey);
+
+        await earn.methods
+            .addEarner(
+                earnerB.publicKey,
+                proofs,
+                neighbors
+            )
+            .accounts({
+                signer: signer.publicKey,
+                globalAccount,
+                earnerAccount: earnerAccountB,
+                userTokenAccount: atas[1],
+                earnManagerAccount,
             })
             .rpc();
     });
 
-    test("no earners", async () => {
+    test("registrar earners", async () => {
         const earners = await client.getRegistrarEarners();
-        expect(earners).toEqual([]);
+        expect(earners).toHaveLength(1);
+        expect(earners[0].pubkey).toEqual(earnerAccountA);
+    })
+
+    test("manager earners", async () => {
+        const earners = await client.getEarners(signer.publicKey);
+        expect(earners).toHaveLength(1);
+        expect(earners[0].pubkey).toEqual(earnerAccountB);
     })
 })

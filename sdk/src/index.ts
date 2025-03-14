@@ -1,32 +1,40 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-import { Program, AnchorProvider } from "@coral-xyz/anchor";
-import { Earn } from './earn/earn';
-const EARN_IDL = require("./earn/earn.json");
+import { Connection, GetProgramAccountsFilter, PublicKey } from '@solana/web3.js';
+import { Earner, PROGRAM_ID } from './generated';
 
-export const EARN_PROGRAM = new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c");
+type Commitment = 'processed' | 'confirmed' | 'finalized';
+
+type AccountResult<T> = {
+    account: T;
+    pubkey: PublicKey;
+};
 
 export class SolanaM {
     private connection: Connection;
-    private program: Program<Earn>;
 
-    constructor(rpcUrl: string) {
-        this.connection = new Connection(rpcUrl);
-
-        const provider = new AnchorProvider(this.connection, new DummyWallet(), {});
-        this.program = new Program<Earn>(EARN_IDL, EARN_PROGRAM, provider);
+    constructor(rpcUrl: string, commitment: Commitment = 'confirmed') {
+        this.connection = new Connection(rpcUrl, commitment);
     }
 
-    async getRegistrarEarners() {
-        return await this.program.account.earner.all()
+    async getRegistrarEarners(): Promise<AccountResult<Earner>[]> {
+        return this._getEarners();
     }
-}
 
-// dummy wallet for the anchor provider
-// we only use anchor to build instructions and parse accounts
-class DummyWallet {
-    publicKey = PublicKey.default;
-    async signTransaction(tx: any) { return tx; }
-    async signAllTransactions(txs: any[]) { return txs }
+    async getEarners(manager: PublicKey): Promise<AccountResult<Earner>[]> {
+        return this._getEarners(manager);
+    }
+
+    private async _getEarners(manager?: PublicKey): Promise<AccountResult<Earner>[]> {
+        const filters: GetProgramAccountsFilter[] = [
+            { memcmp: { offset: 8, bytes: manager ? '2' : '1' } }, // optional manager field
+            { dataSize: 156 },
+        ];
+
+        // filter by manager
+        if (manager) filters.push({ memcmp: { offset: 9, bytes: manager.toBase58() } });
+
+        const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
+        return accounts.map(({ account, pubkey }) => ({ account: Earner.fromAccountInfo(account)[0], pubkey })).filter((a) => a.account.isEarning);
+    }
 }
 
 export default SolanaM;

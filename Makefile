@@ -20,4 +20,4 @@ test-sdk:
 	solana airdrop 25 TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM -ul > /dev/null 2>&1 && \
 	echo "running tests..." && \
 	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
-	pkill solana-test-validator 
+	kill -9 $$(lsof -ti:8899)
