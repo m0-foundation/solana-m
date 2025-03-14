@@ -143,7 +143,7 @@ describe("SDK unit tests", () => {
 
         await earn.methods
             .configureEarnManager(
-                new BN(0),
+                new BN(10),
                 earnManagerMerkleTree.getInclusionProof(signer.publicKey).proof,
             )
             .accounts({
@@ -183,5 +183,10 @@ describe("SDK unit tests", () => {
         const earners = await client.getEarners(signer.publicKey);
         expect(earners).toHaveLength(1);
         expect(earners[0].pubkey).toEqual(earnerAccountB);
+    })
+
+    test("get earn manager", async () => {
+        const manager = await client.getManager(signer.publicKey);
+        expect(manager.account.feeBps.toString()).toEqual("10");
     })
 })

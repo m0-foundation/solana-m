@@ -43,7 +43,7 @@ export class Earner implements EarnerArgs {
     readonly bump: number,
     readonly user: web3.PublicKey,
     readonly userTokenAccount: web3.PublicKey
-  ) { }
+  ) {}
 
   /**
    * Creates a {@link Earner} instance from the provided args.

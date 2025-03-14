@@ -1,5 +1,5 @@
 import { Connection, GetProgramAccountsFilter, PublicKey } from '@solana/web3.js';
-import { Earner, PROGRAM_ID } from './generated';
+import { Earner, EarnManager, PROGRAM_ID } from './generated';
 
 type Commitment = 'processed' | 'confirmed' | 'finalized';
 
@@ -21,6 +21,15 @@ export class SolanaM {
 
     async getEarners(manager: PublicKey): Promise<AccountResult<Earner>[]> {
         return this._getEarners(manager);
+    }
+
+    async getManager(manager: PublicKey): Promise<AccountResult<EarnManager>> {
+        const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+            [Buffer.from("earn-manager"), manager.toBytes()],
+            PROGRAM_ID,
+        )
+        const account = await EarnManager.fromAccountAddress(this.connection, earnManagerAccount)
+        return { account, pubkey: earnManagerAccount }
     }
 
     private async _getEarners(manager?: PublicKey): Promise<AccountResult<Earner>[]> {
