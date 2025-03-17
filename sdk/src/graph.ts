@@ -44,12 +44,12 @@ export class Graph {
     }))
   }
 
-  async getWeightedBalance(tokenAccount: PublicKey, sinceTS: bigint): Promise<bigint> {
+  async getTimeWeightedBalance(tokenAccount: PublicKey, lowerTS: bigint, upperTS?: bigint): Promise<bigint> {
     const query = gql`
-      query getBalanceUpdates($tokenAccountId: Bytes!, $sinceTS: BigInt!){
+      query getBalanceUpdates($tokenAccountId: Bytes!, $lowerTS: BigInt!, $upperTS: BigInt!){
         tokenAccount(id: $tokenAccountId) {
           balance
-          transfers(where: {ts_gt: $sinceTS}, orderBy: ts, orderDirection: desc) {
+          transfers(where: {ts_gte: $lowerTS, ts_lt: $upperTS}, orderBy: ts, orderDirection: desc) {
             amount
             ts
           }
@@ -64,9 +64,30 @@ export class Graph {
       }
     }
 
-    const tokenAccountId = "0x" + tokenAccount.toBuffer().toString('hex');
-    const data = await request<Data>(this.url, query, { tokenAccountId, sinceTS: sinceTS.toString() });
+    // default upper limit to current ts
+    if (!upperTS) {
+      upperTS = BigInt(Math.floor(new Date().getTime() / 1000));
+    }
 
-    return 0n
+    // fetch data from the subgraph
+    const tokenAccountId = "0x" + tokenAccount.toBuffer().toString('hex');
+    const data = await request<Data>(this.url, query, { tokenAccountId, lowerTS: lowerTS.toString(), upperTS: upperTS.toString() });
+
+    let balance = BigInt(data.tokenAccount.balance);
+    let weightedBalance = BigInt(0);
+    let prevTS = upperTS;
+
+    // use transfers to calculate the weighted balance
+    for (const transfer of data.tokenAccount.transfers) {
+      weightedBalance += BigInt(balance) * (prevTS - BigInt(transfer.ts));
+      balance -= BigInt(transfer.amount);
+      prevTS = BigInt(transfer.ts);
+    }
+
+    // calculate up to sinceTS
+    weightedBalance += BigInt(balance) * (prevTS - lowerTS);
+
+    // return the time-weighted balance
+    return weightedBalance / (upperTS - lowerTS);
   }
 }

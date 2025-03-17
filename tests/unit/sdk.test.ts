@@ -203,8 +203,8 @@ describe("SDK unit tests", () => {
 
         test("weighted balance", async () => {
             const graph = new Graph();
-            const balance = await graph.getWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 1741939199n);
-            expect(balance).toEqual(0n);
+            const balance = await graph.getTimeWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 1741939199n, 1742215334n);
+            expect(balance).toEqual(591239337175n);
         })
     });
 })
