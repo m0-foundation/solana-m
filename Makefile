@@ -13,11 +13,6 @@ test-local-validator:
 	kill $$pid
 
 test-sdk:
-	@echo "staring up local validator..." && \
-	solana-test-validator -r --bpf-program MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c target/deploy/earn.so > /dev/null 2>&1 & \
-	sleep 2 && \
-	echo "airdropping SOL..." && \
-	solana airdrop 25 TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM -ul > /dev/null 2>&1 && \
-	echo "running tests..." && \
+	@anchor localnet --skip-build > /dev/null 2>&1 & \
 	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
 	kill -9 $$(lsof -ti:8899)

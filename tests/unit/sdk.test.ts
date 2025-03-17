@@ -13,30 +13,29 @@ describe("SDK unit tests", () => {
     // fix current time for testing
     Date.now = jest.fn(() => 1742215334 * 1000);
 
-    const client = new SolanaM("http://localhost:8899", 'processed');
-    const connection = new Connection("http://localhost:8899");
-
     const signer = loadKeypair("tests/keys/user.json");
     const earnerA = new Keypair();
     const earnerB = new Keypair();
     const mint = loadKeypair("tests/keys/mint.json");
+    let earnerAccountA: PublicKey, earnerAccountB: PublicKey
 
-    let earnerAccountA, earnerAccountB: PublicKey
+    const client = new SolanaM("http://localhost:8899", 'processed');
+
+    const provider = new AnchorProvider(
+        new Connection("http://localhost:8899"),
+        new Wallet(signer),
+        { commitment: "processed" },
+    );
+
+    // anchor client for setting up the earn program
+    const earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM, provider);
+
+    const [globalAccount] = PublicKey.findProgramAddressSync(
+        [Buffer.from("global")],
+        earn.programId,
+    )
 
     beforeAll(async () => {
-        const provider = new AnchorProvider(
-            new Connection("http://localhost:8899"),
-            new Wallet(signer),
-            { commitment: "processed" },
-        );
-
-        const earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM, provider);
-
-        const [globalAccount] = PublicKey.findProgramAddressSync(
-            [Buffer.from("global")],
-            earn.programId,
-        )
-
         // create mint
         const mintLen = spl.getMintLen([]);
         const lamports = await provider.connection.getMinimumBalanceForRentExemption(mintLen);
@@ -55,10 +54,45 @@ describe("SDK unit tests", () => {
                 signer.publicKey,
                 null,
                 spl.TOKEN_2022_PROGRAM_ID
-            )
+            ),
+
         );
 
         await provider.sendAndConfirm(tx, [signer, mint]);
+
+        const ataTransaction = new Transaction()
+
+        const atas = [earnerA, earnerB].map((earner) => {
+            const earnerATA = spl.getAssociatedTokenAddressSync(
+                mint.publicKey,
+                earner.publicKey,
+                true,
+                spl.TOKEN_2022_PROGRAM_ID,
+            );
+            ataTransaction.add(
+                spl.createAssociatedTokenAccountInstruction(
+                    signer.publicKey,
+                    earnerATA,
+                    earner.publicKey,
+                    mint.publicKey,
+                    spl.TOKEN_2022_PROGRAM_ID,
+                ),
+            );
+            // mint some tokens to the account
+            ataTransaction.add(
+                spl.createMintToInstruction(
+                    mint.publicKey,
+                    earnerATA,
+                    signer.publicKey,
+                    5000e9,
+                    [],
+                    spl.TOKEN_2022_PROGRAM_ID
+                )
+            )
+            return earnerATA
+        });
+
+        await provider.sendAndConfirm(ataTransaction, [signer]);
 
         // intialize the program
         await earn.methods
@@ -79,42 +113,20 @@ describe("SDK unit tests", () => {
         const earnerMerkleTree = new MerkleTree([earnerA.publicKey]);
         const earnManagerMerkleTree = new MerkleTree([signer.publicKey]);
 
-        await earn.methods
-            .propagateIndex(
-                new BN(1_000_000_000_000),
-                earnerMerkleTree.getRoot(),
-                earnManagerMerkleTree.getRoot(),
-            )
-            .accounts({
-                signer: signer.publicKey,
-                globalAccount,
-                mint: mint.publicKey,
-            })
-            .signers([signer])
-            .rpc();
-
-        const ataTransaction = new Transaction()
-
-        const atas = [earnerA, earnerB].map((earner) => {
-            const earnerATA = spl.getAssociatedTokenAddressSync(
-                mint.publicKey,
-                earner.publicKey,
-                true,
-                spl.TOKEN_2022_PROGRAM_ID,
-            );
-            ataTransaction.add(
-                spl.createAssociatedTokenAccountInstruction(
-                    signer.publicKey,
-                    earnerATA,
-                    earner.publicKey,
-                    mint.publicKey,
-                    spl.TOKEN_2022_PROGRAM_ID,
-                ),
-            );
-            return earnerATA
-        });
-
-        await provider.sendAndConfirm(ataTransaction, [signer]);
+        for (let i = 0; i < 2; i++)
+            await earn.methods
+                .propagateIndex(
+                    new BN(1_000_000_000_000).add(new BN(10_000_000_000 * i)),
+                    earnerMerkleTree.getRoot(),
+                    earnManagerMerkleTree.getRoot(),
+                )
+                .accounts({
+                    signer: signer.publicKey,
+                    globalAccount,
+                    mint: mint.publicKey,
+                })
+                .signers([signer])
+                .rpc();
 
         earnerAccountA = PublicKey.findProgramAddressSync(
             [Buffer.from("earner"), atas[0].toBytes()],
@@ -245,6 +257,16 @@ describe("SDK unit tests", () => {
             test("current balance is 0", async () => {
                 expect(fn(0n, 200n, 100n, [{ amount: "-1000", ts: "150" }])).toEqual(500n);
             })
+        })
+    });
+
+    describe("claim cycle", () => {
+        test("validate claim cycle status", async () => {
+            // check how much yield should be claimed
+            const global = await earn.account.global.fetch(globalAccount, "processed")
+            expect(global.maxSupply.toString()).toEqual("10000000000000");
+            expect(global.maxYield.toString()).toEqual("100000000000");
+            expect(global.distributed.toString()).toEqual("0");
         })
     });
 })
