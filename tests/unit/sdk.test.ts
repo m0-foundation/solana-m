@@ -10,6 +10,9 @@ import { Graph } from "../../sdk/src/graph";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 describe("SDK unit tests", () => {
+    // fix current time for testing
+    Date.now = jest.fn(() => 1742215334 * 1000);
+
     const client = new SolanaM("http://localhost:8899", 'processed');
     const connection = new Connection("http://localhost:8899");
 
@@ -203,8 +206,45 @@ describe("SDK unit tests", () => {
 
         test("weighted balance", async () => {
             const graph = new Graph();
-            const balance = await graph.getTimeWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 1741939199n, 1742215334n);
+            const balance = await graph.getTimeWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 1741939199n);
             expect(balance).toEqual(591239337175n);
+        })
+
+        describe("weighted balance calculations", () => {
+            // grab private function
+            const fn = Graph["calculateTimeWeightedBalance"];
+
+            test("0 balance", async () => {
+                expect(fn(0n, 1742215334n, 1741939199n, [])).toEqual(0n);
+            })
+            test("no transfers balance", async () => {
+                expect(fn(110n, 1742215334n, 1741939199n, [])).toEqual(110n);
+            })
+            test("one transfers halfway", async () => {
+                expect(fn(100n, 150000n, 50000n, [{ amount: "50", ts: "100000" }])).toEqual(75n);
+            })
+            test("huge transfer before calculation", async () => {
+                expect(fn(1000000n, 1500000n, 100n, [{ amount: "1000000", ts: "1499995" }])).toEqual(3n);
+            })
+            test("many transfers", async () => {
+                const numTransfers = 50
+                const transferAmount = 10
+
+                // generate transfer data
+                const transfers = [...Array(numTransfers)].map((_, i) => (
+                    { amount: "10", ts: (100n + BigInt(i * transferAmount)).toString() }
+                ))
+
+                const upper = BigInt(transfers[0].ts) + 10n;
+                const lower = BigInt(transfers[transfers.length - 1].ts) - 10n;
+
+                // expect balance based on linear distribution of transfers
+                const expected = 1000n - BigInt(numTransfers * transferAmount / 2)
+                expect(fn(1000n, upper, lower, transfers)).toEqual(expected);
+            })
+            test("current balance is 0", async () => {
+                expect(fn(0n, 200n, 100n, [{ amount: "-1000", ts: "150" }])).toEqual(500n);
+            })
         })
     });
 })
