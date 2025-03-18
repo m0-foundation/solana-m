@@ -8,6 +8,8 @@ import { PROGRAM_ID as EARN_PROGRAM } from "../../sdk/src";
 import { Graph } from "../../sdk/src/graph";
 import EarnAuthority from "../../sdk/src/earn_auth";
 import { EarnManager } from "../../sdk/src/earn_manager";
+import { Earner } from "../../sdk/src/earner";
+import { earnerDecoder, toPublickey } from "../../sdk/src/accounts";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 describe("SDK unit tests", () => {
@@ -15,10 +17,11 @@ describe("SDK unit tests", () => {
     Date.now = jest.fn(() => 1742215334 * 1000);
 
     const signer = loadKeypair("tests/keys/user.json");
-    const earnerA = new Keypair();
-    const earnerB = new Keypair();
     const mint = loadKeypair("tests/keys/mint.json");
     let earnerAccountA: PublicKey, earnerAccountB: PublicKey
+
+    // random users but deterministic order
+    const [earnerA, earnerB] = [new Keypair(), new Keypair()].sort((a, b) => a.publicKey.toBase58().localeCompare(b.publicKey.toBase58()));
 
     const connection = new Connection("http://localhost:8899", "processed")
 
@@ -114,20 +117,19 @@ describe("SDK unit tests", () => {
         const earnerMerkleTree = new MerkleTree([earnerA.publicKey]);
         const earnManagerMerkleTree = new MerkleTree([signer.publicKey]);
 
-        for (let i = 0; i < 2; i++)
-            await earn.methods
-                .propagateIndex(
-                    new BN(1_000_000_000_000).add(new BN(10_000_000_000 * i)),
-                    earnerMerkleTree.getRoot(),
-                    earnManagerMerkleTree.getRoot(),
-                )
-                .accounts({
-                    signer: signer.publicKey,
-                    globalAccount,
-                    mint: mint.publicKey,
-                })
-                .signers([signer])
-                .rpc();
+        await earn.methods
+            .propagateIndex(
+                new BN(1_000_000_000_000),
+                earnerMerkleTree.getRoot(),
+                earnManagerMerkleTree.getRoot(),
+            )
+            .accounts({
+                signer: signer.publicKey,
+                globalAccount,
+                mint: mint.publicKey,
+            })
+            .signers([signer])
+            .rpc();
 
         earnerAccountA = PublicKey.findProgramAddressSync(
             [Buffer.from("earner"), atas[0].toBytes()],
@@ -149,6 +151,16 @@ describe("SDK unit tests", () => {
                 globalAccount,
                 earnerAccount: earnerAccountA,
                 userTokenAccount: atas[0],
+            })
+            .rpc();
+
+        await earn.methods
+            .setEarnerRecipient()
+            .accounts({
+                admin: signer.publicKey,
+                globalAccount,
+                earnerAccount: earnerAccountA,
+                recipientTokenAccount: atas[0],
             })
             .rpc();
 
@@ -188,6 +200,20 @@ describe("SDK unit tests", () => {
                 earnManagerAccount,
             })
             .rpc();
+
+        await earn.methods
+            .propagateIndex(
+                new BN(1_010_000_000_000),
+                earnerMerkleTree.getRoot(),
+                earnManagerMerkleTree.getRoot(),
+            )
+            .accounts({
+                signer: signer.publicKey,
+                globalAccount,
+                mint: mint.publicKey,
+            })
+            .signers([signer])
+            .rpc();
     });
 
     describe("rpc", () => {
@@ -196,7 +222,7 @@ describe("SDK unit tests", () => {
             const earners = await auth.getAllEarners();
             expect(earners).toHaveLength(2);
 
-            earners.sort((a, b) => a.pubkey.toBase58().localeCompare(b.pubkey.toBase58()));
+            earners.sort((a, b) => a.user.toBase58().localeCompare(b.user.toBase58()));
             expect(earners[0].pubkey).toEqual(earnerAccountA);
             expect(earners[1].pubkey).toEqual(earnerAccountB);
 
@@ -215,6 +241,24 @@ describe("SDK unit tests", () => {
             expect(earners[0].pubkey).toEqual(earnerAccountB);
         })
     });
+
+    describe("decoders", () => {
+        test("earner", async () => {
+            const dataB = Buffer.from("ec7e33602ee167cf0106b8cac9587f9537754a60b9eea4ad744c84e6900548551686897c18a046d912000010a5d4e800000068afd9670000000001fe8119c8a9831edd75da89a7dba6eea8a7db3c554187341ccf21b1b5d555634b38c3326dffdb07e7da8ea1722d38bb9a5c7506a0b3b534de7deb3592c6200785d20000000000000000000000000000000000000000000000000000000000000000", "hex")
+            const dataA = Buffer.from("ec7e33602ee167cf00017b7c21fd8778f5efc598fda24ad5dbba8957c1d4ed2134c7da630cd167b52ad40010a5d4e800000066afd9670000000001ff98f50434dd43f456c8910c20b855c5c7ac1fc937032cda29ac9cff67729a0b9f7b7c21fd8778f5efc598fda24ad5dbba8957c1d4ed2134c7da630cd167b52ad40000000000000000000000000000000000000000000000000000000000000000", 'hex');
+
+            const eA = Earner.fromAccountData(connection, earnerAccountA, dataA);
+            expect(eA.earnManager).toBeNull();
+            expect(eA.recipientTokenAccount).toBeDefined();
+            expect(eA.recipientTokenAccount.toBase58()).toBe(eA.userTokenAccount.toBase58());
+            expect(eA.isEarning).toBeTruthy();
+
+            const eB = Earner.fromAccountData(connection, earnerAccountB, dataB);
+            expect(eB.earnManager).toBeDefined();
+            expect(eB.earnManager.toBase58()).toBe(signer.publicKey.toBase58());
+            expect(eB.isEarning).toBeTruthy();
+        })
+    })
 
     describe("subgraph", () => {
         test("token holders", async () => {
@@ -277,7 +321,16 @@ describe("SDK unit tests", () => {
         })
 
         test("claim", async () => {
+            const auth = EarnAuthority.fromKeypair(connection, signer)
+            const earners = await auth.getAllEarners();
 
+            for (const earner of earners) {
+                const ix = await auth.buildClaimInstruction(earner);
+                const claimTx = new Transaction().add(ix);
+                claimTx.feePayer = signer.publicKey;
+                claimTx.recentBlockhash = (await connection.getLatestBlockhash("processed")).blockhash;
+                await connection.sendTransaction(claimTx, [signer]);
+            }
         })
     });
 })

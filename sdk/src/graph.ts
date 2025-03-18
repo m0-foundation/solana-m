@@ -116,6 +116,10 @@ export class Graph {
     const tokenAccountId = "0x" + tokenAccount.toBuffer().toString('hex');
     const data = await request<Data>(this.url, query, { tokenAccountId, lowerTS: lowerTS.toString(), upperTS: upperTS.toString() });
 
+    if (!data.tokenAccount) {
+      throw new Error(`Token account not found: ${tokenAccount.toBase58()}`);
+    }
+
     return Graph.calculateTimeWeightedBalance(
       BigInt(data.tokenAccount.balance),
       upperTS, lowerTS,

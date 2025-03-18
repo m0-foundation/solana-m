@@ -30,8 +30,8 @@ class EarnAuthority {
         return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data))
     }
 
-    async buildClaimInstruction(earner: Earner, sinceTS: bigint): Promise<TransactionInstruction> {
-        const weightedBalance = await new Graph().getTimeWeightedBalance(earner.userTokenAccount, sinceTS);
+    async buildClaimInstruction(earner: Earner): Promise<TransactionInstruction> {
+        const weightedBalance = await new Graph().getTimeWeightedBalance(earner.userTokenAccount, earner.lastClaimTimestamp);
 
         const data = deriveDiscriminator("claim_for", "global");
         data.writeBigInt64LE(weightedBalance, 8);

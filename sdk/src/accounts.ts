@@ -1,5 +1,6 @@
-import { fixDecoderSize, FixedSizeDecoder, getBooleanDecoder, getBytesDecoder, getStructDecoder, getU64Decoder, getU8Decoder, ReadonlyUint8Array, getOptionDecoder, Option } from "@solana/codecs";
+import { fixDecoderSize, FixedSizeDecoder, getBooleanDecoder, getBytesDecoder, getStructDecoder, getU64Decoder, getU8Decoder, ReadonlyUint8Array, getOptionDecoder, Option, getU32Decoder, getNullableDecoder, addCodecSizePrefix, addDecoderSizePrefix, getU32Codec, Decoder, VariableSizeDecoder, isSome } from "@solana/codecs";
 import { Address, getAddressDecoder } from "@solana/addresses";
+import { PublicKey } from "@solana/web3.js";
 
 interface EarnManagerData {
     anchorDiscriminator: ReadonlyUint8Array;
@@ -64,11 +65,11 @@ interface EarnerData {
     userTokenAccount: Address
 }
 
-export const earnerDecoder: FixedSizeDecoder<EarnerData> =
+export const earnerDecoder: VariableSizeDecoder<EarnerData> =
     getStructDecoder([
         ["anchorDiscriminator", fixDecoderSize(getBytesDecoder(), 8)],
-        ['earnManager', getOptionDecoder(getAddressDecoder(), { noneValue: 'zeroes' })],
-        ['recipientTokenAccount', getOptionDecoder(getAddressDecoder(), { noneValue: 'zeroes' })],
+        ['earnManager', getOptionDecoder(getAddressDecoder())],
+        ['recipientTokenAccount', getOptionDecoder(getAddressDecoder())],
         ['lastClaimIndex', getU64Decoder()],
         ['lastClaimTimestamp', getU64Decoder()],
         ['isEarning', getBooleanDecoder()],
@@ -76,3 +77,10 @@ export const earnerDecoder: FixedSizeDecoder<EarnerData> =
         ['user', getAddressDecoder()],
         ['userTokenAccount', getAddressDecoder()],
     ]);
+
+export const toPublickey = (address: Option<Address>): PublicKey => {
+    if (isSome(address)) {
+        return new PublicKey(address.value);
+    }
+    throw new Error("Expected address to be some");
+}
