@@ -1,5 +1,4 @@
-import { AnchorProvider, BN, getProvider, Program, Wallet } from "@coral-xyz/anchor";
-import SolanaM from "../../sdk/src";
+import { AnchorProvider, BN, Program, Wallet } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import { loadKeypair } from "../test-utils";
@@ -7,6 +6,8 @@ import { MerkleTree } from "../merkle";
 import { Earn } from "../../target/types/earn";
 import { PROGRAM_ID as EARN_PROGRAM } from "../../sdk/src";
 import { Graph } from "../../sdk/src/graph";
+import EarnAuthority from "../../sdk/src/earn_auth";
+import { EarnManager } from "../../sdk/src/earn_manager";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 describe("SDK unit tests", () => {
@@ -19,10 +20,10 @@ describe("SDK unit tests", () => {
     const mint = loadKeypair("tests/keys/mint.json");
     let earnerAccountA: PublicKey, earnerAccountB: PublicKey
 
-    const client = new SolanaM("http://localhost:8899", 'processed');
+    const connection = new Connection("http://localhost:8899", "processed")
 
     const provider = new AnchorProvider(
-        new Connection("http://localhost:8899"),
+        connection,
         new Wallet(signer),
         { commitment: "processed" },
     );
@@ -84,7 +85,7 @@ describe("SDK unit tests", () => {
                     mint.publicKey,
                     earnerATA,
                     signer.publicKey,
-                    5000e9,
+                    earnerA === earner ? 5000e9 : 3000e9,
                     [],
                     spl.TOKEN_2022_PROGRAM_ID
                 )
@@ -170,7 +171,7 @@ describe("SDK unit tests", () => {
             })
             .rpc();
 
-        // add earners from root
+        // add earners under manager
         const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerB.publicKey);
 
         await earn.methods
@@ -190,19 +191,25 @@ describe("SDK unit tests", () => {
     });
 
     describe("rpc", () => {
-        test("registrar earners", async () => {
-            const earners = await client.getRegistrarEarners();
-            expect(earners).toHaveLength(1);
+        test("get all earners", async () => {
+            const auth = EarnAuthority.fromKeypair(connection, signer)
+            const earners = await auth.getAllEarners();
+            expect(earners).toHaveLength(2);
+
+            earners.sort((a, b) => a.pubkey.toBase58().localeCompare(b.pubkey.toBase58()));
             expect(earners[0].pubkey).toEqual(earnerAccountA);
+            expect(earners[1].pubkey).toEqual(earnerAccountB);
+
+            expect(await earners[0].getHistoricalClaims()).toEqual([]);
         })
 
         test("get earn manager", async () => {
-            const manager = await client.getManager(signer.publicKey);
+            const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
             expect(manager.feeBps).toEqual(10);
         })
 
         test("manager earners", async () => {
-            const manager = await client.getManager(signer.publicKey)
+            const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
             const earners = await manager.getEarners();
             expect(earners).toHaveLength(1);
             expect(earners[0].pubkey).toEqual(earnerAccountB);
@@ -260,13 +267,17 @@ describe("SDK unit tests", () => {
         })
     });
 
-    describe("claim cycle", () => {
+    describe("earn authority", () => {
         test("validate claim cycle status", async () => {
             // check how much yield should be claimed
             const global = await earn.account.global.fetch(globalAccount, "processed")
-            expect(global.maxSupply.toString()).toEqual("10000000000000");
-            expect(global.maxYield.toString()).toEqual("100000000000");
+            expect(global.maxSupply.toString()).toEqual("8000000000000");
+            expect(global.maxYield.toString()).toEqual("80000000000");
             expect(global.distributed.toString()).toEqual("0");
+        })
+
+        test("claim", async () => {
+
         })
     });
 })

@@ -1,34 +1,13 @@
-import { Connection, GetProgramAccountsFilter, PublicKey } from '@solana/web3.js';
-import {
-    getStructDecoder,
-    FixedSizeDecoder,
-    fixDecoderSize,
-    getBytesDecoder,
-    getU8Decoder,
-    getU64Decoder,
-    ReadonlyUint8Array,
-    getBooleanDecoder,
-    getOptionDecoder,
-    Option,
-    isSome
-} from "@solana/codecs";
-import { Address, getAddressDecoder } from "@solana/addresses";
+import { Connection, PublicKey } from '@solana/web3.js';
+import { isSome } from "@solana/codecs";
 import { PROGRAM_ID } from '.';
+import { earnerDecoder } from './accounts';
+import { Claim, Graph } from './graph';
 
-interface EarnerData {
-    anchorDiscriminator: ReadonlyUint8Array;
-    earnManager: Option<Address>
-    recipientTokenAccount: Option<Address>
-    lastClaimIndex: bigint
-    lastClaimTimestamp: bigint
-    isEarning: boolean
-    bump: number
-    user: Address
-    userTokenAccount: Address
-}
 
 export class Earner {
     private connection: Connection;
+    private graph: Graph;
 
     pubkey: PublicKey
     earnManager: PublicKey | null
@@ -39,24 +18,13 @@ export class Earner {
     user: PublicKey
     userTokenAccount: PublicKey
 
-    private decoder: FixedSizeDecoder<EarnerData> =
-        getStructDecoder([
-            ["anchorDiscriminator", fixDecoderSize(getBytesDecoder(), 8)],
-            ['earnManager', getOptionDecoder(getAddressDecoder(), { noneValue: 'zeroes' })],
-            ['recipientTokenAccount', getOptionDecoder(getAddressDecoder(), { noneValue: 'zeroes' })],
-            ['lastClaimIndex', getU64Decoder()],
-            ['lastClaimTimestamp', getU64Decoder()],
-            ['isEarning', getBooleanDecoder()],
-            ['bump', getU8Decoder()],
-            ['user', getAddressDecoder()],
-            ['userTokenAccount', getAddressDecoder()],
-        ]);
 
     private constructor(connection: Connection, pubkey: PublicKey, data: Buffer) {
         this.connection = connection;
+        this.graph = new Graph();
         this.pubkey = pubkey;
 
-        const values = this.decoder.decode(data);
+        const values = earnerDecoder.decode(data);
         this.earnManager = null;
         this.recipientTokenAccount = null;
         this.lastClaimIndex = values.lastClaimIndex;
@@ -85,5 +53,9 @@ export class Earner {
 
     static fromAccountData(connection: Connection, pubkey: PublicKey, data: Buffer): Earner {
         return new Earner(connection, pubkey, data);
+    }
+
+    async getHistoricalClaims(): Promise<Claim[]> {
+        return await this.graph.getHistoricalClaims(this.userTokenAccount);
     }
 }

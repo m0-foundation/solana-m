@@ -6,7 +6,6 @@
     "types": "dist/index.d.ts",
     "scripts": {
         "build": "tsc",
-        "prepare": "npm run build",
         "generate": "node generate.js"
     },
     "author": "M^0",
@@ -14,6 +13,7 @@
         "@solana/addresses": "^2.1.0",
         "@solana/codecs": "^2.1.0",
         "@solana/web3.js": "^1.87.6",
+        "bs58": "^6.0.0",
         "graphql-request": "6.1.0"
     },
     "devDependencies": {

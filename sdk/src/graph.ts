@@ -7,8 +7,19 @@ type TokenAccount = {
   last_claim_ts: bigint
 }
 
+export type Claim = {
+  amount: bigint
+  ts: bigint
+  signature: Buffer,
+  recipient_token_account: PublicKey
+}
+
 export class Graph {
-  private url = 'https://api.studio.thegraph.com/query/106645/m-token-transactions/version/latest';
+  private url: string;
+
+  constructor(url?: string) {
+    this.url = url ?? 'https://api.studio.thegraph.com/query/106645/m-token-transactions/version/latest'
+  }
 
   async getTokenAccounts(limit = 100, skip = 0): Promise<TokenAccount[]> {
     const query = gql`
@@ -44,6 +55,40 @@ export class Graph {
     }))
   }
 
+  async getHistoricalClaims(tokenAccount: PublicKey): Promise<Claim[]> {
+    const query = gql`
+      query GetClaimsForTokenAccount($tokenAccountId: Bytes!) {
+        claims(where: { token_account: $tokenAccountId }, orderBy: ts, orderDirection: desc) {
+          amount
+          ts
+          signature
+          recipient_token_account {
+            pubkey
+          }
+        }
+      }
+    `;
+
+    interface Data {
+      claims: {
+        amount: string
+        ts: string
+        signature: string
+        recipient_token_account: { pubkey: string }
+      }[]
+    }
+
+    const tokenAccountId = "0x" + tokenAccount.toBuffer().toString('hex');
+    const data = await request<Data>(this.url, query, { tokenAccountId });
+
+    return data.claims.map(claim => ({
+      amount: BigInt(claim.amount),
+      ts: BigInt(claim.ts),
+      signature: Buffer.from(claim.signature.slice(2), 'hex'),
+      recipient_token_account: new PublicKey(Buffer.from(claim.recipient_token_account.pubkey.slice(2), 'hex'))
+    }));
+  }
+
   async getTimeWeightedBalance(tokenAccount: PublicKey, lowerTS: bigint): Promise<bigint> {
     const query = gql`
       query getBalanceUpdates($tokenAccountId: Bytes!, $lowerTS: BigInt!, $upperTS: BigInt!){
@@ -64,7 +109,7 @@ export class Graph {
       }
     }
 
-    // set upper limit to current time
+    // set upper limit to now
     const upperTS = BigInt(Math.floor(Date.now() / 1000));
 
     // fetch data from the subgraph

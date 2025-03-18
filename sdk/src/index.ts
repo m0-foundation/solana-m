@@ -1,31 +1,6 @@
-import { Connection, GetProgramAccountsFilter, PublicKey } from '@solana/web3.js';
-import { EarnManager } from './earn_manager';
-import { Earner } from './earner';
-
-type Commitment = 'processed' | 'confirmed' | 'finalized';
+import { PublicKey } from '@solana/web3.js';
 
 export const PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c');
-
-export class SolanaM {
-    private connection: Connection;
-
-    constructor(rpcUrl: string, commitment: Commitment = 'confirmed') {
-        this.connection = new Connection(rpcUrl, commitment);
-    }
-
-    async getManager(manager: PublicKey): Promise<EarnManager> {
-        return await EarnManager.fromManagerAddress(this.connection, manager)
-    }
-
-    async getRegistrarEarners(): Promise<Earner[]> {
-        const filters: GetProgramAccountsFilter[] = [
-            { memcmp: { offset: 8, bytes: '1' } }, // optional manager field is not set
-            { dataSize: 156 },
-        ];
-
-        const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
-        return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data))
-    }
-}
-
-export default SolanaM;
+export const TOKEN_2022_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb")
+export const MINT = new PublicKey("mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6")
+export const MINT_MULTISIG = new PublicKey("ms2SCrTYioPuumF6oBvReXoVRizEW5qYkiVuUEak7Th")
