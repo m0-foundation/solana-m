@@ -46,6 +46,7 @@ import { createInitializeConfidentialTransferMintInstruction } from './confident
 import EARN_IDL from "../target/idl/earn.json";
 import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { Earn } from '../target/types/earn';
+import { keysFromEnv, NttManager } from './utils';
 
 const PROGRAMS = {
     // program id the same for devnet and mainnet
