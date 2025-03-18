@@ -4070,9 +4070,6 @@ describe("Earn unit tests", () => {
         earnManagerOne.publicKey
       );
 
-      console.log("proofs", proofs);
-      console.log("neighbors", neighbors);
-
       // Remove the earn manager account (set it to inactive)
       await removeEarnManager(earnManagerOne.publicKey, proofs, neighbors);
 
