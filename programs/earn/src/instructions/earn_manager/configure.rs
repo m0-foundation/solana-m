@@ -44,13 +44,11 @@ pub fn handler(
     proof: Vec<ProofElement>,
 ) -> Result<()> {
     // Verify the signer is an approved earn manager
-    if !verify_in_tree(
+    verify_in_tree(
         ctx.accounts.global_account.earn_manager_merkle_root,
         ctx.accounts.signer.key().to_bytes(),
         proof,
-    ) {
-        return err!(EarnError::InvalidProof);
-    }
+    )?;
 
     // Validate the fee percent is not greater than 100%
     if fee_bps > ONE_HUNDRED_PERCENT {
