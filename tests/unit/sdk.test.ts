@@ -1,5 +1,13 @@
 import { AnchorProvider, BN, Program, Wallet } from '@coral-xyz/anchor';
-import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from '@solana/web3.js';
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  sendAndConfirmTransaction,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { MerkleTree } from '../merkle';
@@ -10,6 +18,7 @@ import EarnAuthority from '../../sdk/src/earn_auth';
 import { EarnManager } from '../../sdk/src/earn_manager';
 import { Earner } from '../../sdk/src/earner';
 import nock from 'nock';
+import exp from 'constants';
 const EARN_IDL = require('../../target/idl/earn.json');
 
 describe('SDK unit tests', () => {
@@ -323,25 +332,41 @@ describe('SDK unit tests', () => {
       expect(global.distributed.toString()).toEqual('0');
     });
 
-    test('claim', async () => {
+    let claimIxs: TransactionInstruction[] = [];
+
+    test('build claims', async () => {
       const auth = await EarnAuthority.load(connection);
       const earners = await auth.getAllEarners();
 
-      const claimTxn = new Transaction();
-
-      // add claims
       for (const earner of earners) {
-        claimTxn.add(await auth.buildClaimInstruction(earner));
+        const ix = await auth.buildClaimInstruction(earner);
+        claimIxs.push(ix);
       }
+    });
 
-      // complete claim cycle
-      claimTxn.add(await auth.buildCompleteClaimCycleInstruction());
+    test('validate claims and send', async () => {
+      const auth = await EarnAuthority.load(connection);
+      expect(auth['global'].distributed).toBe(0n);
 
-      claimTxn.feePayer = signer.publicKey;
-      claimTxn.recentBlockhash = (await connection.getLatestBlockhash('processed')).blockhash;
-      claimTxn.sign(signer);
+      // will throw on simulation or validation errors
+      const amount = await auth.simulateAndValidateClaimIxs(claimIxs);
+      expect(amount).toEqual(69980000000n);
 
-      await sendAndConfirmTransaction(connection, claimTxn, [signer]);
+      // send transactions
+      const signatures = await auth.sendClaimInstructions(claimIxs, signer, false);
+      expect(signatures).toHaveLength(1);
+
+      await auth.refreshGlobal();
+      expect(auth['global'].distributed).toBe(70000000000n);
+    });
+
+    test('set claim cycle complete', async () => {
+      const auth = await EarnAuthority.load(connection);
+      const ix = await auth.buildCompleteClaimCycleInstruction();
+      await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
+
+      await auth.refreshGlobal();
+      expect(auth['global'].claimComplete).toBeTruthy();
     });
 
     test('post claim cycle validation', async () => {

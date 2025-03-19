@@ -1,4 +1,12 @@
-import { Connection, TransactionInstruction, PublicKey, AccountMeta } from '@solana/web3.js';
+import {
+  Connection,
+  TransactionInstruction,
+  PublicKey,
+  AccountMeta,
+  Transaction,
+  VersionedTransaction,
+  Keypair,
+} from '@solana/web3.js';
 import { PROGRAM_ID, TOKEN_2022_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
@@ -34,6 +42,10 @@ class EarnAuthority {
     );
 
     return new EarnAuthority(connection, global, mint.mintAuthority!);
+  }
+
+  async refreshGlobal(): Promise<void> {
+    Object.assign(this, await EarnAuthority.load(this.connection));
   }
 
   async getAllEarners(): Promise<Earner[]> {
@@ -100,6 +112,82 @@ class EarnAuthority {
       keys,
       data,
     });
+  }
+
+  async sendClaimInstructions(
+    ixs: TransactionInstruction[],
+    earnAuthority: Keypair,
+    validate = false,
+    batchSize = 10,
+  ): Promise<string[]> {
+    if (validate) {
+      await this.simulateAndValidateClaimIxs(ixs, batchSize);
+    }
+
+    const signatures: string[] = [];
+    for (const txn of await this._buildTransactions(ixs, batchSize)) {
+      txn.sign([earnAuthority]);
+      const signature = await this.connection.sendTransaction(txn, { skipPreflight: validate });
+      signatures.push(signature);
+    }
+
+    const { lastValidBlockHeight, blockhash } = await this.connection.getLatestBlockhash();
+
+    // wait for all transactions to be confirmed
+    await Promise.all(
+      signatures.map((signature) =>
+        this.connection.confirmTransaction({
+          blockhash: blockhash,
+          lastValidBlockHeight: lastValidBlockHeight,
+          signature,
+        }),
+      ),
+    );
+
+    return signatures;
+  }
+
+  async simulateAndValidateClaimIxs(ixs: TransactionInstruction[], batchSize = 10): Promise<bigint> {
+    if (this.global.claimComplete) {
+      throw new Error('No active claim cycle');
+    }
+
+    let totalRewards = 0n;
+
+    for (const txn of await this._buildTransactions(ixs, batchSize)) {
+      // simulate transaction
+      const result = await this.connection.simulateTransaction(txn, { sigVerify: false });
+      if (result.value.err) {
+        throw new Error(`Claim batch simulation failed: ${result.value.err}`);
+      }
+
+      // add up rewards
+      const batchRewards = this._getRewardAmounts(result.value.logs!);
+      for (const reward of batchRewards) {
+        totalRewards += reward;
+      }
+    }
+
+    // validate rewards is not higher than max claimable rewards
+    if (totalRewards > this.global.maxYield) {
+      throw new Error('Claim amount exceeds max claimable rewards');
+    }
+
+    return totalRewards;
+  }
+
+  private _getRewardAmounts(logs: string[]): bigint[] {
+    const rewards: bigint[] = [];
+
+    for (const log of logs) {
+      // log prefix with RewardsClaim event discriminator
+      if (log.startsWith('Program data: VKjUbMsK')) {
+        const data = Buffer.from(log.split('Program data: ')[1], 'base64');
+        rewards.push(data.readBigUInt64LE(72));
+      }
+    }
+
+    return rewards;
   }
 
   private _getClaimForAccounts(
@@ -171,6 +259,13 @@ class EarnAuthority {
         isSigner: false,
       },
     ];
+  }
+
+  private async _buildTransactions(ixs: TransactionInstruction[], batchSize = 10): Promise<VersionedTransaction[]> {
+    const t = new Transaction().add(...ixs);
+    t.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+    t.feePayer = new PublicKey(this.global.earnAuthority);
+    return [new VersionedTransaction(t.compileMessage())];
   }
 }
 
