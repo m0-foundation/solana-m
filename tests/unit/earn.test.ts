@@ -27,7 +27,7 @@ import {
 } from "@solana/spl-token";
 import { randomInt } from "crypto";
 
-import { MerkleTree, ProofElement } from "../merkle";
+import { MerkleTree, ProofElement } from "../../sdk/src/merkle";
 import { loadKeypair } from "../test-utils";
 import { Earn } from "../../target/types/earn";
 
