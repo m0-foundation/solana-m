@@ -10,7 +10,7 @@ import {
 } from '@solana/web3.js';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
-import { MerkleTree } from '../merkle';
+import { MerkleTree } from '../../sdk/src/merkle';
 import { Earn } from '../../target/types/earn';
 import { PROGRAM_ID as EARN_PROGRAM } from '../../sdk/src';
 import { Graph } from '../../sdk/src/graph';
@@ -38,6 +38,7 @@ describe('SDK unit tests', () => {
       'hex',
     ),
   );
+  const earnerC = Keypair.generate();
   let earnerAccountA: PublicKey, earnerAccountB: PublicKey;
 
   const connection = new Connection('http://localhost:8899', 'processed');
@@ -70,7 +71,7 @@ describe('SDK unit tests', () => {
 
     const ataTransaction = new Transaction();
 
-    const atas = [earnerA, earnerB].map((earner) => {
+    const atas = [earnerA, earnerB, earnerC].map((earner) => {
       const earnerATA = spl.getAssociatedTokenAddressSync(
         mint.publicKey,
         earner.publicKey,
@@ -92,7 +93,7 @@ describe('SDK unit tests', () => {
           mint.publicKey,
           earnerATA,
           signer.publicKey,
-          earnerA === earner ? 5000e9 : 3000e9,
+          earnerA === earner ? 5000e9 : earner === earnerB ? 3000e9 : 0,
           [],
           spl.TOKEN_2022_PROGRAM_ID,
         ),
@@ -376,6 +377,25 @@ describe('SDK unit tests', () => {
       expect(auth['global'].claimComplete).toBeTruthy();
       expect(auth['global'].distributed.toString()).toEqual('70000000000');
       expect(auth['global'].claimComplete).toBeTruthy();
+    });
+  });
+
+  describe('earn manager', () => {
+    test('add earner', async () => {
+      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+
+      const earnerATA = spl.getAssociatedTokenAddressSync(
+        mint.publicKey,
+        earnerC.publicKey,
+        true,
+        spl.TOKEN_2022_PROGRAM_ID,
+      );
+
+      const ix = await manager.addEarner(earnerC.publicKey, earnerATA);
+      await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
+
+      const earner = await Earner.fromTokenAccount(connection, earnerATA);
+      expect(earner.earnManager.toBase58()).toEqual(manager.manager.toBase58());
     });
   });
 });

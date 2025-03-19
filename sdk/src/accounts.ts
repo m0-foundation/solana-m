@@ -10,10 +10,8 @@ import {
   getOptionDecoder,
   Option,
   VariableSizeDecoder,
-  isSome,
 } from '@solana/codecs';
 import { Address, getAddressDecoder } from '@solana/addresses';
-import { PublicKey } from '@solana/web3.js';
 
 interface EarnManagerData {
   anchorDiscriminator: ReadonlyUint8Array;

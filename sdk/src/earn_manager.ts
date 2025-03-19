@@ -1,9 +1,28 @@
-import { Connection, GetProgramAccountsFilter, PublicKey } from '@solana/web3.js';
+import {
+  AccountMeta,
+  Connection,
+  GetProgramAccountsFilter,
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
+} from '@solana/web3.js';
 import BN from 'bn.js';
-import { PROGRAM_ID } from '.';
+import * as spl from '@solana/spl-token';
+import { MINT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { earnManagerDecoder } from './accounts';
 import { b58, deriveDiscriminator } from './utils';
+import {
+  fixEncoderSize,
+  getArrayEncoder,
+  getBooleanEncoder,
+  getBytesEncoder,
+  getStructEncoder,
+  getU32Codec,
+  ReadonlyUint8Array,
+  VariableSizeEncoder,
+} from '@solana/codecs';
+import { MerkleTree } from './merkle';
 
 export class EarnManager {
   private connection: Connection;
@@ -38,13 +57,126 @@ export class EarnManager {
   }
 
   async getEarners(): Promise<Earner[]> {
-    const filters: GetProgramAccountsFilter[] = [
-      { memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } },
-      { memcmp: { offset: 9, bytes: this.manager.toBase58() } },
-    ];
+    return this._getEarners(this.manager);
+  }
+
+  async addEarner(user: PublicKey, tokenAccount?: PublicKey): Promise<TransactionInstruction> {
+    // get all registrar earners for proof
+    const registrarEarners = await this._getEarners();
+    const tree = new MerkleTree(registrarEarners.map((earner) => earner.user));
+    const { proofs, neighbors } = tree.getExclusionProof(user);
+
+    // encode instruction data
+    const data = getAddEarnerEncoder().encode({
+      disciminator: deriveDiscriminator('add_earner', 'global'),
+      user: user.toBuffer(),
+      proofs: proofs.map((p) => p.map(({ node, onRight }) => ({ node: Buffer.from(node), onRight }))),
+      neighbors: neighbors.map((n) => Buffer.from(n)),
+    });
+
+    // derive ata if token account not provided
+    if (!tokenAccount) {
+      tokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
+    }
+
+    return new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: this._getAddEarnerAccounts(tokenAccount),
+      data: Buffer.from(data),
+    });
+  }
+
+  private async _getEarners(manager?: PublicKey): Promise<Earner[]> {
+    const filters: GetProgramAccountsFilter[] = [{ memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } }];
+
+    if (manager) {
+      // earners under manager
+      filters.push({ memcmp: { offset: 9, bytes: manager.toBase58() } });
+    } else {
+      // registrar earners
+      filters.push({ memcmp: { offset: 8, bytes: '1' } });
+    }
 
     const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
 
     return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data));
   }
+
+  private _getAddEarnerAccounts(tokenAccount: PublicKey): AccountMeta[] {
+    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
+
+    const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('earn-manager'), this.manager.toBytes()],
+      PROGRAM_ID,
+    );
+    const [earnerAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('earner'), tokenAccount.toBytes()],
+      PROGRAM_ID,
+    );
+
+    return [
+      {
+        pubkey: this.manager,
+        isWritable: true,
+        isSigner: true,
+      },
+      {
+        pubkey: earnManagerAccount,
+        isWritable: false,
+        isSigner: false,
+      },
+      {
+        pubkey: globalAccount,
+        isWritable: false,
+        isSigner: false,
+      },
+      {
+        pubkey: tokenAccount,
+        isWritable: false,
+        isSigner: false,
+      },
+      {
+        pubkey: earnerAccount,
+        isWritable: true,
+        isSigner: false,
+      },
+      {
+        pubkey: SystemProgram.programId,
+        isWritable: false,
+        isSigner: false,
+      },
+    ];
+  }
+}
+
+interface AddEarnerData {
+  disciminator: ReadonlyUint8Array;
+  user: ReadonlyUint8Array;
+  proofs: {
+    node: ReadonlyUint8Array;
+    onRight: boolean;
+  }[][];
+  neighbors: ReadonlyUint8Array[];
+}
+
+function getAddEarnerEncoder(): VariableSizeEncoder<AddEarnerData> {
+  const encoder: VariableSizeEncoder<AddEarnerData> = getStructEncoder([
+    ['disciminator', fixEncoderSize(getBytesEncoder(), 8)],
+    ['user', fixEncoderSize(getBytesEncoder(), 32)],
+    [
+      'proofs',
+      getArrayEncoder(
+        getArrayEncoder(
+          getStructEncoder([
+            ['node', fixEncoderSize(getBytesEncoder(), 32)],
+            ['onRight', getBooleanEncoder()],
+          ]),
+          { size: getU32Codec() },
+        ),
+        { size: getU32Codec() },
+      ),
+    ],
+    ['neighbors', getArrayEncoder(fixEncoderSize(getBytesEncoder(), 32), { size: getU32Codec() })],
+  ]);
+  return encoder;
 }

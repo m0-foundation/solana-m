@@ -89,6 +89,7 @@ class EarnAuthority {
       this.global.timestamp,
     );
 
+    // instruction data
     const discriminator = deriveDiscriminator('claim_for', 'global');
     const data = Buffer.alloc(discriminator.length + 8);
     discriminator.copy(data);
@@ -204,16 +205,19 @@ class EarnAuthority {
   ): AccountMeta[] {
     const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
     const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
+
     const [earnerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earner'), userTokenAccount.toBuffer()],
       PROGRAM_ID,
     );
+
     if (earnManagerAccount) {
       earnManagerAccount = PublicKey.findProgramAddressSync(
         [Buffer.from('earn-manager'), earnManagerAccount.toBytes()],
         PROGRAM_ID,
       )[0];
     }
+
     return [
       {
         pubkey: new PublicKey(this.global.earnAuthority),
