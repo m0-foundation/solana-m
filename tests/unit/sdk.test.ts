@@ -331,7 +331,7 @@ describe('SDK unit tests', () => {
       expect(global.distributed.toString()).toEqual('0');
     });
 
-    let claimIxs: TransactionInstruction[] = [];
+    const claimIxs: TransactionInstruction[] = [];
 
     test('build claims', async () => {
       const auth = await EarnAuthority.load(connection);
@@ -352,7 +352,7 @@ describe('SDK unit tests', () => {
       expect(amount).toEqual(70000000000n);
 
       // send transactions
-      const signatures = await auth.sendClaimInstructions(claimIxs, signer, false);
+      const signatures = await auth.sendClaimInstructions(claimIxs, signer);
       expect(signatures).toHaveLength(1);
 
       await auth.refreshGlobal();

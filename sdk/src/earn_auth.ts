@@ -117,11 +117,16 @@ class EarnAuthority {
   async sendClaimInstructions(
     ixs: TransactionInstruction[],
     earnAuthority: Keypair,
+    appendCompleteClaimInstruction = false,
     validate = false,
     batchSize = 10,
   ): Promise<string[]> {
     if (validate) {
       await this.simulateAndValidateClaimIxs(ixs, batchSize);
+    }
+
+    if (appendCompleteClaimInstruction) {
+      ixs.push(await this.buildCompleteClaimCycleInstruction());
     }
 
     const signatures: string[] = [];
