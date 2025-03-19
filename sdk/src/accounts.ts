@@ -1,86 +1,89 @@
-import { fixDecoderSize, FixedSizeDecoder, getBooleanDecoder, getBytesDecoder, getStructDecoder, getU64Decoder, getU8Decoder, ReadonlyUint8Array, getOptionDecoder, Option, getU32Decoder, getNullableDecoder, addCodecSizePrefix, addDecoderSizePrefix, getU32Codec, Decoder, VariableSizeDecoder, isSome } from "@solana/codecs";
-import { Address, getAddressDecoder } from "@solana/addresses";
-import { PublicKey } from "@solana/web3.js";
+import {
+  fixDecoderSize,
+  FixedSizeDecoder,
+  getBooleanDecoder,
+  getBytesDecoder,
+  getStructDecoder,
+  getU64Decoder,
+  getU8Decoder,
+  ReadonlyUint8Array,
+  getOptionDecoder,
+  Option,
+  VariableSizeDecoder,
+  isSome,
+} from '@solana/codecs';
+import { Address, getAddressDecoder } from '@solana/addresses';
+import { PublicKey } from '@solana/web3.js';
 
 interface EarnManagerData {
-    anchorDiscriminator: ReadonlyUint8Array;
-    isActive: boolean
-    feeBps: bigint
-    feeTokenAccount: Address
-    bump: number
+  anchorDiscriminator: ReadonlyUint8Array;
+  isActive: boolean;
+  feeBps: bigint;
+  feeTokenAccount: Address;
+  bump: number;
 }
 
-export const earnManagerDecoder: FixedSizeDecoder<EarnManagerData> =
-    getStructDecoder([
-        ["anchorDiscriminator", fixDecoderSize(getBytesDecoder(), 8)],
-        ["isActive", getBooleanDecoder()],
-        ["feeBps", getU64Decoder()],
-        ["feeTokenAccount", getAddressDecoder()],
-        ["bump", getU8Decoder()],
-    ]);
+export const earnManagerDecoder: FixedSizeDecoder<EarnManagerData> = getStructDecoder([
+  ['anchorDiscriminator', fixDecoderSize(getBytesDecoder(), 8)],
+  ['isActive', getBooleanDecoder()],
+  ['feeBps', getU64Decoder()],
+  ['feeTokenAccount', getAddressDecoder()],
+  ['bump', getU8Decoder()],
+]);
 
 export interface GlobalAccountData {
-    admin: Address
-    earnAuthority: Address
-    mint: Address
-    index: bigint
-    timestamp: bigint
-    claimCooldown: bigint
-    maxSupply: bigint
-    maxYield: bigint
-    distributed: bigint
-    claimComplete: boolean
-    earnerMerkleRoot: ReadonlyUint8Array
-    earnManagerMerkleRoot: ReadonlyUint8Array
-    bump: number
+  admin: Address;
+  earnAuthority: Address;
+  mint: Address;
+  index: bigint;
+  timestamp: bigint;
+  claimCooldown: bigint;
+  maxSupply: bigint;
+  maxYield: bigint;
+  distributed: bigint;
+  claimComplete: boolean;
+  earnerMerkleRoot: ReadonlyUint8Array;
+  earnManagerMerkleRoot: ReadonlyUint8Array;
+  bump: number;
 }
 
-export const globalDecoder: FixedSizeDecoder<GlobalAccountData> =
-    getStructDecoder([
-        ["anchorDiscriminator", fixDecoderSize(getBytesDecoder(), 8)],
-        ["admin", getAddressDecoder()],
-        ["earnAuthority", getAddressDecoder()],
-        ["mint", getAddressDecoder()],
-        ["index", getU64Decoder()],
-        ["timestamp", getU64Decoder()],
-        ["claimCooldown", getU64Decoder()],
-        ["maxSupply", getU64Decoder()],
-        ["maxYield", getU64Decoder()],
-        ["distributed", getU64Decoder()],
-        ["claimComplete", getBooleanDecoder()],
-        ["earnerMerkleRoot", fixDecoderSize(getBytesDecoder(), 32)],
-        ["earnManagerMerkleRoot", fixDecoderSize(getBytesDecoder(), 32)],
-        ["bump", getU8Decoder()],
-    ]);
+export const globalDecoder: FixedSizeDecoder<GlobalAccountData> = getStructDecoder([
+  ['anchorDiscriminator', fixDecoderSize(getBytesDecoder(), 8)],
+  ['admin', getAddressDecoder()],
+  ['earnAuthority', getAddressDecoder()],
+  ['mint', getAddressDecoder()],
+  ['index', getU64Decoder()],
+  ['timestamp', getU64Decoder()],
+  ['claimCooldown', getU64Decoder()],
+  ['maxSupply', getU64Decoder()],
+  ['maxYield', getU64Decoder()],
+  ['distributed', getU64Decoder()],
+  ['claimComplete', getBooleanDecoder()],
+  ['earnerMerkleRoot', fixDecoderSize(getBytesDecoder(), 32)],
+  ['earnManagerMerkleRoot', fixDecoderSize(getBytesDecoder(), 32)],
+  ['bump', getU8Decoder()],
+]);
 
 interface EarnerData {
-    anchorDiscriminator: ReadonlyUint8Array;
-    earnManager: Option<Address>
-    recipientTokenAccount: Option<Address>
-    lastClaimIndex: bigint
-    lastClaimTimestamp: bigint
-    isEarning: boolean
-    bump: number
-    user: Address
-    userTokenAccount: Address
+  anchorDiscriminator: ReadonlyUint8Array;
+  earnManager: Option<Address>;
+  recipientTokenAccount: Option<Address>;
+  lastClaimIndex: bigint;
+  lastClaimTimestamp: bigint;
+  isEarning: boolean;
+  bump: number;
+  user: Address;
+  userTokenAccount: Address;
 }
 
-export const earnerDecoder: VariableSizeDecoder<EarnerData> =
-    getStructDecoder([
-        ["anchorDiscriminator", fixDecoderSize(getBytesDecoder(), 8)],
-        ['earnManager', getOptionDecoder(getAddressDecoder())],
-        ['recipientTokenAccount', getOptionDecoder(getAddressDecoder())],
-        ['lastClaimIndex', getU64Decoder()],
-        ['lastClaimTimestamp', getU64Decoder()],
-        ['isEarning', getBooleanDecoder()],
-        ['bump', getU8Decoder()],
-        ['user', getAddressDecoder()],
-        ['userTokenAccount', getAddressDecoder()],
-    ]);
-
-export const toPublickey = (address: Option<Address>): PublicKey => {
-    if (isSome(address)) {
-        return new PublicKey(address.value);
-    }
-    throw new Error("Expected address to be some");
-}
+export const earnerDecoder: VariableSizeDecoder<EarnerData> = getStructDecoder([
+  ['anchorDiscriminator', fixDecoderSize(getBytesDecoder(), 8)],
+  ['earnManager', getOptionDecoder(getAddressDecoder())],
+  ['recipientTokenAccount', getOptionDecoder(getAddressDecoder())],
+  ['lastClaimIndex', getU64Decoder()],
+  ['lastClaimTimestamp', getU64Decoder()],
+  ['isEarning', getBooleanDecoder()],
+  ['bump', getU8Decoder()],
+  ['user', getAddressDecoder()],
+  ['userTokenAccount', getAddressDecoder()],
+]);
