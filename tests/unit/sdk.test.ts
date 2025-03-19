@@ -18,7 +18,6 @@ import EarnAuthority from '../../sdk/src/earn_auth';
 import { EarnManager } from '../../sdk/src/earn_manager';
 import { Earner } from '../../sdk/src/earner';
 import nock from 'nock';
-import exp from 'constants';
 const EARN_IDL = require('../../target/idl/earn.json');
 
 describe('SDK unit tests', () => {
@@ -350,7 +349,7 @@ describe('SDK unit tests', () => {
 
       // will throw on simulation or validation errors
       const amount = await auth.simulateAndValidateClaimIxs(claimIxs);
-      expect(amount).toEqual(69980000000n);
+      expect(amount).toEqual(70000000000n);
 
       // send transactions
       const signatures = await auth.sendClaimInstructions(claimIxs, signer, false);
@@ -360,6 +359,14 @@ describe('SDK unit tests', () => {
       expect(auth['global'].distributed).toBe(70000000000n);
     });
 
+    test('post claim cycle validation', async () => {
+      const global = await earn.account.global.fetch(globalAccount, 'processed');
+      expect(global.maxSupply.toString()).toEqual('8000000000000');
+      expect(global.maxYield.toString()).toEqual('80000000000');
+      expect(global.distributed.toString()).toEqual('70000000000');
+      expect(global.claimComplete).toBeFalsy();
+    });
+
     test('set claim cycle complete', async () => {
       const auth = await EarnAuthority.load(connection);
       const ix = await auth.buildCompleteClaimCycleInstruction();
@@ -367,14 +374,8 @@ describe('SDK unit tests', () => {
 
       await auth.refreshGlobal();
       expect(auth['global'].claimComplete).toBeTruthy();
-    });
-
-    test('post claim cycle validation', async () => {
-      const global = await earn.account.global.fetch(globalAccount, 'processed');
-      expect(global.maxSupply.toString()).toEqual('8000000000000');
-      expect(global.maxYield.toString()).toEqual('80000000000');
-      expect(global.distributed.toString()).toEqual('70000000000');
-      expect(global.claimComplete).toBeTruthy();
+      expect(auth['global'].distributed.toString()).toEqual('70000000000');
+      expect(auth['global'].claimComplete).toBeTruthy();
     });
   });
 });

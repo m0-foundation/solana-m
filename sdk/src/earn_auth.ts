@@ -183,7 +183,9 @@ class EarnAuthority {
       // log prefix with RewardsClaim event discriminator
       if (log.startsWith('Program data: VKjUbMsK')) {
         const data = Buffer.from(log.split('Program data: ')[1], 'base64');
-        rewards.push(data.readBigUInt64LE(72));
+
+        // read rewards and fee amounts
+        rewards.push(data.readBigUInt64LE(72) + data.readBigUInt64LE(80));
       }
     }
 
