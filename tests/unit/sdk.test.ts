@@ -1,12 +1,5 @@
 import { AnchorProvider, BN, Program, Wallet } from '@coral-xyz/anchor';
-import {
-  Connection,
-  Keypair,
-  PublicKey,
-  sendAndConfirmTransaction,
-  SystemProgram,
-  Transaction,
-} from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from '@solana/web3.js';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { MerkleTree } from '../merkle';
@@ -47,10 +40,7 @@ describe('SDK unit tests', () => {
   const earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM, provider);
 
   const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], earn.programId);
-  const [tokenAuth] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token_authority')],
-    earn.programId,
-  );
+  const [tokenAuth] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], earn.programId);
 
   beforeAll(async () => {
     // create mint
@@ -65,13 +55,7 @@ describe('SDK unit tests', () => {
         lamports,
         programId: spl.TOKEN_2022_PROGRAM_ID,
       }),
-      spl.createInitializeMintInstruction(
-        mint.publicKey,
-        9,
-        signer.publicKey,
-        null,
-        spl.TOKEN_2022_PROGRAM_ID,
-      ),
+      spl.createInitializeMintInstruction(mint.publicKey, 9, signer.publicKey, null, spl.TOKEN_2022_PROGRAM_ID),
     );
 
     await provider.sendAndConfirm(tx, [signer, mint]);
@@ -152,11 +136,7 @@ describe('SDK unit tests', () => {
     const earnManagerMerkleTree = new MerkleTree([signer.publicKey]);
 
     await earn.methods
-      .propagateIndex(
-        new BN(1_000_000_000_000),
-        earnerMerkleTree.getRoot(),
-        earnManagerMerkleTree.getRoot(),
-      )
+      .propagateIndex(new BN(1_000_000_000_000), earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot())
       .accounts({
         signer: signer.publicKey,
         globalAccount,
@@ -165,21 +145,12 @@ describe('SDK unit tests', () => {
       .signers([signer])
       .rpc();
 
-    earnerAccountA = PublicKey.findProgramAddressSync(
-      [Buffer.from('earner'), atas[0].toBytes()],
-      earn.programId,
-    )[0];
-    earnerAccountB = PublicKey.findProgramAddressSync(
-      [Buffer.from('earner'), atas[1].toBytes()],
-      earn.programId,
-    )[0];
+    earnerAccountA = PublicKey.findProgramAddressSync([Buffer.from('earner'), atas[0].toBytes()], earn.programId)[0];
+    earnerAccountB = PublicKey.findProgramAddressSync([Buffer.from('earner'), atas[1].toBytes()], earn.programId)[0];
 
     // add earner from root
     await earn.methods
-      .addRegistrarEarner(
-        earnerA.publicKey,
-        earnerMerkleTree.getInclusionProof(earnerA.publicKey).proof,
-      )
+      .addRegistrarEarner(earnerA.publicKey, earnerMerkleTree.getInclusionProof(earnerA.publicKey).proof)
       .accounts({
         signer: signer.publicKey,
         globalAccount,
@@ -205,10 +176,7 @@ describe('SDK unit tests', () => {
     );
 
     await earn.methods
-      .configureEarnManager(
-        new BN(10),
-        earnManagerMerkleTree.getInclusionProof(signer.publicKey).proof,
-      )
+      .configureEarnManager(new BN(10), earnManagerMerkleTree.getInclusionProof(signer.publicKey).proof)
       .accounts({
         signer: signer.publicKey,
         globalAccount,
@@ -232,11 +200,7 @@ describe('SDK unit tests', () => {
       .rpc();
 
     await earn.methods
-      .propagateIndex(
-        new BN(1_010_000_000_000),
-        earnerMerkleTree.getRoot(),
-        earnManagerMerkleTree.getRoot(),
-      )
+      .propagateIndex(new BN(1_010_000_000_000), earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot())
       .accounts({
         signer: signer.publicKey,
         globalAccount,
@@ -363,16 +327,21 @@ describe('SDK unit tests', () => {
       const auth = await EarnAuthority.load(connection);
       const earners = await auth.getAllEarners();
 
+      const claimTxn = new Transaction();
+
+      // add claims
       for (const earner of earners) {
-        const ix = await auth.buildClaimInstruction(earner);
-
-        const claimTx = new Transaction().add(ix);
-        claimTx.feePayer = signer.publicKey;
-        claimTx.recentBlockhash = (await connection.getLatestBlockhash('processed')).blockhash;
-        claimTx.sign(signer);
-
-        await sendAndConfirmTransaction(connection, claimTx, [signer]);
+        claimTxn.add(await auth.buildClaimInstruction(earner));
       }
+
+      // complete claim cycle
+      claimTxn.add(await auth.buildCompleteClaimCycleInstruction());
+
+      claimTxn.feePayer = signer.publicKey;
+      claimTxn.recentBlockhash = (await connection.getLatestBlockhash('processed')).blockhash;
+      claimTxn.sign(signer);
+
+      await sendAndConfirmTransaction(connection, claimTxn, [signer]);
     });
 
     test('post claim cycle validation', async () => {
@@ -380,6 +349,7 @@ describe('SDK unit tests', () => {
       expect(global.maxSupply.toString()).toEqual('8000000000000');
       expect(global.maxYield.toString()).toEqual('80000000000');
       expect(global.distributed.toString()).toEqual('70000000000');
+      expect(global.claimComplete).toBeTruthy();
     });
   });
 });
@@ -389,10 +359,7 @@ describe('SDK unit tests', () => {
  */
 function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
-    .post(
-      '/query/106645/m-token-transactions/version/latest',
-      (body) => body.operationName === 'getTokenAccounts',
-    )
+    .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getTokenAccounts')
     .reply(200, {
       data: {
         tokenAccounts: [
@@ -419,9 +386,7 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) =>
-        body.variables.tokenAccountId ===
-        '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+      (body) => body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
     )
     .reply(200, {
       data: {
@@ -436,9 +401,7 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) =>
-        body.variables.tokenAccountId !==
-        '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+      (body) => body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
     )
     .reply(200, {
       data: {

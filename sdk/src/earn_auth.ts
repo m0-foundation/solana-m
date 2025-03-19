@@ -43,6 +43,29 @@ class EarnAuthority {
     return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data));
   }
 
+  async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction> {
+    if (this.global.claimComplete) {
+      throw new Error('No active claim cycle');
+    }
+
+    return new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        {
+          pubkey: new PublicKey(this.global.earnAuthority),
+          isWritable: false,
+          isSigner: true,
+        },
+        {
+          pubkey: PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID)[0],
+          isWritable: true,
+          isSigner: false,
+        },
+      ],
+      data: deriveDiscriminator('complete_claims', 'global'),
+    });
+  }
+
   async buildClaimInstruction(earner: Earner): Promise<TransactionInstruction> {
     if (this.global.claimComplete) {
       throw new Error('No active claim cycle');
