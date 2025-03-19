@@ -9,12 +9,13 @@ import { Graph } from "../../sdk/src/graph";
 import EarnAuthority from "../../sdk/src/earn_auth";
 import { EarnManager } from "../../sdk/src/earn_manager";
 import { Earner } from "../../sdk/src/earner";
-import { earnerDecoder, toPublickey } from "../../sdk/src/accounts";
+import nock from "nock";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 describe("SDK unit tests", () => {
     // fix current time for testing
-    Date.now = jest.fn(() => 1742215334 * 1000);
+    Date.now = jest.fn(() => 1000 * 1000);
+    mockSubgraph();
 
     const signer = loadKeypair("tests/keys/user.json");
     const mint = loadKeypair("tests/keys/mint.json");
@@ -269,8 +270,8 @@ describe("SDK unit tests", () => {
 
         test("weighted balance", async () => {
             const graph = new Graph();
-            const balance = await graph.getTimeWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 1741939199n);
-            expect(balance).toEqual(591239337175n);
+            const balance = await graph.getTimeWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 0n);
+            expect(balance).toEqual(562n);
         })
 
         describe("weighted balance calculations", () => {
@@ -334,3 +335,50 @@ describe("SDK unit tests", () => {
         })
     });
 })
+
+/*
+ * Mock the subgraph data for testing
+ */
+function mockSubgraph() {
+    nock("https://api.studio.thegraph.com")
+        .post("/query/106645/m-token-transactions/version/latest", (body) => true)
+        .reply(200, {
+            data: {
+                tokenAccounts: [
+                    {
+                        pubkey: "0x2e5142a34ef98156a014e46bef3bde4ad56222945615cea479f2f183699a5bf8",
+                        balance: "7989730149114",
+                        claims: []
+                    },
+                    {
+                        pubkey: "0xfa6612d18aeda9532e052a0187a4fdb08fb0d1f6495d9373ce33b7ff9253f88c",
+                        balance: "1334675545835",
+                        claims: []
+                    },
+                    {
+                        pubkey: "0xca9b25a2034eaac78095a0c15fba16622ff1bc8cb6ff979ff1948ce8dd0d89e0",
+                        balance: "852358441083",
+                        claims: []
+                    }
+                ],
+                tokenAccount: {
+                    balance: "1000",
+                    transfers: [
+                        {
+                            "amount": "250",
+                            "ts": "750"
+                        },
+                        {
+                            "amount": "250",
+                            "ts": "500"
+                        },
+                        {
+                            "amount": "500",
+                            "ts": "250"
+                        }
+                    ]
+                }
+            }
+        })
+        .persist();
+}

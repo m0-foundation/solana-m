@@ -81,7 +81,7 @@ export class Graph {
     const tokenAccountId = "0x" + tokenAccount.toBuffer().toString('hex');
     const data = await request<Data>(this.url, query, { tokenAccountId });
 
-    return data.claims.map(claim => ({
+    return (data.claims ?? []).map(claim => ({
       amount: BigInt(claim.amount),
       ts: BigInt(claim.ts),
       signature: Buffer.from(claim.signature.slice(2), 'hex'),
