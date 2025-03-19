@@ -19,7 +19,7 @@ export const earnManagerDecoder: FixedSizeDecoder<EarnManagerData> =
         ["bump", getU8Decoder()],
     ]);
 
-interface GlobalAccountData {
+export interface GlobalAccountData {
     admin: Address
     earnAuthority: Address
     mint: Address

@@ -1,28 +1,37 @@
-import { Keypair, Connection, TransactionInstruction, PublicKey, AccountMeta } from "@solana/web3.js";
-import { MINT, MINT_MULTISIG, PROGRAM_ID, TOKEN_2022_ID } from ".";
+import { Connection, TransactionInstruction, PublicKey, AccountMeta } from "@solana/web3.js";
+import { PROGRAM_ID, TOKEN_2022_ID } from ".";
 import { Earner } from "./earner";
 import { Graph } from "./graph";
 import { EarnManager } from "./earn_manager";
 import { b58, deriveDiscriminator } from "./utils";
-
+import { GlobalAccountData, globalDecoder } from "./accounts";
+import * as spl from "@solana/spl-token";
 
 class EarnAuthority {
     private connection: Connection;
-    private keypair: Keypair
+    private global: GlobalAccountData;
+    private managerCache: Map<PublicKey, EarnManager> = new Map();
+    private mintMultisig: PublicKey;
 
-    mint: PublicKey;
-    mintMultisig: PublicKey;
-    managerCache: Map<PublicKey, EarnManager> = new Map();
-
-    constructor(connection: Connection, keypair: Keypair, mint: PublicKey, mintMultisig: PublicKey) {
+    private constructor(connection: Connection, global: GlobalAccountData, mintMultisig: PublicKey) {
         this.connection = connection
-        this.keypair = keypair;
-        this.mint = mint;
-        this.mintMultisig = mintMultisig;
+        this.global = global
+        this.mintMultisig = mintMultisig
     }
 
-    static fromKeypair(connection: Connection, keypair: Keypair): EarnAuthority {
-        return new EarnAuthority(connection, keypair, MINT, MINT_MULTISIG)
+    static async load(connection: Connection): Promise<EarnAuthority> {
+        const [globalAccount] = PublicKey.findProgramAddressSync(
+            [Buffer.from("global")],
+            PROGRAM_ID,
+        );
+
+        const accountInfo = await connection.getAccountInfo(globalAccount);
+        const global = globalDecoder.decode(accountInfo!.data);
+
+        // get mint multisig
+        const mint = await spl.getMint(connection, new PublicKey(global.mint), connection.commitment, spl.TOKEN_2022_PROGRAM_ID)
+
+        return new EarnAuthority(connection, global, mint.mintAuthority!)
     }
 
     async getAllEarners(): Promise<Earner[]> {
@@ -31,30 +40,37 @@ class EarnAuthority {
     }
 
     async buildClaimInstruction(earner: Earner): Promise<TransactionInstruction> {
-        const weightedBalance = await new Graph().getTimeWeightedBalance(earner.userTokenAccount, earner.lastClaimTimestamp);
+        if (this.global.claimComplete) {
+            throw new Error("No active claim cycle")
+        }
 
-        const data = deriveDiscriminator("claim_for", "global");
-        data.writeBigInt64LE(weightedBalance, 8);
+        const weightedBalance = await new Graph().getTimeWeightedBalance(
+            earner.userTokenAccount,
+            earner.lastClaimTimestamp,
+            this.global.timestamp,
+        );
 
-        // earner might not have a manager
-        let earnManagerAccount: PublicKey | undefined;
-        let earnManagerTokenAccount: PublicKey | undefined;
+        const discriminator = deriveDiscriminator("claim_for", "global");
+        const data = Buffer.alloc(discriminator.length + 8);
+        discriminator.copy(data);
+        data.writeBigUInt64LE(weightedBalance, 8);
 
+        let keys = this._getClaimForAccounts(earner.userTokenAccount);
+
+        // earner might have a manager
         if (earner.earnManager) {
-            // get the earner manager from cache or fetch it
             let manager = this.managerCache.get(earner.earnManager)
             if (!manager) {
                 manager = await EarnManager.fromManagerAddress(this.connection, earner.earnManager)
                 this.managerCache.set(earner.earnManager, manager)
             }
 
-            earnManagerAccount = earner.earnManager;
-            earnManagerTokenAccount = manager.feeTokenAccount;
+            keys = this._getClaimForAccounts(earner.userTokenAccount, earner.earnManager, manager.feeTokenAccount);
         }
 
         return new TransactionInstruction({
             programId: PROGRAM_ID,
-            keys: this._getClaimForAccounts(earner.userTokenAccount, earnManagerAccount, earnManagerTokenAccount),
+            keys,
             data,
         })
     }
@@ -72,9 +88,15 @@ class EarnAuthority {
             [Buffer.from("earner"), userTokenAccount.toBuffer()],
             PROGRAM_ID
         );
+        if (earnManagerAccount) {
+            earnManagerAccount = PublicKey.findProgramAddressSync(
+                [Buffer.from("earn-manager"), earnManagerAccount.toBytes()],
+                PROGRAM_ID,
+            )[0]
+        }
         return [
             {
-                pubkey: this.keypair.publicKey,
+                pubkey: new PublicKey(this.global.earnAuthority),
                 isWritable: false,
                 isSigner: true,
             },
@@ -84,7 +106,7 @@ class EarnAuthority {
                 isSigner: false,
             },
             {
-                pubkey: this.mint,
+                pubkey: new PublicKey(this.global.mint),
                 isWritable: true,
                 isSigner: false,
             },
@@ -114,12 +136,12 @@ class EarnAuthority {
                 isSigner: false,
             },
             {
-                pubkey: earnManagerAccount ?? PROGRAM_ID,
+                pubkey: earnManagerAccount || PROGRAM_ID,
                 isWritable: false,
                 isSigner: false,
             },
             {
-                pubkey: earnManagerTokenAccount ?? PROGRAM_ID,
+                pubkey: earnManagerTokenAccount || PROGRAM_ID,
                 isWritable: !!earnManagerTokenAccount,
                 isSigner: false,
             },

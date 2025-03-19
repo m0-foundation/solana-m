@@ -1,5 +1,5 @@
 import { AnchorProvider, BN, Program, Wallet } from "@coral-xyz/anchor";
-import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import { loadKeypair } from "../test-utils";
 import { MerkleTree } from "../merkle";
@@ -13,16 +13,14 @@ import nock from "nock";
 const EARN_IDL = require("../../target/idl/earn.json");
 
 describe("SDK unit tests", () => {
-    // fix current time for testing
-    Date.now = jest.fn(() => 1000 * 1000);
     mockSubgraph();
 
     const signer = loadKeypair("tests/keys/user.json");
     const mint = loadKeypair("tests/keys/mint.json");
+    const multisig = Keypair.generate();
+    const earnerA = Keypair.fromSecretKey(Buffer.from("2305e25d783ce903d2e749424bc5b12d199d5e42a530fe7dc6d7164e567acae46e7d23dcc935c219fd993dc328bd613349402568eb7d0e97b2eea6468356e96a", "hex"))
+    const earnerB = Keypair.fromSecretKey(Buffer.from("a7f1636a4b0de8f7c29f13d6a1c5fbedc0c5c1756351c83ddcacc4579ab4e506ae251fd85674666b7700a18749dfa153dc3d823bfc9582cdac1078aa8778fd24", "hex"))
     let earnerAccountA: PublicKey, earnerAccountB: PublicKey
-
-    // random users but deterministic order
-    const [earnerA, earnerB] = [new Keypair(), new Keypair()].sort((a, b) => a.publicKey.toBase58().localeCompare(b.publicKey.toBase58()));
 
     const connection = new Connection("http://localhost:8899", "processed")
 
@@ -37,6 +35,10 @@ describe("SDK unit tests", () => {
 
     const [globalAccount] = PublicKey.findProgramAddressSync(
         [Buffer.from("global")],
+        earn.programId,
+    )
+    const [tokenAuth] = PublicKey.findProgramAddressSync(
+        [Buffer.from("token_authority")],
         earn.programId,
     )
 
@@ -99,11 +101,40 @@ describe("SDK unit tests", () => {
 
         await provider.sendAndConfirm(ataTransaction, [signer]);
 
+        // mint multisig
+        const multiSigTx = new Transaction().add(
+            SystemProgram.createAccount({
+                fromPubkey: signer.publicKey,
+                newAccountPubkey: multisig.publicKey,
+                space: spl.MULTISIG_SIZE,
+                lamports: await spl.getMinimumBalanceForRentExemptMultisig(
+                    connection
+                ),
+                programId: spl.TOKEN_2022_PROGRAM_ID,
+            }),
+            spl.createInitializeMultisigInstruction(
+                multisig.publicKey,
+                [signer.publicKey, tokenAuth],
+                1,
+                spl.TOKEN_2022_PROGRAM_ID
+            ),
+            spl.createSetAuthorityInstruction(
+                mint.publicKey,
+                signer.publicKey,
+                spl.AuthorityType.MintTokens,
+                multisig.publicKey,
+                [],
+                spl.TOKEN_2022_PROGRAM_ID
+            )
+        );
+
+        await provider.sendAndConfirm(multiSigTx, [signer, multisig]);
+
         // intialize the program
         await earn.methods
             .initialize(
                 mint.publicKey,
-                new Keypair().publicKey,
+                signer.publicKey,
                 new BN(1_000_000_000_000),
                 new BN(0)
             )
@@ -219,7 +250,7 @@ describe("SDK unit tests", () => {
 
     describe("rpc", () => {
         test("get all earners", async () => {
-            const auth = EarnAuthority.fromKeypair(connection, signer)
+            const auth = await EarnAuthority.load(connection)
             const earners = await auth.getAllEarners();
             expect(earners).toHaveLength(2);
 
@@ -270,8 +301,8 @@ describe("SDK unit tests", () => {
 
         test("weighted balance", async () => {
             const graph = new Graph();
-            const balance = await graph.getTimeWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 0n);
-            expect(balance).toEqual(562n);
+            const balance = await graph.getTimeWeightedBalance(new PublicKey("BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj"), 0n, 1000n);
+            expect(balance).toEqual(2250000000000n);
         })
 
         describe("weighted balance calculations", () => {
@@ -279,16 +310,16 @@ describe("SDK unit tests", () => {
             const fn = Graph["calculateTimeWeightedBalance"];
 
             test("0 balance", async () => {
-                expect(fn(0n, 1742215334n, 1741939199n, [])).toEqual(0n);
+                expect(fn(0n, 0n, 1741939199n, [])).toEqual(0n);
             })
             test("no transfers balance", async () => {
-                expect(fn(110n, 1742215334n, 1741939199n, [])).toEqual(110n);
+                expect(fn(110n, 0n, 1741939199n, [])).toEqual(110n);
             })
             test("one transfers halfway", async () => {
-                expect(fn(100n, 150000n, 50000n, [{ amount: "50", ts: "100000" }])).toEqual(75n);
+                expect(fn(100n, 50n, 150n, [{ amount: "50", ts: "100" }])).toEqual(75n);
             })
             test("huge transfer before calculation", async () => {
-                expect(fn(1000000n, 1500000n, 100n, [{ amount: "1000000", ts: "1499995" }])).toEqual(3n);
+                expect(fn(1000000n, 100n, 1500000n, [{ amount: "1000000", ts: "1499995" }])).toEqual(3n);
             })
             test("many transfers", async () => {
                 const numTransfers = 50
@@ -297,24 +328,23 @@ describe("SDK unit tests", () => {
                 // generate transfer data
                 const transfers = [...Array(numTransfers)].map((_, i) => (
                     { amount: "10", ts: (100n + BigInt(i * transferAmount)).toString() }
-                ))
+                )).reverse();
 
                 const upper = BigInt(transfers[0].ts) + 10n;
                 const lower = BigInt(transfers[transfers.length - 1].ts) - 10n;
 
                 // expect balance based on linear distribution of transfers
                 const expected = 1000n - BigInt(numTransfers * transferAmount / 2)
-                expect(fn(1000n, upper, lower, transfers)).toEqual(expected);
+                expect(fn(1000n, lower, upper, transfers)).toEqual(expected);
             })
             test("current balance is 0", async () => {
-                expect(fn(0n, 200n, 100n, [{ amount: "-1000", ts: "150" }])).toEqual(500n);
+                expect(fn(0n, 100n, 200n, [{ amount: "-1000", ts: "150" }])).toEqual(500n);
             })
         })
     });
 
     describe("earn authority", () => {
-        test("validate claim cycle status", async () => {
-            // check how much yield should be claimed
+        test("pre claim cycle validation", async () => {
             const global = await earn.account.global.fetch(globalAccount, "processed")
             expect(global.maxSupply.toString()).toEqual("8000000000000");
             expect(global.maxYield.toString()).toEqual("80000000000");
@@ -322,26 +352,36 @@ describe("SDK unit tests", () => {
         })
 
         test("claim", async () => {
-            const auth = EarnAuthority.fromKeypair(connection, signer)
+            const auth = await EarnAuthority.load(connection);
             const earners = await auth.getAllEarners();
 
             for (const earner of earners) {
                 const ix = await auth.buildClaimInstruction(earner);
+
                 const claimTx = new Transaction().add(ix);
                 claimTx.feePayer = signer.publicKey;
                 claimTx.recentBlockhash = (await connection.getLatestBlockhash("processed")).blockhash;
-                await connection.sendTransaction(claimTx, [signer]);
+                claimTx.sign(signer);
+
+                await sendAndConfirmTransaction(connection, claimTx, [signer]);
             }
+        })
+
+        test("post claim cycle validation", async () => {
+            const global = await earn.account.global.fetch(globalAccount, "processed")
+            expect(global.maxSupply.toString()).toEqual("8000000000000");
+            expect(global.maxYield.toString()).toEqual("80000000000");
+            expect(global.distributed.toString()).toEqual("70000000000");
         })
     });
 })
 
 /*
- * Mock the subgraph data for testing
+ * Mock subgraph data for testing
  */
 function mockSubgraph() {
     nock("https://api.studio.thegraph.com")
-        .post("/query/106645/m-token-transactions/version/latest", (body) => true)
+        .post("/query/106645/m-token-transactions/version/latest", (body) => body.operationName === 'getTokenAccounts')
         .reply(200, {
             data: {
                 tokenAccounts: [
@@ -361,21 +401,37 @@ function mockSubgraph() {
                         claims: []
                     }
                 ],
+            }
+        })
+        .persist();
+
+    nock("https://api.studio.thegraph.com")
+        .post("/query/106645/m-token-transactions/version/latest", (body) =>
+            body.variables.tokenAccountId === "0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f"
+        )
+        .reply(200, {
+            data: {
                 tokenAccount: {
-                    balance: "1000",
+                    balance: "5000000000000",
+                    transfers: []
+                }
+            }
+        })
+        .persist();
+
+    nock("https://api.studio.thegraph.com")
+        .post("/query/106645/m-token-transactions/version/latest", (body) =>
+            body.variables.tokenAccountId !== "0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f"
+        )
+        .reply(200, {
+            data: {
+                tokenAccount: {
+                    balance: "2000000000000",
                     transfers: [
                         {
-                            "amount": "250",
-                            "ts": "750"
-                        },
-                        {
-                            "amount": "250",
-                            "ts": "500"
-                        },
-                        {
-                            "amount": "500",
+                            "amount": "-1000000000000",
                             "ts": "250"
-                        }
+                        },
                     ]
                 }
             }
