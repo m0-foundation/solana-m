@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: '20'
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./node_modules/
-          key: node-modules-18
+          key: node-modules-20
       - name: Install Anchor CLI
         run: npm i -g @coral-xyz/anchor-cli@v0.29.0
         shell: bash
@@ -61,7 +61,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -87,7 +87,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./node_modules/
-          key: node-modules-18
+          key: node-modules-20
       - name: Install Anchor CLI
         run: npm i -g @coral-xyz/anchor-cli@v0.29.0
         shell: bash
