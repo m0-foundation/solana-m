@@ -95,7 +95,7 @@ jobs:
         run: npm i -g yarn && yarn install && cd sdk && yarn install && cd ..
         shell: bash
       - name: Build earn program
-        run: anchor build --program-name=earn
+        run: anchor build
         shell: bash
       - name: Run SDK tests
         run: make test-sdk
