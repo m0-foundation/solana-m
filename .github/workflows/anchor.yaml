@@ -92,7 +92,7 @@ jobs:
         run: npm i -g @coral-xyz/anchor-cli@v0.29.0
         shell: bash
       - name: Install Node Dependencies
-        run: npm i -g yarn && yarn install
+        run: npm i -g yarn && yarn install && cd sdk && yarn install && cd ..
         shell: bash
       - name: Build earn program
         run: anchor build --program-name=earn
