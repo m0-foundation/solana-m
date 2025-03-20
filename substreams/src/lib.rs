@@ -1,13 +1,14 @@
-use crate::consts::MINT;
-use consts::SYSTEM_PROGRAMS;
+use anchor_lang::prelude::*;
 use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
 use substreams_solana::pb::sf::solana::r#type::v1::Block;
 use substreams_solana_utils::{
     instruction::{self},
-    pubkey::Pubkey,
-    transaction,
+    pubkey, transaction,
 };
 use utils::{parse_logs_for_events, parse_logs_for_instruction_name, token_accounts};
+
+use consts::MINT;
+use consts::SYSTEM_PROGRAMS;
 
 mod consts;
 mod pb;
@@ -49,25 +50,29 @@ fn map_transfer_events(block: Block) -> TokenTransactions {
 
         // Parse token account balance updates from mints and transfers
         for token_account in token_accounts(&t) {
-            if token_account.mint != MINT {
+            if token_account.mint != Pubkey::new_from_array(MINT.0) {
                 continue;
             }
-            if token_account.pre_balance.unwrap_or(0) == token_account.post_balance.unwrap_or(0) {
+            if token_account.pre_balance == token_account.post_balance {
                 continue;
             }
             txn.balance_updates.push(TokenBalanceUpdate {
                 pubkey: token_account.address.to_string(),
                 mint: token_account.mint.to_string(),
                 owner: token_account.owner.to_string(),
-                pre_balance: token_account.pre_balance.unwrap_or(0),
-                post_balance: token_account.post_balance.unwrap_or(0),
+                pre_balance: token_account.pre_balance,
+                post_balance: token_account.post_balance,
             });
         }
 
         // Parse instruction logs and updates
         for ix in instructions {
+            let pid = ix
+                .program_id()
+                .to_pubkey()
+                .unwrap_or(pubkey::Pubkey::default());
+
             // Ignore system programs
-            let pid = ix.program_id().to_pubkey().unwrap_or(Pubkey::default());
             if SYSTEM_PROGRAMS.contains(&pid) {
                 continue;
             }

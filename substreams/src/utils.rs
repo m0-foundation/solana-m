@@ -1,12 +1,10 @@
 use crate::pb::transfers::v1::{self, instruction::Update};
 use anchor_lang::{prelude::*, Discriminator};
 use regex::Regex;
+use std::collections::HashMap;
+use std::str::FromStr;
 use substreams_solana::pb::sf::solana::r#type::v1::ConfirmedTransaction;
-use substreams_solana_utils::{
-    log::{self, Log},
-    spl_token::TokenAccount,
-    transaction,
-};
+use substreams_solana_utils::log::{self, Log};
 
 const DISCRIMINATOR_SIZE: usize = 8;
 
@@ -98,14 +96,28 @@ pub fn parse_log_for_events(log: &log::DataLog) -> Option<Update> {
     None
 }
 
+#[derive(Clone, Debug)]
+pub struct TokenAccount {
+    pub address: Pubkey,
+    pub mint: Pubkey,
+    pub owner: Pubkey,
+    pub pre_balance: u64,
+    pub post_balance: u64,
+}
+
 pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
-    let mut context = match transaction::get_context(t) {
-        Ok(context) => context,
-        Err(_) => return vec![],
-    };
+    let accounts = t
+        .resolved_accounts()
+        .iter()
+        .map(|x| {
+            let bytes: [u8; 32] = x.as_slice().try_into().unwrap();
+            Pubkey::new_from_array(bytes)
+        })
+        .collect::<Vec<_>>();
+
+    let mut token_accounts: HashMap<Pubkey, TokenAccount> = HashMap::new();
 
     for token_balance in &t.meta.as_ref().unwrap().post_token_balances {
-        let address = context.accounts[token_balance.account_index as usize].clone();
         let balance = token_balance
             .ui_token_amount
             .as_ref()
@@ -114,12 +126,31 @@ pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
             .parse::<u64>()
             .unwrap_or(0);
 
-        // fix post balance on token account
-        context
-            .token_accounts
-            .entry(address)
-            .and_modify(|e| e.post_balance = Some(balance));
+        let token_account = TokenAccount {
+            address: accounts[token_balance.account_index as usize].clone(),
+            mint: Pubkey::from_str(&token_balance.mint).unwrap(),
+            owner: Pubkey::from_str(&token_balance.owner).unwrap(),
+            pre_balance: 0,
+            post_balance: balance,
+        };
+
+        token_accounts.insert(token_account.address, token_account);
     }
 
-    context.token_accounts.values().cloned().collect()
+    // account with no balace prior to the transaction will be missing
+    for token_balance in &t.meta.as_ref().unwrap().pre_token_balances {
+        let balance = token_balance
+            .ui_token_amount
+            .as_ref()
+            .unwrap()
+            .amount
+            .parse::<u64>()
+            .unwrap_or(0);
+
+        token_accounts
+            .entry(accounts[token_balance.account_index as usize])
+            .and_modify(|e| e.post_balance = balance);
+    }
+
+    token_accounts.values().cloned().collect()
 }
