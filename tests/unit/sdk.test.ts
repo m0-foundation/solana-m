@@ -11,13 +11,13 @@ import {
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { MerkleTree } from '../../sdk/src/merkle';
-import { Earn } from '../../target/types/earn';
 import { PROGRAM_ID as EARN_PROGRAM } from '../../sdk/src';
 import { Graph } from '../../sdk/src/graph';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { EarnManager } from '../../sdk/src/earn_manager';
 import { Earner } from '../../sdk/src/earner';
 import nock from 'nock';
+import { Earn } from '../../target/types/earn';
 const EARN_IDL = require('../../target/idl/earn.json');
 
 describe('SDK unit tests', () => {

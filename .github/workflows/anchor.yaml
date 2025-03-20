@@ -51,7 +51,7 @@ jobs:
         run: npm i -g yarn && yarn install
         shell: bash
       - name: Run tests
-        run: anchor build && yarn test
+        run: anchor build && pwd && yarn test
         shell: bash
   sdk-tests:
     runs-on: ubuntu-20.04
@@ -93,6 +93,9 @@ jobs:
         shell: bash
       - name: Install Node Dependencies
         run: npm i -g yarn && yarn install
+        shell: bash
+      - name: Build earn program
+        run: anchor build --program-name=earn
         shell: bash
       - name: Run SDK tests
         run: make test-sdk
