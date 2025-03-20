@@ -7,7 +7,7 @@ schema:
 dataSources:
   - kind: substreams
     name: m_token_transactions
-    network: solana-mainnet-beta
+    network: solana-devnet
     source:
       package:
         moduleName: map_transfer_events

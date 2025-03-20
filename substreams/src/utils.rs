@@ -1,10 +1,13 @@
 use crate::pb::transfers::v1::{self, instruction::Update};
-use anchor_lang::{prelude::*, Discriminator};
+use anchor_lang::{prelude::*, solana_program::pubkey, Discriminator};
 use regex::Regex;
 use std::collections::HashMap;
-use std::str::FromStr;
 use substreams_solana::pb::sf::solana::r#type::v1::ConfirmedTransaction;
-use substreams_solana_utils::log::{self, Log};
+use substreams_solana_utils::{
+    log::{self, Log},
+    pubkey::{Pubkey, PubkeyRef},
+    spl_token::TokenAccount,
+};
 
 const DISCRIMINATOR_SIZE: usize = 8;
 
@@ -18,8 +21,8 @@ pub struct IndexUpdate {
 
 #[event]
 pub struct RewardsClaim {
-    pub token_account: Pubkey,
-    pub recipient_token_account: Pubkey,
+    pub token_account: pubkey::Pubkey,
+    pub recipient_token_account: pubkey::Pubkey,
     pub amount: u64,
     pub ts: u64,
     pub index: u64,
@@ -96,26 +99,14 @@ pub fn parse_log_for_events(log: &log::DataLog) -> Option<Update> {
     None
 }
 
-#[derive(Clone, Debug)]
-pub struct TokenAccount {
-    pub address: Pubkey,
-    pub mint: Pubkey,
-    pub owner: Pubkey,
-    pub pre_balance: u64,
-    pub post_balance: u64,
-}
-
 pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
     let accounts = t
         .resolved_accounts()
         .iter()
-        .map(|x| {
-            let bytes: [u8; 32] = x.as_slice().try_into().unwrap();
-            Pubkey::new_from_array(bytes)
-        })
+        .map(|x| PubkeyRef { 0: x })
         .collect::<Vec<_>>();
 
-    let mut token_accounts: HashMap<Pubkey, TokenAccount> = HashMap::new();
+    let mut token_accounts: HashMap<PubkeyRef, TokenAccount> = HashMap::new();
 
     for token_balance in &t.meta.as_ref().unwrap().post_token_balances {
         let balance = token_balance
@@ -128,10 +119,10 @@ pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
 
         let token_account = TokenAccount {
             address: accounts[token_balance.account_index as usize].clone(),
-            mint: Pubkey::from_str(&token_balance.mint).unwrap(),
-            owner: Pubkey::from_str(&token_balance.owner).unwrap(),
-            pre_balance: 0,
-            post_balance: balance,
+            mint: Pubkey::try_from_string(&token_balance.mint).unwrap(),
+            owner: Pubkey::try_from_string(&token_balance.owner).unwrap(),
+            pre_balance: Some(0),
+            post_balance: Some(balance),
         };
 
         token_accounts.insert(token_account.address, token_account);
@@ -149,7 +140,7 @@ pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
 
         token_accounts
             .entry(accounts[token_balance.account_index as usize])
-            .and_modify(|e| e.post_balance = balance);
+            .and_modify(|e| e.post_balance = Some(balance));
     }
 
     token_accounts.values().cloned().collect()
