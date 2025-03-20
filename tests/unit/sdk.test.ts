@@ -217,7 +217,7 @@ describe('SDK unit tests', () => {
       })
       .signers([signer])
       .rpc();
-  });
+  }, 15_000);
 
   describe('rpc', () => {
     test('get all earners', async () => {
