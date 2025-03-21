@@ -32,6 +32,11 @@ export class MerkleTree {
   private hasher = new Keccak(256);
 
   constructor(leaves: PublicKey[]) {
+
+    if (leaves.length === 0) {
+      leaves.push(PublicKey.default);
+    }
+
     // Process the leaves
     this.rawLeaves = leaves.map((leaf) => leaf.toBuffer());
 

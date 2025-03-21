@@ -6,6 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
+    errors::EarnError,
     constants::ANCHOR_DISCRIMINATOR_SIZE,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
     utils::merkle_proof::{verify_in_tree, ProofElement},
@@ -52,6 +53,11 @@ pub fn handler(
         user.to_bytes(),
         proof,
     )?;
+
+    // Verify the user is not the default public key (system program)
+    if user == Pubkey::default() {
+        return err!(EarnError::InvalidParam);
+    }
 
     ctx.accounts.earner_account.set_inner(Earner {
         earn_manager: None,

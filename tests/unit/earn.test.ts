@@ -3172,6 +3172,8 @@ describe("Earn unit tests", () => {
 
   describe("add_registrar_earner unit tests", () => {
     // test cases
+    // [X] given the earner tree is empty and the user is the zero value pubkey
+    //   [X] it reverts with an InvalidParam error
     // [X] given the user token account is for the wrong token mint
     //   [X] it reverts with a constraint token mint error
     // [X] given the user token account is not for the user pubkey
@@ -3221,6 +3223,38 @@ describe("Earn unit tests", () => {
         earnerMerkleTree.getRoot(),
         earnManagerMerkleTree.getRoot()
       );
+    });
+
+    test("Earner tree is empty and user is zero value - reverts", async () => {
+      // Remove all earners from the merkle tree
+      earnerMerkleTree = new MerkleTree([]);
+
+      // Propagate the new merkle root
+      await propagateIndex(
+        new BN(1_100_000_000_000),
+        earnerMerkleTree.getRoot(),
+        earnManagerMerkleTree.getRoot()
+      );
+
+      // Get the ATA for the zero value pubkey
+      const zeroATA = await getATA(mint.publicKey, PublicKey.default);
+
+      // Get the inclusion proof for the zero value pubkey in the earner merkle tree
+      const { proof } = earnerMerkleTree.getInclusionProof(PublicKey.default);
+
+      // Setup the instruction
+      prepAddRegistrarEarner(nonAdmin, zeroATA);
+
+      // Attempt to add earner with empty tree and zero value pubkey
+      await expectAnchorError(
+        earn.methods
+          .addRegistrarEarner(PublicKey.default, proof)
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "InvalidParam"
+      );
+
     });
 
     // given the user token account is for the wrong token mint
