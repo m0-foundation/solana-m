@@ -6,8 +6,9 @@ use anchor_lang::prelude::*;
 // local dependencies
 use crate::{
     constants::ANCHOR_DISCRIMINATOR_SIZE,
+    constants::PORTAL_PROGRAM,
     errors::EarnError,
-    state::{Global, GLOBAL_SEED},
+    state::{Global, GLOBAL_SEED, TOKEN_AUTHORITY_SEED},
 };
 
 #[derive(Accounts)]
@@ -39,9 +40,13 @@ pub fn handler(
         return err!(EarnError::InvalidParam);
     }
 
+    // Portal authority that will propagate index and roots
+    let portal_authority = Pubkey::find_program_address(&[TOKEN_AUTHORITY_SEED], &PORTAL_PROGRAM).0;
+
     ctx.accounts.global_account.set_inner(Global {
         admin: ctx.accounts.admin.key(),
         earn_authority,
+        portal_authority,
         mint,
         index: initial_index,
         timestamp: 0, // Set this to 0 initially so we can call propagate immediately

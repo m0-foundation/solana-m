@@ -6,18 +6,15 @@ use anchor_spl::token_interface::Mint;
 
 // local dependencies
 use crate::{
-    constants::PORTAL_PROGRAM,
     errors::EarnError,
-    state::{Global, GLOBAL_SEED, TOKEN_AUTHORITY_SEED},
+    state::{Global, GLOBAL_SEED},
 };
 
 #[derive(Accounts)]
 pub struct PropagateIndex<'info> {
     #[account(
-        constraint = signer.key() == global_account.admin || signer.key() == Pubkey::find_program_address(
-            &[TOKEN_AUTHORITY_SEED],
-            &PORTAL_PROGRAM
-        ).0 @ EarnError::NotAuthorized,
+        constraint = signer.key() == global_account.portal_authority
+            || (cfg!(feature = "testing") && signer.key() == global_account.admin) @ EarnError::NotAuthorized 
     )]
     pub signer: Signer<'info>,
 
