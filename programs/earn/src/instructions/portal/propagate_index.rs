@@ -41,7 +41,7 @@ pub fn handler(
     // Cache the current supply of the M token
     let current_supply = ctx.accounts.mint.supply;
 
-    // Check if the new index is greater than the previously seen index
+    // Check if the new index is greater than or equal to the previously seen index.
     // If so, update the merkle roots if they are non-zero.
     // We don't necessarily need the second check if we know updates only come
     // from mainnet. However, it provides some protection against staleness
