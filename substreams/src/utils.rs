@@ -140,7 +140,7 @@ pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
 
         token_accounts
             .entry(accounts[token_balance.account_index as usize])
-            .and_modify(|e| e.post_balance = Some(balance));
+            .and_modify(|e| e.pre_balance = Some(balance));
     }
 
     token_accounts.values().cloned().collect()
