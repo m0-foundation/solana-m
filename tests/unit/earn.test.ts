@@ -224,6 +224,10 @@ const expectEarnerState = async (
     expect(state.lastClaimTimestamp.toString()).toEqual(
       expected.lastClaimTimestamp.toString()
     );
+  if (expected.user)
+    expect(state.user).toEqual(expected.user);
+  if (expected.userTokenAccount)
+    expect(state.userTokenAccount).toEqual(expected.userTokenAccount);
 };
 
 const expectEarnManagerState = async (
