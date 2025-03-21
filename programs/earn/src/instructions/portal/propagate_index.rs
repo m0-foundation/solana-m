@@ -13,7 +13,8 @@ use crate::{
 #[derive(Accounts)]
 pub struct PropagateIndex<'info> {
     #[account(
-        address = global_account.portal_authority @ EarnError::NotAuthorized,
+        constraint = signer.key() == global_account.portal_authority
+            || (cfg!(feature = "testing") && signer.key() == global_account.admin) @ EarnError::NotAuthorized 
     )]
     pub signer: Signer<'info>,
 
