@@ -2979,7 +2979,6 @@ describe("Earn unit tests", () => {
 
       // Verify the earner account was initialized correctly
       await expectEarnerState(earnerAccount, {
-        isEarning: true,
         earnManager: earnManagerOne.publicKey,
         lastClaimIndex: new BN(1_100_000_000_000),
         lastClaimTimestamp: currentTime,

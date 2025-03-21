@@ -11,12 +11,14 @@ name = "earn"
 
 [features]
 anchor-debug = ["anchor-lang/anchor-debug"]
-default = []
+default = ["testing"]
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+testing = []
+release = []
 
 [dependencies]
 anchor-lang = { workspace = true, features = [
