@@ -40,6 +40,11 @@ pub fn handler(
         return err!(EarnError::InvalidParam);
     }
 
+    // Check that the claim cooldown is not longer than 1 week
+    if claim_cooldown > 604800 {
+        return err!(EarnError::InvalidParam);
+    }
+
     // Portal authority that will propagate index and roots
     let portal_authority = Pubkey::find_program_address(&[TOKEN_AUTHORITY_SEED], &PORTAL_PROGRAM).0;
 
