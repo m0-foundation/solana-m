@@ -116,8 +116,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
     // Set the earner's last claim index to the global index and update the last claim timestamp
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
-    ctx.accounts.earner_account.last_claim_timestamp =
-        Clock::get()?.unix_timestamp.try_into().unwrap();
+    ctx.accounts.earner_account.last_claim_timestamp = ctx.accounts.global_account.timestamp;
 
     // Setup the signer seeds for the mint CPI(s)
     let token_authority_seeds: &[&[&[u8]]] =
