@@ -40,7 +40,7 @@ pub fn handler(
         return err!(EarnError::InvalidParam);
     }
 
-    // Portal authority that will propogate index and roots
+    // Portal authority that will propagate index and roots
     let portal_authority = Pubkey::find_program_address(&[TOKEN_AUTHORITY_SEED], &PORTAL_PROGRAM).0;
 
     ctx.accounts.global_account.set_inner(Global {
