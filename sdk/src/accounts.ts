@@ -19,6 +19,7 @@ interface EarnManagerData {
   feeBps: bigint;
   feeTokenAccount: Address;
   bump: number;
+  owner: Address;
 }
 
 export const earnManagerDecoder: FixedSizeDecoder<EarnManagerData> = getStructDecoder([
@@ -27,6 +28,7 @@ export const earnManagerDecoder: FixedSizeDecoder<EarnManagerData> = getStructDe
   ['feeBps', getU64Decoder()],
   ['feeTokenAccount', getAddressDecoder()],
   ['bump', getU8Decoder()],
+  ['owner', getAddressDecoder()],
 ]);
 
 export interface GlobalAccountData {

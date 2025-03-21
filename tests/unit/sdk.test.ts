@@ -356,7 +356,7 @@ describe('SDK unit tests', () => {
       const signatures = await auth.sendClaimInstructions(claimIxs, signer);
       expect(signatures).toHaveLength(1);
 
-      await auth.refreshGlobal();
+      await auth.refresh();
       expect(auth['global'].distributed).toBe(70000000000n);
     });
 
@@ -373,7 +373,7 @@ describe('SDK unit tests', () => {
       const ix = await auth.buildCompleteClaimCycleInstruction();
       await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
 
-      await auth.refreshGlobal();
+      await auth.refresh();
       expect(auth['global'].claimComplete).toBeTruthy();
       expect(auth['global'].distributed.toString()).toEqual('70000000000');
       expect(auth['global'].claimComplete).toBeTruthy();
@@ -381,6 +381,23 @@ describe('SDK unit tests', () => {
   });
 
   describe('earn manager', () => {
+    test('configure', async () => {
+      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+
+      const dummyATA = spl.getAssociatedTokenAddressSync(
+        mint.publicKey,
+        earnerA.publicKey,
+        true,
+        spl.TOKEN_2022_PROGRAM_ID,
+      );
+
+      const ix = await manager.buildConfigureInstruction(15n, dummyATA);
+      await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
+      await manager.refresh();
+
+      expect(manager.feeBps).toEqual(15);
+    });
+
     test('add earner', async () => {
       const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
 
@@ -391,7 +408,7 @@ describe('SDK unit tests', () => {
         spl.TOKEN_2022_PROGRAM_ID,
       );
 
-      const ix = await manager.addEarner(earnerC.publicKey, earnerATA);
+      const ix = await manager.buildAddEarnerInstruction(earnerC.publicKey, earnerATA);
       await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
 
       const earner = await Earner.fromTokenAccount(connection, earnerATA);

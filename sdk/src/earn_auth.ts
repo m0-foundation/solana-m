@@ -44,7 +44,7 @@ class EarnAuthority {
     return new EarnAuthority(connection, global, mint.mintAuthority!);
   }
 
-  async refreshGlobal(): Promise<void> {
+  async refresh(): Promise<void> {
     Object.assign(this, await EarnAuthority.load(this.connection));
   }
 

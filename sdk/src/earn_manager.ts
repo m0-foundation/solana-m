@@ -19,6 +19,8 @@ import {
   getBytesEncoder,
   getStructEncoder,
   getU32Codec,
+  getU64Decoder,
+  getU64Encoder,
   ReadonlyUint8Array,
   VariableSizeEncoder,
 } from '@solana/codecs';
@@ -56,11 +58,44 @@ export class EarnManager {
     return new EarnManager(connection, manager, earnManagerAccount, account.data);
   }
 
+  async refresh() {
+    Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.manager));
+  }
+
+  async buildConfigureInstruction(feeBPS: bigint, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
+    // get all earn managers for proof
+    const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, {
+      filters: [{ memcmp: { offset: 0, bytes: b58(deriveDiscriminator('EarnManager')) } }],
+    });
+
+    const addresses = accounts.map(({ account }) => {
+      const values = earnManagerDecoder.decode(account.data);
+      return new PublicKey(values.owner);
+    });
+
+    // build proof
+    const tree = new MerkleTree(addresses);
+    const { proof } = tree.getInclusionProof(this.manager);
+
+    // encode instruction data
+    const data = getConfigureEncoder().encode({
+      disciminator: deriveDiscriminator('configure_earn_manager', 'global'),
+      feeBPS,
+      proof: proof.map(({ node, onRight }) => ({ node: Buffer.from(node), onRight })),
+    });
+
+    return new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: this._getConfigureAccounts(feeTokenAccount),
+      data: Buffer.from(data),
+    });
+  }
+
   async getEarners(): Promise<Earner[]> {
     return this._getEarners(this.manager);
   }
 
-  async addEarner(user: PublicKey, tokenAccount?: PublicKey): Promise<TransactionInstruction> {
+  async buildAddEarnerInstruction(user: PublicKey, tokenAccount?: PublicKey): Promise<TransactionInstruction> {
     // get all registrar earners for proof
     const registrarEarners = await this._getEarners();
     const tree = new MerkleTree(registrarEarners.map((earner) => earner.user));
@@ -147,6 +182,43 @@ export class EarnManager {
       },
     ];
   }
+
+  private _getConfigureAccounts(feeTokenAccount: PublicKey): AccountMeta[] {
+    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
+
+    const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('earn-manager'), this.manager.toBytes()],
+      PROGRAM_ID,
+    );
+
+    return [
+      {
+        pubkey: this.manager,
+        isWritable: true,
+        isSigner: true,
+      },
+      {
+        pubkey: globalAccount,
+        isWritable: false,
+        isSigner: false,
+      },
+      {
+        pubkey: earnManagerAccount,
+        isWritable: true,
+        isSigner: false,
+      },
+      {
+        pubkey: feeTokenAccount,
+        isWritable: false,
+        isSigner: false,
+      },
+      {
+        pubkey: SystemProgram.programId,
+        isWritable: false,
+        isSigner: false,
+      },
+    ];
+  }
 }
 
 interface AddEarnerData {
@@ -177,6 +249,33 @@ function getAddEarnerEncoder(): VariableSizeEncoder<AddEarnerData> {
       ),
     ],
     ['neighbors', getArrayEncoder(fixEncoderSize(getBytesEncoder(), 32), { size: getU32Codec() })],
+  ]);
+  return encoder;
+}
+
+interface ConfigureManagerData {
+  disciminator: ReadonlyUint8Array;
+  feeBPS: bigint;
+  proof: {
+    node: ReadonlyUint8Array;
+    onRight: boolean;
+  }[];
+}
+
+function getConfigureEncoder(): VariableSizeEncoder<ConfigureManagerData> {
+  const encoder: VariableSizeEncoder<ConfigureManagerData> = getStructEncoder([
+    ['disciminator', fixEncoderSize(getBytesEncoder(), 8)],
+    ['feeBPS', getU64Encoder()],
+    [
+      'proof',
+      getArrayEncoder(
+        getStructEncoder([
+          ['node', fixEncoderSize(getBytesEncoder(), 32)],
+          ['onRight', getBooleanEncoder()],
+        ]),
+        { size: getU32Codec() },
+      ),
+    ],
   ]);
   return encoder;
 }
