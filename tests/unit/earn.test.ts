@@ -2703,7 +2703,7 @@ describe("Earn unit tests", () => {
 
     // given signer has an earn manager account initialized
     // given earn manager account is not active
-    // it reverts with a NotAuthorized error
+    // it reverts with a NotActive error
     test("Signer's earn manager account not active - reverts", async () => {
       // Get the ATA for non earner one
       const nonEarnerOneATA = await getATA(
@@ -2749,7 +2749,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
-        "NotAuthorized"
+        "NotActive"
       );
     });
 
@@ -3024,7 +3024,7 @@ describe("Earn unit tests", () => {
 
     // given signer has an earn manager account initialized
     // given earn manager account is not active
-    // it reverts with a NotAuthorized error
+    // it reverts with a NotActive error
     test("Signer's earn manager account not active - reverts", async () => {
       // Get the ATA for non earner one
       const nonEarnerOneATA = await getATA(
@@ -3064,7 +3064,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
-        "NotAuthorized"
+        "NotActive"
       );
     });
 
@@ -3683,7 +3683,7 @@ describe("Earn unit tests", () => {
 
     // given the earn manager account is initialized
     // given the earn manager account is not active
-    // it reverts with a NotAuthorized error
+    // it reverts with a NotActive error
     test("Earn manager account is not active - reverts", async () => {
       // Remove earn manager one from the earn manager merkle tree
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
@@ -3716,7 +3716,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "NotAuthorized"
+        "NotActive"
       );
     });
 

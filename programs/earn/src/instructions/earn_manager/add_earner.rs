@@ -19,7 +19,7 @@ pub struct AddEarner<'info> {
     pub signer: Signer<'info>,
 
     #[account(
-        constraint = earn_manager_account.is_active @ EarnError::NotAuthorized,
+        constraint = earn_manager_account.is_active @ EarnError::NotActive,
         seeds = [EARN_MANAGER_SEED, signer.key().as_ref()],
         bump = earn_manager_account.bump
     )]
