@@ -1,0 +1,26 @@
+[package]
+name = "wrapped-m"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "wrapped_m"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { workspace = true, features = [
+    "anchor-debug",
+] }
+anchor-spl.workspace = true
+solana-program.workspace = true
+spl-token-2022.workspace = true
+cfg-if.workspace = true
+earn = { path = "../earn", features = ["cpi"] }
