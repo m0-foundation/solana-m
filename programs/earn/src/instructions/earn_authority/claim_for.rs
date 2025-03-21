@@ -82,6 +82,11 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         return err!(EarnError::AlreadyClaimed);
     }
 
+    // Validate there is an active claim cycle
+    if ctx.accounts.global_account.claim_complete {
+        return err!(EarnError::NoActiveClaim);
+    }
+
     // Calculate the amount of tokens to send to the user
     // Cast to u128 for multiplication to avoid overflows
     let mut rewards: u64 = (snapshot_balance as u128)
