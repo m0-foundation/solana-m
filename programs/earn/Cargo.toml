@@ -24,5 +24,6 @@ anchor-lang = { workspace = true, features = [
     "init-if-needed",
 ] }
 anchor-spl.workspace = true
+spl-token-2022.workspace = true
 solana-program.workspace = true
 cfg-if.workspace = true

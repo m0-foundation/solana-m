@@ -8,7 +8,10 @@ use anchor_spl::token_interface::TokenAccount;
 use crate::{
     constants::ANCHOR_DISCRIMINATOR_SIZE,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
-    utils::merkle_proof::{verify_in_tree, ProofElement},
+    utils::{
+        merkle_proof::{verify_in_tree, ProofElement},
+        token::has_immutable_owner,
+    },
 };
 
 #[derive(Accounts)]
@@ -26,6 +29,7 @@ pub struct AddRegistrarEarner<'info> {
     #[account(
         token::mint = global_account.mint,
         token::authority = user,
+        constraint = has_immutable_owner(&user_token_account) @ EarnError::ImmutableOwner,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
