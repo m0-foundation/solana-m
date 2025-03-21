@@ -12,6 +12,8 @@ use crate::{
 pub struct Sync<'info> {
     pub admin: Signer<'info>,
 
+    /// CHECK: the key for this account is stored in the global account
+    /// and is checked on a constraint below
     pub m_earn_global_account: AccountInfo<'info>,
 
     #[account(

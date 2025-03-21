@@ -40,29 +40,18 @@ pub struct Initialize<'info> {
     #[account(token::token_program = token_2022)]
     pub ext_mint: InterfaceAccount<'info, Mint>,
 
-    #[account(
-        seeds = [M_VAULT_SEED],
-        bump
-    )]
-    pub m_vault_account: AccountInfo<'info>,
-
-    #[account(
-        seeds = [MINT_AUTHORITY_SEED],
-        bump
-    )]
-    pub ext_mint_authority: AccountInfo<'info>,
-
     /// CHECK: We manually validate this account in the instruction handler
     pub m_earn_global_account: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
-
 }
 
 pub fn handler(
     ctx: Context<Initialize>,
     earn_authority: Pubkey,
 ) -> Result<()> {
+
+    // Calculate and verify the M earn program's global account
     let m_earn_global_account = Pubkey::find_program_address(
         &[EARN_GLOBAL_SEED],
         &EARN_PROGRAM
@@ -74,6 +63,18 @@ pub fn handler(
 
     let m_earn_global = load_earn_global_data(&ctx.accounts.m_earn_global_account)?;
 
+    // Calculate the bumps for the m vault and extension mint authority PDAs
+    let m_vault_bump = Pubkey::find_program_address(
+        &[M_VAULT_SEED],
+        ctx.program_id
+    ).1;
+
+    let ext_mint_authority_bump = Pubkey::find_program_address(
+        &[MINT_AUTHORITY_SEED],
+        ctx.program_id
+    ).1;
+
+    // Set the global account data
     ctx.accounts.global_account.set_inner(Global {
         admin: ctx.accounts.admin.key(),
         m_mint: ctx.accounts.m_mint.key(),
@@ -83,8 +84,8 @@ pub fn handler(
         index: m_earn_global.index,
         timestamp: m_earn_global.timestamp,
         bump: ctx.bumps.global_account,
-        m_vault_bump: ctx.bumps.m_vault_account,
-        ext_mint_authority_bump: ctx.bumps.ext_mint_authority,
+        m_vault_bump,
+        ext_mint_authority_bump,
     });
 
     Ok(())

@@ -27,6 +27,7 @@ pub struct Unwrap<'info> {
     )]
     pub global_account: Account<'info, Global>,
 
+    /// CHECK: This account is validated by the seed, it stores no data
     #[account(
         seeds = [M_VAULT_SEED],
         bump = global_account.m_vault_bump,

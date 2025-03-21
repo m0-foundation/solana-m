@@ -28,12 +28,14 @@ pub struct Wrap<'info> {
     )]
     pub global_account: Account<'info, Global>,
 
+    /// CHECK: This account is validated by the seed, it stores no data
     #[account(
         seeds = [M_VAULT_SEED],
         bump = global_account.m_vault_bump
     )]
     pub m_vault: AccountInfo<'info>,
 
+    /// CHECK: This account is validated by the seed, it stores no data
     #[account(
         seeds = [MINT_AUTHORITY_SEED],
         bump = global_account.ext_mint_authority_bump,

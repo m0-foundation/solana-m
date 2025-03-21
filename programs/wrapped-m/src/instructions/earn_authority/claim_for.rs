@@ -32,12 +32,14 @@ pub struct ClaimFor<'info> {
     #[account(mut)]
     pub ext_mint: InterfaceAccount<'info, Mint>,
 
+    /// CHECK: This account is validated by the seed, it stores no data
     #[account(
         seeds = [MINT_AUTHORITY_SEED],
         bump = global_account.ext_mint_authority_bump,
     )]
     pub ext_mint_authority: AccountInfo<'info>,
 
+    /// CHECK: This account is validated by the seed, it stores no data
     #[account(
         seeds = [M_VAULT_SEED],
         bump = global_account.m_vault_bump,
