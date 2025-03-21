@@ -3868,7 +3868,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wrapped-m"
+name = "wrapped_m"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
