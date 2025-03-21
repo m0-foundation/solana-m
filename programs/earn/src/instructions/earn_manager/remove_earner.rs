@@ -44,8 +44,5 @@ pub fn handler(ctx: Context<RemoveEarner>) -> Result<()> {
         return err!(EarnError::NotAuthorized);
     }
 
-    // Set the is_earning status to false
-    ctx.accounts.earner_account.is_earning = false;
-
     Ok(())
 }

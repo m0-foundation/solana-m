@@ -50,8 +50,5 @@ pub fn handler(
         return err!(EarnError::NotAuthorized);
     }
 
-    // Set the is earning flag on the earner account to false, even though it's being closed
-    ctx.accounts.earner_account.is_earning = false;
-
     Ok(())
 }

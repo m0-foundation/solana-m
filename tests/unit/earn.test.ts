@@ -90,7 +90,6 @@ interface Earner {
   earnManager?: PublicKey;
   lastClaimIndex?: BN;
   lastClaimTimestamp?: BN;
-  isEarning?: boolean;
   user?: PublicKey;
   userTokenAccount?: PublicKey;
   bump?: number;
@@ -221,7 +220,10 @@ const expectEarnerState = async (
     expect(state.lastClaimIndex.toString()).toEqual(
       expected.lastClaimIndex.toString()
     );
-  if (expected.isEarning) expect(state.isEarning).toEqual(expected.isEarning);
+  if (expected.lastClaimTimestamp)
+    expect(state.lastClaimTimestamp.toString()).toEqual(
+      expected.lastClaimTimestamp.toString()
+    );
 };
 
 const expectEarnManagerState = async (
@@ -2912,7 +2914,6 @@ describe("Earn unit tests", () => {
 
       // Verify the earner account was initialized correctly
       await expectEarnerState(earnerAccount, {
-        isEarning: true,
         earnManager: earnManagerOne.publicKey,
         lastClaimIndex: new BN(1_100_000_000_000),
         lastClaimTimestamp: currentTime,
@@ -3182,7 +3183,6 @@ describe("Earn unit tests", () => {
     //     [X] it creates the earner account
     //     [X] it sets the earner account's user to the provided pubkey
     //     [X] it sets the earner account's user_token_account to the provided token account
-    //     [X] it sets the earner account's is_earning flag to true
     //     [X] it sets the earner account's earn_manager to None
     //     [X] it sets the earner account's last_claim_index to the current index
 
@@ -3353,7 +3353,6 @@ describe("Earn unit tests", () => {
     // given all the accounts are valid
     // given the merkle proof for the user in the earner list is valid
     // it creates the earner account
-    // it sets the earner account's is_earning flag to true
     // it sets the earner account's earn_manager to None
     // it sets the earner account's last_claim_index to the current index
     test("Add registrar earner - success", async () => {
@@ -3377,7 +3376,6 @@ describe("Earn unit tests", () => {
 
       // Verify the earner account was initialized correctly
       await expectEarnerState(earnerAccount, {
-        isEarning: true,
         earnManager: null,
         lastClaimIndex: new BN(1_100_000_000_000),
         lastClaimTimestamp: currentTime,
@@ -3582,7 +3580,6 @@ describe("Earn unit tests", () => {
     // given all the accounts are valid
     // given the merkle proof for user's exclusion from the earner list is valid
     // given the earner account does not have an earn manager
-    // it sets the earner account's is_earning flag to false
     // it closes the earner account and refunds the rent to the signer
     test("Remove registrar earner - success", async () => {
       // Get the ATA for earner one
@@ -3802,7 +3799,6 @@ describe("Earn unit tests", () => {
     //     [X] given the earn manager account is active
     //       [X] it reverts with a NotAuthorized error
     //     [X] given the earn manager account is not active
-    //       [X] it sets the earner account's is_earning flag to false
     //       [X] it closes the earner account and refunds the rent to the signer
 
     beforeEach(async () => {
@@ -4005,7 +4001,6 @@ describe("Earn unit tests", () => {
 
       // Confirm that the account is active and earning
       await expectEarnerState(earnerAccount, {
-        isEarning: true,
         earnManager: earnManagerOne.publicKey,
       });
 

@@ -71,11 +71,6 @@ pub struct ClaimFor<'info> {
 }
 
 pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
-    // Validate that the earner account is still approved to earn
-    if !ctx.accounts.earner_account.is_earning {
-        return err!(EarnError::NotEarning);
-    }
-
     // Validate that the earner account has not already claimed this cycle
     // Earner index should never be > global index, but we check to be safe against an error with index propagation
     if ctx.accounts.earner_account.last_claim_index >= ctx.accounts.global_account.index {
