@@ -36,14 +36,12 @@ pub fn handler(
     neighbors: Vec<[u8; 32]>,
 ) -> Result<()> {
     // Verify the user is not in the approved earners list
-    if !verify_not_in_tree(
+    verify_not_in_tree(
         ctx.accounts.global_account.earner_merkle_root,
         ctx.accounts.earner_account.user.to_bytes(),
         proofs,
         neighbors,
-    ) {
-        return err!(EarnError::InvalidProof);
-    }
+    )?;
 
     // Check that the earner does not have an earn_manager, if so, return an error
     if let Some(_) = ctx.accounts.earner_account.earn_manager {

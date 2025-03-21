@@ -56,14 +56,12 @@ pub fn handler(
     neighbors: Vec<[u8; 32]>,
 ) -> Result<()> {
     // Verify the user is not already an earner
-    if !verify_not_in_tree(
+    verify_not_in_tree(
         ctx.accounts.global_account.earner_merkle_root,
         user.to_bytes(),
         proofs,
         neighbors,
-    ) {
-        return err!(EarnError::InvalidProof);
-    }
+    )?;
 
     ctx.accounts.earner_account.set_inner(Earner {
         earn_manager: Some(ctx.accounts.signer.key().clone()),

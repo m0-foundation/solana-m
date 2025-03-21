@@ -7,7 +7,6 @@ use anchor_spl::token_interface::TokenAccount;
 // local dependencies
 use crate::{
     constants::ANCHOR_DISCRIMINATOR_SIZE,
-    errors::EarnError,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
     utils::merkle_proof::{verify_in_tree, ProofElement},
 };
@@ -48,13 +47,11 @@ pub fn handler(
     proof: Vec<ProofElement>,
 ) -> Result<()> {
     // Verify the user is in the approved earners list
-    if !verify_in_tree(
+    verify_in_tree(
         ctx.accounts.global_account.earner_merkle_root,
         user.to_bytes(),
         proof,
-    ) {
-        return err!(EarnError::InvalidProof);
-    }
+    )?;
 
     ctx.accounts.earner_account.set_inner(Earner {
         earn_manager: None,

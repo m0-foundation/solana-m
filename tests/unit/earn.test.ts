@@ -3788,6 +3788,89 @@ describe("Earn unit tests", () => {
         isActive: false,
       });
     });
+
+    test("Remove all earn managers - success", async () => {
+      // Create an earn account for the second earn manager
+      const { proof } = earnManagerMerkleTree.getInclusionProof(
+        earnManagerTwo.publicKey
+      );
+
+      // Initialize earn manager two's account
+      await configureEarnManager(earnManagerTwo, new BN(100), proof);
+
+      // Remove one earn manager from the tree
+      earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
+
+      // Update the earn manager merkle root on the global account
+      await propagateIndex(
+        new BN(1_100_000_000_000),
+        ZERO_WORD,
+        earnManagerMerkleTree.getRoot()
+      );
+
+      // Get the exclusion proof for earn manager one in the earn manager tree
+      const { proofs: proofsOne, neighbors: neighborsOne } = earnManagerMerkleTree.getExclusionProof(
+        earnManagerOne.publicKey
+      );
+
+      // Confirm the earn manager account is still active
+      let earnManagerAccount = getEarnManagerAccount(
+        earnManagerOne.publicKey
+      );
+      await expectEarnManagerState(earnManagerAccount, {
+        isActive: true,
+      });
+
+      // Setup the instruction
+      prepRemoveEarnManager(nonAdmin, earnManagerOne.publicKey);
+
+      // Remove the earn manager account
+      await earn.methods
+        .removeEarnManager(earnManagerOne.publicKey, proofsOne, neighborsOne)
+        .accounts({ ...accounts })
+        .signers([nonAdmin])
+        .rpc();
+
+      // Verify the earn manager account was set to inactive
+      await expectEarnManagerState(earnManagerAccount, {
+        isActive: false,
+      });
+
+      // Remove the other earn manager from the tree
+      earnManagerMerkleTree.removeLeaf(earnManagerTwo.publicKey);
+
+      // Update the earn manager merkle root on the global account
+      await propagateIndex(
+        new BN(1_100_000_000_000),
+        ZERO_WORD,
+        earnManagerMerkleTree.getRoot()
+      );
+
+      // Get the exclusion proof for earn manager two in the earn manager tree
+      const { proofs: proofsTwo, neighbors: neighborsTwo } = earnManagerMerkleTree.getExclusionProof(earnManagerTwo.publicKey);
+
+      // Confirm the earn manager account is still active
+      earnManagerAccount = getEarnManagerAccount(earnManagerTwo.publicKey);
+      await expectEarnManagerState(earnManagerAccount, {
+        isActive: true,
+      });
+
+      // Setup the instruction
+      prepRemoveEarnManager(nonAdmin, earnManagerTwo.publicKey);
+
+      // Remove the earn manager account
+      await earn.methods
+        .removeEarnManager(earnManagerTwo.publicKey, proofsTwo, neighborsTwo)
+        .accounts({ ...accounts })
+        .signers([nonAdmin])
+        .rpc();
+
+      // Verify the earn manager account was set to inactive
+      await expectEarnManagerState(earnManagerAccount, {
+        isActive: false,
+      });
+
+    });
   });
 
   describe("remove_orphaned_earner unit tests", () => {
