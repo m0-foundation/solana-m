@@ -93,7 +93,6 @@ interface Earner {
   earnManager?: PublicKey;
   lastClaimIndex?: BN;
   lastClaimTimestamp?: BN;
-  isEarning?: boolean;
   user?: PublicKey;
   userTokenAccount?: PublicKey;
   bump?: number;
@@ -224,7 +223,14 @@ const expectEarnerState = async (
     expect(state.lastClaimIndex.toString()).toEqual(
       expected.lastClaimIndex.toString()
     );
-  if (expected.isEarning) expect(state.isEarning).toEqual(expected.isEarning);
+  if (expected.lastClaimTimestamp)
+    expect(state.lastClaimTimestamp.toString()).toEqual(
+      expected.lastClaimTimestamp.toString()
+    );
+  if (expected.user)
+    expect(state.user).toEqual(expected.user);
+  if (expected.userTokenAccount)
+    expect(state.userTokenAccount).toEqual(expected.userTokenAccount);
 };
 
 const expectEarnManagerState = async (
@@ -2706,7 +2712,7 @@ describe("Earn unit tests", () => {
 
     // given signer has an earn manager account initialized
     // given earn manager account is not active
-    // it reverts with a NotAuthorized error
+    // it reverts with a NotActive error
     test("Signer's earn manager account not active - reverts", async () => {
       // Get the ATA for non earner one
       const nonEarnerOneATA = await getATA(
@@ -2752,7 +2758,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
-        "NotAuthorized"
+        "NotActive"
       );
     });
 
@@ -3021,7 +3027,6 @@ describe("Earn unit tests", () => {
 
       // Verify the earner account was initialized correctly
       await expectEarnerState(earnerAccount, {
-        isEarning: true,
         earnManager: earnManagerOne.publicKey,
         lastClaimIndex: new BN(1_100_000_000_000),
         lastClaimTimestamp: currentTime,
@@ -3133,7 +3138,7 @@ describe("Earn unit tests", () => {
 
     // given signer has an earn manager account initialized
     // given earn manager account is not active
-    // it reverts with a NotAuthorized error
+    // it reverts with a NotActive error
     test("Signer's earn manager account not active - reverts", async () => {
       // Get the ATA for non earner one
       const nonEarnerOneATA = await getATA(
@@ -3173,7 +3178,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
-        "NotAuthorized"
+        "NotActive"
       );
     });
 
@@ -3276,6 +3281,8 @@ describe("Earn unit tests", () => {
 
   describe("add_registrar_earner unit tests", () => {
     // test cases
+    // [X] given the earner tree is empty and the user is the zero value pubkey
+    //   [X] it reverts with an InvalidParam error
     // [X] given the user token account is for the wrong token mint
     //   [X] it reverts with a constraint token mint error
     // [X] given the user token account is not for the user pubkey
@@ -3291,7 +3298,6 @@ describe("Earn unit tests", () => {
     //     [X] it creates the earner account
     //     [X] it sets the earner account's user to the provided pubkey
     //     [X] it sets the earner account's user_token_account to the provided token account
-    //     [X] it sets the earner account's is_earning flag to true
     //     [X] it sets the earner account's earn_manager to None
     //     [X] it sets the earner account's last_claim_index to the current index
 
@@ -3326,6 +3332,38 @@ describe("Earn unit tests", () => {
         earnerMerkleTree.getRoot(),
         earnManagerMerkleTree.getRoot()
       );
+    });
+
+    test("Earner tree is empty and user is zero value - reverts", async () => {
+      // Remove all earners from the merkle tree
+      earnerMerkleTree = new MerkleTree([]);
+
+      // Propagate the new merkle root
+      await propagateIndex(
+        new BN(1_100_000_000_000),
+        earnerMerkleTree.getRoot(),
+        earnManagerMerkleTree.getRoot()
+      );
+
+      // Get the ATA for the zero value pubkey
+      const zeroATA = await getATA(mint.publicKey, PublicKey.default);
+
+      // Get the inclusion proof for the zero value pubkey in the earner merkle tree
+      const { proof } = earnerMerkleTree.getInclusionProof(PublicKey.default);
+
+      // Setup the instruction
+      prepAddRegistrarEarner(nonAdmin, zeroATA);
+
+      // Attempt to add earner with empty tree and zero value pubkey
+      await expectAnchorError(
+        earn.methods
+          .addRegistrarEarner(PublicKey.default, proof)
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "InvalidParam"
+      );
+
     });
 
     // given the user token account is for the wrong token mint
@@ -3462,7 +3500,6 @@ describe("Earn unit tests", () => {
     // given all the accounts are valid
     // given the merkle proof for the user in the earner list is valid
     // it creates the earner account
-    // it sets the earner account's is_earning flag to true
     // it sets the earner account's earn_manager to None
     // it sets the earner account's last_claim_index to the current index
     test("Add registrar earner - success", async () => {
@@ -3486,7 +3523,6 @@ describe("Earn unit tests", () => {
 
       // Verify the earner account was initialized correctly
       await expectEarnerState(earnerAccount, {
-        isEarning: true,
         earnManager: null,
         lastClaimIndex: new BN(1_100_000_000_000),
         lastClaimTimestamp: currentTime,
@@ -3691,7 +3727,6 @@ describe("Earn unit tests", () => {
     // given all the accounts are valid
     // given the merkle proof for user's exclusion from the earner list is valid
     // given the earner account does not have an earn manager
-    // it sets the earner account's is_earning flag to false
     // it closes the earner account and refunds the rent to the signer
     test("Remove registrar earner - success", async () => {
       // Get the ATA for earner one
@@ -3792,7 +3827,7 @@ describe("Earn unit tests", () => {
 
     // given the earn manager account is initialized
     // given the earn manager account is not active
-    // it reverts with a NotAuthorized error
+    // it reverts with a NotActive error
     test("Earn manager account is not active - reverts", async () => {
       // Remove earn manager one from the earn manager merkle tree
       earnManagerMerkleTree.removeLeaf(earnManagerOne.publicKey);
@@ -3825,7 +3860,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "NotAuthorized"
+        "NotActive"
       );
     });
 
@@ -3994,7 +4029,6 @@ describe("Earn unit tests", () => {
     //     [X] given the earn manager account is active
     //       [X] it reverts with a NotAuthorized error
     //     [X] given the earn manager account is not active
-    //       [X] it sets the earner account's is_earning flag to false
     //       [X] it closes the earner account and refunds the rent to the signer
 
     beforeEach(async () => {
@@ -4197,7 +4231,6 @@ describe("Earn unit tests", () => {
 
       // Confirm that the account is active and earning
       await expectEarnerState(earnerAccount, {
-        isEarning: true,
         earnManager: earnManagerOne.publicKey,
       });
 

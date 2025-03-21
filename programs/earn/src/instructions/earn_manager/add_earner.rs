@@ -22,7 +22,7 @@ pub struct AddEarner<'info> {
     pub signer: Signer<'info>,
 
     #[account(
-        constraint = earn_manager_account.is_active @ EarnError::NotAuthorized,
+        constraint = earn_manager_account.is_active @ EarnError::NotActive,
         seeds = [EARN_MANAGER_SEED, signer.key().as_ref()],
         bump = earn_manager_account.bump
     )]
@@ -72,7 +72,6 @@ pub fn handler(
         recipient_token_account: None,
         last_claim_index: ctx.accounts.global_account.index,
         last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),
-        is_earning: true,
         bump: ctx.bumps.earner_account,
         user,
         user_token_account: ctx.accounts.user_token_account.key(),
