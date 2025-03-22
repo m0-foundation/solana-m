@@ -139,14 +139,19 @@ pub fn release_inbound_mint_multisig<'info>(
         );
     }
 
-    let expected_accounts = &ctx
-        .accounts
-        .common
-        .config
-        .release_inbound_remaining_accounts;
-
     // Send update to the earn program
-    if ctx.remaining_accounts.len() >= expected_accounts.len() {
+    {
+        let expected_accounts = &ctx
+            .accounts
+            .common
+            .config
+            .release_inbound_remaining_accounts;
+
+        // Remaining accounts required for CPI to earn program
+        if ctx.remaining_accounts.len() < expected_accounts.len() {
+            return err!(NTTError::InvalidRemainingAccount);
+        }
+
         for (i, account) in expected_accounts.iter().enumerate() {
             if account.pubkey != ctx.remaining_accounts[i].key() {
                 return err!(NTTError::InvalidRemainingAccount);
@@ -176,8 +181,6 @@ pub fn release_inbound_mint_multisig<'info>(
             inbox_item.index_update,
             inbox_item.root_updates.is_some()
         );
-    } else {
-        msg!("Skipping index update: {}", inbox_item.index_update);
     }
 
     Ok(())

@@ -6,10 +6,13 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    constants::ANCHOR_DISCRIMINATOR_SIZE,
     errors::EarnError,
+    constants::ANCHOR_DISCRIMINATOR_SIZE,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
-    utils::merkle_proof::{verify_in_tree, ProofElement},
+    utils::{
+        merkle_proof::{verify_in_tree, ProofElement},
+        token::has_immutable_owner,
+    },
 };
 
 #[derive(Accounts)]
@@ -27,6 +30,7 @@ pub struct AddRegistrarEarner<'info> {
     #[account(
         token::mint = global_account.mint,
         token::authority = user,
+        constraint = has_immutable_owner(&user_token_account) @ EarnError::ImmutableOwner,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -48,12 +52,15 @@ pub fn handler(
     proof: Vec<ProofElement>,
 ) -> Result<()> {
     // Verify the user is in the approved earners list
-    if !verify_in_tree(
+    verify_in_tree(
         ctx.accounts.global_account.earner_merkle_root,
         user.to_bytes(),
         proof,
-    ) {
-        return err!(EarnError::InvalidProof);
+    )?;
+
+    // Verify the user is not the default public key (system program)
+    if user == Pubkey::default() {
+        return err!(EarnError::InvalidParam);
     }
 
     ctx.accounts.earner_account.set_inner(Earner {
@@ -61,7 +68,6 @@ pub fn handler(
         recipient_token_account: None,
         last_claim_index: ctx.accounts.global_account.index,
         last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),
-        is_earning: true,
         bump: ctx.bumps.earner_account,
         user,
         user_token_account: ctx.accounts.user_token_account.key(),

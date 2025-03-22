@@ -32,6 +32,11 @@ export class MerkleTree {
   private hasher = new Keccak(256);
 
   constructor(leaves: PublicKey[]) {
+
+    if (leaves.length === 0) {
+      leaves.push(PublicKey.default);
+    }
+
     // Process the leaves
     this.rawLeaves = leaves.map((leaf) => leaf.toBuffer());
 
@@ -49,9 +54,11 @@ export class MerkleTree {
     // Wipe the tree
     this.tree = [];
 
-    // If there are less than two leaves, we don't need to build the tree
+    // If there are less than two leaves, then we don't need to build a tree
+    // The root is the hash of the leaf, or, if empty, the zero value
     let len = this.leaves.length;
     if (len === 0) {
+      this.root = this._hashLeaf(PublicKey.default.toBuffer())
       return;
     }
     if (len === 1) {
@@ -334,13 +341,22 @@ export class MerkleTree {
     let proofs: ProofElement[][] = [];
 
     // Special cases:
-    // If the index is 0, there is only a right neighbor and it has this index
+    // If the index is 0, then
+    // If the tree is empty, then the neighbor is the zero value
+    // Else, there is only a right neighbor and it has this index
     if (index === 0) {
-      // console.log("special case: less than smallest value");
-      let neighbor = this.rawLeaves[index];
-      let { proof } = this.getInclusionProof(new PublicKey(neighbor));
-      neighbors.push(Array.from(neighbor));
-      proofs.push(proof);
+      if (this.rawLeaves.length == 0) {
+        let neighbor = PublicKey.default.toBuffer();
+        neighbors.push(Array.from(neighbor));
+        proofs.push([]);
+      } else {
+        // console.log("special case: less than smallest value");
+        let neighbor = this.rawLeaves[index];
+        let { proof } = this.getInclusionProof(new PublicKey(neighbor));
+        neighbors.push(Array.from(neighbor));
+        proofs.push(proof);
+      }
+
       return { proofs, neighbors };
     }
 

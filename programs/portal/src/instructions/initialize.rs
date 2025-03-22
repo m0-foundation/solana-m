@@ -148,7 +148,6 @@ pub fn initialize_multisig(ctx: Context<InitializeMultisig>, args: InitializeArg
 
 #[derive(Accounts)]
 pub struct SetDestinationAddresses<'info> {
-    #[account(mut)]
     pub owner: Signer<'info>,
 
     #[account(

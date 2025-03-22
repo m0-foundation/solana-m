@@ -392,9 +392,9 @@ describe("Portal unit tests", () => {
 
     let inboxItem: PublicKey;
 
-    const redeem = (remaining_accounts: AccountMeta[]) => {
-      const additionalPayload = utils.encodePacked(
-        { type: "uint64", value: 1_000_000_000_001n }, // index
+    const redeem = (remaining_accounts: AccountMeta[], additionalPayload?: string) => {
+      additionalPayload ??= utils.encodePacked(
+        { type: "uint64", value: 1000000000001n }, // index
         { type: "bytes32", value: "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b" } // destination
       );
 
@@ -446,23 +446,12 @@ describe("Portal unit tests", () => {
     it("tokens (no remaining accounts)", async () => {
       const getRedeemTxns = redeem([]);
 
-      const txIds = await ssw(ctx, getRedeemTxns(), signer);
-      const logs = await fetchTransactionLogs(
-        provider,
-        txIds[txIds.length - 1].txid
-      );
-      expect(logs).toContain(
-        "Program log: Transferred 100000 tokens to TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM"
-      );
-      expect(logs).toContain(
-        "Program log: Skipping index update: 1000000000001"
-      );
-
-      // verify inbox item was released
-      const item = await ntt.program.account.inboxItem.fetch(inboxItem);
-      expect(JSON.stringify(item.releaseStatus.released)).toBeDefined();
-      expect(item.recipientAddress.toBase58()).toBe("TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM")
-      expect(item.amount.toString()).toBe("100000")
+      try {
+        await ssw(ctx, getRedeemTxns(), signer);
+        fail("Expected transaction to fail");
+      } catch (e) {
+        expect(e.message).toContain("Error Code: InvalidRemainingAccount");
+      }
     });
 
     it("tokens (with remaining accounts)", async () => {
@@ -524,29 +513,43 @@ describe("Portal unit tests", () => {
 
     it("tokens with merkle roots", async () => {
       const additionalPayload = utils.encodePacked(
-        { type: "uint64", value: 123456 }, // index
+        // index
+        { type: "uint64", value: 123456 },
         {
+          // destination
           type: "bytes32",
           value: "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b",
-        }, // destination
+        },
         {
+          // earner root
           type: "bytes32",
           value: "0x1111111111111111111111111111111111111111",
-        }, // earner root
-        { type: "bytes32", value: "0x2222222222222222222222222222222222222222" } // earner manager root
+        },
+        // earner manager root
+        { type: "bytes32", value: "0x2222222222222222222222222222222222222222" }
       );
 
-      const serialized = serializePayload(
-        "Ntt:WormholeTransfer",
-        transferPayload(additionalPayload)
+      const getRedeemTxns = redeem([
+        {
+          pubkey: EARN_PROGRAM,
+          isSigner: false,
+          isWritable: false,
+        },
+        {
+          pubkey: EARN_GLOBAL_ACCOUNT,
+          isSigner: false,
+          isWritable: true,
+        },
+      ], additionalPayload);
+
+      const txIds = await ssw(ctx, getRedeemTxns(), signer);
+      const logs = await fetchTransactionLogs(
+        provider,
+        txIds[txIds.length - 1].txid
       );
-
-      const published = emitter.publishMessage(0, serialized, 200);
-      const rawVaa = guardians.addSignatures(published, [0]);
-      const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
-      const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
-
-      await ssw(ctx, redeemTxs, signer);
+      expect(logs).toContain(
+        "Program log: Index update: 123456 | root update: true"
+      );
     });
   });
 

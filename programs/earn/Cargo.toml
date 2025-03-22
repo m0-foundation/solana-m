@@ -11,13 +11,14 @@ name = "earn"
 
 [features]
 anchor-debug = ["anchor-lang/anchor-debug"]
+default = ["testing"]
+cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-cpi = ["no-entrypoint"]
-default = ["mainnet"]
-mainnet = []
-devnet = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+testing = []
+release = []
 
 [dependencies]
 anchor-lang = { workspace = true, features = [
@@ -25,5 +26,6 @@ anchor-lang = { workspace = true, features = [
     "init-if-needed",
 ] }
 anchor-spl.workspace = true
+spl-token-2022.workspace = true
 solana-program.workspace = true
 cfg-if.workspace = true
