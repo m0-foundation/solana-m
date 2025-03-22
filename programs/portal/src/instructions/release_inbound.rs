@@ -24,14 +24,15 @@ pub struct ReleaseInbound<'info> {
 
     #[account(
         mut,
-        address = match &inbox_item.transfer {
-            Some(tt) => get_associated_token_address_with_program_id(
-                &tt.recipient,
+        address = if inbox_item.transfer.amount > 0 {
+            get_associated_token_address_with_program_id(
+                &inbox_item.transfer.recipient,
                 &mint.key(),
                 &token_program.key(),
-            ),
-            _ => recipient.key(),
-        },
+            )
+        } else {
+            recipient.key()
+        }
     )]
     pub recipient: InterfaceAccount<'info, token_interface::TokenAccount>,
 
@@ -99,7 +100,7 @@ pub fn release_inbound_mint_multisig<'info>(
         &[ctx.bumps.common.token_authority],
     ]];
 
-    if let Some(tt) = &inbox_item.transfer {
+    if inbox_item.transfer.amount > 0 {
         // Mint then transfer to ensure transfer hook is called
         invoke_signed(
             &spl_token_2022::instruction::mint_to(
@@ -108,7 +109,7 @@ pub fn release_inbound_mint_multisig<'info>(
                 &ctx.accounts.common.custody.key(),
                 &ctx.accounts.multisig.key(),
                 &[&ctx.accounts.common.token_authority.key()],
-                tt.amount,
+                inbox_item.transfer.amount,
             )?,
             &[
                 ctx.accounts.common.custody.to_account_info(),
@@ -126,12 +127,16 @@ pub fn release_inbound_mint_multisig<'info>(
             ctx.accounts.common.recipient.to_account_info(),
             ctx.accounts.common.token_authority.to_account_info(),
             ctx.remaining_accounts,
-            tt.amount,
+            inbox_item.transfer.amount,
             ctx.accounts.common.mint.decimals,
             token_authority_sig,
         )?;
 
-        msg!("Transferred {} tokens to {}", tt.amount, tt.recipient);
+        msg!(
+            "Transferred {} tokens to {}",
+            inbox_item.transfer.amount,
+            inbox_item.transfer.recipient
+        );
     }
 
     // Send update to the earn program
