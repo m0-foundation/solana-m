@@ -50,20 +50,27 @@ const EARN_IDL = require("../../target/idl/earn.json");
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 
 const config = {
-  GUARDIAN_KEY: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
+  GUARDIAN_KEY:
+    "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
   CORE_BRIDGE_ADDRESS: "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth",
-  PORTAL_PROGRAM_ID: new PublicKey("mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"),
+  PORTAL_PROGRAM_ID: new PublicKey(
+    "mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"
+  ),
   EARN_PROGRAM: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"),
   WORMHOLE_PID: new PublicKey("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"),
-  WORMHOLE_BRIDGE_CONFIG: new PublicKey("2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn"),
-  WORMHOLE_BRIDGE_FEE_COLLECTOR: new PublicKey("9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"),
-  EVM_M: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
-  EVM_WRAPPED_M: '0x437cc33344a0B27A429f795ff6B469C72698B291',
+  WORMHOLE_BRIDGE_CONFIG: new PublicKey(
+    "2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn"
+  ),
+  WORMHOLE_BRIDGE_FEE_COLLECTOR: new PublicKey(
+    "9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"
+  ),
+  EVM_M: "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b",
+  EVM_WRAPPED_M: "0x437cc33344a0B27A429f795ff6B469C72698B291",
   EARN_GLOBAL_ACCOUNT: PublicKey.findProgramAddressSync(
     [Buffer.from("global")],
-    new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"),
+    new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c")
   )[0],
-}
+};
 
 describe("Portal unit tests", () => {
   let ntt: SolanaNtt<"Devnet", "Solana">;
@@ -266,7 +273,12 @@ describe("Portal unit tests", () => {
 
       // set evm destination addresses
       const tx = new Transaction().add(
-        createSetEvmAddresses(config.PORTAL_PROGRAM_ID, owner.publicKey, config.EVM_M, config.EVM_WRAPPED_M)
+        createSetEvmAddresses(
+          config.PORTAL_PROGRAM_ID,
+          owner.publicKey,
+          config.EVM_M,
+          config.EVM_WRAPPED_M
+        )
       );
       await provider.sendAndConfirm(tx, [owner]);
 
@@ -392,7 +404,10 @@ describe("Portal unit tests", () => {
 
     let inboxItem: PublicKey;
 
-    const redeem = (remaining_accounts: AccountMeta[], additionalPayload?: string) => {
+    const redeem = (
+      remaining_accounts: AccountMeta[],
+      additionalPayload?: string
+    ) => {
       additionalPayload ??= utils.encodePacked(
         { type: "uint64", value: 1000000000001n }, // index
         { type: "bytes32", value: "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b" } // destination
@@ -408,8 +423,11 @@ describe("Portal unit tests", () => {
       const vaa = deserialize("Ntt:WormholeTransfer", serialize(rawVaa));
       const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
 
-      const pdas = NTT.pdas(config.PORTAL_PROGRAM_ID)
-      inboxItem = pdas.inboxItemAccount(vaa.emitterChain, vaa.payload.nttManagerPayload)
+      const pdas = NTT.pdas(config.PORTAL_PROGRAM_ID);
+      inboxItem = pdas.inboxItemAccount(
+        vaa.emitterChain,
+        vaa.payload.nttManagerPayload
+      );
 
       // return custom generator where the redeem ix has the desired remaining accounts
       return async function* redeemTxns() {
@@ -481,7 +499,9 @@ describe("Portal unit tests", () => {
       );
 
       // verify data was propagated
-      const global = await earn.account.global.fetch(config.EARN_GLOBAL_ACCOUNT);
+      const global = await earn.account.global.fetch(
+        config.EARN_GLOBAL_ACCOUNT
+      );
       expect(global.index.toString()).toBe("1000000000001");
 
       // verify inbox item was released
@@ -529,18 +549,21 @@ describe("Portal unit tests", () => {
         { type: "bytes32", value: "0x2222222222222222222222222222222222222222" }
       );
 
-      const getRedeemTxns = redeem([
-        {
-          pubkey: EARN_PROGRAM,
-          isSigner: false,
-          isWritable: false,
-        },
-        {
-          pubkey: EARN_GLOBAL_ACCOUNT,
-          isSigner: false,
-          isWritable: true,
-        },
-      ], additionalPayload);
+      const getRedeemTxns = redeem(
+        [
+          {
+            pubkey: config.EARN_PROGRAM,
+            isSigner: false,
+            isWritable: false,
+          },
+          {
+            pubkey: config.EARN_GLOBAL_ACCOUNT,
+            isSigner: false,
+            isWritable: true,
+          },
+        ],
+        additionalPayload
+      );
 
       const txIds = await ssw(ctx, getRedeemTxns(), signer);
       const logs = await fetchTransactionLogs(
