@@ -173,7 +173,6 @@ pub fn release_inbound_mint_multisig<'info>(
             ctx,
             inbox_item.index_update,
             root_updates.earner_root,
-            root_updates.earn_manager_root,
         )?;
 
         msg!(

@@ -46,19 +46,24 @@ pub mod earn {
         instructions::admin::set_earner_recipient::handler(ctx)
     }
 
+    pub fn set_claim_cooldown(
+        ctx: Context<SetClaimCooldown>,
+        claim_cooldown: u64,
+    ) -> Result<()> {
+        instructions::admin::set_claim_cooldown::handler(ctx, claim_cooldown)
+    }
+
     // Portal instrutions
 
     pub fn propagate_index(
         ctx: Context<PropagateIndex>,
         index: u64,
         earner_merkle_root: [u8; 32],
-        earn_manager_merkle_root: [u8; 32],
     ) -> Result<()> {
         instructions::portal::propagate_index::handler(
             ctx,
             index,
             earner_merkle_root,
-            earn_manager_merkle_root,
         )
     }
 
@@ -70,29 +75,6 @@ pub mod earn {
 
     pub fn complete_claims(ctx: Context<CompleteClaims>) -> Result<()> {
         instructions::earn_authority::complete_claims::handler(ctx)
-    }
-
-    // Earn manager instructions
-
-    pub fn add_earner(
-        ctx: Context<AddEarner>,
-        user: Pubkey,
-        proofs: Vec<Vec<ProofElement>>,
-        neighbors: Vec<[u8; 32]>,
-    ) -> Result<()> {
-        instructions::earn_manager::add_earner::handler(ctx, user, proofs, neighbors)
-    }
-
-    pub fn remove_earner(ctx: Context<RemoveEarner>) -> Result<()> {
-        instructions::earn_manager::remove_earner::handler(ctx)
-    }
-
-    pub fn configure_earn_manager(
-        ctx: Context<ConfigureEarnManager>,
-        fee_bps: u64,
-        proof: Vec<ProofElement>,
-    ) -> Result<()> {
-        instructions::earn_manager::configure::handler(ctx, fee_bps, proof)
     }
 
     // Open instructions
@@ -111,18 +93,5 @@ pub mod earn {
         neighbors: Vec<[u8; 32]>,
     ) -> Result<()> {
         instructions::open::remove_registrar_earner::handler(ctx, proofs, neighbors)
-    }
-
-    pub fn remove_earn_manager(
-        ctx: Context<RemoveEarnManager>,
-        earn_manager: Pubkey,
-        proofs: Vec<Vec<ProofElement>>,
-        neighbors: Vec<[u8; 32]>,
-    ) -> Result<()> {
-        instructions::open::remove_earn_manager::handler(ctx, earn_manager, proofs, neighbors)
-    }
-
-    pub fn remove_orphaned_earner(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
-        instructions::open::remove_orphaned_earner::handler(ctx)
     }
 }

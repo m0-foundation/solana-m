@@ -1,10 +1,8 @@
 // earn/state/mod.rs
 
-pub mod earn_manager;
 pub mod earner;
 pub mod global;
 
-pub use earn_manager::*;
 pub use earner::*;
 pub use global::*;
 

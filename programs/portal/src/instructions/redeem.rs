@@ -145,10 +145,9 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
                 inbox_item.index_update = payload.index;
 
                 // payloads from mainnet might have merkle root updates
-                if payload.earn_manager_root.is_some() && payload.earner_root.is_some() {
+                if payload.earner_root.is_some() {
                     inbox_item.root_updates = Some(RootUpdates {
                         earner_root: payload.earner_root.unwrap(),
-                        earn_manager_root: payload.earn_manager_root.unwrap(),
                     });
                 }
             }

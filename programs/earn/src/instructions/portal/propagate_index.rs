@@ -33,7 +33,6 @@ pub fn handler(
     ctx: Context<PropagateIndex>,
     new_index: u64,
     earner_merkle_root: [u8; 32],
-    earn_manager_merkle_root: [u8; 32],
 ) -> Result<()> {
     // Cache the current supply of the M token
     let current_supply = ctx.accounts.mint.supply;
@@ -46,9 +45,6 @@ pub fn handler(
     if new_index >= ctx.accounts.global_account.index {
         if earner_merkle_root != [0u8; 32] {
             ctx.accounts.global_account.earner_merkle_root = earner_merkle_root;
-        }
-        if earn_manager_merkle_root != [0u8; 32] {
-            ctx.accounts.global_account.earn_manager_merkle_root = earn_manager_merkle_root;
         }
     }
 

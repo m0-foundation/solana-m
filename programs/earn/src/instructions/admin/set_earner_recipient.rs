@@ -19,7 +19,6 @@ pub struct SetEarnerRecipient<'info> {
 
     #[account(
         mut,
-        constraint = earner_account.earn_manager.is_none() @ EarnError::InvalidAccount,
         seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump
     )]

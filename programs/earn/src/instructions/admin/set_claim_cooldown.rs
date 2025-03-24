@@ -22,7 +22,7 @@ pub struct SetClaimCooldown<'info> {
     pub global_account: Account<'info, Global>,
 }
 
-pub fn handler(ctx: Context<SetEarnAuthority>, claim_cooldown: u64) -> Result<()> {
+pub fn handler(ctx: Context<SetClaimCooldown>, claim_cooldown: u64) -> Result<()> {
     // Do not allow a cooldown longer than 1 week
     if claim_cooldown > 604800 {
         return err!(EarnError::InvalidParam);

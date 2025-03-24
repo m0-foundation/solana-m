@@ -29,7 +29,6 @@ pub struct TokenTransfer {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, Default)]
 pub struct RootUpdates {
     pub earner_root: [u8; 32],
-    pub earn_manager_root: [u8; 32],
 }
 
 /// The status of an InboxItem. This determines whether the tokens are minted/unlocked to the recipient. As
