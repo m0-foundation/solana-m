@@ -3,7 +3,7 @@ import { Command } from 'commander';
 async function main() {
   const program = new Command();
 
-  program.command('run').action(async () => {
+  program.command('distribute').action(async () => {
     console.log('hello world');
   });
 
