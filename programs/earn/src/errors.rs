@@ -25,5 +25,5 @@ pub enum EarnError {
     #[msg("Merkle proof verification failed.")]
     InvalidProof,
     #[msg("Token account owner is required to be immutable.")]
-    ImmutableOwner,
+    MutableOwner,
 }

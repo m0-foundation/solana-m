@@ -34,7 +34,7 @@ pub struct SetRecipient<'info> {
 
     #[account(
         token::mint = global_account.ext_mint,
-        constraint = has_immutable_owner(&recipient_token_account) @ ExtError::ImmutableOwner,
+        constraint = has_immutable_owner(&recipient_token_account) @ ExtError::MutableOwner,
     )]
     pub recipient_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
 }

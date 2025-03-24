@@ -34,7 +34,7 @@ pub struct AddEarner<'info> {
     #[account(
         token::mint = global_account.ext_mint,
         token::authority = user,
-        constraint = has_immutable_owner(&user_token_account) @ ExtError::ImmutableOwner,
+        constraint = has_immutable_owner(&user_token_account) @ ExtError::MutableOwner,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 

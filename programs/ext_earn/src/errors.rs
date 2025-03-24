@@ -15,7 +15,7 @@ pub enum ExtError {
     #[msg("Account is not currently active.")]
     NotActive,
     #[msg("Token account owner is required to be immutable.")]
-    ImmutableOwner,
+    MutableOwner,
     #[msg("Not enough M.")]
     InsufficientCollateral,
 }
