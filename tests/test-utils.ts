@@ -140,7 +140,7 @@ export function getWormholeContext(connection: Connection) {
     chain: 'Ethereum',
     address: new UniversalAddress(encoding.bytes.encode('nttManager'.padStart(32, '\0'))),
   };
-  const ctx: ChainContext<'Devnet', 'Solana'> = w.getPlatform('Solana').getChain('Solana', connection);
+  const ctx = w.getPlatform('Solana').getChain('Solana', connection);
 
   const coreBridge = new SolanaWormholeCore('Devnet', 'Solana', connection, {
     coreBridge: 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth',
