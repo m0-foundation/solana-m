@@ -43,7 +43,7 @@ impl Readable for NativeTokenTransfer {
         additional_payload.destination_token = Readable::read(reader)?;
 
         // L2s will not propagate this data
-        if payload_len >= 104 {
+        if payload_len >= 72 {
             additional_payload.earner_root = Some(Readable::read(reader)?);
         }
 
