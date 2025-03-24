@@ -77,6 +77,7 @@ pub fn parse_log_for_events(log: &log::DataLog) -> Option<Update> {
             amount: claim.amount,
             token_account: claim.token_account.to_string(),
             recipient_token_account: claim.recipient_token_account.to_string(),
+            manager_fee: claim.manager_fee,
         }));
     }
 

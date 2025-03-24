@@ -45,4 +45,5 @@ message Claim {
   string token_account = 1;
   string recipient_token_account = 2;
   uint64 amount = 3;
+  uint64 manager_fee = 4;
 }

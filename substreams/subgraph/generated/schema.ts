@@ -268,6 +268,19 @@ export class Claim extends Entity {
     this.set("amount", Value.fromBigInt(value));
   }
 
+  get manager_fee(): BigInt {
+    let value = this.get("manager_fee");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set manager_fee(value: BigInt) {
+    this.set("manager_fee", Value.fromBigInt(value));
+  }
+
   get token_account(): Bytes {
     let value = this.get("token_account");
     if (!value || value.kind == ValueKind.NULL) {

@@ -14,6 +14,9 @@ export class Claim {
 
     writer.uint32(24);
     writer.uint64(message.amount);
+
+    writer.uint32(32);
+    writer.uint64(message.managerFee);
   }
 
   static decode(reader: Reader, length: i32): Claim {
@@ -35,6 +38,10 @@ export class Claim {
           message.amount = reader.uint64();
           break;
 
+        case 4:
+          message.managerFee = reader.uint64();
+          break;
+
         default:
           reader.skipType(tag & 7);
           break;
@@ -47,14 +54,17 @@ export class Claim {
   tokenAccount: string;
   recipientTokenAccount: string;
   amount: u64;
+  managerFee: u64;
 
   constructor(
     tokenAccount: string = "",
     recipientTokenAccount: string = "",
-    amount: u64 = 0
+    amount: u64 = 0,
+    managerFee: u64 = 0
   ) {
     this.tokenAccount = tokenAccount;
     this.recipientTokenAccount = recipientTokenAccount;
     this.amount = amount;
+    this.managerFee = managerFee;
   }
 }
