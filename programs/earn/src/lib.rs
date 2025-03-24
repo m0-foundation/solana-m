@@ -42,10 +42,6 @@ pub mod earn {
         instructions::admin::set_earn_authority::handler(ctx, new_earn_authority)
     }
 
-    pub fn set_earner_recipient(ctx: Context<SetEarnerRecipient>) -> Result<()> {
-        instructions::admin::set_earner_recipient::handler(ctx)
-    }
-
     pub fn set_claim_cooldown(
         ctx: Context<SetClaimCooldown>,
         claim_cooldown: u64,
