@@ -1719,6 +1719,7 @@ version = "0.0.1"
 dependencies = [
  "anchor-lang",
  "bs58 0.5.1",
+ "earn",
  "five8_const",
  "prost",
  "regex",

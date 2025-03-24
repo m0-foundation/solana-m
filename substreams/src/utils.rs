@@ -1,5 +1,6 @@
 use crate::pb::transfers::v1::{self, instruction::Update};
-use anchor_lang::{prelude::*, solana_program::pubkey, Discriminator};
+use anchor_lang::{prelude::*, Discriminator};
+use earn::instructions::{claim_for::RewardsClaim, IndexUpdate};
 use regex::Regex;
 use std::collections::HashMap;
 use substreams_solana::pb::sf::solana::r#type::v1::ConfirmedTransaction;
@@ -10,23 +11,6 @@ use substreams_solana_utils::{
 };
 
 const DISCRIMINATOR_SIZE: usize = 8;
-
-#[event]
-pub struct IndexUpdate {
-    pub index: u64,
-    pub ts: u64,
-    pub supply: u64,
-    pub max_yield: u64,
-}
-
-#[event]
-pub struct RewardsClaim {
-    pub token_account: pubkey::Pubkey,
-    pub recipient_token_account: pubkey::Pubkey,
-    pub amount: u64,
-    pub ts: u64,
-    pub index: u64,
-}
 
 pub fn parse_logs_for_events(logs: Option<&Vec<Log>>) -> Option<Update> {
     if logs.is_none() {
