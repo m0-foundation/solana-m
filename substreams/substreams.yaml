@@ -1,0 +1,41 @@
+specVersion: v0.1.0
+package:
+  name: m_token_transactions
+  version: v0.1.0
+
+imports:
+  solana: https://spkg.io/streamingfast/solana-block-stream-v0.1.0.spkg
+
+protobuf:
+  files:
+    - transfers.proto
+  importPaths:
+    - ./proto
+  excludePaths:
+    - sf
+    - types.proto # sol.types.v1 from the v0.2.0 spkg
+    - instructions.proto # sol.instructions.v1 from the v0.2.0 spkg
+    - transactions.proto # sol.transactions.v1 from the v0.2.0 spkg
+    - google
+
+binaries:
+  default:
+    type: wasm/rust-v1+wasm-bindgen-shims
+    file: ../target/wasm32-unknown-unknown/release/substreams.wasm
+
+modules:
+  - name: map_filtered_transactions
+    use: solana:map_block_with_filtered_transactions
+    initialBlock: 364230817
+
+  - name: map_transfer_events
+    kind: map
+    inputs:
+      - map: map_filtered_transactions
+    output:
+      type: proto:transfers.v1.TokenTransactions
+
+network: solana-devnet
+
+params:
+  map_filtered_transactions: program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb && account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6

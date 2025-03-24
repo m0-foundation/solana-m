@@ -45,7 +45,7 @@ pub struct ClaimFor<'info> {
         mut,
         address = match earner_account.recipient_token_account {
             Some(token_account) => token_account,
-            None => earner_account.user_token_account,
+            _ => earner_account.user_token_account,
         },
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
@@ -174,5 +174,25 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         ctx.accounts.earner_account.last_claim_timestamp
     );
 
+    emit!(RewardsClaim {
+        token_account: ctx.accounts.user_token_account.key(),
+        recipient_token_account: match ctx.accounts.earner_account.recipient_token_account {
+            Some(token_account) => token_account,
+            _ => ctx.accounts.user_token_account.key(),
+        },
+        amount: rewards,
+        ts: ctx.accounts.earner_account.last_claim_timestamp,
+        index: ctx.accounts.global_account.index,
+    });
+
     Ok(())
+}
+
+#[event]
+pub struct RewardsClaim {
+    pub token_account: Pubkey,
+    pub recipient_token_account: Pubkey,
+    pub amount: u64,
+    pub ts: u64,
+    pub index: u64,
 }
