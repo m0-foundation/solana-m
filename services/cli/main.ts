@@ -30,14 +30,13 @@ import {
   TokenMetadata,
 } from '@solana/spl-token-metadata';
 import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
-import { createSetEvmAddresses } from '../tests/test-utils';
+import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
 import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
-import { Earn } from '../target/types/earn';
+import { Earn } from '../../target/types/earn';
 import { keysFromEnv, NttManager } from './utils';
-import Web3 from 'web3';
-import { MerkleTree } from '../sdk/src/merkle';
-import { EvmCaller } from '../sdk/src/evm_caller';
+import { MerkleTree } from '../../sdk/src/merkle';
+import { EvmCaller } from '../../sdk/src/evm_caller';
 const EARN_IDL = require('../target/idl/earn.json');
 
 const PROGRAMS = {
