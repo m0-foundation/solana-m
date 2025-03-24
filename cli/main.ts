@@ -234,7 +234,7 @@ async function main() {
 
       // fetch registrar earners from mainnet
       const evmCaller = new EvmCaller(process.env.ETH_SEPOLIA_RPC ?? '');
-      const earners = await evmCaller.getList('earners');
+      const earners = await evmCaller.getEarners();
 
       console.log(`earners on registrar: ${earners.map((e) => e.toBase58())}`);
 

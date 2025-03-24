@@ -25,6 +25,7 @@ import {
   VariableSizeEncoder,
 } from '@solana/codecs';
 import { MerkleTree } from './merkle';
+import { EvmCaller } from './evm_caller';
 
 export class EarnManager {
   private connection: Connection;
@@ -34,9 +35,11 @@ export class EarnManager {
   isActive: boolean;
   feeBps: number;
   feeTokenAccount: PublicKey;
+  evmRPC: string;
 
-  private constructor(connection: Connection, manager: PublicKey, pubkey: PublicKey, data: Buffer) {
+  private constructor(connection: Connection, evmRPC: string, manager: PublicKey, pubkey: PublicKey, data: Buffer) {
     this.connection = connection;
+    this.evmRPC = evmRPC;
     this.manager = manager;
     this.pubkey = pubkey;
 
@@ -46,7 +49,7 @@ export class EarnManager {
     this.feeTokenAccount = new PublicKey(values.feeTokenAccount);
   }
 
-  static async fromManagerAddress(connection: Connection, manager: PublicKey): Promise<EarnManager> {
+  static async fromManagerAddress(connection: Connection, evmRPC: string, manager: PublicKey): Promise<EarnManager> {
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earn-manager'), manager.toBytes()],
       PROGRAM_ID,
@@ -55,26 +58,18 @@ export class EarnManager {
     const account = await connection.getAccountInfo(earnManagerAccount);
     if (!account) throw new Error(`Unable to find EarnManager account at ${earnManagerAccount}`);
 
-    return new EarnManager(connection, manager, earnManagerAccount, account.data);
+    return new EarnManager(connection, evmRPC, manager, earnManagerAccount, account.data);
   }
 
   async refresh() {
-    Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.manager));
+    Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.evmRPC, this.manager));
   }
 
   async buildConfigureInstruction(feeBPS: bigint, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
     // get all earn managers for proof
-    const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, {
-      filters: [{ memcmp: { offset: 0, bytes: b58(deriveDiscriminator('EarnManager')) } }],
-    });
-
-    const addresses = accounts.map(({ account }) => {
-      const values = earnManagerDecoder.decode(account.data);
-      return new PublicKey(values.owner);
-    });
-
-    // build proof
-    const tree = new MerkleTree(addresses);
+    const evmCaller = new EvmCaller(this.evmRPC);
+    const mangagers = await evmCaller.getManagers();
+    const tree = new MerkleTree(mangagers);
     const { proof } = tree.getInclusionProof(this.manager);
 
     // encode instruction data
@@ -97,8 +92,9 @@ export class EarnManager {
 
   async buildAddEarnerInstruction(user: PublicKey, tokenAccount?: PublicKey): Promise<TransactionInstruction> {
     // get all registrar earners for proof
-    const registrarEarners = await this._getEarners();
-    const tree = new MerkleTree(registrarEarners.map((earner) => earner.user));
+    const evmCaller = new EvmCaller(this.evmRPC);
+    const earners = await evmCaller.getEarners();
+    const tree = new MerkleTree(earners);
     const { proofs, neighbors } = tree.getExclusionProof(user);
 
     // encode instruction data
