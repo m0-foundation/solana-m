@@ -15,7 +15,8 @@
         "@solana/web3.js": "^1.87.6",
         "bs58": "^6.0.0",
         "graphql-request": "6.1.0",
-        "js-sha256": "^0.11.0"
+        "js-sha256": "^0.11.0",
+        "viem": "^2.23.14"
     },
     "devDependencies": {
         "@types/node": "^20.10.0",

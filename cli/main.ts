@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command } from 'commander';
 import {
   Connection,
   Keypair,
@@ -8,7 +8,7 @@ import {
   Transaction,
   TransactionMessage,
   VersionedTransaction,
-} from "@solana/web3.js";
+} from '@solana/web3.js';
 import {
   AuthorityType,
   createInitializeMetadataPointerInstruction,
@@ -22,44 +22,34 @@ import {
   LENGTH_SIZE,
   TOKEN_2022_PROGRAM_ID,
   TYPE_SIZE,
-} from "@solana/spl-token";
+} from '@solana/spl-token';
 import {
   createInitializeInstruction,
   createUpdateFieldInstruction,
   pack,
   TokenMetadata,
-} from "@solana/spl-token-metadata";
-import {
-  Chain,
-  ChainAddress,
-  UniversalAddress,
-  assertChain,
-  signSendWait,
-} from "@wormhole-foundation/sdk";
-import { createSetEvmAddresses } from "../tests/test-utils";
-import { createInitializeConfidentialTransferMintInstruction } from "./confidential-transfers";
-import { Program, Wallet, AnchorProvider, BN } from "@coral-xyz/anchor";
-import { Earn } from "../target/types/earn";
-import { getMerkleContract, keysFromEnv, NttManager } from "./utils";
-import Web3 from "web3";
-import { MerkleTree } from "../tests/merkle";
-const EARN_IDL = require("../target/idl/earn.json");
+} from '@solana/spl-token-metadata';
+import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
+import { createSetEvmAddresses } from '../tests/test-utils';
+import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
+import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { Earn } from '../target/types/earn';
+import { keysFromEnv, NttManager } from './utils';
+import Web3 from 'web3';
+import { MerkleTree } from '../sdk/src/merkle';
+import { EvmCaller } from '../sdk/src/evm_caller';
+const EARN_IDL = require('../target/idl/earn.json');
 
 const PROGRAMS = {
   // program id the same for devnet and mainnet
-  portal: new PublicKey("mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"),
-  earn: new PublicKey("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"),
+  portal: new PublicKey('mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY'),
+  earn: new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c'),
   // addresses the same across L2s
-  evmTransiever: "0x0763196A091575adF99e2306E5e90E0Be5154841",
-  evmPeer: "0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd",
+  evmTransiever: '0x0763196A091575adF99e2306E5e90E0Be5154841',
+  evmPeer: '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd',
   // destination tokens
-  mToken: "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b",
-  wmToken: "0x437cc33344a0B27A429f795ff6B469C72698B291",
-};
-
-const REGISTRAR_LISTS = {
-  earners: "0x736f6c616e612d6561726e657273000000000000000000000000000000000000",
-  mangers: "0x736f6c616e612d6561726e2d6d616e6167657273000000000000000000000000",
+  mToken: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+  wmToken: '0x437cc33344a0B27A429f795ff6B469C72698B291',
 };
 
 const RATE_LIMITS_24 = {
@@ -69,26 +59,17 @@ const RATE_LIMITS_24 = {
 
 async function main() {
   const program = new Command();
+  const connection = new Connection(process.env.RPC_URL ?? '');
 
   program
-    .command("create-multisig")
-    .description("Create multisig for the mint authority")
+    .command('create-multisig')
+    .description('Create multisig for the mint authority')
     .action(async () => {
-      const connection = new Connection(process.env.RPC_URL);
-      const [owner, multisig] = keysFromEnv([
-        "OWNER_KEYPAIR",
-        "MULTISIG_KEYPAIR",
-      ]);
+      const [owner, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'MULTISIG_KEYPAIR']);
 
       // token authorities for both programs
-      const [tokenAuthPortal] = PublicKey.findProgramAddressSync(
-        [Buffer.from("token_authority")],
-        PROGRAMS.portal
-      );
-      const [tokenAuthEarn] = PublicKey.findProgramAddressSync(
-        [Buffer.from("token_authority")],
-        PROGRAMS.earn
-      );
+      const [tokenAuthPortal] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.portal);
+      const [tokenAuthEarn] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.earn);
 
       await createMultisig(
         connection,
@@ -97,48 +78,34 @@ async function main() {
         1,
         multisig,
         undefined,
-        TOKEN_2022_PROGRAM_ID
+        TOKEN_2022_PROGRAM_ID,
       );
 
       console.log(`Multisig created: ${multisig.publicKey.toBase58()}`);
     });
 
   program
-    .command("create-mint")
-    .description("Create a new Token-2022 mint")
+    .command('create-mint')
+    .description('Create a new Token-2022 mint')
     .action(async () => {
-      const connection = new Connection(process.env.RPC_URL);
-      const [owner, mint, multisig] = keysFromEnv([
-        "OWNER_KEYPAIR",
-        "MINT_KEYPAIR",
-        "MULTISIG_KEYPAIR",
-      ]);
+      const [owner, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR', 'MULTISIG_KEYPAIR']);
 
       await createToken2022Mint(connection, owner, mint, multisig.publicKey);
       console.log(`Mint created: ${mint.publicKey.toBase58()}`);
     });
 
   program
-    .command("initialize-portal")
-    .description("Initialize the portal program")
+    .command('initialize-portal')
+    .description('Initialize the portal program')
     .action(async () => {
-      const connection = new Connection(process.env.RPC_URL);
-      const [owner, mint, multisig] = keysFromEnv([
-        "OWNER_KEYPAIR",
-        "MINT_KEYPAIR",
-        "MULTISIG_KEYPAIR",
-      ]);
+      const [owner, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR', 'MULTISIG_KEYPAIR']);
 
-      const { ctx, ntt, sender, signer } = NttManager(
-        connection,
-        owner,
-        mint.publicKey
-      );
+      const { ctx, ntt, sender, signer } = NttManager(connection, owner, mint.publicKey);
 
       const initTxs = ntt.initialize(sender, {
         mint: mint.publicKey,
         outboundLimit: RATE_LIMITS_24.outbound,
-        mode: "burning",
+        mode: 'burning',
         multisig: multisig.publicKey,
       });
 
@@ -147,28 +114,20 @@ async function main() {
     });
 
   program
-    .command("initialize-earn")
-    .description("Initialize the earn program")
+    .command('initialize-earn')
+    .description('Initialize the earn program')
     .action(async () => {
-      const connection = new Connection(process.env.RPC_URL);
-      const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
 
-      const earn = new Program<Earn>(
-        EARN_IDL,
-        PROGRAMS.earn,
-        anchorProvider(connection, owner)
-      );
-      const [globalAccount] = PublicKey.findProgramAddressSync(
-        [Buffer.from("global")],
-        PROGRAMS.earn
-      );
+      const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
+      const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
 
       await earn.methods
         .initialize(
           mint.publicKey,
           Keypair.generate().publicKey,
           new BN(1001886486057), // initial index
-          new BN(5 * 60) // cooldown
+          new BN(5 * 60), // cooldown
         )
         .accounts({
           globalAccount,
@@ -179,60 +138,42 @@ async function main() {
     });
 
   program
-    .command("set-evm-addresses")
-    .description("Set the EVM addresses to the destination tokens")
+    .command('set-evm-addresses')
+    .description('Set the EVM addresses to the destination tokens')
     .action(async () => {
-      const connection = new Connection(process.env.RPC_URL);
-      const [owner] = keysFromEnv(["OWNER_KEYPAIR"]);
+      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
 
       const tx = new Transaction().add(
-        createSetEvmAddresses(
-          PROGRAMS.portal,
-          owner.publicKey,
-          PROGRAMS.mToken,
-          PROGRAMS.wmToken
-        )
+        createSetEvmAddresses(PROGRAMS.portal, owner.publicKey, PROGRAMS.mToken, PROGRAMS.wmToken),
       );
 
       tx.feePayer = owner.publicKey;
       tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
       await sendAndConfirmTransaction(connection, tx, [owner]);
 
-      console.log(
-        `EVM addresses set: ${PROGRAMS.mToken} and ${PROGRAMS.wmToken}`
-      );
+      console.log(`EVM addresses set: ${PROGRAMS.mToken} and ${PROGRAMS.wmToken}`);
     });
 
   program
-    .command("update-lut")
-    .description("Initialize or update the LUT for the portal program")
+    .command('update-lut')
+    .description('Initialize or update the LUT for the portal program')
     .action(async () => {
-      const connection = new Connection(process.env.RPC_URL);
-      const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
 
-      const { ctx, ntt, signer } = NttManager(
-        connection,
-        owner,
-        mint.publicKey
-      );
+      const { ctx, ntt, signer } = NttManager(connection, owner, mint.publicKey);
 
       const lutTxn = ntt.initializeOrUpdateLUT({ payer: owner.publicKey });
       await signSendWait(ctx, lutTxn, signer);
-      console.log("LUT updated");
+      console.log('LUT updated');
     });
 
   program
-    .command("register-peers")
-    .description("Initialize or update the LUT for the portal program")
+    .command('register-peers')
+    .description('Initialize or update the LUT for the portal program')
     .action(async () => {
-      const connection = new Connection(process.env.RPC_URL);
-      const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
 
-      const { ctx, ntt, signer, sender } = NttManager(
-        connection,
-        owner,
-        mint.publicKey
-      );
+      const { ctx, ntt, signer, sender } = NttManager(connection, owner, mint.publicKey);
 
       // register wormhole xcvr
       const registerTxs = ntt.registerWormholeTransceiver({
@@ -242,9 +183,9 @@ async function main() {
       await signSendWait(ctx, registerTxs, signer);
 
       const chains = (
-        process.env.NETWORK === "mainnet"
-          ? ["Ethereum", "Arbitrum", "Optimism"]
-          : ["Sepolia", "ArbitrumSepolia", "OptimismSepolia"]
+        process.env.NETWORK === 'mainnet'
+          ? ['Ethereum', 'Arbitrum', 'Optimism']
+          : ['Sepolia', 'ArbitrumSepolia', 'OptimismSepolia']
       ) as Chain[];
 
       for (let chain of chains) {
@@ -256,10 +197,7 @@ async function main() {
           chain,
           address: new UniversalAddress(PROGRAMS.evmTransiever),
         };
-        const setXcvrPeerTxs = ntt.setWormholeTransceiverPeer(
-          remoteXcvr,
-          sender
-        );
+        const setXcvrPeerTxs = ntt.setWormholeTransceiverPeer(remoteXcvr, sender);
         await signSendWait(ctx, setXcvrPeerTxs, signer);
 
         // set manager peer
@@ -267,77 +205,46 @@ async function main() {
           chain,
           address: new UniversalAddress(PROGRAMS.evmPeer),
         };
-        const setPeerTxs = ntt.setPeer(
-          remoteMgr,
-          9,
-          RATE_LIMITS_24.inbound,
-          sender
-        );
+        const setPeerTxs = ntt.setPeer(remoteMgr, 9, RATE_LIMITS_24.inbound, sender);
         await signSendWait(ctx, setPeerTxs, signer);
       }
 
-      console.log("Transceiver and peers registered");
+      console.log('Transceiver and peers registered');
     });
 
   program
-    .command("add-registrar-earner")
-    .description("Add earner that is in the earner merkle tree")
-    .argument("<earner>", "The earner to add")
+    .command('add-registrar-earner')
+    .description('Add earner that is in the earner merkle tree')
+    .argument('<earner>', 'The earner to add')
     .action(async (earnerAddress: string) => {
-      const connection = new Connection(process.env.RPC_URL);
-      const [owner, mint] = keysFromEnv(["OWNER_KEYPAIR", "MINT_KEYPAIR"]);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
       const earner = new PublicKey(earnerAddress);
 
       // assumes ata is being used as the token account
-      const earnerATA = getAssociatedTokenAddressSync(
-        mint.publicKey,
-        earner,
-        true,
-        TOKEN_2022_PROGRAM_ID
-      );
+      const earnerATA = getAssociatedTokenAddressSync(mint.publicKey, earner, true, TOKEN_2022_PROGRAM_ID);
 
-      const earn = new Program<Earn>(
-        EARN_IDL,
-        PROGRAMS.earn,
-        anchorProvider(connection, owner)
-      );
+      const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
 
       // PDAs
-      const [globalAccount] = PublicKey.findProgramAddressSync(
-        [Buffer.from("global")],
-        PROGRAMS.earn
-      );
+      const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
       const [earnerAccount] = PublicKey.findProgramAddressSync(
-        [Buffer.from("earner"), earnerATA.toBuffer()],
-        PROGRAMS.earn
+        [Buffer.from('earner'), earnerATA.toBuffer()],
+        PROGRAMS.earn,
       );
 
       // fetch registrar earners from mainnet
-      const web3 = new Web3(
-        new Web3.providers.HttpProvider(process.env.ETH_SEPOLIA_RPC)
-      );
-      web3.eth.accounts.wallet.add(process.env.EVM_KEY);
-      const merkleContract = getMerkleContract();
-
-      const earnersResult = await merkleContract.methods
-        .getList(REGISTRAR_LISTS.earners)
-        .call();
-
-      const earners = (earnersResult as string[]).map(
-        (a: string) => new PublicKey(Buffer.from(a.slice(2), "hex"))
-      );
+      const evmCaller = new EvmCaller(process.env.ETH_SEPOLIA_RPC ?? '');
+      const earners = await evmCaller.getList('earners');
 
       console.log(`earners on registrar: ${earners.map((e) => e.toBase58())}`);
 
       // validate root
       const global = await earn.account.global.fetch(globalAccount);
-      const rootResult: string = await merkleContract.methods
-        .getRoot(REGISTRAR_LISTS.earners)
-        .call();
+      const expectedRoot = await evmCaller.getMerkleRoot('earners');
 
-      const root = "0x" + Buffer.from(global.earnerMerkleRoot).toString("hex");
-      if (root !== rootResult) {
-        throw new Error(`Root mismatch: expected ${rootResult}, got ${root}`);
+      const root = '0x' + Buffer.from(global.earnerMerkleRoot).toString('hex');
+      if (root !== expectedRoot) {
+        throw new Error(`Root mismatch: expected ${expectedRoot}, got ${root}`);
       }
 
       const tree = new MerkleTree(earners);
@@ -363,24 +270,19 @@ async function main() {
 
 function anchorProvider(connection: Connection, owner: Keypair) {
   return new AnchorProvider(connection, new Wallet(owner), {
-    commitment: "confirmed",
+    commitment: 'confirmed',
     skipPreflight: false,
   });
 }
 
-async function createToken2022Mint(
-  connection: Connection,
-  owner: Keypair,
-  mint: Keypair,
-  multisig: PublicKey
-) {
+async function createToken2022Mint(connection: Connection, owner: Keypair, mint: Keypair, multisig: PublicKey) {
   const metaData: TokenMetadata = {
     updateAuthority: owner.publicKey,
     mint: mint.publicKey,
-    name: "M by M^0",
-    symbol: "M",
-    uri: "https://assets.coingecko.com/coins/images/40048/large/M_Symbol_256.png",
-    additionalMetadata: [["evm", "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b"]],
+    name: 'M by M^0',
+    symbol: 'M',
+    uri: 'https://assets.coingecko.com/coins/images/40048/large/M_Symbol_256.png',
+    additionalMetadata: [['evm', '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b']],
   };
 
   // mint size with extensions
@@ -391,9 +293,7 @@ async function createToken2022Mint(
     ExtensionType.MetadataPointer,
     ExtensionType.ConfidentialTransferMint,
   ]);
-  const lamports = await connection.getMinimumBalanceForRentExemption(
-    mintLen + metadataExtension + metadataLen
-  );
+  const lamports = await connection.getMinimumBalanceForRentExemption(mintLen + metadataExtension + metadataLen);
 
   const instructions = [
     SystemProgram.createAccount({
@@ -403,29 +303,20 @@ async function createToken2022Mint(
       lamports,
       programId: TOKEN_2022_PROGRAM_ID,
     }),
-    createInitializeMetadataPointerInstruction(
-      mint.publicKey,
-      owner.publicKey,
-      mint.publicKey,
-      TOKEN_2022_PROGRAM_ID
-    ),
+    createInitializeMetadataPointerInstruction(mint.publicKey, owner.publicKey, mint.publicKey, TOKEN_2022_PROGRAM_ID),
     createInitializeTransferHookInstruction(
       mint.publicKey,
       owner.publicKey, // authority
       PublicKey.default, // no transfer hook
-      TOKEN_2022_PROGRAM_ID
+      TOKEN_2022_PROGRAM_ID,
     ),
-    createInitializeConfidentialTransferMintInstruction(
-      mint.publicKey,
-      owner.publicKey,
-      false
-    ),
+    createInitializeConfidentialTransferMintInstruction(mint.publicKey, owner.publicKey, false),
     createInitializeMintInstruction(
       mint.publicKey,
       6,
       owner.publicKey,
       null, // no freeze authority
-      TOKEN_2022_PROGRAM_ID
+      TOKEN_2022_PROGRAM_ID,
     ),
     createInitializeInstruction({
       programId: TOKEN_2022_PROGRAM_ID,
@@ -450,7 +341,7 @@ async function createToken2022Mint(
       AuthorityType.MintTokens,
       multisig,
       undefined,
-      TOKEN_2022_PROGRAM_ID
+      TOKEN_2022_PROGRAM_ID,
     ),
   ];
 
