@@ -1,12 +1,12 @@
-// earn/instructions/admin/set_earn_authority.rs
+// ext_earn/instructions/admin/set_earn_authority.rs
 
 // external dependencies
 use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    errors::EarnError,
-    state::{Global, GLOBAL_SEED},
+    errors::ExtError,
+    state::{ExtGlobal, EXT_GLOBAL_SEED},
 };
 
 #[derive(Accounts)]
@@ -15,11 +15,11 @@ pub struct SetEarnAuthority<'info> {
 
     #[account(
         mut,
-        seeds = [GLOBAL_SEED],
-        has_one = admin @ EarnError::NotAuthorized,
+        seeds = [EXT_GLOBAL_SEED],
+        has_one = admin @ ExtError::NotAuthorized,
         bump = global_account.bump,
     )]
-    pub global_account: Account<'info, Global>,
+    pub global_account: Account<'info, ExtGlobal>,
 }
 
 pub fn handler(ctx: Context<SetEarnAuthority>, new_earn_authority: Pubkey) -> Result<()> {
