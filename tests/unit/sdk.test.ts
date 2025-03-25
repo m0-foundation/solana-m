@@ -21,8 +21,6 @@ import { Earn } from '../../target/types/earn';
 const EARN_IDL = require('../../target/idl/earn.json');
 
 describe('SDK unit tests', () => {
-  mockSubgraph();
-
   const signer = loadKeypair('tests/keys/user.json');
   const mint = loadKeypair('tests/keys/mint.json');
   const multisig = Keypair.generate();
@@ -41,8 +39,8 @@ describe('SDK unit tests', () => {
   const earnerC = Keypair.generate();
   let earnerAccountA: PublicKey, earnerAccountB: PublicKey;
 
+  mockSubgraph(earnerA.publicKey, signer.publicKey);
   const connection = new Connection('http://localhost:8899', 'processed');
-
   const provider = new AnchorProvider(connection, new Wallet(signer), { commitment: 'processed' });
 
   // anchor client for setting up the earn program
@@ -382,7 +380,7 @@ describe('SDK unit tests', () => {
 
   describe('earn manager', () => {
     test('configure', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey, 'https://sepolia.dummy.com');
 
       const dummyATA = spl.getAssociatedTokenAddressSync(
         mint.publicKey,
@@ -399,7 +397,7 @@ describe('SDK unit tests', () => {
     });
 
     test('add earner', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey, 'https://sepolia.dummy.com');
 
       const earnerATA = spl.getAssociatedTokenAddressSync(
         mint.publicKey,
@@ -418,9 +416,9 @@ describe('SDK unit tests', () => {
 });
 
 /*
- * Mock subgraph data for testing
+ * Mock subgraph and rpc data for testing
  */
-function mockSubgraph() {
+function mockSubgraph(earnerA: PublicKey, manager: PublicKey) {
   nock('https://api.studio.thegraph.com')
     .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getTokenAccounts')
     .reply(200, {
@@ -478,6 +476,35 @@ function mockSubgraph() {
           ],
         },
       },
+    })
+    .persist();
+
+  const earner = earnerA.toBuffer().toString('hex');
+  const managerHex = manager.toBuffer().toString('hex');
+
+  // getList (earners)
+  nock('https://sepolia.dummy.com')
+    .post(
+      '/',
+      (body) => body.params?.[0].data === '0x2d229202736f6c616e612d6561726e657273000000000000000000000000000000000000',
+    )
+    .reply(200, {
+      id: 13,
+      jsonrpc: '2.0',
+      result: `0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001${earner}`,
+    })
+    .persist();
+
+  // getList (managers)
+  nock('https://sepolia.dummy.com')
+    .post(
+      '/',
+      (body) => body.params?.[0].data === '0x2d229202736f6c616e612d6561726e2d6d616e6167657273000000000000000000000000',
+    )
+    .reply(200, {
+      id: 13,
+      jsonrpc: '2.0',
+      result: `0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001${managerHex}`,
     })
     .persist();
 }
