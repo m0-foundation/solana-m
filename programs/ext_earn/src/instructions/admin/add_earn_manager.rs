@@ -21,12 +21,12 @@ pub struct AddEarnManager<'info> {
     #[account(
         seeds = [EXT_GLOBAL_SEED],
         bump = global_account.bump,
-        has_one = admin,
+        has_one = admin @ ExtError::NotAuthorized,
     )]
     pub global_account: Account<'info, ExtGlobal>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = admin,
         space = ANCHOR_DISCRIMINATOR_SIZE + EarnManager::INIT_SPACE,
         seeds = [EARN_MANAGER_SEED, earn_manager.as_ref()],
