@@ -8,26 +8,19 @@ import {
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import * as spl from '@solana/spl-token';
-import { MINT, PROGRAM_ID } from '.';
+import { GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { earnManagerDecoder } from './accounts';
 import { b58, deriveDiscriminator } from './utils';
-import {
-  fixEncoderSize,
-  getArrayEncoder,
-  getBooleanEncoder,
-  getBytesEncoder,
-  getStructEncoder,
-  getU32Codec,
-  getU64Encoder,
-  ReadonlyUint8Array,
-  VariableSizeEncoder,
-} from '@solana/codecs';
 import { MerkleTree } from './merkle';
 import { EvmCaller } from './evm_caller';
+import { Program } from '@coral-xyz/anchor';
+import { getProgram } from './idl';
+import { Earn } from './idl/earn';
 
 export class EarnManager {
   private connection: Connection;
+  private program: Program<Earn>;
   evmRPC: string | undefined;
 
   manager: PublicKey;
@@ -38,10 +31,12 @@ export class EarnManager {
 
   private constructor(connection: Connection, manager: PublicKey, pubkey: PublicKey, data: Buffer, evmRPC?: string) {
     this.connection = connection;
+    this.program = getProgram(connection);
     this.evmRPC = evmRPC;
     this.manager = manager;
     this.pubkey = pubkey;
 
+    // decode account data
     const values = earnManagerDecoder.decode(data);
     this.isActive = values.isActive;
     this.feeBps = new BN(values.feeBps.toString()).toNumber();
@@ -64,7 +59,7 @@ export class EarnManager {
     Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.manager, this.evmRPC));
   }
 
-  async buildConfigureInstruction(feeBPS: bigint, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
+  async buildConfigureInstruction(feeBPS: number, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
     if (!this.evmRPC) {
       throw new Error('evmRPC is required to configure earn manager');
     }
@@ -75,21 +70,23 @@ export class EarnManager {
     const tree = new MerkleTree(mangagers);
     const { proof } = tree.getInclusionProof(this.manager);
 
-    // encode instruction data
-    const data = getConfigureEncoder().encode({
-      disciminator: deriveDiscriminator('configure_earn_manager', 'global'),
-      feeBPS,
-      proof: proof.map(({ node, onRight }) => ({ node: Buffer.from(node), onRight })),
-    });
+    const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('earn-manager'), this.manager.toBytes()],
+      PROGRAM_ID,
+    );
 
-    return new TransactionInstruction({
-      programId: PROGRAM_ID,
-      keys: this._getConfigureAccounts(feeTokenAccount),
-      data: Buffer.from(data),
-    });
+    return this.program.methods
+      .configureEarnManager(new BN(feeBPS), proof)
+      .accounts({
+        signer: this.manager,
+        globalAccount: GLOBAL_ACCOUNT,
+        earnManagerAccount,
+        feeTokenAccount,
+      })
+      .instruction();
   }
 
-  async buildAddEarnerInstruction(user: PublicKey, tokenAccount?: PublicKey): Promise<TransactionInstruction> {
+  async buildAddEarnerInstruction(user: PublicKey, userTokenAccount?: PublicKey): Promise<TransactionInstruction> {
     if (!this.evmRPC) {
       throw new Error('evmRPC is required to configure earn manager');
     }
@@ -100,24 +97,31 @@ export class EarnManager {
     const tree = new MerkleTree(earners);
     const { proofs, neighbors } = tree.getExclusionProof(user);
 
-    // encode instruction data
-    const data = getAddEarnerEncoder().encode({
-      disciminator: deriveDiscriminator('add_earner', 'global'),
-      user: user.toBuffer(),
-      proofs: proofs.map((p) => p.map(({ node, onRight }) => ({ node: Buffer.from(node), onRight }))),
-      neighbors: neighbors.map((n) => Buffer.from(n)),
-    });
-
     // derive ata if token account not provided
-    if (!tokenAccount) {
-      tokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
+    if (!userTokenAccount) {
+      userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
     }
 
-    return new TransactionInstruction({
-      programId: PROGRAM_ID,
-      keys: this._getAddEarnerAccounts(tokenAccount),
-      data: Buffer.from(data),
-    });
+    // PDAs
+    const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('earn-manager'), this.manager.toBytes()],
+      PROGRAM_ID,
+    );
+    const [earnerAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('earner'), userTokenAccount.toBytes()],
+      PROGRAM_ID,
+    );
+
+    return await this.program.methods
+      .addEarner(user, proofs, neighbors)
+      .accounts({
+        signer: this.manager,
+        globalAccount: GLOBAL_ACCOUNT,
+        earnManagerAccount,
+        userTokenAccount,
+        earnerAccount,
+      })
+      .instruction();
   }
 
   async getEarners(): Promise<Earner[]> {
@@ -130,146 +134,4 @@ export class EarnManager {
 
     return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data));
   }
-
-  private _getAddEarnerAccounts(tokenAccount: PublicKey): AccountMeta[] {
-    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
-
-    const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earn-manager'), this.manager.toBytes()],
-      PROGRAM_ID,
-    );
-    const [earnerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earner'), tokenAccount.toBytes()],
-      PROGRAM_ID,
-    );
-
-    return [
-      {
-        pubkey: this.manager,
-        isWritable: true,
-        isSigner: true,
-      },
-      {
-        pubkey: earnManagerAccount,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: globalAccount,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: tokenAccount,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: earnerAccount,
-        isWritable: true,
-        isSigner: false,
-      },
-      {
-        pubkey: SystemProgram.programId,
-        isWritable: false,
-        isSigner: false,
-      },
-    ];
-  }
-
-  private _getConfigureAccounts(feeTokenAccount: PublicKey): AccountMeta[] {
-    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
-
-    const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earn-manager'), this.manager.toBytes()],
-      PROGRAM_ID,
-    );
-
-    return [
-      {
-        pubkey: this.manager,
-        isWritable: true,
-        isSigner: true,
-      },
-      {
-        pubkey: globalAccount,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: earnManagerAccount,
-        isWritable: true,
-        isSigner: false,
-      },
-      {
-        pubkey: feeTokenAccount,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: SystemProgram.programId,
-        isWritable: false,
-        isSigner: false,
-      },
-    ];
-  }
-}
-
-interface AddEarnerData {
-  disciminator: ReadonlyUint8Array;
-  user: ReadonlyUint8Array;
-  proofs: {
-    node: ReadonlyUint8Array;
-    onRight: boolean;
-  }[][];
-  neighbors: ReadonlyUint8Array[];
-}
-
-function getAddEarnerEncoder(): VariableSizeEncoder<AddEarnerData> {
-  const encoder: VariableSizeEncoder<AddEarnerData> = getStructEncoder([
-    ['disciminator', fixEncoderSize(getBytesEncoder(), 8)],
-    ['user', fixEncoderSize(getBytesEncoder(), 32)],
-    [
-      'proofs',
-      getArrayEncoder(
-        getArrayEncoder(
-          getStructEncoder([
-            ['node', fixEncoderSize(getBytesEncoder(), 32)],
-            ['onRight', getBooleanEncoder()],
-          ]),
-          { size: getU32Codec() },
-        ),
-        { size: getU32Codec() },
-      ),
-    ],
-    ['neighbors', getArrayEncoder(fixEncoderSize(getBytesEncoder(), 32), { size: getU32Codec() })],
-  ]);
-  return encoder;
-}
-
-interface ConfigureManagerData {
-  disciminator: ReadonlyUint8Array;
-  feeBPS: bigint;
-  proof: {
-    node: ReadonlyUint8Array;
-    onRight: boolean;
-  }[];
-}
-
-function getConfigureEncoder(): VariableSizeEncoder<ConfigureManagerData> {
-  const encoder: VariableSizeEncoder<ConfigureManagerData> = getStructEncoder([
-    ['disciminator', fixEncoderSize(getBytesEncoder(), 8)],
-    ['feeBPS', getU64Encoder()],
-    [
-      'proof',
-      getArrayEncoder(
-        getStructEncoder([
-          ['node', fixEncoderSize(getBytesEncoder(), 32)],
-          ['onRight', getBooleanEncoder()],
-        ]),
-        { size: getU32Codec() },
-      ),
-    ],
-  ]);
-  return encoder;
 }

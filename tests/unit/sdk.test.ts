@@ -259,12 +259,12 @@ describe('SDK unit tests', () => {
       const eA = Earner.fromAccountData(connection, earnerAccountA, dataA);
       expect(eA.earnManager).toBeNull();
       expect(eA.recipientTokenAccount).toBeDefined();
-      expect(eA.recipientTokenAccount.toBase58()).toBe(eA.userTokenAccount.toBase58());
+      expect(eA.recipientTokenAccount?.toBase58()).toBe(eA.userTokenAccount.toBase58());
       expect(eA.isEarning).toBeTruthy();
 
       const eB = Earner.fromAccountData(connection, earnerAccountB, dataB);
       expect(eB.earnManager).toBeDefined();
-      expect(eB.earnManager.toBase58()).toBe(signer.publicKey.toBase58());
+      expect(eB.earnManager?.toBase58()).toBe(signer.publicKey.toBase58());
       expect(eB.isEarning).toBeTruthy();
     });
   });
@@ -391,7 +391,7 @@ describe('SDK unit tests', () => {
         spl.TOKEN_2022_PROGRAM_ID,
       );
 
-      const ix = await manager.buildConfigureInstruction(15n, dummyATA);
+      const ix = await manager.buildConfigureInstruction(15, dummyATA);
       await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
       await manager.refresh();
 
@@ -412,7 +412,7 @@ describe('SDK unit tests', () => {
       await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
 
       const earner = await Earner.fromTokenAccount(connection, earnerATA);
-      expect(earner.earnManager.toBase58()).toEqual(manager.manager.toBase58());
+      expect(earner.earnManager?.toBase58()).toEqual(manager.manager.toBase58());
     });
   });
 });

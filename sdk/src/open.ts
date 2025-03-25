@@ -1,35 +1,22 @@
-import {
-  AccountMeta,
-  Connection,
-  GetProgramAccountsFilter,
-  PublicKey,
-  SystemProgram,
-  TransactionInstruction,
-} from '@solana/web3.js';
+import { Connection, GetProgramAccountsFilter, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { EvmCaller } from './evm_caller';
 import { Earner } from './earner';
 import { MINT, PROGRAM_ID } from '.';
 import { MerkleTree } from './merkle';
 import { b58, deriveDiscriminator } from './utils';
-import { address, Address, getAddressEncoder } from '@solana/addresses';
-import {
-  ReadonlyUint8Array,
-  VariableSizeEncoder,
-  getStructEncoder,
-  fixEncoderSize,
-  getBytesEncoder,
-  getArrayEncoder,
-  getBooleanEncoder,
-  getU32Codec,
-} from '@solana/codecs';
 import * as spl from '@solana/spl-token';
+import { Program } from '@coral-xyz/anchor';
+import { getProgram } from './idl';
+import { Earn } from './idl/earn';
 
-class Open {
+export class Open {
   private connection: Connection;
+  private program: Program<Earn>;
   evmRPC: string;
 
   private constructor(connection: Connection, evmRPC: string) {
     this.connection = connection;
+    this.program = getProgram(connection);
     this.evmRPC = evmRPC;
   }
 
@@ -45,26 +32,30 @@ class Open {
         continue;
       }
 
+      // derive token account for user
+      const userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
+
       // build proof
       const tree = new MerkleTree(earners);
       const { proof } = tree.getInclusionProof(user);
 
-      // encode instruction data
-      const data = getAddRegistrarEarnerEncoder().encode({
-        disciminator: deriveDiscriminator('add_registrar_earner', 'global'),
-        user: address(user.toBase58()),
-        proof: proof.map(({ node, onRight }) => ({ node: Buffer.from(node), onRight })),
-      });
-
-      // derive ata if token account
-      const tokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
+      // PDAs
+      const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
+      const [earnerAccount] = PublicKey.findProgramAddressSync(
+        [Buffer.from('earner'), userTokenAccount.toBytes()],
+        PROGRAM_ID,
+      );
 
       ixs.push(
-        new TransactionInstruction({
-          programId: PROGRAM_ID,
-          keys: this._getAddEarnerAccounts(signer, tokenAccount),
-          data: Buffer.from(data),
-        }),
+        await this.program.methods
+          .addRegistrarEarner(user, proof)
+          .accounts({
+            signer: signer,
+            globalAccount,
+            userTokenAccount,
+            earnerAccount,
+          })
+          .instruction(),
       );
     }
 
@@ -98,78 +89,4 @@ class Open {
     const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
     return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data));
   }
-
-  private _getAddEarnerAccounts(signer: PublicKey, tokenAccount: PublicKey): AccountMeta[] {
-    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
-
-    const [earnerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earner'), tokenAccount.toBytes()],
-      PROGRAM_ID,
-    );
-
-    return [
-      {
-        pubkey: signer,
-        isWritable: true,
-        isSigner: true,
-      },
-      {
-        pubkey: globalAccount,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: tokenAccount,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: earnerAccount,
-        isWritable: true,
-        isSigner: false,
-      },
-      {
-        pubkey: SystemProgram.programId,
-        isWritable: false,
-        isSigner: false,
-      },
-    ];
-  }
-}
-
-interface AddRegistrarEarnerData {
-  disciminator: ReadonlyUint8Array;
-  user: Address;
-  proof: {
-    node: ReadonlyUint8Array;
-    onRight: boolean;
-  }[];
-}
-
-function getAddRegistrarEarnerEncoder(): VariableSizeEncoder<AddRegistrarEarnerData> {
-  const encoder: VariableSizeEncoder<AddRegistrarEarnerData> = getStructEncoder([
-    ['disciminator', fixEncoderSize(getBytesEncoder(), 8)],
-    ['user', getAddressEncoder()],
-    [
-      'proof',
-      getArrayEncoder(
-        getStructEncoder([
-          ['node', fixEncoderSize(getBytesEncoder(), 32)],
-          ['onRight', getBooleanEncoder()],
-        ]),
-        { size: getU32Codec() },
-      ),
-    ],
-  ]);
-  return encoder;
-}
-
-interface AddEarnerData {
-  disciminator: ReadonlyUint8Array;
-  user: ReadonlyUint8Array;
-  proofs: {
-    node: ReadonlyUint8Array;
-    onRight: boolean;
-  }[][];
-  neighbors: ReadonlyUint8Array[];
 }
