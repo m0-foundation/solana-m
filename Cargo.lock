@@ -1131,7 +1131,6 @@ dependencies = [
  "anchor-spl",
  "cfg-if",
  "earn",
- "solana-program",
  "spl-token-2022 3.0.2",
 ]
 

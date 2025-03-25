@@ -1,4 +1,4 @@
-// ext_earn/instructions/admin/remove_orphaned_earner.rs
+// ext_earn/instructions/open/remove_orphaned_earner.rs
 
 use anchor_lang::prelude::*;
 
@@ -13,18 +13,17 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct RemoveOrphanedEarner<'info> {
-    pub admin: Signer<'info>,
+    pub signer: Signer<'info>,
 
     #[account(
         seeds = [EXT_GLOBAL_SEED],
         bump = global_account.bump,
-        has_one = admin,
     )]
     pub global_account: Account<'info, ExtGlobal>,
 
     #[account(
         mut,
-        close = admin,
+        close = signer,
         seeds = [EARNER_SEED, earner_account.user.as_ref()],
         bump = earner_account.bump,
     )]

@@ -47,10 +47,6 @@ pub mod ext_earn {
         instructions::admin::remove_earn_manager::handler(ctx)
     }
 
-    pub fn remove_orphaned_earner(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
-        instructions::admin::remove_orphaned_earner::handler(ctx)
-    }
-
     // Earn authority instructions
 
     pub fn claim_for(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
@@ -99,5 +95,9 @@ pub mod ext_earn {
 
     pub fn unwrap(ctx: Context<Unwrap>, amount: u64) -> Result<()> {
         instructions::open::unwrap::handler(ctx, amount)
+    }
+    
+    pub fn remove_orphaned_earner(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
+        instructions::open::remove_orphaned_earner::handler(ctx)
     }
 }
