@@ -2,9 +2,12 @@
 
 use anchor_lang::prelude::*;
 
-use crate::state::{
-    ExtGlobal, EXT_GLOBAL_SEED,
-    EarnManager, EARN_MANAGER_SEED,
+use crate::{
+    errors::ExtError,
+    state::{
+        ExtGlobal, EXT_GLOBAL_SEED,
+        EarnManager, EARN_MANAGER_SEED,
+    }
 };
 
 #[derive(Accounts)]
@@ -14,6 +17,7 @@ pub struct RemoveEarnManager<'info> {
     #[account(
         seeds = [EXT_GLOBAL_SEED],
         bump = global_account.bump,
+        has_one = admin @ ExtError::NotAuthorized,
     )]
     pub global_account: Account<'info, ExtGlobal>,
 
