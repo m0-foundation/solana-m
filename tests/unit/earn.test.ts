@@ -2924,7 +2924,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnManagerOne])
           .rpc(),
-        "ImmutableOwner"
+        "MutableOwner"
       );
     });
 
