@@ -1,8 +1,9 @@
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, GetProgramAccountsFilter, PublicKey } from '@solana/web3.js';
 import { isSome } from '@solana/codecs';
 import { PROGRAM_ID } from '.';
 import { earnerDecoder } from './accounts';
 import { Claim, Graph } from './graph';
+import { b58, deriveDiscriminator } from './utils';
 
 export class Earner {
   private connection: Connection;
@@ -47,6 +48,15 @@ export class Earner {
     const account = await connection.getAccountInfo(earnerAccount);
     if (!account) throw new Error(`Unable to find Earner account for Account ${tokenAccount}`);
     return new Earner(connection, earnerAccount, account.data);
+  }
+
+  static async fromUserAddress(connection: Connection, user: PublicKey): Promise<Earner[]> {
+    const filters: GetProgramAccountsFilter[] = [
+      { memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } },
+      { memcmp: { offset: 92, bytes: user.toBase58() } },
+    ];
+    const accounts = await connection.getProgramAccounts(PROGRAM_ID, { filters });
+    return accounts.map(({ account, pubkey }) => Earner.fromAccountData(connection, pubkey, account.data));
   }
 
   static fromAccountData(connection: Connection, pubkey: PublicKey, data: Buffer): Earner {

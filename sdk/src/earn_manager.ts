@@ -19,7 +19,6 @@ import {
   getBytesEncoder,
   getStructEncoder,
   getU32Codec,
-  getU64Decoder,
   getU64Encoder,
   ReadonlyUint8Array,
   VariableSizeEncoder,
@@ -29,15 +28,15 @@ import { EvmCaller } from './evm_caller';
 
 export class EarnManager {
   private connection: Connection;
+  evmRPC: string | undefined;
 
   manager: PublicKey;
   pubkey: PublicKey;
   isActive: boolean;
   feeBps: number;
   feeTokenAccount: PublicKey;
-  evmRPC: string;
 
-  private constructor(connection: Connection, evmRPC: string, manager: PublicKey, pubkey: PublicKey, data: Buffer) {
+  private constructor(connection: Connection, manager: PublicKey, pubkey: PublicKey, data: Buffer, evmRPC?: string) {
     this.connection = connection;
     this.evmRPC = evmRPC;
     this.manager = manager;
@@ -49,7 +48,7 @@ export class EarnManager {
     this.feeTokenAccount = new PublicKey(values.feeTokenAccount);
   }
 
-  static async fromManagerAddress(connection: Connection, evmRPC: string, manager: PublicKey): Promise<EarnManager> {
+  static async fromManagerAddress(connection: Connection, manager: PublicKey, evmRPC?: string): Promise<EarnManager> {
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earn-manager'), manager.toBytes()],
       PROGRAM_ID,
@@ -58,14 +57,18 @@ export class EarnManager {
     const account = await connection.getAccountInfo(earnManagerAccount);
     if (!account) throw new Error(`Unable to find EarnManager account at ${earnManagerAccount}`);
 
-    return new EarnManager(connection, evmRPC, manager, earnManagerAccount, account.data);
+    return new EarnManager(connection, manager, earnManagerAccount, account.data, evmRPC);
   }
 
   async refresh() {
-    Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.evmRPC, this.manager));
+    Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.manager, this.evmRPC));
   }
 
   async buildConfigureInstruction(feeBPS: bigint, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
+    if (!this.evmRPC) {
+      throw new Error('evmRPC is required to configure earn manager');
+    }
+
     // get all earn managers for proof
     const evmCaller = new EvmCaller(this.evmRPC);
     const mangagers = await evmCaller.getManagers();
@@ -87,6 +90,10 @@ export class EarnManager {
   }
 
   async buildAddEarnerInstruction(user: PublicKey, tokenAccount?: PublicKey): Promise<TransactionInstruction> {
+    if (!this.evmRPC) {
+      throw new Error('evmRPC is required to configure earn manager');
+    }
+
     // get all registrar earners for proof
     const evmCaller = new EvmCaller(this.evmRPC);
     const earners = await evmCaller.getEarners();
