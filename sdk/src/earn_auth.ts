@@ -2,27 +2,31 @@ import {
   Connection,
   TransactionInstruction,
   PublicKey,
-  AccountMeta,
   Transaction,
   VersionedTransaction,
   Keypair,
 } from '@solana/web3.js';
-import { PROGRAM_ID, TOKEN_2022_ID } from '.';
+import { GLOBAL_ACCOUNT, PROGRAM_ID, TOKEN_2022_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
 import { EarnManager } from './earn_manager';
 import { b58, deriveDiscriminator } from './utils';
 import { GlobalAccountData, globalDecoder } from './accounts';
 import * as spl from '@solana/spl-token';
+import { BN, Program } from '@coral-xyz/anchor';
+import { getProgram } from './idl';
+import { Earn } from './idl/earn';
 
 class EarnAuthority {
   private connection: Connection;
+  private program: Program<Earn>;
   private global: GlobalAccountData;
   private managerCache: Map<PublicKey, EarnManager> = new Map();
   private mintMultisig: PublicKey;
 
   private constructor(connection: Connection, global: GlobalAccountData, mintMultisig: PublicKey) {
     this.connection = connection;
+    this.program = getProgram(connection);
     this.global = global;
     this.mintMultisig = mintMultisig;
   }
@@ -60,22 +64,13 @@ class EarnAuthority {
       throw new Error('No active claim cycle');
     }
 
-    return new TransactionInstruction({
-      programId: PROGRAM_ID,
-      keys: [
-        {
-          pubkey: new PublicKey(this.global.earnAuthority),
-          isWritable: false,
-          isSigner: true,
-        },
-        {
-          pubkey: PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID)[0],
-          isWritable: true,
-          isSigner: false,
-        },
-      ],
-      data: deriveDiscriminator('complete_claims', 'global'),
-    });
+    return await this.program.methods
+      .completeClaims()
+      .accounts({
+        earnAuthority: new PublicKey(this.global.earnAuthority),
+        globalAccount: PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID)[0],
+      })
+      .instruction();
   }
 
   async buildClaimInstruction(earner: Earner): Promise<TransactionInstruction> {
@@ -89,30 +84,48 @@ class EarnAuthority {
       this.global.timestamp,
     );
 
-    // instruction data
-    const discriminator = deriveDiscriminator('claim_for', 'global');
-    const data = Buffer.alloc(discriminator.length + 8);
-    discriminator.copy(data);
-    data.writeBigUInt64LE(weightedBalance, 8);
-
-    let keys = this._getClaimForAccounts(earner.userTokenAccount);
-
     // earner might have a manager
+    let earnManagerAccount: PublicKey | null = null;
+    let earnManagerTokenAccount: PublicKey | null = null;
+
     if (earner.earnManager) {
       let manager = this.managerCache.get(earner.earnManager);
       if (!manager) {
         manager = await EarnManager.fromManagerAddress(this.connection, earner.earnManager);
         this.managerCache.set(earner.earnManager, manager);
       }
-
-      keys = this._getClaimForAccounts(earner.userTokenAccount, earner.earnManager, manager.feeTokenAccount);
+      earnManagerAccount = earner.earnManager;
+      earnManagerTokenAccount = manager.feeTokenAccount;
     }
 
-    return new TransactionInstruction({
-      programId: PROGRAM_ID,
-      keys,
-      data,
-    });
+    // PDAs
+    const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
+    const [earnerAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from('earner'), earner.userTokenAccount.toBuffer()],
+      PROGRAM_ID,
+    );
+    if (earnManagerAccount) {
+      earnManagerAccount = PublicKey.findProgramAddressSync(
+        [Buffer.from('earn-manager'), earnManagerAccount.toBytes()],
+        PROGRAM_ID,
+      )[0];
+    }
+
+    return this.program.methods
+      .claimFor(new BN(weightedBalance.toString()))
+      .accounts({
+        earnAuthority: new PublicKey(this.global.earnAuthority),
+        globalAccount: GLOBAL_ACCOUNT,
+        mint: new PublicKey(this.global.mint),
+        tokenAuthorityAccount,
+        userTokenAccount: earner.userTokenAccount,
+        earnerAccount,
+        tokenProgram: spl.TOKEN_2022_PROGRAM_ID,
+        mintMultisig: this.mintMultisig,
+        earnManagerAccount,
+        earnManagerTokenAccount,
+      })
+      .instruction();
   }
 
   async sendClaimInstructions(
@@ -196,80 +209,6 @@ class EarnAuthority {
     }
 
     return rewards;
-  }
-
-  private _getClaimForAccounts(
-    userTokenAccount: PublicKey,
-    earnManagerAccount?: PublicKey,
-    earnManagerTokenAccount?: PublicKey,
-  ): AccountMeta[] {
-    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
-    const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
-
-    const [earnerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earner'), userTokenAccount.toBuffer()],
-      PROGRAM_ID,
-    );
-
-    if (earnManagerAccount) {
-      earnManagerAccount = PublicKey.findProgramAddressSync(
-        [Buffer.from('earn-manager'), earnManagerAccount.toBytes()],
-        PROGRAM_ID,
-      )[0];
-    }
-
-    return [
-      {
-        pubkey: new PublicKey(this.global.earnAuthority),
-        isWritable: false,
-        isSigner: true,
-      },
-      {
-        pubkey: globalAccount,
-        isWritable: true,
-        isSigner: false,
-      },
-      {
-        pubkey: new PublicKey(this.global.mint),
-        isWritable: true,
-        isSigner: false,
-      },
-      {
-        pubkey: tokenAuthorityAccount,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: userTokenAccount,
-        isWritable: true,
-        isSigner: false,
-      },
-      {
-        pubkey: earnerAccount,
-        isWritable: true,
-        isSigner: false,
-      },
-      {
-        pubkey: TOKEN_2022_ID,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: this.mintMultisig,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: earnManagerAccount || PROGRAM_ID,
-        isWritable: false,
-        isSigner: false,
-      },
-      {
-        pubkey: earnManagerTokenAccount || PROGRAM_ID,
-        isWritable: !!earnManagerTokenAccount,
-        isSigner: false,
-      },
-    ];
   }
 
   private async _buildTransactions(ixs: TransactionInstruction[], batchSize = 10): Promise<VersionedTransaction[]> {
