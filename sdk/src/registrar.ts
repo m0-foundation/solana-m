@@ -9,12 +9,12 @@ import { Program } from '@coral-xyz/anchor';
 import { getProgram } from './idl';
 import { Earn } from './idl/earn';
 
-export class Open {
+export class Registrar {
   private connection: Connection;
   private program: Program<Earn>;
   evmRPC: string;
 
-  private constructor(connection: Connection, evmRPC: string) {
+  constructor(connection: Connection, evmRPC: string) {
     this.connection = connection;
     this.program = getProgram(connection);
     this.evmRPC = evmRPC;

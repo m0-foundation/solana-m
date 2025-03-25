@@ -17,3 +17,6 @@ test-sdk:
 	sleep 2 && \
 	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
 	kill -9 $$(lsof -ti:8899)
+
+test-yield-bot:
+	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts 
