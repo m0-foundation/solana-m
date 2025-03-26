@@ -26,6 +26,7 @@ pub struct ConfigureEarnManager<'info> {
     pub global_account: Account<'info, ExtGlobal>,
 
     #[account(
+        mut,
         seeds = [EARN_MANAGER_SEED, signer.key().as_ref()],
         bump = earn_manager_account.bump
     )]
