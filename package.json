@@ -6,16 +6,7 @@
     "op:program-keypairs": "mkdir -p target/deploy && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/portal-keypair' > target/deploy/portal-keypair.json && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/earn-keypair' > target/deploy/earn-keypair.json",
     "op:devnet-authority": "op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/devnet-authority' > devnet-keypair.json",
     "test": "yarn run jest --preset ts-jest --verbose --testPathPattern='tests/unit/earn.test.ts|tests/unit/portal.test.ts'",
-    "build": "anchor build",
-    "cli:dev": "op run --env-file='./dev.env' -- ts-node services/cli/main.ts",
-    "cli:test": "op run --env-file='./dev.env' -- ts-node services/cli/test.ts",
-    "build:devnet": "anchor build -- --features devnet --no-default-features",
-    "write-upgrade:devnet": "sh -c 'solana program write-buffer --with-compute-unit-price 300000 --keypair devnet-keypair.json --max-sign-attempts 5 ${0}'",
-    "write-upgrade:devnet:earn": "yarn write-upgrade:devnet target/deploy/earn.so",
-    "write-upgrade:devnet:portal": "yarn write-upgrade:devnet target/deploy/portal.so",
-    "upgrade:devnet": "sh -c 'solana program upgrade --keypair devnet-keypair.json ${1} ${0}'",
-    "upgrade:devnet:earn": "yarn upgrade:devnet MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c",
-    "upgrade:devnet:portal": "yarn upgrade:devnet mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"
+    "build": "anchor build"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
