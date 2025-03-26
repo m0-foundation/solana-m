@@ -15,12 +15,15 @@ describe('Yield bot tests', () => {
     process.argv.push('-k', secret);
     process.argv.push('-e', 'https://sepolia.dummy.com');
     process.argv.push('-r', 'http://localhost:8899');
-    process.argv.push('--dryRun', 'true');
+    process.argv.push('--dryRun');
 
     await yieldCLI();
   });
 });
 
+/*
+ * Mocks the request data for the yield bot
+ */
 function mockRequestData(earner: PublicKey) {
   nock('https://sepolia.dummy.com')
     .post(
@@ -41,30 +44,14 @@ function mockRequestData(earner: PublicKey) {
   nock('https://quicknode.com')
     .get('/_gas-tracker')
     .query({ slug: 'solana' })
-    .reply(200, {
-      sol: {
-        per_compute_unit: {
-          percentiles: {
-            '60': 100000,
-            '75': 590909,
-            '85': 1716561,
-          },
-        },
-      },
-    })
+    .reply(200, { sol: { per_compute_unit: { percentiles: { '75': 590909 } } } })
     .persist();
 
-  const context = {
-    apiVersion: '2.2.0',
-    slot: 369962085,
-  };
+  // for all rpc reponses
+  const context = { apiVersion: '2.2.0', slot: 369962085 };
 
-  // [rpc request body matcher, rpc response]
+  // rpc request body matcher => rpc response
   const rpcMocks: [nock.RequestBodyMatcher, any][] = [
-    [
-      (body) => body.method === 'getProgramAccounts' && body.params?.[1].filters?.[0].memcmp.bytes === 'gZH8R1wytJi', // earners
-      [],
-    ],
     [
       (body) => body.method === 'getLatestBlockhash',
       {
@@ -121,8 +108,13 @@ function mockRequestData(earner: PublicKey) {
         },
       },
     ],
+    [
+      (body) => body.method === 'getProgramAccounts' && body.params?.[1].filters?.[0].memcmp.bytes === 'gZH8R1wytJi', // earners
+      [],
+    ],
   ];
 
+  // mock all rpc requests
   for (const [matcher, result] of rpcMocks) {
     nock('http://localhost:8899')
       .post('/', matcher)

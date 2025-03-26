@@ -28,8 +28,15 @@ export async function yieldCLI() {
     .option('-e, --evmRPC [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
     .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
     .action(async ({ keypair, rpc, evmRPC, dryRun }) => {
+      let signer: Keypair;
+      try {
+        signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
+      } catch {
+        signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
+      }
+
       const options = {
-        signer: Keypair.fromSecretKey(Buffer.from(keypair, 'base64')),
+        signer,
         connection: new Connection(rpc),
         evmRPC,
         dryRun,
@@ -53,6 +60,7 @@ async function distributeYield(opt: ParsedOptions) {
   // build claim instructions
   const claimIxs = [];
   for (const earner of earners) {
+    console.log(`claiming yield for ${earner.pubkey.toBase58()}`);
     claimIxs.push(await auth.buildClaimInstruction(earner));
   }
 
@@ -61,6 +69,7 @@ async function distributeYield(opt: ParsedOptions) {
   console.log(`distributing ${distributed} M in yield`);
 
   if (opt.dryRun) {
+    console.log(`claims transaction: ${await buildAndSendTransaction(opt, claimIxs)}`);
     return;
   }
 
@@ -81,7 +90,7 @@ async function addEarners(opt: ParsedOptions) {
   }
 
   const signature = await buildAndSendTransaction(opt, instructions);
-  console.log(`added earners: ${signature}`);
+  console.log(`added ${instructions.length} earners: ${signature}`);
 }
 
 async function removeEarners(opt: ParsedOptions) {
@@ -95,7 +104,7 @@ async function removeEarners(opt: ParsedOptions) {
   }
 
   const signature = await buildAndSendTransaction(opt, instructions);
-  console.log(`removed earners: ${signature}`);
+  console.log(`removed ${instructions.length} earners: ${signature}`);
 }
 
 async function buildAndSendTransaction(
@@ -117,7 +126,7 @@ async function buildAndSendTransaction(
   }
 
   if (dryRun) {
-    return '';
+    return tx.serialize().toString();
   }
 
   // send

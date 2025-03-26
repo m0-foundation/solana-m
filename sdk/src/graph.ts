@@ -86,7 +86,7 @@ export class Graph {
 
   async getTimeWeightedBalance(tokenAccount: PublicKey, lowerTS: bigint, upperTS: bigint): Promise<bigint> {
     if (lowerTS > upperTS) {
-      throw new Error('Invalid time range');
+      throw new Error(`Invalid time range: ${lowerTS} - ${upperTS}`);
     }
 
     const query = gql`
