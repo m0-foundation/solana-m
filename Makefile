@@ -1,8 +1,9 @@
 .PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet
 
-##
+
+#
 # Test commands
-##
+#
 test-yield-bot:
 	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts 
 
@@ -25,9 +26,9 @@ test-local-validator:
 	kill $$pid
 
 
-##
+#
 # Devnet commands
-##
+#
 yield-bot-devnet:
 	@yarn --silent ts-node services/yield-bot/main.ts distribute \
 	--rpc $(shell op read "op://Solana Dev/RPCs/helius-devnet") \
@@ -35,9 +36,9 @@ yield-bot-devnet:
 	--dryRun
 
 
-##
+#
 # Devnet upgrade commands
-##
+#
 EARN_PROGRAM_ID := MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c
 PORTAL_PROGRAM_ID := mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY
 DEVNET_KEYPAIR := devnet-keypair.json
@@ -47,42 +48,33 @@ MAX_SIGN_ATTEMPTS := 5
 build-devnet:
 	anchor build -- --features devnet --no-default-features
 
-upgrade-earn-devnet: build-devnet
+define upgrade_program
 	@solana-keygen new --no-bip39-passphrase --force -s --outfile=temp-buffer.json
-	@echo "\nWriting buffer for program..."
+	@echo "\nWriting buffer for $(1) program..."
 	@solana program write-buffer \
 		--with-compute-unit-price $(COMPUTE_UNIT_PRICE) \
 		--keypair $(DEVNET_KEYPAIR) \
 		--max-sign-attempts $(MAX_SIGN_ATTEMPTS) \
 		--buffer temp-buffer.json \
-		target/deploy/earn.so 
+		target/deploy/$(1).so 
 	@echo "Upgrading program with buffer $$(solana address --keypair temp-buffer.json)" 
 	@solana program upgrade \
 		--keypair $(DEVNET_KEYPAIR) \
 		$$(solana address --keypair temp-buffer.json) \
-		$(EARN_PROGRAM_ID) 
-	@rm temp-buffer.json 
+		$(2) 
+	@rm temp-buffer.json
+endef
+
+upgrade-earn-devnet: build-devnet
+	$(call upgrade_program,earn,$(EARN_PROGRAM_ID))
 
 upgrade-portal-devnet: build-devnet
-	@solana-keygen new --no-bip39-passphrase --force -s --outfile=temp-buffer.json
-	@echo "\nWriting buffer for program..."
-	@solana program write-buffer \
-		--with-compute-unit-price $(COMPUTE_UNIT_PRICE) \
-		--keypair $(DEVNET_KEYPAIR) \
-		--max-sign-attempts $(MAX_SIGN_ATTEMPTS) \
-		--buffer temp-buffer.json \
-		target/deploy/portal.so 
-	@echo "Upgrading program with buffer $$(solana address --keypair temp-buffer.json)" 
-	@solana program upgrade \
-		--keypair $(DEVNET_KEYPAIR) \
-		$$(solana address --keypair temp-buffer.json) \
-		$(PORTAL_PROGRAM_ID) 
-	@rm temp-buffer.json 
+	$(call upgrade_program,portal,$(PORTAL_PROGRAM_ID))
 
 
-##
+#
 # CLI commands
-##
+#
 cli-dev:
 	op run --env-file='./dev.env' -- ts-node services/cli/main.ts
 
