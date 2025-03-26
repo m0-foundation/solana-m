@@ -5,6 +5,7 @@ import {
   Transaction,
   VersionedTransaction,
   Keypair,
+  ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
@@ -131,6 +132,7 @@ class EarnAuthority {
   async sendClaimInstructions(
     ixs: TransactionInstruction[],
     earnAuthority: Keypair,
+    priorityFee = 250_000,
     appendCompleteClaimInstruction = false,
     validate = false,
     batchSize = 10,
@@ -144,7 +146,7 @@ class EarnAuthority {
     }
 
     const signatures: string[] = [];
-    for (const txn of await this._buildTransactions(ixs, batchSize)) {
+    for (const txn of await this._buildTransactions(ixs, priorityFee, batchSize)) {
       txn.sign([earnAuthority]);
       const signature = await this.connection.sendTransaction(txn, { skipPreflight: validate });
       signatures.push(signature);
@@ -211,11 +213,27 @@ class EarnAuthority {
     return rewards;
   }
 
-  private async _buildTransactions(ixs: TransactionInstruction[], batchSize = 10): Promise<VersionedTransaction[]> {
-    const t = new Transaction().add(...ixs);
-    t.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
-    t.feePayer = new PublicKey(this.global.earnAuthority);
-    return [new VersionedTransaction(t.compileMessage())];
+  private async _buildTransactions(
+    ixs: TransactionInstruction[],
+    priorityFee = 250_000,
+    batchSize = 10,
+  ): Promise<VersionedTransaction[]> {
+    const { blockhash } = await this.connection.getLatestBlockhash();
+    const feePayer = new PublicKey(this.global.earnAuthority);
+    const computeBudgetIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee });
+
+    // split instructions into batches
+    const transactions: VersionedTransaction[] = [];
+
+    for (let i = 0; i < ixs.length; i += batchSize) {
+      const batchIxs = ixs.slice(i, i + batchSize);
+      const tx = new Transaction().add(computeBudgetIx, ...batchIxs);
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = feePayer;
+      transactions.push(new VersionedTransaction(tx.compileMessage()));
+    }
+
+    return transactions;
   }
 }
 

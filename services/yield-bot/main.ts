@@ -8,14 +8,16 @@ import {
   TransactionInstruction,
   VersionedTransaction,
 } from '@solana/web3.js';
+import EarnAuthority from '../../sdk/src/earn_auth';
 
 interface ParsedOptions {
   signer: Keypair;
   connection: Connection;
   evmRPC: string;
-  skipConfirm: boolean;
+  dryRun: boolean;
 }
 
+// entrypoint for the yield bot command
 export async function yieldCLI() {
   const program = new Command();
 
@@ -24,13 +26,13 @@ export async function yieldCLI() {
     .option('-k, --keypair <base64>', 'Signer keypair (base64)')
     .option('-r, --rpc [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
     .option('-e, --evmRPC [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
-    .option('-s, --skipConfirm [bool]', 'Skip transaction confirmation', false)
-    .action(async ({ keypair, rpc, evmRPC, skipConfirm }) => {
+    .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
+    .action(async ({ keypair, rpc, evmRPC, dryRun }) => {
       const options = {
         signer: Keypair.fromSecretKey(Buffer.from(keypair, 'base64')),
         connection: new Connection(rpc),
         evmRPC,
-        skipConfirm,
+        dryRun,
       };
 
       await removeEarners(options);
@@ -43,6 +45,29 @@ export async function yieldCLI() {
 
 async function distributeYield(opt: ParsedOptions) {
   console.log('distributing yield');
+
+  // get all earners on the earn program
+  const auth = await EarnAuthority.load(opt.connection);
+  const earners = await auth.getAllEarners();
+
+  // build claim instructions
+  const claimIxs = [];
+  for (const earner of earners) {
+    claimIxs.push(await auth.buildClaimInstruction(earner));
+  }
+
+  // verify that there are no reverts and claims do not exceed max yield
+  const distributed = await auth.simulateAndValidateClaimIxs(claimIxs);
+  console.log(`distributing ${distributed} M in yield`);
+
+  if (opt.dryRun) {
+    return;
+  }
+
+  // send all the claims
+  const priorityFee = await getPriorityFee();
+  const signatures = await auth.sendClaimInstructions(claimIxs, opt.signer, priorityFee, true);
+  console.log(`yield distributed: ${signatures}`);
 }
 
 async function addEarners(opt: ParsedOptions) {
@@ -74,7 +99,7 @@ async function removeEarners(opt: ParsedOptions) {
 }
 
 async function buildAndSendTransaction(
-  { connection, signer, skipConfirm }: ParsedOptions,
+  { connection, signer, dryRun }: ParsedOptions,
   ixs: TransactionInstruction[],
 ): Promise<string> {
   // build
@@ -83,21 +108,29 @@ async function buildAndSendTransaction(
   const t = new Transaction().add(computeBudgetIx, ...ixs);
   t.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
   t.feePayer = signer.publicKey;
+  const tx = new VersionedTransaction(t.compileMessage());
+
+  // simulate
+  const result = await connection.simulateTransaction(tx);
+  if (result.value.err) {
+    throw new Error(`Transaction simulation failed: ${result.value.err}`);
+  }
+
+  if (dryRun) {
+    return '';
+  }
 
   // send
-  const tx = new VersionedTransaction(t.compileMessage());
   tx.sign([signer]);
-  const signature = await connection.sendTransaction(tx);
+  const signature = await connection.sendTransaction(tx, { skipPreflight: true });
 
   // confirm
-  if (!skipConfirm) {
-    const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
-    await connection.confirmTransaction({
-      blockhash: blockhash,
-      lastValidBlockHeight: lastValidBlockHeight,
-      signature,
-    });
-  }
+  const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
+  await connection.confirmTransaction({
+    blockhash: blockhash,
+    lastValidBlockHeight: lastValidBlockHeight,
+    signature,
+  });
 
   return signature;
 }
@@ -130,6 +163,7 @@ async function getPriorityFee(): Promise<number> {
   }
 }
 
+// do not run the cli if this is being imported by jest
 if (!process.argv[1].endsWith('jest')) {
   yieldCLI().catch((error) => {
     console.error(error);

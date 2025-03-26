@@ -32,6 +32,7 @@ export const earnManagerDecoder: FixedSizeDecoder<EarnManagerData> = getStructDe
 ]);
 
 export interface GlobalAccountData {
+  anchorDiscriminator: ReadonlyUint8Array;
   admin: Address;
   earnAuthority: Address;
   mint: Address;

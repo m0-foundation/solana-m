@@ -15,7 +15,7 @@ describe('Yield bot tests', () => {
     process.argv.push('-k', secret);
     process.argv.push('-e', 'https://sepolia.dummy.com');
     process.argv.push('-r', 'http://localhost:8899');
-    process.argv.push('--skipConfirm', 'true');
+    process.argv.push('--dryRun', 'true');
 
     await yieldCLI();
   });
@@ -86,11 +86,75 @@ function mockRequestData(earner: PublicKey) {
     .persist();
 
   nock('http://localhost:8899')
-    .post('/', (body) => body.method === 'sendTransaction')
+    .post(
+      '/',
+      (body) => body.method === 'getAccountInfo' && body.params?.[0] === 'GNc6kVU8B4ZdDk6wpzUyNUo7Zs42MBLKVRz64Zojfpje', // global account
+    )
     .reply(200, {
       jsonrpc: '2.0',
-      result: '2id3YC2jK9G5Wo2phDx4gJVAew8DcY5NAojnVuao8rkxwPYPe8cSwE5GzhEgJA2y8fVjDEo6iR6ykBvDxrTQrtpb',
-      id: 'b509d315-7773-49e0-87ce-4b10524c7515',
+      result: {
+        context: {
+          apiVersion: '2.1.15',
+          slot: 369967836,
+        },
+        value: {
+          data: [
+            'p+joschscn+z3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9tngeGCkwV0UDXPudfVjEKHITeTFP5nuprxPN+FVNxjkC4a+Zr/OtMHX6Se8xNAUvg8oY6ud+F/aYQhRtk29CuXSfnxW6QAAAJcLz2cAAAAALAEAAAAAAAB/hB4AAAAAAAAAAAAAAAAAAAAAAAAAAAAA4s+HOzdKtcdPgH3ruU3IQEvLtAydCoj5j1nDukIsog0TG0E5aKgG7NsJGiMoiB8VGXMnMISc8luMk8M87uB6Vf4=',
+            'base64',
+          ],
+          executable: false,
+          lamports: 2408160,
+          owner: 'MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c',
+          rentEpoch: 18446744073709551615,
+          space: 218,
+        },
+      },
+      id: '531457a7-7922-4137-9624-82f0e45dedc4',
+    })
+    .persist();
+
+  nock('http://localhost:8899')
+    .post(
+      '/',
+      (body) => body.method === 'getAccountInfo' && body.params?.[0] === 'mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6', // mint
+    )
+    .reply(200, {
+      jsonrpc: '2.0',
+      result: {
+        context: {
+          apiVersion: '2.1.15',
+          slot: 369968180,
+        },
+        value: {
+          data: [
+            'AQAAAAt+HmYkvrxuIRc9WMtEGFHidulJDPbDH2C3PqhmCtaMP3cbAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARIAQACz3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9guGvma/zrTB1+knvMTQFL4PKGOrnfhf2mEIUbZNvQrlDgBAALPce1wTXGKGGjMlYml282w+cbkUAoVQV4nvBkkivE/2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAEEAs9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAMIAs9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/YLhr5mv860wdfpJ7zE0BS+Dyhjq534X9phCFG2Tb0K5QgAAABNIGJ5IE1eMAEAAABNNAAAAGh0dHBzOi8vZXRoZXJzY2FuLmlvL3Rva2VuL2ltYWdlcy9tMHRva2VuX25ld18zMi5wbmcBAAAAAwAAAGV2bSoAAAAweDg2NkEyQkY0RTU3MkNiY0YzN0Q1MDcxQTdhNTg1MDNCZmIzNmJlMWI=',
+            'base64',
+          ],
+          executable: false,
+          lamports: 4851120,
+          owner: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+          rentEpoch: 18446744073709551615,
+          space: 569,
+        },
+      },
+      id: 'a02b25ad-6979-4609-9f5c-c9b995b34d15',
+    })
+    .persist();
+
+  nock('http://localhost:8899')
+    .post('/', (body) => body.method === 'simulateTransaction')
+    .reply(200, {
+      jsonrpc: '2.0',
+      result: {
+        context: { slot: 218 },
+        value: {
+          err: null,
+          accounts: null,
+          logs: [],
+          unitsConsumed: 2366,
+        },
+      },
+      id: 'a02b25ad-6979-4609-9f5c-c9b995b34d15',
     })
     .persist();
 }
