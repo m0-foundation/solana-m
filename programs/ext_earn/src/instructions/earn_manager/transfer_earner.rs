@@ -17,7 +17,8 @@ pub struct TransferEarner<'info> {
 
     #[account(
         mut,
-        seeds = [EARNER_SEED, earner_account.user.as_ref()],
+        constraint = earner_account.earn_manager == signer.key() @ ExtError::NotAuthorized,
+        seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,
