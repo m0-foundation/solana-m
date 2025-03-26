@@ -120,14 +120,14 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     
     // Calculate the earn manager fee if applicable and subtract from the earner's rewards
     // If the earn manager is not active, then no fee is taken
-    rewards -= if ctx.accounts.earn_manager_account.fee_bps > 0 && ctx.accounts.earn_manager_account.is_active {
+    let fee = if ctx.accounts.earn_manager_account.fee_bps > 0 && ctx.accounts.earn_manager_account.is_active {
         // Fees are rounded down in favor of the user
         let fee = (rewards * ctx.accounts.earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
 
         if fee > 0 {
             mint_tokens(
                 &ctx.accounts.earn_manager_token_account,  // to
-                &fee,                                      // amount
+                fee,                                       // amount
                 &ctx.accounts.ext_mint,                    // mint
                 &ctx.accounts.ext_mint_authority,          // mint authority
                 mint_authority_seeds,                      // mint authority seeds
@@ -143,22 +143,36 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         0u64
     };
 
+    rewards -= fee;
+
     // Mint the tokens to the user's token aaccount
     mint_tokens(
         &ctx.accounts.user_token_account, // to
-        &rewards, // amount
-        &ctx.accounts.ext_mint, // mint
+        rewards,                          // amount
+        &ctx.accounts.ext_mint,           // mint
         &ctx.accounts.ext_mint_authority, // authority
-        mint_authority_seeds, // authority seeds
-        &ctx.accounts.token_2022, // token program
+        mint_authority_seeds,             // authority seeds
+        &ctx.accounts.token_2022,         // token program
     )?;
 
-    msg!(
-        "Claimed for: {} | Index: {} | Timestamp: {}",
-        ctx.accounts.user_token_account.key(),
-        ctx.accounts.earner_account.last_claim_index,
-        ctx.accounts.earner_account.last_claim_timestamp
-    );
+    emit!(RewardsClaim {
+        token_account: ctx.accounts.earner_account.user_token_account,
+        recipient_token_account: ctx.accounts.user_token_account.key(),
+        amount: rewards,
+        fee,
+        ts: ctx.accounts.earner_account.last_claim_timestamp,
+        index: ctx.accounts.earner_account.last_claim_index,
+    });
 
     Ok(())
+}
+
+#[event]
+pub struct RewardsClaim {
+    pub token_account: Pubkey,
+    pub recipient_token_account: Pubkey,
+    pub amount: u64,
+    pub fee: u64,
+    pub ts: u64,
+    pub index: u64,
 }

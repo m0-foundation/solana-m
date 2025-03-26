@@ -69,7 +69,7 @@ pub fn handler(ctx: Context<Wrap>, amount: u64) -> Result<()> {
     transfer_tokens(
         &ctx.accounts.user_m_token_account, // from
         &ctx.accounts.vault_m_token_account, // to
-        &amount, // amount
+        amount, // amount
         &ctx.accounts.m_mint, // mint
         &ctx.accounts.signer.to_account_info(), // authority
         &ctx.accounts.token_2022, // token program
@@ -78,7 +78,7 @@ pub fn handler(ctx: Context<Wrap>, amount: u64) -> Result<()> {
     // Mint the amount of ext tokens to the user
     mint_tokens(
         &ctx.accounts.user_ext_token_account, // to
-        &amount, // amount
+        amount, // amount
         &ctx.accounts.ext_mint, // mint
         &ctx.accounts.ext_mint_authority, // authority
         &[&[MINT_AUTHORITY_SEED]], // authority seeds

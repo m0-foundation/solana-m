@@ -61,7 +61,7 @@ pub fn handler(ctx: Context<Unwrap>, amount: u64) -> Result<()> {
     // Burn the amount of ext tokens from the user
     burn_tokens(
         &ctx.accounts.user_ext_token_account, // from
-        &amount, // amount
+        amount, // amount
         &ctx.accounts.ext_mint, // mint
         &ctx.accounts.signer.to_account_info(), // authority
         &ctx.accounts.token_2022, // token program
@@ -71,7 +71,7 @@ pub fn handler(ctx: Context<Unwrap>, amount: u64) -> Result<()> {
     transfer_tokens_from_program(
         &ctx.accounts.vault_m_token_account, // from
         &ctx.accounts.user_m_token_account, // to
-        &amount, // amount
+        amount, // amount
         &ctx.accounts.m_mint, // mint
         &ctx.accounts.m_vault, // authority
         &[&[M_VAULT_SEED]], // authority seeds

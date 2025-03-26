@@ -21,7 +21,7 @@ use anchor_spl::token_interface::{
 pub fn transfer_tokens_from_program<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
-    amount: &u64,
+    amount: u64,
     mint: &InterfaceAccount<'info, Mint>,
     authority: &AccountInfo<'info>,
     authority_seeds: &[&[&[u8]]],
@@ -39,7 +39,7 @@ pub fn transfer_tokens_from_program<'info>(
     // Call the transfer instruction
     transfer_checked(
         cpi_context,
-        *amount,
+        amount,
         mint.decimals,
     )?;
 
@@ -49,7 +49,7 @@ pub fn transfer_tokens_from_program<'info>(
 pub fn transfer_tokens<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
-    amount: &u64,
+    amount: u64,
     mint: &InterfaceAccount<'info, Mint>,
     authority: &AccountInfo<'info>,
     token_program: &Program<'info, Token2022>,
@@ -66,7 +66,7 @@ pub fn transfer_tokens<'info>(
     // Call the transfer instruction
     transfer_checked(
         cpi_context,
-        *amount,
+        amount,
         mint.decimals,
     )?;
 
@@ -77,7 +77,7 @@ pub fn transfer_tokens<'info>(
 
 pub fn mint_tokens<'info>(
     to: &InterfaceAccount<'info, TokenAccount>,
-    amount: &u64,
+    amount: u64,
     mint: &InterfaceAccount<'info, Mint>,
     authority: &AccountInfo<'info>,
     authority_seeds: &[&[&[u8]]],
@@ -95,7 +95,7 @@ pub fn mint_tokens<'info>(
     // Call the mint instruction
     mint_to(
         cpi_context,
-        *amount,
+        amount,
     )?;
 
     Ok(())
@@ -103,7 +103,7 @@ pub fn mint_tokens<'info>(
 
 pub fn burn_tokens<'info>(
     from: &InterfaceAccount<'info, TokenAccount>,
-    amount: &u64,
+    amount: u64,
     mint: &InterfaceAccount<'info, Mint>,
     authority: &AccountInfo<'info>,
     token_program: &Program<'info, Token2022>,
@@ -120,7 +120,7 @@ pub fn burn_tokens<'info>(
     // Call the burn instruction
     burn(
         cpi_context,
-        *amount,
+        amount,
     )?;
 
     Ok(())
