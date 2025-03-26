@@ -50,8 +50,8 @@ pub struct Wrap<'info> {
     pub user_m_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
-        token::mint = m_mint,
-        token::authority = m_vault,
+        associated_token::mint = m_mint,
+        associated_token::authority = m_vault,
     )]
     pub vault_m_token_account: InterfaceAccount<'info, TokenAccount>,
 

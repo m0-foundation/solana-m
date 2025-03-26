@@ -49,8 +49,8 @@ pub struct ClaimFor<'info> {
     pub m_vault_account: AccountInfo<'info>,
 
     #[account(
-        token::mint = global_account.m_mint,
-        token::authority = m_vault_account,
+        associated_token::mint = global_account.m_mint,
+        associated_token::authority = m_vault_account,
     )]
     pub vault_m_token_account: InterfaceAccount<'info, TokenAccount>,
 
