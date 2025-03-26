@@ -73,9 +73,23 @@ let extEarn: Program<ExtEarn>;
 // Start parameters
 const initialSupply = new BN(100_000_000); // 100 tokens with 6 decimals
 const initialIndex = new BN(1_000_000_000_000); // 1.0
-const claimCooldown = new BN(86_400); // 1 day
+const claimCooldown = new BN(0); // None
 
 // Type definitions for accounts to make it easier to do comparisons
+
+interface EarnGlobal {
+    admin?: PublicKey;
+    earnAuthority?: PublicKey;
+    mint?: PublicKey;
+    index?: BN;
+    timestamp?: BN;
+    claimCooldown?: BN;
+    maxSupply?: BN;
+    maxYield?: BN;
+    distributed?: BN;
+    claimComplete?: boolean;
+    earnerMerkleRoot?: number[];
+}
 
 interface ExtGlobal {
     admin?: PublicKey;
@@ -216,6 +230,36 @@ const expectSystemError = async (txResult: Promise<string>) => {
     } finally {
         expect(reverted).toBe(true);
     }
+};
+
+const expectEarnGlobalState = async (
+    globalAccount: PublicKey,
+    expected: EarnGlobal
+) => {
+    const state = await earn.account.global.fetch(globalAccount);
+
+    if (expected.earnAuthority)
+        expect(state.earnAuthority).toEqual(expected.earnAuthority);
+    if (expected.index)
+        expect(state.index.toString()).toEqual(expected.index.toString());
+    if (expected.timestamp)
+        expect(state.timestamp.toString()).toEqual(expected.timestamp.toString());
+    if (expected.claimCooldown)
+        expect(state.claimCooldown.toString()).toEqual(
+            expected.claimCooldown.toString()
+        );
+    if (expected.maxSupply)
+        expect(state.maxSupply.toString()).toEqual(expected.maxSupply.toString());
+    if (expected.maxYield)
+        expect(state.maxYield.toString()).toEqual(expected.maxYield.toString());
+    if (expected.distributed)
+        expect(state.distributed.toString()).toEqual(
+            expected.distributed.toString()
+        );
+    if (expected.claimComplete !== undefined)
+        expect(state.claimComplete).toEqual(expected.claimComplete);
+    if (expected.earnerMerkleRoot)
+        expect(state.earnerMerkleRoot).toEqual(expected.earnerMerkleRoot);
 };
 
 const expectExtGlobalState = async (
@@ -793,6 +837,31 @@ const removeEarnManager = async (earnManager: PublicKey) => {
     return { earnManagerAccount };
 };
 
+const prepSync = (signer: Keypair) => {
+    // Cache the global account
+    const globalAccount = getExtGlobalAccount();
+
+    // Populate the accounts
+    accounts = {};
+    accounts.earnAuthority = signer.publicKey;
+    accounts.mEarnGlobalAccount = getEarnGlobalAccount();
+    accounts.globalAccount = globalAccount;
+
+    return { globalAccount };
+};
+
+const sync = async () => {
+    // Setup the instruction
+    prepSync(earnAuthority);
+
+    // Send the instruction
+    await extEarn.methods
+        .sync()
+        .accounts({ ...accounts })
+        .signers([earnAuthority])
+        .rpc();
+};
+
 const prepRemoveOrphanedEarner = (
     signer: Keypair,
     earnerATA: PublicKey,
@@ -818,6 +887,8 @@ const prepRemoveOrphanedEarner = (
 };
 
 describe("ExtEarn unit tests", () => {
+    let currentTime: () => BN;
+
     beforeEach(async () => {
         // Initialize the SVM instance with all necessary configurations
         svm = fromWorkspace("")
@@ -842,6 +913,10 @@ describe("ExtEarn unit tests", () => {
         svm.airdrop(earnManagerOne.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
         svm.airdrop(earnManagerTwo.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
         svm.airdrop(nonEarnManagerOne.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+
+        currentTime = () => {
+            return new BN(svm.getClock().unixTimestamp.toString());
+        }
 
         // Create the M token mint
         await createMintWithMultisig(mMint, mMintAuthority);
@@ -1270,9 +1345,127 @@ describe("ExtEarn unit tests", () => {
                     }
                 );
             });
+        });
+    });
 
+    describe("earn_authority instruction tests", () => {
+        const newIndex = new BN(1_100_000_000_000); // 1.1
+        let startTime: BN;
+
+        beforeEach(async () => {
+            // Initialize the program
+            await initializeExt(earnAuthority.publicKey);
+
+            startTime = currentTime();
+
+            // Warp time forward an hour
+            warp(new BN(3600), true);
+
+            // Update the index on the Earn program
+            await propagateIndex(newIndex);
         });
 
+        describe("sync unit tests", () => {
+            // test cases
+            // [ ] given the earn authority does not sign the transaction
+            //   [ ] it reverts with a NotAuthorized error
+            // [ ] given the earn authority does sign the transaction
+            //   [ ] given the m_earn_global_account does not match the stored key
+            //     [ ] it reverts with an InvalidAccount error
+            //   [ ] given all accounts are correct
+            //     [ ] it updates the ExtGlobal index and timestamp to the current index and timestamp on the M Earn Global account
+
+            // given the earn authority does not sign the transaction
+            // it reverts with a NotAuthorized error
+            test("earn_authority does not sign - reverts", async () => {
+                // Setup the instruction
+                prepSync(nonAdmin);
+
+                // Attempt to send the transaction
+                // Expect it to revert with a NotAuthorized error
+                await expectAnchorError(
+                    extEarn.methods
+                        .sync()
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "NotAuthorized"
+                );
+            });
+
+            // given the earn authority does sign the transaction
+            // given the m_earn_global_account does not match the stored key
+            // it reverts with a variety of errors (AccountNotInitialized, AccountOwnedByWrongProgram, InvalidAccount)
+            test("m_earn_global_account is invalid - reverts", async () => {
+                // Setup the instruction
+                prepSync(earnAuthority);
+
+                // Use an incorrect account
+                const wrongAccount = PublicKey.unique();
+                if (accounts.mEarnGlobalAccount == wrongAccount) return;
+                accounts.mEarnGlobalAccount = wrongAccount;
+
+                // Attempt to send the transaction
+                // Expect it to revert with an error
+                await expectSystemError(
+                    extEarn.methods
+                        .sync()
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc()
+                );
+            });
+
+            // given the earn authority does sign the transaction
+            // given all the accounts are correct
+            // it updates the index and timestamp of the ExtGlobal account
+            test("sync - success", async () => {
+                // Setup the instruction
+                const { globalAccount } = prepSync(earnAuthority);
+
+                // Confirm the state of the ExtGlobal account before the sync
+                await expectExtGlobalState(
+                    globalAccount,
+                    {
+                        index: initialIndex,
+                        timestamp: startTime,
+                    }
+                );
+
+                // Confirm the state of the EarnGlobal account before the sync
+                await expectEarnGlobalState(
+                    getEarnGlobalAccount(),
+                    {
+                        index: newIndex,
+                        timestamp: currentTime()
+                    }
+                );
+
+                // Send the transaction
+                await extEarn.methods
+                    .sync()
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Expect the ExtGlobal state to be updated
+                await expectExtGlobalState(
+                    globalAccount,
+                    {
+                        index: newIndex,
+                        timestamp: currentTime()
+                    }
+                );
+            });
+        });
+
+        describe("claim_for unit tests", () => {
+            // test cases
+            // [ ] given the earn authority does not sign the transaction
+            //   [ ] it reverts with a NotAuthorized error
+            // [ ] given the earn authority does sign the transaction
+            //   [ ] 
+        });
     });
 
     // describe("claim_for unit tests", () => {
