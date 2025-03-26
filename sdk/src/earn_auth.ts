@@ -6,7 +6,7 @@ import {
   VersionedTransaction,
   Keypair,
 } from '@solana/web3.js';
-import { GLOBAL_ACCOUNT, PROGRAM_ID, TOKEN_2022_ID } from '.';
+import { GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
 import { EarnManager } from './earn_manager';

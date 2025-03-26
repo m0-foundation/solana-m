@@ -15,8 +15,9 @@ describe('Yield bot tests', () => {
     process.argv.push('-k', secret);
     process.argv.push('-e', 'https://sepolia.dummy.com');
     process.argv.push('-r', 'http://localhost:8899');
+    process.argv.push('--skipConfirm', 'true');
 
-    yieldCLI();
+    await yieldCLI();
   });
 });
 
@@ -38,8 +39,9 @@ function mockRequestData(earner: PublicKey) {
     })
     .persist();
 
-  nock('https://quicknode.com/_gas-tracker?slug=solana')
-    .get('/')
+  nock('https://quicknode.com')
+    .get('/_gas-tracker')
+    .query({ slug: 'solana' })
     .reply(200, {
       sol: {
         per_compute_unit: {
@@ -50,6 +52,45 @@ function mockRequestData(earner: PublicKey) {
           },
         },
       },
+    })
+    .persist();
+
+  nock('http://localhost:8899')
+    .post(
+      '/',
+      (body) => body.method === 'getProgramAccounts' && body.params?.[1].filters?.[0].memcmp.bytes === 'gZH8R1wytJi', // earners
+    )
+    .reply(200, {
+      jsonrpc: '2.0',
+      result: [],
+      id: 'b509d315-7773-49e0-87ce-4b10524c7515',
+    })
+    .persist();
+
+  nock('http://localhost:8899')
+    .post('/', (body) => body.method === 'getLatestBlockhash')
+    .reply(200, {
+      jsonrpc: '2.0',
+      result: {
+        context: {
+          apiVersion: '2.2.0',
+          slot: 369962085,
+        },
+        value: {
+          blockhash: '7rCouaLD532r6wyXLsnx9mQGf4A7eMiWcnFd9SWu3EPF',
+          lastValidBlockHeight: 357940737,
+        },
+      },
+      id: 'b509d315-7773-49e0-87ce-4b10524c7515',
+    })
+    .persist();
+
+  nock('http://localhost:8899')
+    .post('/', (body) => body.method === 'sendTransaction')
+    .reply(200, {
+      jsonrpc: '2.0',
+      result: '2id3YC2jK9G5Wo2phDx4gJVAew8DcY5NAojnVuao8rkxwPYPe8cSwE5GzhEgJA2y8fVjDEo6iR6ykBvDxrTQrtpb',
+      id: 'b509d315-7773-49e0-87ce-4b10524c7515',
     })
     .persist();
 }

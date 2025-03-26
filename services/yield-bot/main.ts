@@ -9,6 +9,13 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 
+interface ParsedOptions {
+  signer: Keypair;
+  connection: Connection;
+  evmRPC: string;
+  skipConfirm: boolean;
+}
+
 export async function yieldCLI() {
   const program = new Command();
 
@@ -17,35 +24,57 @@ export async function yieldCLI() {
     .option('-k, --keypair <base64>', 'Signer keypair (base64)')
     .option('-r, --rpc [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
     .option('-e, --evmRPC [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
-    .action(async ({ keypair, rpc, evmRPC }) => {
-      const connection = new Connection(rpc);
-      const signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
+    .option('-s, --skipConfirm [bool]', 'Skip transaction confirmation', false)
+    .action(async ({ keypair, rpc, evmRPC, skipConfirm }) => {
+      const options = {
+        signer: Keypair.fromSecretKey(Buffer.from(keypair, 'base64')),
+        connection: new Connection(rpc),
+        evmRPC,
+        skipConfirm,
+      };
 
-      await removeEarners(connection, evmRPC);
-      await distributeYield();
-      await addEarners(connection, evmRPC, signer);
+      await removeEarners(options);
+      await distributeYield(options);
+      await addEarners(options);
     });
 
   await program.parseAsync(process.argv);
 }
 
-async function distributeYield() {
+async function distributeYield(opt: ParsedOptions) {
   console.log('distributing yield');
 }
 
-async function addEarners(connection: Connection, evmRPC: string, signer: Keypair) {
+async function addEarners(opt: ParsedOptions) {
   console.log('adding earners');
-  const registrar = new Registrar(connection, evmRPC);
-  const instructions = await registrar.buildMissingEarnersInstructions(signer.publicKey);
+  const registrar = new Registrar(opt.connection, opt.evmRPC);
+  const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
+
+  if (instructions.length === 0) {
+    console.log('no earners to add');
+    return;
+  }
+
+  const signature = await buildAndSendTransaction(opt, instructions);
+  console.log(`added earners: ${signature}`);
 }
 
-async function removeEarners(connection: Connection, evmRPC: string) {
+async function removeEarners(opt: ParsedOptions) {
   console.log('removing earners');
+  const registrar = new Registrar(opt.connection, opt.evmRPC);
+  const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
+
+  if (instructions.length === 0) {
+    console.log('no earners to remove');
+    return;
+  }
+
+  const signature = await buildAndSendTransaction(opt, instructions);
+  console.log(`removed earners: ${signature}`);
 }
 
-async function buildAndSendTransactions(
-  connection: Connection,
-  signer: Keypair,
+async function buildAndSendTransaction(
+  { connection, signer, skipConfirm }: ParsedOptions,
   ixs: TransactionInstruction[],
 ): Promise<string> {
   // build
@@ -61,12 +90,14 @@ async function buildAndSendTransactions(
   const signature = await connection.sendTransaction(tx);
 
   // confirm
-  const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
-  await connection.confirmTransaction({
-    blockhash: blockhash,
-    lastValidBlockHeight: lastValidBlockHeight,
-    signature,
-  });
+  if (!skipConfirm) {
+    const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
+    await connection.confirmTransaction({
+      blockhash: blockhash,
+      lastValidBlockHeight: lastValidBlockHeight,
+      signature,
+    });
+  }
 
   return signature;
 }

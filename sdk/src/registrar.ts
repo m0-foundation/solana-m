@@ -1,7 +1,7 @@
 import { Connection, GetProgramAccountsFilter, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { EvmCaller } from './evm_caller';
 import { Earner } from './earner';
-import { MINT, PROGRAM_ID } from '.';
+import { GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
 import { MerkleTree } from './merkle';
 import { b58, deriveDiscriminator } from './utils';
 import * as spl from '@solana/spl-token';
@@ -40,7 +40,6 @@ export class Registrar {
       const { proof } = tree.getInclusionProof(user);
 
       // PDAs
-      const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
       const [earnerAccount] = PublicKey.findProgramAddressSync(
         [Buffer.from('earner'), userTokenAccount.toBytes()],
         PROGRAM_ID,
@@ -51,7 +50,7 @@ export class Registrar {
           .addRegistrarEarner(user, proof)
           .accounts({
             signer: signer,
-            globalAccount,
+            globalAccount: GLOBAL_ACCOUNT,
             userTokenAccount,
             earnerAccount,
           })
@@ -75,6 +74,21 @@ export class Registrar {
       if (earners.includes(earner.user)) {
         continue;
       }
+
+      // build proof
+      const tree = new MerkleTree(earners);
+      const { proofs, neighbors } = tree.getExclusionProof(earner.user);
+
+      ixs.push(
+        await this.program.methods
+          .removeRegistrarEarner(proofs, neighbors)
+          .accounts({
+            signer: signer,
+            globalAccount: GLOBAL_ACCOUNT,
+            earnerAccount: earner.pubkey,
+          })
+          .instruction(),
+      );
     }
 
     return ixs;
