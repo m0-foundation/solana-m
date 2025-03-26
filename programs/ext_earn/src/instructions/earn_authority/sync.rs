@@ -12,15 +12,16 @@ use earn::{
 
 #[derive(Accounts)]
 pub struct Sync<'info> {
-    pub admin: Signer<'info>,
+    pub earn_authority: Signer<'info>,
 
     pub m_earn_global_account: Account<'info, EarnGlobal>,
 
     #[account(
+        mut,
         seeds = [EXT_GLOBAL_SEED],
         bump = global_account.bump,
-        has_one = admin @ ExtError::NotAuthorized,
-        has_one = m_earn_global_account,        
+        has_one = earn_authority @ ExtError::NotAuthorized,
+        has_one = m_earn_global_account @ ExtError::InvalidAccount,        
     )]
     pub global_account: Account<'info, ExtGlobal>,
 }
