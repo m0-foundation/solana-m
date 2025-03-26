@@ -21,7 +21,6 @@ describe('Yield bot tests', () => {
   });
 });
 
-// Mock subgraph and rpc data for testing
 function mockRequestData(earner: PublicKey) {
   nock('https://sepolia.dummy.com')
     .post(
@@ -55,48 +54,31 @@ function mockRequestData(earner: PublicKey) {
     })
     .persist();
 
-  nock('http://localhost:8899')
-    .post(
-      '/',
-      (body) => body.method === 'getProgramAccounts' && body.params?.[1].filters?.[0].memcmp.bytes === 'gZH8R1wytJi', // earners
-    )
-    .reply(200, {
-      jsonrpc: '2.0',
-      result: [],
-      id: 'b509d315-7773-49e0-87ce-4b10524c7515',
-    })
-    .persist();
+  const context = {
+    apiVersion: '2.2.0',
+    slot: 369962085,
+  };
 
-  nock('http://localhost:8899')
-    .post('/', (body) => body.method === 'getLatestBlockhash')
-    .reply(200, {
-      jsonrpc: '2.0',
-      result: {
-        context: {
-          apiVersion: '2.2.0',
-          slot: 369962085,
-        },
+  // [rpc request body matcher, rpc response]
+  const rpcMocks: [nock.RequestBodyMatcher, any][] = [
+    [
+      (body) => body.method === 'getProgramAccounts' && body.params?.[1].filters?.[0].memcmp.bytes === 'gZH8R1wytJi', // earners
+      [],
+    ],
+    [
+      (body) => body.method === 'getLatestBlockhash',
+      {
+        context,
         value: {
           blockhash: '7rCouaLD532r6wyXLsnx9mQGf4A7eMiWcnFd9SWu3EPF',
           lastValidBlockHeight: 357940737,
         },
       },
-      id: 'b509d315-7773-49e0-87ce-4b10524c7515',
-    })
-    .persist();
-
-  nock('http://localhost:8899')
-    .post(
-      '/',
+    ],
+    [
       (body) => body.method === 'getAccountInfo' && body.params?.[0] === 'GNc6kVU8B4ZdDk6wpzUyNUo7Zs42MBLKVRz64Zojfpje', // global account
-    )
-    .reply(200, {
-      jsonrpc: '2.0',
-      result: {
-        context: {
-          apiVersion: '2.1.15',
-          slot: 369967836,
-        },
+      {
+        context,
         value: {
           data: [
             'p+joschscn+z3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9tngeGCkwV0UDXPudfVjEKHITeTFP5nuprxPN+FVNxjkC4a+Zr/OtMHX6Se8xNAUvg8oY6ud+F/aYQhRtk29CuXSfnxW6QAAAJcLz2cAAAAALAEAAAAAAAB/hB4AAAAAAAAAAAAAAAAAAAAAAAAAAAAA4s+HOzdKtcdPgH3ruU3IQEvLtAydCoj5j1nDukIsog0TG0E5aKgG7NsJGiMoiB8VGXMnMISc8luMk8M87uB6Vf4=',
@@ -109,22 +91,11 @@ function mockRequestData(earner: PublicKey) {
           space: 218,
         },
       },
-      id: '531457a7-7922-4137-9624-82f0e45dedc4',
-    })
-    .persist();
-
-  nock('http://localhost:8899')
-    .post(
-      '/',
+    ],
+    [
       (body) => body.method === 'getAccountInfo' && body.params?.[0] === 'mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6', // mint
-    )
-    .reply(200, {
-      jsonrpc: '2.0',
-      result: {
-        context: {
-          apiVersion: '2.1.15',
-          slot: 369968180,
-        },
+      {
+        context,
         value: {
           data: [
             'AQAAAAt+HmYkvrxuIRc9WMtEGFHidulJDPbDH2C3PqhmCtaMP3cbAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARIAQACz3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9guGvma/zrTB1+knvMTQFL4PKGOrnfhf2mEIUbZNvQrlDgBAALPce1wTXGKGGjMlYml282w+cbkUAoVQV4nvBkkivE/2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAEEAs9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAMIAs9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/YLhr5mv860wdfpJ7zE0BS+Dyhjq534X9phCFG2Tb0K5QgAAABNIGJ5IE1eMAEAAABNNAAAAGh0dHBzOi8vZXRoZXJzY2FuLmlvL3Rva2VuL2ltYWdlcy9tMHRva2VuX25ld18zMi5wbmcBAAAAAwAAAGV2bSoAAAAweDg2NkEyQkY0RTU3MkNiY0YzN0Q1MDcxQTdhNTg1MDNCZmIzNmJlMWI=',
@@ -137,16 +108,11 @@ function mockRequestData(earner: PublicKey) {
           space: 569,
         },
       },
-      id: 'a02b25ad-6979-4609-9f5c-c9b995b34d15',
-    })
-    .persist();
-
-  nock('http://localhost:8899')
-    .post('/', (body) => body.method === 'simulateTransaction')
-    .reply(200, {
-      jsonrpc: '2.0',
-      result: {
-        context: { slot: 218 },
+    ],
+    [
+      (body) => body.method === 'simulateTransaction',
+      {
+        context,
         value: {
           err: null,
           accounts: null,
@@ -154,7 +120,17 @@ function mockRequestData(earner: PublicKey) {
           unitsConsumed: 2366,
         },
       },
-      id: 'a02b25ad-6979-4609-9f5c-c9b995b34d15',
-    })
-    .persist();
+    ],
+  ];
+
+  for (const [matcher, result] of rpcMocks) {
+    nock('http://localhost:8899')
+      .post('/', matcher)
+      .reply(200, {
+        jsonrpc: '2.0',
+        result,
+        id: 'b509d315-7773-49e0-87ce-4b10524c7515',
+      })
+      .persist();
+  }
 }
