@@ -32,8 +32,8 @@ test-local-validator:
 yield-bot-devnet:
 	@yarn --silent ts-node services/yield-bot/main.ts distribute \
 	--rpc $(shell op read "op://Solana Dev/RPCs/helius-devnet") \
-	--keypair $(shell op read "op://Solana Dev/Solana Program Keys/devnet-authority") \
-	--dryRun
+	--keypair $(shell op read "op://Solana Dev/Solana Program Keys/squads-proposer") \
+	--squadsPda EZw3kXitDscWQh3VV1GXfcYV7DJSiCXGV6QP5R21moXe
 
 
 #
@@ -70,13 +70,3 @@ upgrade-earn-devnet: build-devnet
 
 upgrade-portal-devnet: build-devnet
 	$(call upgrade_program,portal,$(PORTAL_PROGRAM_ID))
-
-
-#
-# CLI commands
-#
-cli-dev:
-	op run --env-file='./dev.env' -- ts-node services/cli/main.ts
-
-cli-test:
-	op run --env-file='./dev.env' -- ts-node services/cli/test.ts

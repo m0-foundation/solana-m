@@ -129,46 +129,11 @@ class EarnAuthority {
       .instruction();
   }
 
-  async sendClaimInstructions(
+  async simulateAndValidateClaimIxs(
     ixs: TransactionInstruction[],
-    earnAuthority: Keypair,
-    priorityFee = 250_000,
-    appendCompleteClaimInstruction = false,
-    validate = false,
     batchSize = 10,
-  ): Promise<string[]> {
-    if (validate) {
-      await this.simulateAndValidateClaimIxs(ixs, batchSize);
-    }
-
-    if (appendCompleteClaimInstruction) {
-      ixs.push(await this.buildCompleteClaimCycleInstruction());
-    }
-
-    const signatures: string[] = [];
-    for (const txn of await this._buildTransactions(ixs, priorityFee, batchSize)) {
-      txn.sign([earnAuthority]);
-      const signature = await this.connection.sendTransaction(txn, { skipPreflight: validate });
-      signatures.push(signature);
-    }
-
-    const { lastValidBlockHeight, blockhash } = await this.connection.getLatestBlockhash();
-
-    // wait for all transactions to be confirmed
-    await Promise.all(
-      signatures.map((signature) =>
-        this.connection.confirmTransaction({
-          blockhash: blockhash,
-          lastValidBlockHeight: lastValidBlockHeight,
-          signature,
-        }),
-      ),
-    );
-
-    return signatures;
-  }
-
-  async simulateAndValidateClaimIxs(ixs: TransactionInstruction[], batchSize = 10): Promise<bigint> {
+    claimSizeFilter = 100000n, // $0.10
+  ): Promise<bigint> {
     if (this.global.claimComplete) {
       throw new Error('No active claim cycle');
     }
@@ -179,6 +144,12 @@ class EarnAuthority {
       // simulate transaction
       const result = await this.connection.simulateTransaction(txn, { sigVerify: false });
       if (result.value.err) {
+        console.error({
+          message: 'Claim batch simulation failed',
+          logs: result.value.logs,
+          err: result.value.err,
+          b64: Buffer.from(txn.serialize()).toString('base64'),
+        });
         throw new Error(`Claim batch simulation failed: ${result.value.err}`);
       }
 

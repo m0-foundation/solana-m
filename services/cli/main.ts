@@ -33,11 +33,12 @@ import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
 import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
+import * as multisig from '@sqds/multisig';
 import { Earn } from '../../target/types/earn';
 import { keysFromEnv, NttManager } from './utils';
 import { MerkleTree } from '../../sdk/src/merkle';
 import { EvmCaller } from '../../sdk/src/evm_caller';
-const EARN_IDL = require('../target/idl/earn.json');
+const EARN_IDL = require('../../target/idl/earn.json');
 
 const PROGRAMS = {
   // program id the same for devnet and mainnet
@@ -121,10 +122,15 @@ async function main() {
       const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
       const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
 
+      const [vaultPda] = multisig.getVaultPda({
+        multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
+        index: 0,
+      });
+
       await earn.methods
         .initialize(
           mint.publicKey,
-          Keypair.generate().publicKey,
+          vaultPda,
           new BN(1001886486057), // initial index
           new BN(5 * 60), // cooldown
         )

@@ -6,7 +6,9 @@
     "op:program-keypairs": "mkdir -p target/deploy && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/portal-keypair' > target/deploy/portal-keypair.json && op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/earn-keypair' > target/deploy/earn-keypair.json",
     "op:devnet-authority": "op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/devnet-authority' > devnet-keypair.json",
     "test": "yarn run jest --preset ts-jest --verbose --testPathPattern='tests/unit/earn.test.ts|tests/unit/portal.test.ts'",
-    "build": "anchor build"
+    "build": "anchor build",
+    "cli:dev": "op run --env-file='./dev.env' -- ts-node services/cli/main.ts",
+    "cli:test": "op run --env-file='./dev.env' -- ts-node services/cli/test.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
