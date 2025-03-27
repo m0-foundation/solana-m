@@ -6,8 +6,8 @@ use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
-    errors::EarnError,
     constants::ANCHOR_DISCRIMINATOR_SIZE,
+    errors::EarnError,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
     utils::{
         merkle_proof::{verify_in_tree, ProofElement},
