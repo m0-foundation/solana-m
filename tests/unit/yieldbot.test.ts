@@ -2,6 +2,8 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 import nock from 'nock';
 import { yieldCLI } from '../../services/yield-bot/main';
 
+const SVM_RPC = 'https://api.devnet.solana.com';
+
 describe('Yield bot tests', () => {
   const earner = Keypair.generate();
   mockRequestData(earner.publicKey);
@@ -14,7 +16,7 @@ describe('Yield bot tests', () => {
     process.argv = ['node', 'maint.ts', 'distribute'];
     process.argv.push('-k', secret);
     process.argv.push('-e', 'https://sepolia.dummy.com');
-    process.argv.push('-r', 'https://dummy.rpc.com');
+    process.argv.push('-r', SVM_RPC);
     process.argv.push('--dryRun');
 
     await yieldCLI();
@@ -25,8 +27,6 @@ describe('Yield bot tests', () => {
  * Mocks the request data for the yield bot
  */
 function mockRequestData(earner: PublicKey) {
-  nock.disableNetConnect();
-
   nock('https://sepolia.dummy.com')
     .post(
       '/',
@@ -118,7 +118,7 @@ function mockRequestData(earner: PublicKey) {
 
   // mock all rpc requests
   for (const [matcher, result] of rpcMocks) {
-    nock('https://dummy.rpc.com')
+    nock(SVM_RPC)
       .post('/', matcher)
       .reply(200, {
         jsonrpc: '2.0',

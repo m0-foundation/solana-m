@@ -41,7 +41,7 @@ jobs:
         shell: bash
 
   yield-bot-tests:
-    runs-on: macos-latest-large
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
