@@ -35,6 +35,8 @@ export async function yieldCLI() {
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
     .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
     .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda }) => {
+      console.log('running with options:', { keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda });
+
       let signer: Keypair;
       try {
         signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
