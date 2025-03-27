@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, Token2022};
 
 use crate::{
+    errors::ExtError,
     state::{
         M_VAULT_SEED,
         global::{ExtGlobal, EXT_GLOBAL_SEED},
@@ -17,13 +18,14 @@ pub struct Unwrap<'info> {
 
     pub m_mint: InterfaceAccount<'info, Mint>,
 
+    #[account(mut)]
     pub ext_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
         seeds = [EXT_GLOBAL_SEED],
         bump = global_account.bump,
-        has_one = m_mint,
-        has_one = ext_mint,
+        has_one = m_mint @ ExtError::InvalidAccount,
+        has_one = ext_mint @ ExtError::InvalidAccount,
     )]
     pub global_account: Account<'info, ExtGlobal>,
 
@@ -35,6 +37,7 @@ pub struct Unwrap<'info> {
     pub m_vault: AccountInfo<'info>,
 
     #[account(
+        mut,
         token::mint = m_mint,
         token::authority = signer,
     )]
@@ -44,6 +47,7 @@ pub struct Unwrap<'info> {
         mut,
         associated_token::mint = m_mint,
         associated_token::authority = m_vault,
+        associated_token::token_program = token_2022,
     )]
     pub vault_m_token_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -74,7 +78,7 @@ pub fn handler(ctx: Context<Unwrap>, amount: u64) -> Result<()> {
         amount, // amount
         &ctx.accounts.m_mint, // mint
         &ctx.accounts.m_vault, // authority
-        &[&[M_VAULT_SEED]], // authority seeds
+        &[&[M_VAULT_SEED, &[ctx.accounts.global_account.m_vault_bump]]], // authority seeds
         &ctx.accounts.token_2022, // token program
     )?;
 
