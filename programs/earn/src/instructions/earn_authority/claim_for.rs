@@ -117,6 +117,15 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.token_program,           // token program
     )?;
 
+    // Check the current supply of M against the max supply in the global account
+    // If it is greater, update the max supply
+    // This check is also done when an index is propagated for a bridge
+    // These are the only two actions that can mint M on Solana
+    // Therefore, we always have an accurate max supply for calculating max yield
+    if ctx.accounts.mint.supply > ctx.accounts.global_account.max_supply {
+        ctx.accounts.global_account.max_supply = ctx.accounts.mint.supply;
+    }
+
     let user_token_key = ctx.accounts.user_token_account.key();
 
     emit!(RewardsClaim {
