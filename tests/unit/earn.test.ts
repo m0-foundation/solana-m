@@ -69,7 +69,6 @@ const claimCooldown = new BN(86_400); // 1 day
 
 // Merkle trees
 let earnerMerkleTree: MerkleTree;
-let earnManagerMerkleTree: MerkleTree;
 
 // Type definitions for accounts to make it easier to do comparisons
 
@@ -1746,6 +1745,37 @@ describe("Earn unit tests", () => {
         new BN(1_100_000_000_000),
         earnerMerkleTree.getRoot()
       );
+    });
+
+    test("Earner tree is empty and user is zero value - reverts", async () => {
+      // Remove all earners from the merkle tree
+      earnerMerkleTree = new MerkleTree([]);
+
+      // Propagate the new merkle root
+      await propagateIndex(
+        new BN(1_100_000_000_000),
+        earnerMerkleTree.getRoot()
+      );
+
+      // Get the ATA for the zero value pubkey
+      const zeroATA = await getATA(mint.publicKey, PublicKey.default);
+
+      // Get the inclusion proof for the zero value pubkey in the earner merkle tree
+      const { proof } = earnerMerkleTree.getInclusionProof(PublicKey.default);
+
+      // Setup the instruction
+      prepAddRegistrarEarner(nonAdmin, zeroATA);
+
+      // Attempt to add earner with empty tree and zero value pubkey
+      await expectAnchorError(
+        earn.methods
+          .addRegistrarEarner(PublicKey.default, proof)
+          .accounts({ ...accounts })
+          .signers([nonAdmin])
+          .rpc(),
+        "InvalidParam"
+      );
+
     });
 
     test("Earner tree is empty and user is zero value - reverts", async () => {
