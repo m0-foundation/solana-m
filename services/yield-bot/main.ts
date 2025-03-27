@@ -54,9 +54,9 @@ export async function yieldCLI() {
         options.squadsPda = new PublicKey(squadsPda);
       }
 
-      // await removeEarners(options);
+      await removeEarners(options);
       await distributeYield(options);
-      // await addEarners(options);
+      await addEarners(options);
     });
 
   await program.parseAsync(process.argv);
@@ -78,15 +78,24 @@ async function distributeYield(opt: ParsedOptions) {
   const earners = await auth.getAllEarners();
 
   // build claim instructions
-  const claimIxs = [];
+  const claimIxs: TransactionInstruction[] = [];
   for (const earner of earners) {
     console.log(`claiming yield for ${earner.pubkey.toBase58()}`);
-    claimIxs.push(await auth.buildClaimInstruction(earner));
+    const ix = await auth.buildClaimInstruction(earner);
+    if (ix) claimIxs.push(ix);
   }
 
-  // verify that there are no reverts and claims do not exceed max yield
-  // const distributed = await auth.simulateAndValidateClaimIxs(claimIxs);
-  // console.log(`distributing ${distributed} M in yield`);
+  // simulation will fail if the squads vault is the earn authority
+  if (!opt.squadsPda) {
+    // set authority to program admin for simulation
+    const modifiedIxs = claimIxs.map((ix) => {
+      ix.keys[0].pubkey = auth.admin;
+      return ix;
+    });
+
+    const distributed = await auth.simulateAndValidateClaimIxs(modifiedIxs);
+    console.log(`distributing ${distributed} M in yield`);
+  }
 
   // send all the claims
   const signatures = await buildAndSendTransaction(opt, claimIxs);

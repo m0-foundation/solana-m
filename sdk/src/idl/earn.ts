@@ -158,7 +158,7 @@ export type Earn = {
       "name": "claimFor",
       "accounts": [
         {
-          "name": "earnAuthority",
+          "name": "authority",
           "isMut": false,
           "isSigner": true
         },
@@ -964,7 +964,7 @@ export const IDL: Earn = {
       "name": "claimFor",
       "accounts": [
         {
-          "name": "earnAuthority",
+          "name": "authority",
           "isMut": false,
           "isSigner": true
         },

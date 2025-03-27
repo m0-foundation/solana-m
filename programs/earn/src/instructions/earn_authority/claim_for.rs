@@ -13,12 +13,15 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct ClaimFor<'info> {
-    pub earn_authority: Signer<'info>,
+    #[account(
+        constraint = authority.key() == global_account.earn_authority || 
+            authority.key() == global_account.admin @ EarnError::NotAuthorized,
+    )]
+    pub authority: Signer<'info>,
 
     #[account(
         mut,
         has_one = mint,
-        has_one = earn_authority @ EarnError::NotAuthorized,
         seeds = [GLOBAL_SEED],
         bump = global_account.bump,
     )]

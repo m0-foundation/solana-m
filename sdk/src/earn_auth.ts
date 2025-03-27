@@ -53,6 +53,10 @@ class EarnAuthority {
     Object.assign(this, await EarnAuthority.load(this.connection));
   }
 
+  public get admin() {
+    return new PublicKey(this.global.admin);
+  }
+
   async getAllEarners(): Promise<Earner[]> {
     const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, {
       filters: [{ memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } }],
@@ -74,9 +78,15 @@ class EarnAuthority {
       .instruction();
   }
 
-  async buildClaimInstruction(earner: Earner): Promise<TransactionInstruction> {
+  async buildClaimInstruction(earner: Earner): Promise<TransactionInstruction | null> {
     if (this.global.claimComplete) {
-      throw new Error('No active claim cycle');
+      console.error('No active claim cycle');
+      return null;
+    }
+
+    // earner was created after last index update
+    if (earner.lastClaimTimestamp > this.global.timestamp) {
+      return null;
     }
 
     const weightedBalance = await new Graph().getTimeWeightedBalance(
@@ -115,7 +125,7 @@ class EarnAuthority {
     return this.program.methods
       .claimFor(new BN(weightedBalance.toString()))
       .accounts({
-        earnAuthority: new PublicKey(this.global.earnAuthority),
+        authority: new PublicKey(this.global.earnAuthority),
         globalAccount: GLOBAL_ACCOUNT,
         mint: new PublicKey(this.global.mint),
         tokenAuthorityAccount,

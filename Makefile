@@ -32,8 +32,8 @@ test-local-validator:
 yield-bot-devnet:
 	@yarn --silent ts-node services/yield-bot/main.ts distribute \
 	--rpc $(shell op read "op://Solana Dev/RPCs/helius-devnet") \
-	--keypair $(shell op read "op://Solana Dev/Solana Program Keys/squads-proposer") \
-	--squadsPda EZw3kXitDscWQh3VV1GXfcYV7DJSiCXGV6QP5R21moXe
+	--keypair $(shell op read "op://Solana Dev/Solana Program Keys/devnet-authority") \
+	--dryRun
 
 
 #
