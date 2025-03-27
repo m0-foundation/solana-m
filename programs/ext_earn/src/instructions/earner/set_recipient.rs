@@ -27,6 +27,7 @@ pub struct SetRecipient<'info> {
     pub global_account: Account<'info, ExtGlobal>,
 
     #[account(
+        mut,
         seeds = [EARNER_SEED, &earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
