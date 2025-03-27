@@ -63,15 +63,11 @@ export class Registrar {
 
   async buildRemovedEarnersInstructions(signer: PublicKey): Promise<TransactionInstruction[]> {
     // get all earners on registrar
-    console.log('getting evm earners');
     const evmCaller = new EvmCaller(this.evmRPC);
     const earners = await evmCaller.getEarners();
 
     // get all eaners on the earn program
-    console.log('getting svm earners');
     const programEarners = await this.getRegistrarEarners();
-
-    console.log('yep');
 
     const ixs: TransactionInstruction[] = [];
     for (const earner of programEarners) {

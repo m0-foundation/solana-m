@@ -14,7 +14,7 @@ describe('Yield bot tests', () => {
     process.argv = ['node', 'maint.ts', 'distribute'];
     process.argv.push('-k', secret);
     process.argv.push('-e', 'https://sepolia.dummy.com');
-    process.argv.push('-r', 'http://localhost:8899');
+    process.argv.push('-r', 'https://dummy.rpc.com');
     process.argv.push('--dryRun');
 
     await yieldCLI();
@@ -118,7 +118,7 @@ function mockRequestData(earner: PublicKey) {
 
   // mock all rpc requests
   for (const [matcher, result] of rpcMocks) {
-    nock('http://localhost:8899')
+    nock('https://dummy.rpc.com')
       .post('/', matcher)
       .reply(200, {
         jsonrpc: '2.0',
