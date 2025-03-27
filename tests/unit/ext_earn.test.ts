@@ -1093,11 +1093,10 @@ const unwrap = async (user: Keypair, amount: BN) => {
     return { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount };
 };
 
-
 const prepRemoveOrphanedEarner = (
     signer: Keypair,
     earnerATA: PublicKey,
-    earnManager?: PublicKey
+    earnManager: PublicKey
 ) => {
     // Get the earner account
     const earnerAccount = getExtEarnerAccount(earnerATA);
@@ -1105,17 +1104,15 @@ const prepRemoveOrphanedEarner = (
     // Populate accounts
     accounts = {};
     accounts.signer = signer.publicKey;
-    accounts.userTokenAccount = earnerATA;
+    accounts.globalAccount = getExtGlobalAccount();
     accounts.earnerAccount = earnerAccount;
-    if (earnManager) {
-        // Get the earn manager account
-        const earnManagerAccount = getEarnManagerAccount(earnManager);
-        accounts.earnManagerAccount = earnManagerAccount;
 
-        return { earnerAccount, earnManagerAccount };
-    }
+    // Get the earn manager account
+    const earnManagerAccount = getEarnManagerAccount(earnManager);
+    accounts.earnManagerAccount = earnManagerAccount;
+    accounts.systemProgram = SystemProgram.programId;
 
-    return { earnerAccount };
+    return { earnerAccount, earnManagerAccount };
 };
 
 describe("ExtEarn unit tests", () => {
@@ -3290,10 +3287,189 @@ describe("ExtEarn unit tests", () => {
 
 
         describe("remove_orphaned_earner unit tests", () => {
+            // test cases
+            // [X] given the earner account is not initialized
+            //   [X] it reverts with an account not initialized error
+            // [X] given the earn manager account is not initialized
+            //   [X] it reverts with an account not initialized error
+            // [X] given the earn manager account does not match the one on the earner account
+            //   [X] it reverts with a ConstraintSeeds error
+            // [X] given all the accounts are valid
+            //   [X] given the earner has an earn manager
+            //     [X] given the earn manager account is active
+            //       [X] it reverts with a Active error
+            //     [X] given the earn manager account is not active
+            //       [X] it closes the earner account and refunds the rent to the signer
 
+            beforeEach(async () => {
+                // Add another earn manager
+                await addEarnManager(earnManagerTwo.publicKey, new BN(0));
+
+                // Add an earner under the new earn manager
+                await addEarner(earnManagerTwo, earnerTwo.publicKey);
+
+                // Remove earn manager two so that earner two is orphaned
+                await removeEarnManager(earnManagerTwo.publicKey);
+            });
+
+            // given the earner account is not initialized
+            // it reverts with an account not initialized error
+            test("Earner account is not initialized - reverts", async () => {
+                // Calculate the ATA for non earner one, but don't create it
+                const nonInitATA = getAssociatedTokenAddressSync(
+                    extMint.publicKey,
+                    nonEarnerOne.publicKey,
+                    true,
+                    TOKEN_2022_PROGRAM_ID,
+                    ASSOCIATED_TOKEN_PROGRAM_ID
+                );
+
+                // Setup the instruction
+                prepRemoveOrphanedEarner(nonAdmin, nonInitATA, earnManagerOne.publicKey);
+
+                // Attempt to remove orphaned earner with uninitialized token account
+                await expectAnchorError(
+                    extEarn.methods
+                        .removeOrphanedEarner()
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "AccountNotInitialized"
+                );
+            });
+
+            // given the earn manager account is not initialized
+            // it reverts with an account not initialized error
+            test("Earn manager account is not initialized - reverts", async () => {
+                // Get the ATA for earner two
+                const earnerTwoATA = await getATA(
+                    extMint.publicKey,
+                    earnerTwo.publicKey
+                );
+
+                // Prepare the instruction
+                prepRemoveOrphanedEarner(
+                    nonAdmin,
+                    earnerTwoATA,
+                    nonEarnManagerOne.publicKey
+                );
+
+                // Attempt to remove orphaned earner with uninitialized earn manager account
+                await expectAnchorError(
+                    extEarn.methods
+                        .removeOrphanedEarner()
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "AccountNotInitialized"
+                );
+            });
+
+            // given all the accounts are valid
+            // given the earner has an earn manager
+            // given the earn manager account is active
+            // it reverts with an Active error
+            test("Earn manager account is active - reverts", async () => {
+                // Get the ATA for earner one
+                const earnerOneATA = await getATA(
+                    extMint.publicKey,
+                    earnerOne.publicKey
+                );
+
+                // Setup the instruction
+                prepRemoveOrphanedEarner(
+                    nonAdmin,
+                    earnerOneATA,
+                    earnManagerOne.publicKey
+                );
+
+                // Attempt to remove orphaned earner with an active earn manager
+                await expectAnchorError(
+                    extEarn.methods
+                        .removeOrphanedEarner()
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "Active"
+                );
+            });
+
+            // given the earn manager account does not match the earner's earn manager
+            // it reverts with a ConstraintSeeds error
+            test("Invalid earn manager account - reverts", async () => {
+                const earnerTwoATA = await getATA(
+                    extMint.publicKey,
+                    earnerTwo.publicKey
+                );
+
+                // Setup the instruction
+                await prepRemoveOrphanedEarner(nonAdmin, earnerTwoATA, earnManagerOne.publicKey);
+
+                // Attempt to remove orphaned earner with the wrong earn manager account
+                // expect revert with ConstraintSeeds error
+                await expectAnchorError(
+                    extEarn.methods
+                        .removeOrphanedEarner()
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "ConstraintSeeds"
+                );
+
+            });
+
+            // given all the accounts are valid
+            // given the earner has an earn manager
+            // given the earn manager account is not active
+            // it closes the earner account and refunds the rent to the signer
+            test("Remove orphaned earner - success", async () => {
+                // Get the ATA for earnerTwo
+                const earnerTwoATA = await getATA(
+                    extMint.publicKey,
+                    earnerTwo.publicKey
+                );
+                console.log("zero");
+
+                // Setup the instruction
+                const { earnerAccount, earnManagerAccount } = prepRemoveOrphanedEarner(
+                    nonAdmin,
+                    earnerTwoATA,
+                    earnManagerTwo.publicKey
+                );
+
+                console.log("one");
+
+                // Confirm that the account is active and has the correct earn manager
+                await expectEarnerState(earnerAccount, {
+                    earnManager: earnManagerTwo.publicKey,
+                });
+
+                console.log("two");
+
+                // Confirm that the earn manager account is not active
+                await expectEarnManagerState(earnManagerAccount, {
+                    isActive: false
+                });
+
+                console.log("three");
+
+                // Remove the orphaned earner
+                try {
+                    await extEarn.methods
+                        .removeOrphanedEarner()
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc();
+                } catch (err) {
+                    console.log(err);
+                    throw err;
+                }
+
+                // Verify the earner account was closed
+                expectAccountEmpty(earnerAccount);
+            });
         });
     });
-
 });
 
 
