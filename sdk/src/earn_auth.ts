@@ -4,7 +4,6 @@ import {
   PublicKey,
   Transaction,
   VersionedTransaction,
-  Keypair,
   ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { GLOBAL_ACCOUNT, PROGRAM_ID } from '.';

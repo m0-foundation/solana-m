@@ -18,13 +18,15 @@ describe('Yield bot tests', () => {
     process.argv.push('--dryRun');
 
     await yieldCLI();
-  }, 60_000);
+  });
 });
 
 /*
  * Mocks the request data for the yield bot
  */
 function mockRequestData(earner: PublicKey) {
+  nock.disableNetConnect();
+
   nock('https://sepolia.dummy.com')
     .post(
       '/',
