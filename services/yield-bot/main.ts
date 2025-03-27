@@ -11,7 +11,7 @@ import {
 } from '@solana/web3.js';
 import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
-import { instructions, transactions } from '@sqds/multisig';
+import { instructions } from '@sqds/multisig';
 
 interface ParsedOptions {
   signer: Keypair;

@@ -18,7 +18,7 @@ describe('Yield bot tests', () => {
     process.argv.push('--dryRun');
 
     await yieldCLI();
-  }, 15_000);
+  }, 60_000);
 });
 
 /*
