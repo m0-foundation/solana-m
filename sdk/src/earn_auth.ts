@@ -125,7 +125,7 @@ class EarnAuthority {
     return this.program.methods
       .claimFor(new BN(weightedBalance.toString()))
       .accounts({
-        authority: new PublicKey(this.global.earnAuthority),
+        earnAuthority: new PublicKey(this.global.earnAuthority),
         globalAccount: GLOBAL_ACCOUNT,
         mint: new PublicKey(this.global.mint),
         tokenAuthorityAccount,
@@ -160,7 +160,7 @@ class EarnAuthority {
           err: result.value.err,
           b64: Buffer.from(txn.serialize()).toString('base64'),
         });
-        throw new Error(`Claim batch simulation failed: ${result.value.err}`);
+        throw new Error(`Claim batch simulation failed: ${JSON.stringify(result.value.err)}`);
       }
 
       // add up rewards

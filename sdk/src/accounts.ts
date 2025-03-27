@@ -67,24 +67,24 @@ export const globalDecoder: FixedSizeDecoder<GlobalAccountData> = getStructDecod
 
 interface EarnerData {
   anchorDiscriminator: ReadonlyUint8Array;
-  earnManager: Option<Address>;
-  recipientTokenAccount: Option<Address>;
+  user: Address;
   lastClaimIndex: bigint;
   lastClaimTimestamp: bigint;
   isEarning: boolean;
   bump: number;
-  user: Address;
   userTokenAccount: Address;
+  earnManager: Option<Address>;
+  recipientTokenAccount: Option<Address>;
 }
 
 export const earnerDecoder: VariableSizeDecoder<EarnerData> = getStructDecoder([
   ['anchorDiscriminator', fixDecoderSize(getBytesDecoder(), 8)],
-  ['earnManager', getOptionDecoder(getAddressDecoder())],
-  ['recipientTokenAccount', getOptionDecoder(getAddressDecoder())],
+  ['user', getAddressDecoder()],
   ['lastClaimIndex', getU64Decoder()],
   ['lastClaimTimestamp', getU64Decoder()],
   ['isEarning', getBooleanDecoder()],
   ['bump', getU8Decoder()],
-  ['user', getAddressDecoder()],
   ['userTokenAccount', getAddressDecoder()],
+  ['earnManager', getOptionDecoder(getAddressDecoder())],
+  ['recipientTokenAccount', getOptionDecoder(getAddressDecoder())],
 ]);

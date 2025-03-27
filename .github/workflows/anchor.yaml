@@ -100,3 +100,23 @@ jobs:
       - name: Run SDK tests
         run: make test-sdk
         shell: bash
+  yield-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: ./node_modules/
+          key: node-modules-20
+      - name: Install Node Dependencies
+        run: npm i -g yarn && yarn install && cd sdk && yarn install && cd ..
+        shell: bash
+      - name: Run yield tests
+        run: make test-sdk
+        shell: bash

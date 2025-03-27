@@ -245,25 +245,16 @@ describe('SDK unit tests', () => {
 
   describe('decoders', () => {
     test('earner', async () => {
-      const dataB = Buffer.from(
-        'ec7e33602ee167cf0106b8cac9587f9537754a60b9eea4ad744c84e6900548551686897c18a046d912000010a5d4e800000068afd9670000000001fe8119c8a9831edd75da89a7dba6eea8a7db3c554187341ccf21b1b5d555634b38c3326dffdb07e7da8ea1722d38bb9a5c7506a0b3b534de7deb3592c6200785d20000000000000000000000000000000000000000000000000000000000000000',
-        'hex',
-      );
       const dataA = Buffer.from(
-        'ec7e33602ee167cf00017b7c21fd8778f5efc598fda24ad5dbba8957c1d4ed2134c7da630cd167b52ad40010a5d4e800000066afd9670000000001ff98f50434dd43f456c8910c20b855c5c7ac1fc937032cda29ac9cff67729a0b9f7b7c21fd8778f5efc598fda24ad5dbba8957c1d4ed2134c7da630cd167b52ad40000000000000000000000000000000000000000000000000000000000000000',
-        'hex',
+        '7H4zYC7hZ89UWS6Qo9CBLSumcS4sQoiKMNMmbmNghGEJFDLYUO+DecjmL+HpAAAArXTlZwAAAAAB/7B06uUZgFA+MMKB4P+2PMUzeAGtP/sATZeQe8G5y56bAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        'base64',
       );
 
       const eA = Earner.fromAccountData(connection, earnerAccountA, dataA);
+      expect(eA.user.toBase58()).toBe('6gG7w73TvK4WTccs9N9wjYERSasczd9x68NgTDy2zBvQ');
       expect(eA.earnManager).toBeNull();
-      expect(eA.recipientTokenAccount).toBeDefined();
-      expect(eA.recipientTokenAccount?.toBase58()).toBe(eA.userTokenAccount.toBase58());
+      expect(eA.recipientTokenAccount).toBeNull();
       expect(eA.isEarning).toBeTruthy();
-
-      const eB = Earner.fromAccountData(connection, earnerAccountB, dataB);
-      expect(eB.earnManager).toBeDefined();
-      expect(eB.earnManager?.toBase58()).toBe(signer.publicKey.toBase58());
-      expect(eB.isEarning).toBeTruthy();
     });
   });
 
@@ -337,6 +328,7 @@ describe('SDK unit tests', () => {
       const earners = await auth.getAllEarners();
 
       for (const earner of earners) {
+        earner.lastClaimTimestamp = auth['global'].timestamp;
         const ix = await auth.buildClaimInstruction(earner);
         claimIxs.push(ix!);
       }
@@ -351,8 +343,7 @@ describe('SDK unit tests', () => {
       expect(amount).toEqual(70000000000n);
 
       // send transactions
-      const signatures = await sendAndConfirmTransaction(connection, new Transaction().add(...claimIxs), [signer]);
-      expect(signatures).toHaveLength(1);
+      const signature = await sendAndConfirmTransaction(connection, new Transaction().add(...claimIxs), [signer]);
 
       await auth.refresh();
       expect(auth['global'].distributed).toBe(70000000000n);

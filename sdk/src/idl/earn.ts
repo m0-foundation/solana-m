@@ -158,7 +158,7 @@ export type Earn = {
       "name": "claimFor",
       "accounts": [
         {
-          "name": "authority",
+          "name": "earnAuthority",
           "isMut": false,
           "isSigner": true
         },
@@ -551,16 +551,8 @@ export type Earn = {
         "kind": "struct",
         "fields": [
           {
-            "name": "earnManager",
-            "type": {
-              "option": "publicKey"
-            }
-          },
-          {
-            "name": "recipientTokenAccount",
-            "type": {
-              "option": "publicKey"
-            }
+            "name": "user",
+            "type": "publicKey"
           },
           {
             "name": "lastClaimIndex",
@@ -579,12 +571,20 @@ export type Earn = {
             "type": "u8"
           },
           {
-            "name": "user",
+            "name": "userTokenAccount",
             "type": "publicKey"
           },
           {
-            "name": "userTokenAccount",
-            "type": "publicKey"
+            "name": "earnManager",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "recipientTokenAccount",
+            "type": {
+              "option": "publicKey"
+            }
           }
         ]
       }
@@ -964,7 +964,7 @@ export const IDL: Earn = {
       "name": "claimFor",
       "accounts": [
         {
-          "name": "authority",
+          "name": "earnAuthority",
           "isMut": false,
           "isSigner": true
         },
@@ -1357,16 +1357,8 @@ export const IDL: Earn = {
         "kind": "struct",
         "fields": [
           {
-            "name": "earnManager",
-            "type": {
-              "option": "publicKey"
-            }
-          },
-          {
-            "name": "recipientTokenAccount",
-            "type": {
-              "option": "publicKey"
-            }
+            "name": "user",
+            "type": "publicKey"
           },
           {
             "name": "lastClaimIndex",
@@ -1385,12 +1377,20 @@ export const IDL: Earn = {
             "type": "u8"
           },
           {
-            "name": "user",
+            "name": "userTokenAccount",
             "type": "publicKey"
           },
           {
-            "name": "userTokenAccount",
-            "type": "publicKey"
+            "name": "earnManager",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "recipientTokenAccount",
+            "type": {
+              "option": "publicKey"
+            }
           }
         ]
       }
