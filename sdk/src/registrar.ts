@@ -27,8 +27,8 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const user of earners) {
-      const eaners = await Earner.fromUserAddress(this.connection, user);
-      if (eaners.length > 0) {
+      const existingEarners = await Earner.fromUserAddress(this.connection, user);
+      if (existingEarners.length > 0) {
         continue;
       }
 
@@ -97,7 +97,7 @@ export class Registrar {
   async getRegistrarEarners(): Promise<Earner[]> {
     const filters: GetProgramAccountsFilter[] = [
       { memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } },
-      { memcmp: { offset: 8, bytes: '2' } }, // no manager set
+      { memcmp: { offset: 90, bytes: '2' } }, // no manager set
     ];
 
     const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });

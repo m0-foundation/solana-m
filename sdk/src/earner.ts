@@ -53,7 +53,7 @@ export class Earner {
   static async fromUserAddress(connection: Connection, user: PublicKey): Promise<Earner[]> {
     const filters: GetProgramAccountsFilter[] = [
       { memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } },
-      { memcmp: { offset: 92, bytes: user.toBase58() } },
+      { memcmp: { offset: 8, bytes: user.toBase58() } },
     ];
     const accounts = await connection.getProgramAccounts(PROGRAM_ID, { filters });
     return accounts.map(({ account, pubkey }) => Earner.fromAccountData(connection, pubkey, account.data));

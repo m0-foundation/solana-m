@@ -127,7 +127,7 @@ export class EarnManager {
   async getEarners(): Promise<Earner[]> {
     const filters: GetProgramAccountsFilter[] = [
       { memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } },
-      { memcmp: { offset: 9, bytes: this.manager.toBase58() } },
+      { memcmp: { offset: 91, bytes: this.manager.toBase58() } },
     ];
 
     const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
