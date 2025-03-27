@@ -56,12 +56,12 @@ yarn install
 
 ### Build Programs
 ```bash
-yarn build
+anchor build
 ```
 
 ### Run Tests
 ```bash
-yarn test
+anchor build && yarn test
 ```
 
 ### Development Commands
