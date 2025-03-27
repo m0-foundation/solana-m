@@ -24,7 +24,7 @@ pub struct ClaimFor<'info> {
 
     #[account(
         mut,
-        has_one = ext_mint,
+        has_one = ext_mint @ ExtError::InvalidAccount,
         has_one = earn_authority @ ExtError::NotAuthorized,
         seeds = [EXT_GLOBAL_SEED],
         bump = global_account.bump,
@@ -51,6 +51,7 @@ pub struct ClaimFor<'info> {
     #[account(
         associated_token::mint = global_account.m_mint,
         associated_token::authority = m_vault_account,
+        associated_token::token_program = token_2022,
     )]
     pub vault_m_token_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -59,7 +60,7 @@ pub struct ClaimFor<'info> {
         address = match earner_account.recipient_token_account {
             Some(token_account) => token_account,
             None => earner_account.user_token_account,
-        },
+        } @ ExtError::InvalidAccount,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -105,7 +106,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     let ext_supply = ctx.accounts.ext_mint.supply;
     let ext_collateral = ctx.accounts.vault_m_token_account.amount;
 
-    if ext_supply < ext_collateral + rewards {
+    if ext_supply + rewards > ext_collateral {
         return err!(ExtError::InsufficientCollateral);
     }
 
