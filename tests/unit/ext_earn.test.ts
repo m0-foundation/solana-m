@@ -2242,8 +2242,6 @@ describe("ExtEarn unit tests", () => {
             test("transfer_earner - success", async () => {
                 const earnerOneATA = await getATA(extMint.publicKey, earnerOne.publicKey);
 
-
-
                 // Setup the instruction
                 const { earnerAccount } = prepTransferEarner(
                     earnManagerOne,
@@ -2289,11 +2287,17 @@ describe("ExtEarn unit tests", () => {
             //       [X] it reverts with an address constraint error
             //     [X] given the fee_token_account is for the correct token mint
             //       [X] given the earn manager account has not been initialized
-            //         [ ] it reverts with an AccountNotInitialized error
+            //         [X] it reverts with an AccountNotInitialized error
             //       [X] given the earn manager account has been initialized
-            //         [X] it updates the fee_bps to the provided value
-            //         [X] it updates the fee_token_account to the provided token account
-            // TODO add more test cases to handle null inputs (since fee and feeTokenAccount are optional)
+            //         [X] given the fee_bps is null and the fee_token_account is null  
+            //           [X] nothing is updated
+            //         [X] given the fee_bps is null and the fee_token_account is not null
+            //           [X] it updates the fee_token_account to the provided token account
+            //         [X] given the fee_bps is not null and the fee_token_account is null
+            //           [X] it updates the fee_bps to the provided value
+            //         [X] given the fee_bps is not null and the fee_token_account is not null
+            //           [X] it updates the fee_bps to the provided value
+            //           [X] it updates the fee_token_account to the provided token account
 
             // given the earn manager account does not match the signer
             // it reverts with a seeds constraint error
@@ -2319,6 +2323,34 @@ describe("ExtEarn unit tests", () => {
                         .signers([nonEarnManagerOne])
                         .rpc(),
                     "ConstraintSeeds"
+                );
+            });
+
+            // given the earn manager account matches the signer
+            // given the earn manager account is not initialized
+            // it reverts with an AccountNotInitialized error
+            test("Earn manager account not initialized - reverts", async () => {
+                // Get the ATA for earn manager two
+                const earnManagerTwoATA = await getATA(
+                    extMint.publicKey,
+                    earnManagerTwo.publicKey
+                );
+
+                // Setup the instruction
+                await prepConfigureEarnManager(
+                    earnManagerTwo,
+                    earnManagerTwo.publicKey,
+                    earnManagerTwoATA
+                );
+
+                // Attempt to configure earn manager that hasn't been initialized
+                await expectAnchorError(
+                    extEarn.methods
+                        .configureEarnManager(new BN(0))
+                        .accounts({ ...accounts })
+                        .signers([earnManagerTwo])
+                        .rpc(),
+                    "AccountNotInitialized"
                 );
             });
 
@@ -2389,12 +2421,94 @@ describe("ExtEarn unit tests", () => {
             });
 
             // given the earn manager account matches the signer
-            // given the fee basis points is less than or equal to 100_00
-            // given the fee_token_account is for the correct token mint and the authority is the signer
             // given the earn manager account already exists
+            // given both the fee_bps and fee_token_account are null
+            // nothing is updated
+            test("Both fee bps and fee token account are null - success", async () => {
+
+                // Get the ATA for earn manager one
+                const earnManagerOneATA = await getATA(
+                    extMint.publicKey,
+                    earnManagerOne.publicKey
+                );
+
+                // Setup the instruction
+                const { earnManagerAccount } = await prepConfigureEarnManager(
+                    earnManagerOne,
+                    earnManagerOne.publicKey,
+                    null
+                );
+
+                // Confirm the earn manager account has already been created
+                await expectEarnManagerState(earnManagerAccount, {
+                    isActive: true,
+                    feeBps: new BN(0),
+                    feeTokenAccount: earnManagerOneATA,
+                });
+
+                // Send the instruction
+                await extEarn.methods
+                    .configureEarnManager(null)
+                    .accounts({ ...accounts })
+                    .signers([earnManagerOne])
+                    .rpc();
+
+                // Verify the earn manager account is created and updated
+                await expectEarnManagerState(earnManagerAccount, {
+                    isActive: true,
+                    feeBps: new BN(0),
+                    feeTokenAccount: earnManagerOneATA,
+                });
+            });
+
+            // given the earn manager account matches the signer
+            // given the earn manager account already exists
+            // given the fee_bps is not null and the fee_token_account is null
             // it updates the fee_bps to the provided value
+            test("Fee bps not null, fee token account null - success", async () => {
+
+                // Get the ATA for earn manager one
+                const earnManagerOneATA = await getATA(
+                    extMint.publicKey,
+                    earnManagerOne.publicKey
+                );
+
+                // Setup the instruction
+                const { earnManagerAccount } = await prepConfigureEarnManager(
+                    earnManagerOne,
+                    earnManagerOne.publicKey,
+                    null
+                );
+
+                // Confirm the earn manager account has already been created
+                await expectEarnManagerState(earnManagerAccount, {
+                    isActive: true,
+                    feeBps: new BN(0),
+                    feeTokenAccount: earnManagerOneATA,
+                });
+
+                const newFee = new BN(randomInt(0, 10000));
+
+                // Send the instruction
+                await extEarn.methods
+                    .configureEarnManager(newFee)
+                    .accounts({ ...accounts })
+                    .signers([earnManagerOne])
+                    .rpc();
+
+                // Verify the earn manager account is created and updated
+                await expectEarnManagerState(earnManagerAccount, {
+                    isActive: true,
+                    feeBps: newFee,
+                    feeTokenAccount: earnManagerOneATA,
+                });
+            });
+
+            // given the earn manager account matches the signer
+            // given the earn manager account already exists
+            // given the fee_bps is null and the fee_token_account is not null
             // it updates the fee_token_account to the provided token account
-            test("Configure earn manager - success", async () => {
+            test("Fee bps null, fee token account not null - success", async () => {
 
                 // Get the ATA for earn manager one
                 const earnManagerOneATA = await getATA(
@@ -2423,18 +2537,64 @@ describe("ExtEarn unit tests", () => {
                     feeTokenAccount: earnManagerOneATA,
                 });
 
-                const newFee = new BN(100);
+                // Send the instruction
+                await extEarn.methods
+                    .configureEarnManager(null)
+                    .accounts({ ...accounts })
+                    .signers([earnManagerOne])
+                    .rpc();
+
+                // Verify the earn manager account is created and updated
+                await expectEarnManagerState(earnManagerAccount, {
+                    isActive: true,
+                    feeBps: new BN(0),
+                    feeTokenAccount: newFeeTokenAccount,
+                });
+            });
+
+
+            // given the earn manager account matches the signer
+            // given the earn manager account already exists
+            // given both the fee_bps and fee_token_account are not null
+            // it updates the fee_bps to the provided value
+            // it updates the fee_token_account to the provided token account
+            test("Both fee bps and fee token account are not null - success", async () => {
+
+                // Get the ATA for earn manager one
+                const earnManagerOneATA = await getATA(
+                    extMint.publicKey,
+                    earnManagerOne.publicKey
+                );
+
+                // Use the ATA for a different address to change the fee token account to
+                // it's easier than creating a manual token account
+                const newFeeTokenAccount = await getATA(
+                    extMint.publicKey,
+                    nonEarnManagerOne.publicKey
+                );
+
+                // Setup the instruction
+                const { earnManagerAccount } = await prepConfigureEarnManager(
+                    earnManagerOne,
+                    earnManagerOne.publicKey,
+                    newFeeTokenAccount
+                );
+
+                // Confirm the earn manager account has already been created
+                await expectEarnManagerState(earnManagerAccount, {
+                    isActive: true,
+                    feeBps: new BN(0),
+                    feeTokenAccount: earnManagerOneATA,
+                });
+
+                const newFee = new BN(randomInt(0, 10000));
 
                 // Send the instruction
-                try {
-                    await extEarn.methods
-                        .configureEarnManager(newFee)
-                        .accounts({ ...accounts })
-                        .signers([earnManagerOne])
-                        .rpc();
-                } catch (e) {
-                    console.log(e);
-                }
+                await extEarn.methods
+                    .configureEarnManager(newFee)
+                    .accounts({ ...accounts })
+                    .signers([earnManagerOne])
+                    .rpc();
 
                 // Verify the earn manager account is created and updated
                 await expectEarnManagerState(earnManagerAccount, {
@@ -2483,6 +2643,10 @@ describe("ExtEarn unit tests", () => {
 
 
         });
+    });
+
+    describe("open instruction unit tests", () => {
+
     });
 
 });
