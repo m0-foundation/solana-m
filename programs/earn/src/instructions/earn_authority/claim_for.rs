@@ -14,10 +14,10 @@ use crate::{
 #[derive(Accounts)]
 pub struct ClaimFor<'info> {
     #[account(
-        constraint = authority.key() == global_account.earn_authority || 
-            authority.key() == global_account.admin @ EarnError::NotAuthorized,
+        constraint = earn_authority.key() == global_account.earn_authority || 
+            earn_authority.key() == global_account.admin @ EarnError::NotAuthorized,
     )]
-    pub authority: Signer<'info>,
+    pub earn_authority: Signer<'info>,
 
     #[account(
         mut,

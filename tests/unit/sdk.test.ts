@@ -338,7 +338,7 @@ describe('SDK unit tests', () => {
 
       for (const earner of earners) {
         const ix = await auth.buildClaimInstruction(earner);
-        claimIxs.push(ix);
+        claimIxs.push(ix!);
       }
     });
 
@@ -351,7 +351,7 @@ describe('SDK unit tests', () => {
       expect(amount).toEqual(70000000000n);
 
       // send transactions
-      const signatures = await auth.sendClaimInstructions(claimIxs, signer);
+      const signatures = await sendAndConfirmTransaction(connection, new Transaction().add(...claimIxs), [signer]);
       expect(signatures).toHaveLength(1);
 
       await auth.refresh();

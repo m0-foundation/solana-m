@@ -11,7 +11,12 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct CompleteClaims<'info> {
+    #[account(
+        constraint = earn_authority.key() == global_account.earn_authority || 
+            earn_authority.key() == global_account.admin @ EarnError::NotAuthorized,
+    )]
     pub earn_authority: Signer<'info>,
+
 
     #[account(
         mut,
