@@ -30,8 +30,6 @@ pub struct RemoveOrphanedEarner<'info> {
     pub earn_manager_account: Account<'info, EarnManager>,
 }
 
-pub fn handler(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
-    ctx.accounts.earner_account.is_earning = false;
-
+pub fn handler(_ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
     Ok(())
 }

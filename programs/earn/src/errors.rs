@@ -24,4 +24,6 @@ pub enum EarnError {
     NotActive,
     #[msg("Merkle proof verification failed.")]
     InvalidProof,
+    #[msg("Token account owner cannot be mutable.")]
+    MutableOwner,
 }

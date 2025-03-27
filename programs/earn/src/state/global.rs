@@ -8,8 +8,9 @@ pub const GLOBAL_SEED: &[u8] = b"global";
 #[account]
 #[derive(InitSpace)]
 pub struct Global {
-    pub admin: Pubkey,          // can update config values
-    pub earn_authority: Pubkey, // address that can distribute yield
+    pub admin: Pubkey,            // can update config values
+    pub earn_authority: Pubkey,   // address that can distribute yield
+    pub portal_authority: Pubkey, // portal authority that propogates indexes and roots
     pub mint: Pubkey,
     pub index: u64,          // most recent index that yield is being distributed for
     pub timestamp: u64,      // timestamp of the most recent index update

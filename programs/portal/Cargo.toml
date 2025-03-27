@@ -22,7 +22,7 @@ ntt-messages = { git = "https://github.com/wormhole-foundation/native-token-tran
 ] }
 anchor-lang = { workspace = true, features = ["init-if-needed"] }
 anchor-spl.workspace = true
-spl-token-2022 = { version = "3.0.2", features = ["no-entrypoint"] }
+spl-token-2022.workspace = true
 solana-program.workspace = true
 wormhole-anchor-sdk = { version = "0.29.0-alpha.1", default-features = false, features = [
     "mainnet",

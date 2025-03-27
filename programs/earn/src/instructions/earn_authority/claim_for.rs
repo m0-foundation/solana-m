@@ -28,7 +28,10 @@ pub struct ClaimFor<'info> {
     )]
     pub global_account: Account<'info, Global>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        owner = token_program.key(),
+    )]
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
@@ -71,15 +74,15 @@ pub struct ClaimFor<'info> {
 }
 
 pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
-    // Validate that the earner account is still approved to earn
-    if !ctx.accounts.earner_account.is_earning {
-        return err!(EarnError::NotEarning);
-    }
-
     // Validate that the earner account has not already claimed this cycle
     // Earner index should never be > global index, but we check to be safe against an error with index propagation
     if ctx.accounts.earner_account.last_claim_index >= ctx.accounts.global_account.index {
         return err!(EarnError::AlreadyClaimed);
+    }
+
+    // Validate there is an active claim cycle
+    if ctx.accounts.global_account.claim_complete {
+        return err!(EarnError::NoActiveClaim);
     }
 
     // Calculate the amount of tokens to send to the user
@@ -111,8 +114,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
     // Set the earner's last claim index to the global index and update the last claim timestamp
     ctx.accounts.earner_account.last_claim_index = ctx.accounts.global_account.index;
-    ctx.accounts.earner_account.last_claim_timestamp =
-        Clock::get()?.unix_timestamp.try_into().unwrap();
+    ctx.accounts.earner_account.last_claim_timestamp = ctx.accounts.global_account.timestamp;
 
     // Setup the signer seeds for the mint CPI(s)
     let token_authority_seeds: &[&[&[u8]]] =

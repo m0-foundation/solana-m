@@ -35,6 +35,10 @@ pub mod earn {
         )
     }
 
+    pub fn set_claim_cooldown(ctx: Context<SetClaimCooldown>, claim_cooldown: u64) -> Result<()> {
+        instructions::admin::set_claim_cooldown::handler(ctx, claim_cooldown)
+    }
+
     pub fn set_earn_authority(
         ctx: Context<SetEarnAuthority>,
         new_earn_authority: Pubkey,
