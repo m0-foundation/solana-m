@@ -15,8 +15,10 @@ use crate::{
 #[derive(Accounts)]
 pub struct SetRecipient<'info> {
     #[account(
-        constraint = signer.key() == earner_account.user || signer.key() 
-            == earner_account.earn_manager @ ExtError::NotAuthorized,
+        constraint = 
+            signer.key() == earner_account.user || 
+            signer.key() == earner_account.earn_manager 
+            @ ExtError::NotAuthorized,
     )]
     pub signer: Signer<'info>,
 
