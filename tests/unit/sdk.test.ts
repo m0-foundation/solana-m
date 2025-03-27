@@ -17,8 +17,8 @@ import EarnAuthority from '../../sdk/src/earn_auth';
 import { EarnManager } from '../../sdk/src/earn_manager';
 import { Earner } from '../../sdk/src/earner';
 import nock from 'nock';
-import { Earn } from '../../target/types/earn';
-const EARN_IDL = require('../../target/idl/earn.json');
+import { Earn } from '../../sdk/src/idl/earn';
+const EARN_IDL = require('../../sdk/src/idl/earn.json');
 
 describe('SDK unit tests', () => {
   const signer = loadKeypair('tests/keys/user.json');
