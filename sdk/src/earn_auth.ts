@@ -173,8 +173,6 @@ class EarnAuthority {
       // add up rewards
       const batchRewards = this._getRewardAmounts(result.value.logs!);
       for (const [index, reward] of batchRewards.entries()) {
-        console.log('rewards', reward);
-
         if (reward > claimSizeThreshold) {
           totalRewards += reward;
           filtererdTxns.push(ixs[i * batchSize + index]);

@@ -89,12 +89,8 @@ async function distributeYield(opt: ParsedOptions) {
     if (ix) claimIxs.push(ix);
   }
 
-  // simulation will fail if the squads vault is the earn authority
-  if (!opt.squadsPda) {
-    const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
-    console.log(`distributing ${distributed} M in yield`);
-    claimIxs = filteredIxs;
-  }
+  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
+  console.log(`distributing ${distributed} M in yield`);
 
   // complete cycle on last claim transaction
   const ix = await auth.buildCompleteClaimCycleInstruction();
@@ -102,8 +98,10 @@ async function distributeYield(opt: ParsedOptions) {
     return;
   }
 
+  filteredIxs.push(ix);
+
   // send all the claims
-  const signatures = await buildAndSendTransaction(opt, claimIxs);
+  const signatures = await buildAndSendTransaction(opt, filteredIxs);
   console.log(`yield distributed: ${signatures}`);
 }
 
@@ -169,7 +167,7 @@ async function buildAndSendTransaction(
       continue;
     }
 
-    returnData.push(await opt.connection.sendTransaction(txn, { skipPreflight: opt.dryRun }));
+    returnData.push(await opt.connection.sendTransaction(txn, { skipPreflight: true }));
   }
 
   if (opt.dryRun) {
