@@ -63,9 +63,10 @@ class EarnAuthority {
     return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data));
   }
 
-  async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction> {
+  async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
     if (this.global.claimComplete) {
-      throw new Error('No active claim cycle');
+      console.error('No active claim cycle');
+      return null;
     }
 
     return await this.program.methods
@@ -85,6 +86,12 @@ class EarnAuthority {
 
     // earner was created after last index update
     if (earner.lastClaimTimestamp > this.global.timestamp) {
+      console.error('Earner created after last index update');
+      return null;
+    }
+
+    if (earner.lastClaimIndex == this.global.index) {
+      console.error('Earner already claimed');
       return null;
     }
 
@@ -141,15 +148,16 @@ class EarnAuthority {
   async simulateAndValidateClaimIxs(
     ixs: TransactionInstruction[],
     batchSize = 10,
-    claimSizeFilter = 100000n, // $0.10
-  ): Promise<bigint> {
+    claimSizeThreshold = 100000n, // $0.10
+  ): Promise<[TransactionInstruction[], bigint]> {
     if (this.global.claimComplete) {
       throw new Error('No active claim cycle');
     }
 
     let totalRewards = 0n;
+    const filtererdTxns: TransactionInstruction[] = [];
 
-    for (const txn of await this._buildTransactions(ixs, batchSize)) {
+    for (const [i, txn] of (await this._buildTransactions(ixs, batchSize)).entries()) {
       // simulate transaction
       const result = await this.connection.simulateTransaction(txn, { sigVerify: false });
       if (result.value.err) {
@@ -164,8 +172,13 @@ class EarnAuthority {
 
       // add up rewards
       const batchRewards = this._getRewardAmounts(result.value.logs!);
-      for (const reward of batchRewards) {
-        totalRewards += reward;
+      for (const [index, reward] of batchRewards.entries()) {
+        console.log('rewards', reward);
+
+        if (reward > claimSizeThreshold) {
+          totalRewards += reward;
+          filtererdTxns.push(ixs[i * batchSize + index]);
+        }
       }
     }
 
@@ -174,7 +187,7 @@ class EarnAuthority {
       throw new Error('Claim amount exceeds max claimable rewards');
     }
 
-    return totalRewards;
+    return [filtererdTxns, totalRewards];
   }
 
   private _getRewardAmounts(logs: string[]): bigint[] {

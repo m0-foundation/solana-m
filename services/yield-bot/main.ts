@@ -69,6 +69,10 @@ async function distributeYield(opt: ParsedOptions) {
   if (opt.skipCycle) {
     console.log('skipping cycle');
     const ix = await auth.buildCompleteClaimCycleInstruction();
+    if (!ix) {
+      return;
+    }
+
     const signature = await buildAndSendTransaction(opt, [ix]);
     console.log(`cycle complete: ${signature}`);
     return;
@@ -78,7 +82,7 @@ async function distributeYield(opt: ParsedOptions) {
   const earners = await auth.getAllEarners();
 
   // build claim instructions
-  const claimIxs: TransactionInstruction[] = [];
+  let claimIxs: TransactionInstruction[] = [];
   for (const earner of earners) {
     console.log(`claiming yield for ${earner.pubkey.toBase58()}`);
     const ix = await auth.buildClaimInstruction(earner);
@@ -87,14 +91,15 @@ async function distributeYield(opt: ParsedOptions) {
 
   // simulation will fail if the squads vault is the earn authority
   if (!opt.squadsPda) {
-    // set authority to program admin for simulation
-    const modifiedIxs = claimIxs.map((ix) => {
-      ix.keys[0].pubkey = auth.admin;
-      return ix;
-    });
-
-    const distributed = await auth.simulateAndValidateClaimIxs(modifiedIxs);
+    const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
     console.log(`distributing ${distributed} M in yield`);
+    claimIxs = filteredIxs;
+  }
+
+  // complete cycle on last claim transaction
+  const ix = await auth.buildCompleteClaimCycleInstruction();
+  if (!ix) {
+    return;
   }
 
   // send all the claims
@@ -161,6 +166,7 @@ async function buildAndSendTransaction(
     // return serialized transaction instead on dry run
     if (opt.dryRun) {
       returnData.push(Buffer.from(txn.serialize()).toString('base64'));
+      continue;
     }
 
     returnData.push(await opt.connection.sendTransaction(txn, { skipPreflight: opt.dryRun }));
@@ -243,7 +249,7 @@ async function getPriorityFee(): Promise<number> {
 
     // use the 75th percentile as a reasonable default
     const priorityFee = data.sol.per_compute_unit.percentiles['75'];
-    console.log(`got priority fee (75th percentile): ${priorityFee} microlamports per compute unit`);
+    console.log(`got priority fee: ${priorityFee}`);
 
     return priorityFee;
   } catch (error) {

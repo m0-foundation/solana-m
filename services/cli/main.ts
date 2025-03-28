@@ -270,6 +270,29 @@ async function main() {
       console.log(`Earner added: ${earner.toBase58()} (${sig})`);
     });
 
+  program
+    .command('set-earn-auth')
+    .description('Set the earn authority on the program')
+    .argument('<earn-auth>', 'Earn authority pubkey')
+    .action(async (earnAuthAddress: string) => {
+      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
+      const earnAuth = new PublicKey(earnAuthAddress);
+
+      const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
+      const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
+
+      const sig = await earn.methods
+        .setEarnAuthority(earnAuth)
+        .accounts({
+          admin: owner.publicKey,
+          globalAccount,
+        })
+        .signers([])
+        .rpc();
+
+      console.log(`Earn authority set (${sig})`);
+    });
+
   await program.parseAsync(process.argv);
 }
 
