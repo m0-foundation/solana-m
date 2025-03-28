@@ -27,6 +27,8 @@ describe('Yield bot tests', () => {
  * Mocks the request data for the yield bot
  */
 function mockRequestData(earner: PublicKey) {
+  nock.disableNetConnect();
+
   nock('https://sepolia.dummy.com')
     .post(
       '/',
