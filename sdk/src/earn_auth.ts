@@ -101,6 +101,10 @@ class EarnAuthority {
       this.global.timestamp,
     );
 
+    if (weightedBalance == 0n) {
+      return null;
+    }
+
     // earner might have a manager
     let earnManagerAccount: PublicKey | null = null;
     let earnManagerTokenAccount: PublicKey | null = null;

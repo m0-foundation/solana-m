@@ -9,8 +9,8 @@ describe('Yield bot tests', () => {
   mockRequestData(earner.publicKey);
 
   test('run bot', async () => {
-    const signer = Keypair.generate();
-    const secret = Buffer.from(signer.secretKey).toString('base64');
+    // 6mjP4Cp2pw8Q8fzoEEGS71xtdwMKCxmY13g86CPtHbmg
+    const secret = 'JIsAxWMPwERUzQQy/vnkQqsF0o7mKrZxk5GzNzB/nLFVv+jlKzp8NlDG9h5UOzCc+Fy4eKlWm7akmsPoSPVvlw==';
 
     // mock command-line arguments
     process.argv = ['node', 'maint.ts', 'distribute'];
@@ -28,6 +28,18 @@ describe('Yield bot tests', () => {
  */
 function mockRequestData(earner: PublicKey) {
   nock.disableNetConnect();
+
+  nock('https://api.studio.thegraph.com')
+    .post('/query/106645/m-token-transactions/version/latest', (body) => true)
+    .reply(200, {
+      data: {
+        tokenAccount: {
+          balance: '0',
+          transfers: [],
+        },
+      },
+    })
+    .persist();
 
   nock('https://sepolia.dummy.com')
     .post(
@@ -48,7 +60,7 @@ function mockRequestData(earner: PublicKey) {
   nock('https://quicknode.com')
     .get('/_gas-tracker')
     .query({ slug: 'solana' })
-    .reply(200, { sol: { per_compute_unit: { percentiles: { '75': 590909 } } } })
+    .reply(200, { sol: { per_compute_unit: { percentiles: { '75': 10 } } } })
     .persist();
 
   // for all rpc reponses

@@ -153,7 +153,7 @@ async function buildAndSendTransaction(
 
   // simulate transactions first
   for (const txn of await buildTransactions(opt, ixs, priorityFee, batchSize, memo)) {
-    const result = await opt.connection.simulateTransaction(txn);
+    const result = await opt.connection.simulateTransaction(txn, { sigVerify: false });
     if (result.value.err) {
       console.error({
         message: 'Transaction simulation failed',

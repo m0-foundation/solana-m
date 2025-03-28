@@ -360,7 +360,7 @@ describe('SDK unit tests', () => {
     test('set claim cycle complete', async () => {
       const auth = await EarnAuthority.load(connection);
       const ix = await auth.buildCompleteClaimCycleInstruction();
-      await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
+      await sendAndConfirmTransaction(connection, new Transaction().add(ix!), [signer]);
 
       await auth.refresh();
       expect(auth['global'].claimComplete).toBeTruthy();
