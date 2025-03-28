@@ -1,7 +1,7 @@
 use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
 use substreams_solana::pb::sf::solana::r#type::v1::Block;
 use substreams_solana_utils::{
-    instruction::{self},
+    instruction::{self, StructuredInstructions},
     pubkey::Pubkey,
     transaction,
 };
@@ -37,10 +37,6 @@ fn map_transfer_events(block: Block) -> TokenTransactions {
             Err(_) => continue,
         };
 
-        let instructions = match instruction::get_structured_instructions(&t) {
-            Ok(instructions) => instructions,
-            Err(_) => continue,
-        };
 
         let mut txn = TokenTransaction {
             signature: context.signature.to_string(),
@@ -64,6 +60,11 @@ fn map_transfer_events(block: Block) -> TokenTransactions {
                 post_balance: token_account.post_balance.unwrap_or(0),
             });
         }
+
+        let instructions = match instruction::get_structured_instructions(&t) {
+            Ok(instructions) => instructions.flattened(),
+            Err(_) => continue,
+        };
 
         // Parse instruction logs and updates
         for ix in instructions {

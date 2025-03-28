@@ -17,7 +17,7 @@ type TokenAccount @entity {
 }
 
 type Claim @entity(immutable: true) {
-  id: Bytes! # claim-<signature>
+  id: Bytes! # claim-<token_account>-<signature>
   amount: BigInt!
   manager_fee: BigInt!
   token_account: TokenAccount!
@@ -27,7 +27,7 @@ type Claim @entity(immutable: true) {
 }
 
 type BalanceUpdate @entity(immutable: true) {
-  id: Bytes! # <token_account>-<signature>
+  id: Bytes! # transfer-<token_account>-<signature>
   amount: BigInt!
   token_account: TokenAccount!
   ts: BigInt!

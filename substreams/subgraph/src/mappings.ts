@@ -28,7 +28,7 @@ export function handleTriggers(bytes: Uint8Array): void {
       }
       if (ix.claim) {
         // Claim
-        const claim = new Claim(id(ix.claim!.tokenAccount, txn.signature));
+        const claim = new Claim(id('claim', ix.claim!.tokenAccount, txn.signature));
         claim.amount = BigInt.fromI64(ix.claim!.amount);
         claim.token_account = b58(ix.claim!.tokenAccount);
         claim.recipient_token_account = b58(ix.claim!.recipientTokenAccount);
@@ -52,7 +52,7 @@ export function handleTriggers(bytes: Uint8Array): void {
       tokenHolder.balance = tokenHolder.balance.plus(delta);
 
       // BalanceUpdate
-      const balanceUpdate = new BalanceUpdate(id(update.pubkey, txn.signature));
+      const balanceUpdate = new BalanceUpdate(id('tranfser', update.pubkey, txn.signature));
       balanceUpdate.amount = delta;
       balanceUpdate.ts = BigInt.fromI64(input.blockTime);
       balanceUpdate.signature = b58(txn.signature);
@@ -98,8 +98,8 @@ function b58(value: string): Bytes {
   return Bytes.fromUint8Array(decode(value));
 }
 
-function id(account: string, signature: string): Bytes {
-  return b58(account).concat(b58(signature));
+function id(prefix: string, account: string, signature: string): Bytes {
+  return Bytes.fromUTF8(prefix).concat(b58(account).concat(b58(signature)));
 }
 
 function indexId(n: i64, signature: string): Bytes {
