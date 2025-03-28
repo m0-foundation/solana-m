@@ -155,6 +155,12 @@ async function buildAndSendTransaction(
   for (const txn of await buildTransactions(opt, ixs, priorityFee, batchSize, memo)) {
     const result = await opt.connection.simulateTransaction(txn);
     if (result.value.err) {
+      console.error({
+        message: 'Transaction simulation failed',
+        logs: result.value.logs,
+        err: result.value.err,
+        b64: Buffer.from(txn.serialize()).toString('base64'),
+      });
       throw new Error(`Transaction simulation failed: ${result.value.logs}`);
     }
   }
