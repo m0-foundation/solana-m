@@ -7,17 +7,15 @@ export const Navbar = () => {
 
   return (
     <nav className="bg-off-black px-4 py-5">
-      <div className="max-w-6xl mx-auto flex items-center">
-        <div className="flex items-center mr-15">
-          <a href="/" className="flex items-center">
+      <div className="max-w-6xl mx-auto flex justify-between">
+        <div className="flex">
+          <a href="/" className="flex mr-15">
             <div className="flex items-center space-x-3">
               <img src="https://dashboard.m0.org/img/logos/m0.svg" alt="M0 Logo" />
               <div className="h-6 w-px bg-gray-600" />
               <span className="text-white text-xl">Solana Dashboard</span>
             </div>
           </a>
-        </div>
-        <div className="flex items-center">
           <div className="space-x-4 mr-6">
             {[
               { path: '/', label: 'Home' },

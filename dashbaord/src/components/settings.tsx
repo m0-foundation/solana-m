@@ -27,7 +27,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   return (
     <div className="fixed inset-0 flex justify-center items-center z-50 text-white">
-      <div className="bg-off-black p-6 w-full max-w-md">
+      <div className="absolute inset-0 backdrop-blur-xs" onClick={handleCancel}></div>
+      <div className="bg-off-black p-6 w-full max-w-md z-10 relative">
         <h2 className="text-xl font-medium mb-4">Settings</h2>
 
         <div className="mb-4">
