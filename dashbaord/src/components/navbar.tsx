@@ -1,19 +1,4 @@
-import { useEffect, useState } from 'react';
-
 export const Navbar = () => {
-  const [currentPath, setCurrentPath] = useState('/');
-
-  useEffect(() => {
-    setCurrentPath(window.location.pathname);
-
-    const handleRouteChange = () => {
-      setCurrentPath(window.location.pathname);
-    };
-
-    window.addEventListener('popstate', handleRouteChange);
-    return () => window.removeEventListener('popstate', handleRouteChange);
-  }, []);
-
   return (
     <nav className="bg-off-black px-4 py-5">
       <div className="max-w-6xl mx-auto flex items-center">
@@ -27,15 +12,18 @@ export const Navbar = () => {
           </a>
         </div>
         <div className="space-x-4">
-          <a href="/" className={`${currentPath === '/' ? 'bg-gray-700' : ''} px-2 py-1.5 text-gray-300 text-sm`}>
-            Home
-          </a>
-          <a
-            href="/yield"
-            className={`${currentPath === '/yield' ? 'bg-gray-700' : ''} px-2 py-1.5 text-gray-300 text-sm`}
-          >
-            Yield
-          </a>
+          {[
+            { path: '/', label: 'Home' },
+            { path: '/yield', label: 'Yield' },
+          ].map(({ path, label }) => (
+            <a
+              key={path}
+              href={path}
+              className={`px-2 py-1.5 text-gray-300 text-sm ${window.location.pathname === path ? 'bg-gray-700' : ''}`}
+            >
+              {label}
+            </a>
+          ))}
         </div>
       </div>
     </nav>
