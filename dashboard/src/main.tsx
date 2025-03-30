@@ -1,12 +1,12 @@
-import { PropsWithChildren, StrictMode } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navbar } from './components/navbar';
 import { StatsBar } from './components/statsbar';
 import { SettingsProvider } from './context/settings';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Holders } from './components/holders';
-import './index.css';
 import { HistoricalSupply } from './components/historical-supply';
+import './index.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

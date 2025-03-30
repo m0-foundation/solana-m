@@ -2,7 +2,7 @@ import { gql, request } from 'graphql-request';
 import { PublicKey } from '@solana/web3.js';
 
 export const tokenHolders = async (
-  url: string,
+  graphqlUrl: string,
   limit = 100,
   skip = 0,
 ): Promise<{ user: PublicKey; balance: number }[]> => {
@@ -22,7 +22,7 @@ export const tokenHolders = async (
     }[];
   }
 
-  const data = await request<Data>(url, query, { limit, skip });
+  const data = await request<Data>(graphqlUrl, query, { limit, skip });
 
   return data.tokenHolders.map(({ user, balance }) => ({
     user: new PublicKey(Buffer.from(user.slice(2), 'hex')),

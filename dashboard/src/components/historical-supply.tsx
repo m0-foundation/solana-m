@@ -15,20 +15,6 @@ const data = [
   },
 ];
 
-const CustomTooltip = ({ active, payload }: { active: boolean; payload: any[] }) => {
-  if (active && payload && payload.length) {
-    const { ts, supply } = payload[0].payload;
-    return (
-      <div className="bg-white p-2 shadow-md">
-        <p className="text-xs">{new Date(ts * 1000).toLocaleString()}</p>
-        <p>{Intl.NumberFormat('en', { style: 'currency', currency: 'USD' }).format(supply)}</p>
-      </div>
-    );
-  }
-
-  return null;
-};
-
 export const HistoricalSupply = () => {
   return (
     <div className="w-full h-70">
@@ -57,4 +43,18 @@ export const HistoricalSupply = () => {
       </ResponsiveContainer>
     </div>
   );
+};
+
+const CustomTooltip = ({ active, payload }: { active: boolean; payload: any[] }) => {
+  if (active && payload && payload.length) {
+    const { ts, supply } = payload[0].payload;
+    return (
+      <div className="bg-white p-2 shadow-md">
+        <p className="text-xs">{new Date(ts * 1000).toLocaleString()}</p>
+        <p>{Intl.NumberFormat('en', { style: 'currency', currency: 'USD' }).format(supply)}</p>
+      </div>
+    );
+  }
+
+  return null;
 };
