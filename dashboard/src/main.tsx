@@ -21,7 +21,9 @@ createRoot(document.getElementById('root')!).render(
       <SettingsProvider>
         <Navbar />
         <StatsBar />
-        <Holders />
+        <div className="max-w-6xl mx-auto py-10">
+          <Holders />
+        </div>
       </SettingsProvider>
     </QueryClientProvider>
   </StrictMode>,

@@ -26,6 +26,6 @@ export const tokenHolders = async (
 
   return data.tokenHolders.map(({ user, balance }) => ({
     user: new PublicKey(Buffer.from(user.slice(2), 'hex')),
-    balance: parseFloat(balance) / 1e9,
+    balance: parseFloat(balance) / 1e6,
   }));
 };

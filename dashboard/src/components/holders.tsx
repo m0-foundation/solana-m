@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { tokenHolders } from '../services/subgraph';
 import { useSettings } from '../context/settings';
+import { PublicKey } from '@solana/web3.js';
 
 export const Holders = () => {
   const { graphqlUrl } = useSettings();
+  const totalSupply = 10;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['tokenHolders'],
@@ -12,23 +14,34 @@ export const Holders = () => {
 
   return (
     <div>
-      <h2>Token Holders</h2>
-      <table>
-        <thead>
+      <div className="text-3xl">$M Holders</div>
+      <table className="w-full text-sm text-left rtl:text-right">
+        <thead className="text-xs border-b border-gray-200">
           <tr>
-            <th>Wallet Address</th>
-            <th>Balance</th>
+            <th className="px-2 py-3">Address</th>
+            <th className="px-2 py-3">Amount</th>
+            <th className="px-2 py-3">Share</th>
           </tr>
         </thead>
         <tbody>
           {data?.map((holder) => (
-            <tr key={holder.user.toString()}>
-              <td>{holder.user.toString()}</td>
-              <td>{holder.balance}</td>
+            <tr key={holder.user.toString()} className="border-b border-gray-200">
+              <td className="px-2 py-4">{formatAddress(holder.user)}</td>
+              <td className="px-2 py-4">M {formatAmount(holder.balance)}</td>
+              <td className="px-2 py-4">{holder.balance / totalSupply}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
+};
+
+const formatAddress = (address: PublicKey, chars = 6) => {
+  const str = address.toBase58();
+  return `${str.slice(0, chars)}...${str.slice(-chars)}`;
+};
+
+const formatAmount = (amount: number, decimals = 4) => {
+  return amount.toFixed(decimals);
 };
