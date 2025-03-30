@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSettings } from '../context/settings';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -7,6 +8,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+  const queryClient = useQueryClient();
   const { rpcUrl, graphqlUrl, updateRpcUrl, updateGraphqlUrl } = useSettings();
   const [tempRpcUrl, setTempRpcUrl] = useState(rpcUrl);
   const [tempGraphqlUrl, setTempGraphqlUrl] = useState(graphqlUrl);
@@ -16,6 +18,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const handleSave = () => {
     updateRpcUrl(tempRpcUrl);
     updateGraphqlUrl(tempGraphqlUrl);
+    queryClient.clear();
     onClose();
   };
 

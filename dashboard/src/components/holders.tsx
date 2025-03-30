@@ -2,15 +2,23 @@ import { useQuery } from '@tanstack/react-query';
 import { tokenHolders } from '../services/subgraph';
 import { useSettings } from '../context/settings';
 import { PublicKey } from '@solana/web3.js';
+import { getMints } from '../services/rpc';
+import Decimal from 'decimal.js';
 
 export const Holders = () => {
   const { graphqlUrl, rpcUrl } = useSettings();
-  const totalSupply = 10;
+
+  const { data: mintData } = useQuery({
+    queryKey: ['mints'],
+    queryFn: () => getMints(rpcUrl),
+  });
 
   const { data } = useQuery({
     queryKey: ['tokenHolders'],
     queryFn: () => tokenHolders(graphqlUrl),
   });
+
+  const mintSupply = new Decimal(mintData?.[0].supply.toString() || '1').div(1e6);
 
   return (
     <div>
@@ -40,7 +48,7 @@ export const Holders = () => {
               </td>
               <td className="px-2 py-4">M {formatAmount(holder.balance)}</td>
               <td className="px-2 py-4">
-                <ProgressBar percentage={holder.balance / totalSupply} />
+                <ProgressBar percentage={new Decimal(holder.balance).div(mintSupply).toNumber()} />
               </td>
             </tr>
           ))}
