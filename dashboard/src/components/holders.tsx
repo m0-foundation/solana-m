@@ -4,7 +4,7 @@ import { useSettings } from '../context/settings';
 import { PublicKey } from '@solana/web3.js';
 
 export const Holders = () => {
-  const { graphqlUrl } = useSettings();
+  const { graphqlUrl, rpcUrl } = useSettings();
   const totalSupply = 10;
 
   const { data, isLoading, error } = useQuery({
@@ -14,7 +14,7 @@ export const Holders = () => {
 
   return (
     <div>
-      <div className="text-3xl">$M Holders</div>
+      <div className="text-2xl">$M Holders</div>
       <table className="w-full text-sm text-left rtl:text-right">
         <thead className="text-xs border-b border-gray-200">
           <tr>
@@ -26,7 +26,18 @@ export const Holders = () => {
         <tbody>
           {data?.map((holder) => (
             <tr key={holder.user.toString()} className="border-b border-gray-200">
-              <td className="px-2 py-4">{formatAddress(holder.user)}</td>
+              <td className="px-2 py-4">
+                <a
+                  href={`https://solscan.io/account/${holder.user.toBase58()}${
+                    rpcUrl.includes('devnet') ? '?cluster=devnet' : ''
+                  }`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  {formatAddress(holder.user)}
+                </a>
+              </td>
               <td className="px-2 py-4">M {formatAmount(holder.balance)}</td>
               <td className="px-2 py-4">{holder.balance / totalSupply}</td>
             </tr>

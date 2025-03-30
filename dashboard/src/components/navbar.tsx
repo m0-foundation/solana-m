@@ -6,17 +6,18 @@ export const Navbar = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
-    <nav className="bg-off-black px-4 py-5">
+    <nav className="bg-off-black py-2">
       <div className="max-w-6xl mx-auto flex justify-between">
         <div className="flex">
-          <a href="/" className="flex mr-15">
-            <div className="flex items-center space-x-3">
-              <img src="https://dashboard.m0.org/img/logos/m0.svg" alt="M0 Logo" />
-              <div className="h-6 w-px bg-gray-600" />
-              <span className="text-white text-xl">Solana Dashboard</span>
-            </div>
+          <a href="/" className="flex mr-15 space-x-3">
+            <img
+              src="https://dashboard.m0.org/img/logos/m0.svg"
+              alt="M0 Logo"
+              className="py-3 pr-3 mb-1 border-r border-gray-700"
+            />
+            <div className="text-white text-lg flex items-center">Solana Dashboard</div>
           </a>
-          <div className="space-x-4 mr-6">
+          <div className="space-x-4 flex items-center">
             {[
               { path: '/', label: 'Home' },
               { path: '/yield', label: 'Yield' },
