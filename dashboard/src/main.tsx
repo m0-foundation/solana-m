@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { PropsWithChildren, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navbar } from './components/navbar';
 import { StatsBar } from './components/statsbar';

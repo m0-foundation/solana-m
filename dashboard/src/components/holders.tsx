@@ -7,7 +7,7 @@ export const Holders = () => {
   const { graphqlUrl, rpcUrl } = useSettings();
   const totalSupply = 10;
 
-  const { data, isLoading, error } = useQuery({
+  const { data } = useQuery({
     queryKey: ['tokenHolders'],
     queryFn: () => tokenHolders(graphqlUrl),
   });
@@ -15,8 +15,8 @@ export const Holders = () => {
   return (
     <div>
       <div className="text-2xl">$M Holders</div>
-      <table className="w-full text-sm text-left rtl:text-right">
-        <thead className="text-xs border-b border-gray-200">
+      <table className="w-full text-sm text-left rtl:text-right text-xs">
+        <thead className="border-b border-gray-200">
           <tr>
             <th className="px-2 py-3">Address</th>
             <th className="px-2 py-3">Amount</th>
@@ -39,11 +39,25 @@ export const Holders = () => {
                 </a>
               </td>
               <td className="px-2 py-4">M {formatAmount(holder.balance)}</td>
-              <td className="px-2 py-4">{holder.balance / totalSupply}</td>
+              <td className="px-2 py-4">
+                <ProgressBar percentage={holder.balance / totalSupply} />
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+};
+
+const ProgressBar = ({ percentage }: { percentage: number }) => {
+  const width = `${Math.min(100, Math.max(0, percentage * 100))}%`;
+  return (
+    <div className="flex items-center">
+      <div className="mr-2 h-2.5 w-15">{(percentage * 100).toFixed(2)}%</div>
+      <div className="w-full bg-gray-200 h-2.5 mr-2">
+        <div className="bg-blue-600 h-2.5" style={{ width }}></div>
+      </div>
     </div>
   );
 };
