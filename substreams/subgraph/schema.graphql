@@ -26,6 +26,12 @@ type Claim @entity(immutable: true) {
   signature: Bytes!
 }
 
+type ClaimStats @entity(immutable: true) {
+  id: Bytes! # claim-stats
+  total_claimed: BigInt!
+  num_claims: BigInt!
+}
+
 type BalanceUpdate @entity(immutable: true) {
   id: Bytes! # transfer-<token_account>-<signature>
   amount: BigInt!
@@ -40,4 +46,13 @@ type IndexUpdate @entity(immutable: true) {
   index: BigInt!
   ts: BigInt!
   signature: Bytes!
+}
+
+type BridgeEvent @entity(immutable: true) {
+  id: Bytes! # bridge-<signature>
+  amount: BigInt!
+  ts: BigInt!
+  signature: Bytes!
+  source_chain: String!
+  token_supply: BigInt!
 }

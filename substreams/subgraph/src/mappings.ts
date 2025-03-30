@@ -1,7 +1,7 @@
 import { Protobuf } from 'as-proto/assembly';
 import { TokenTransactions as protoTokenTransactions } from './pb/transfers/v1/TokenTransactions';
 import { BigInt, Bytes } from '@graphprotocol/graph-ts';
-import { TokenHolder, TokenAccount, BalanceUpdate, IndexUpdate, Claim } from '../generated/schema';
+import { TokenHolder, TokenAccount, BalanceUpdate, IndexUpdate, Claim, ClaimStats } from '../generated/schema';
 import { TokenBalanceUpdate } from './pb/transfers/v1/TokenBalanceUpdate';
 import { decode } from 'as-base58';
 
@@ -36,7 +36,19 @@ export function handleTriggers(bytes: Uint8Array): void {
         claim.signature = b58(txn.signature);
         claim.manager_fee = BigInt.fromI64(ix.claim!.managerFee);
 
+        // Aggregate Stats
+        let claimStats = ClaimStats.load(Bytes.fromUTF8('claim-stats'));
+        if (!claimStats) {
+          claimStats = new ClaimStats(Bytes.fromUTF8('claim-stats'));
+          claimStats.total_claimed = BigInt.zero();
+          claimStats.num_claims = BigInt.zero();
+        }
+
+        claimStats.total_claimed = claimStats.total_claimed.plus(claim.amount);
+        claimStats.num_claims = claimStats.num_claims.plus(BigInt.fromU32(1));
+
         claim.save();
+        claimStats.save();
       }
     }
 
