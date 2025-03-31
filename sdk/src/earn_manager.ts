@@ -1,7 +1,7 @@
 import { Connection, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import BN from 'bn.js';
 import * as spl from '@solana/spl-token';
-import { GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
+import { EXT_GLOBAL_ACCOUNT, EXT_MINT, EXT_PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Program } from '@coral-xyz/anchor';
 import { getExtProgram } from './idl';
@@ -22,10 +22,10 @@ export class EarnManager {
     this.data = data;
   }
 
-  static async fromManagerAddress(connection: Connection, manager: PublicKey, evmRPC?: string): Promise<EarnManager> {
+  static async fromManagerAddress(connection: Connection, manager: PublicKey): Promise<EarnManager> {
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earn-manager'), manager.toBytes()],
-      PROGRAM_ID,
+      [Buffer.from('earn_manager'), manager.toBytes()],
+      EXT_PROGRAM_ID,
     );
 
     const data = await getExtProgram(connection).account.earnManager.fetch(earnManagerAccount);
@@ -39,15 +39,15 @@ export class EarnManager {
 
   async buildConfigureInstruction(feeBPS: number, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earn-manager'), this.manager.toBytes()],
-      PROGRAM_ID,
+      [Buffer.from('earn_manager'), this.manager.toBytes()],
+      EXT_PROGRAM_ID,
     );
 
     return this.program.methods
       .configureEarnManager(new BN(feeBPS))
       .accounts({
         signer: this.manager,
-        globalAccount: GLOBAL_ACCOUNT,
+        globalAccount: EXT_GLOBAL_ACCOUNT,
         earnManagerAccount,
         feeTokenAccount,
       })
@@ -57,24 +57,24 @@ export class EarnManager {
   async buildAddEarnerInstruction(user: PublicKey, userTokenAccount?: PublicKey): Promise<TransactionInstruction> {
     // derive ata if token account not provided
     if (!userTokenAccount) {
-      userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
+      userTokenAccount = spl.getAssociatedTokenAddressSync(EXT_MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
     }
 
     // PDAs
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earn-manager'), this.manager.toBytes()],
-      PROGRAM_ID,
+      [Buffer.from('earn_manager'), this.manager.toBytes()],
+      EXT_PROGRAM_ID,
     );
     const [earnerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earner'), userTokenAccount.toBytes()],
-      PROGRAM_ID,
+      EXT_PROGRAM_ID,
     );
 
     return await this.program.methods
       .addEarner(user)
       .accounts({
         signer: this.manager,
-        globalAccount: GLOBAL_ACCOUNT,
+        globalAccount: EXT_GLOBAL_ACCOUNT,
         earnManagerAccount,
         userTokenAccount,
         earnerAccount,

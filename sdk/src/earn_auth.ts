@@ -48,7 +48,7 @@ class EarnAuthority {
     // get mint multisig
     const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
 
-    return new EarnAuthority(connection, global, mint.mintAuthority!);
+    return new EarnAuthority(connection, global, mint.mintAuthority!, program);
   }
 
   async refresh(): Promise<void> {
@@ -60,7 +60,7 @@ class EarnAuthority {
   }
 
   async getAllEarners(): Promise<Earner[]> {
-    const accounts = await getProgram(this.connection).account.earner.all();
+    const accounts = await this.program.account.earner.all();
     return accounts.map((a) => new Earner(this.connection, a.publicKey, a.account));
   }
 
@@ -115,7 +115,7 @@ class EarnAuthority {
     const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
     const [earnerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earner'), earner.data.userTokenAccount.toBuffer()],
-      PROGRAM_ID,
+      this.programID,
     );
 
     if (this.programID === EXT_PROGRAM_ID) {
@@ -129,7 +129,7 @@ class EarnAuthority {
       const earnManagerTokenAccount = manager.data.feeTokenAccount;
       const earnManagerAccount = PublicKey.findProgramAddressSync(
         [Buffer.from('earn-manager'), earner.data.earnManager!.toBytes()],
-        PROGRAM_ID,
+        this.programID,
       )[0];
 
       // vault PDAs

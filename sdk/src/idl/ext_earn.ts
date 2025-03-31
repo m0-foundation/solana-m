@@ -652,10 +652,6 @@ export type ExtEarn = {
         "kind": "struct",
         "fields": [
           {
-            "name": "earnManager",
-            "type": "publicKey"
-          },
-          {
             "name": "lastClaimIndex",
             "type": "u64"
           },
@@ -673,6 +669,10 @@ export type ExtEarn = {
           },
           {
             "name": "userTokenAccount",
+            "type": "publicKey"
+          },
+          {
+            "name": "earnManager",
             "type": "publicKey"
           },
           {
@@ -758,17 +758,7 @@ export type ExtEarn = {
           "index": false
         },
         {
-          "name": "recipientTokenAccount",
-          "type": "publicKey",
-          "index": false
-        },
-        {
           "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "fee",
           "type": "u64",
           "index": false
         },
@@ -780,6 +770,16 @@ export type ExtEarn = {
         {
           "name": "index",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fee",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "recipientTokenAccount",
+          "type": "publicKey",
           "index": false
         }
       ]
@@ -1483,10 +1483,6 @@ export const IDL: ExtEarn = {
         "kind": "struct",
         "fields": [
           {
-            "name": "earnManager",
-            "type": "publicKey"
-          },
-          {
             "name": "lastClaimIndex",
             "type": "u64"
           },
@@ -1504,6 +1500,10 @@ export const IDL: ExtEarn = {
           },
           {
             "name": "userTokenAccount",
+            "type": "publicKey"
+          },
+          {
+            "name": "earnManager",
             "type": "publicKey"
           },
           {
@@ -1589,17 +1589,7 @@ export const IDL: ExtEarn = {
           "index": false
         },
         {
-          "name": "recipientTokenAccount",
-          "type": "publicKey",
-          "index": false
-        },
-        {
           "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "fee",
           "type": "u64",
           "index": false
         },
@@ -1611,6 +1601,16 @@ export const IDL: ExtEarn = {
         {
           "name": "index",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fee",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "recipientTokenAccount",
+          "type": "publicKey",
           "index": false
         }
       ]

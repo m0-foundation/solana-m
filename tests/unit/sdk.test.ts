@@ -11,18 +11,20 @@ import {
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { MerkleTree } from '../../sdk/src/merkle';
-import { PROGRAM_ID as EARN_PROGRAM } from '../../sdk/src';
+import { PROGRAM_ID as EARN_PROGRAM, EXT_PROGRAM_ID } from '../../sdk/src';
 import { Graph } from '../../sdk/src/graph';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { EarnManager } from '../../sdk/src/earn_manager';
 import { Earner } from '../../sdk/src/earner';
 import nock from 'nock';
 import { Earn } from '../../sdk/src/idl/earn';
+import { ExtEarn } from '../../sdk/src/idl/ext_earn';
 const EARN_IDL = require('../../sdk/src/idl/earn.json');
+const EXT_EARN_IDL = require('../../sdk/src/idl/ext_earn.json');
 
 describe('SDK unit tests', () => {
   const signer = loadKeypair('tests/keys/user.json');
-  const mint = loadKeypair('tests/keys/mint.json');
+  const mints = [loadKeypair('tests/keys/mint.json'), Keypair.generate()];
   const multisig = Keypair.generate();
   const earnerA = Keypair.fromSecretKey(
     Buffer.from(
@@ -39,69 +41,77 @@ describe('SDK unit tests', () => {
   const earnerC = Keypair.generate();
   let earnerAccountA: PublicKey, earnerAccountB: PublicKey;
 
-  mockSubgraph(earnerA.publicKey, signer.publicKey);
+  mockSubgraph();
   const connection = new Connection('http://localhost:8899', 'processed');
   const provider = new AnchorProvider(connection, new Wallet(signer), { commitment: 'processed' });
 
-  // anchor client for setting up the earn program
+  // anchor client for setting up the programs
   const earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM, provider);
+  const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, EXT_PROGRAM_ID, provider);
 
   const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], earn.programId);
+  const [extGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], extEarn.programId);
   const [tokenAuth] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], earn.programId);
 
   beforeAll(async () => {
-    // create mint
-    const mintLen = spl.getMintLen([]);
-    const lamports = await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+    const mintATAs = [];
 
-    const tx = new Transaction().add(
-      SystemProgram.createAccount({
-        fromPubkey: signer.publicKey,
-        newAccountPubkey: mint.publicKey,
-        space: mintLen,
-        lamports,
-        programId: spl.TOKEN_2022_PROGRAM_ID,
-      }),
-      spl.createInitializeMintInstruction(mint.publicKey, 9, signer.publicKey, null, spl.TOKEN_2022_PROGRAM_ID),
-    );
+    // create mints
+    for (const mint of mints) {
+      const mintLen = spl.getMintLen([]);
+      const lamports = await provider.connection.getMinimumBalanceForRentExemption(mintLen);
 
-    await provider.sendAndConfirm(tx, [signer, mint]);
-
-    const ataTransaction = new Transaction();
-
-    const atas = [earnerA, earnerB, earnerC].map((earner) => {
-      const earnerATA = spl.getAssociatedTokenAddressSync(
-        mint.publicKey,
-        earner.publicKey,
-        true,
-        spl.TOKEN_2022_PROGRAM_ID,
+      const tx = new Transaction().add(
+        SystemProgram.createAccount({
+          fromPubkey: signer.publicKey,
+          newAccountPubkey: mint.publicKey,
+          space: mintLen,
+          lamports,
+          programId: spl.TOKEN_2022_PROGRAM_ID,
+        }),
+        spl.createInitializeMintInstruction(mint.publicKey, 9, signer.publicKey, null, spl.TOKEN_2022_PROGRAM_ID),
       );
-      ataTransaction.add(
-        spl.createAssociatedTokenAccountInstruction(
-          signer.publicKey,
-          earnerATA,
-          earner.publicKey,
-          mint.publicKey,
-          spl.TOKEN_2022_PROGRAM_ID,
-        ),
-      );
-      // mint some tokens to the account
-      ataTransaction.add(
-        spl.createMintToInstruction(
-          mint.publicKey,
-          earnerATA,
-          signer.publicKey,
-          earnerA === earner ? 5000e9 : earner === earnerB ? 3000e9 : 0,
-          [],
-          spl.TOKEN_2022_PROGRAM_ID,
-        ),
-      );
-      return earnerATA;
-    });
 
-    await provider.sendAndConfirm(ataTransaction, [signer]);
+      await provider.sendAndConfirm(tx, [signer, mint]);
 
-    // mint multisig
+      const ataTransaction = new Transaction();
+
+      mintATAs.push(
+        [earnerA, earnerB, earnerC].map((earner) => {
+          const earnerATA = spl.getAssociatedTokenAddressSync(
+            mint.publicKey,
+            earner.publicKey,
+            true,
+            spl.TOKEN_2022_PROGRAM_ID,
+          );
+          ataTransaction.add(
+            spl.createAssociatedTokenAccountInstruction(
+              signer.publicKey,
+              earnerATA,
+              earner.publicKey,
+              mint.publicKey,
+              spl.TOKEN_2022_PROGRAM_ID,
+            ),
+          );
+          // mint some tokens to the account
+          ataTransaction.add(
+            spl.createMintToInstruction(
+              mint.publicKey,
+              earnerATA,
+              signer.publicKey,
+              earnerA === earner ? 5000e9 : earner === earnerB ? 3000e9 : 0,
+              [],
+              spl.TOKEN_2022_PROGRAM_ID,
+            ),
+          );
+          return earnerATA;
+        }),
+      );
+
+      await provider.sendAndConfirm(ataTransaction, [signer]);
+    }
+
+    // mint multisig on earn program
     const multiSigTx = new Transaction().add(
       SystemProgram.createAccount({
         fromPubkey: signer.publicKey,
@@ -117,7 +127,7 @@ describe('SDK unit tests', () => {
         spl.TOKEN_2022_PROGRAM_ID,
       ),
       spl.createSetAuthorityInstruction(
-        mint.publicKey,
+        mints[0].publicKey,
         signer.publicKey,
         spl.AuthorityType.MintTokens,
         multisig.publicKey,
@@ -128,9 +138,9 @@ describe('SDK unit tests', () => {
 
     await provider.sendAndConfirm(multiSigTx, [signer, multisig]);
 
-    // intialize the program
+    // intialize the programs
     await earn.methods
-      .initialize(mint.publicKey, signer.publicKey, new BN(1_000_000_000_000), new BN(0))
+      .initialize(mints[0].publicKey, signer.publicKey, new BN(1_000_000_000_000), new BN(0))
       .accounts({
         globalAccount,
         admin: signer.publicKey,
@@ -138,22 +148,40 @@ describe('SDK unit tests', () => {
       .signers([signer])
       .rpc();
 
-    // populate the earner merkle tree with the initial earners
-    const earnerMerkleTree = new MerkleTree([earnerA.publicKey]);
-    const earnManagerMerkleTree = new MerkleTree([signer.publicKey]);
-
-    await earn.methods
-      .propagateIndex(new BN(1_000_000_000_000), earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot())
+    await extEarn.methods
+      .initialize(signer.publicKey)
       .accounts({
-        signer: signer.publicKey,
-        globalAccount,
-        mint: mint.publicKey,
+        globalAccount: extGlobalAccount,
+        admin: signer.publicKey,
+        mMint: mints[0].publicKey,
+        extMint: mints[1].publicKey,
+        mEarnGlobalAccount: globalAccount,
+        token2022: spl.TOKEN_2022_PROGRAM_ID,
       })
       .signers([signer])
       .rpc();
 
-    earnerAccountA = PublicKey.findProgramAddressSync([Buffer.from('earner'), atas[0].toBytes()], earn.programId)[0];
-    earnerAccountB = PublicKey.findProgramAddressSync([Buffer.from('earner'), atas[1].toBytes()], earn.programId)[0];
+    // populate the earner merkle tree with the initial earners
+    const earnerMerkleTree = new MerkleTree([earnerA.publicKey]);
+
+    await earn.methods
+      .propagateIndex(new BN(1_000_000_000_000), earnerMerkleTree.getRoot())
+      .accounts({
+        signer: signer.publicKey,
+        globalAccount,
+        mint: mints[0].publicKey,
+      })
+      .signers([signer])
+      .rpc();
+
+    earnerAccountA = PublicKey.findProgramAddressSync(
+      [Buffer.from('earner'), mintATAs[0][0].toBytes()],
+      earn.programId,
+    )[0];
+    earnerAccountB = PublicKey.findProgramAddressSync(
+      [Buffer.from('earner'), mintATAs[1][1].toBytes()],
+      extEarn.programId,
+    )[0];
 
     // add earner from root
     await earn.methods
@@ -162,56 +190,53 @@ describe('SDK unit tests', () => {
         signer: signer.publicKey,
         globalAccount,
         earnerAccount: earnerAccountA,
-        userTokenAccount: atas[0],
-      })
-      .rpc();
-
-    await earn.methods
-      .setEarnerRecipient()
-      .accounts({
-        admin: signer.publicKey,
-        globalAccount,
-        earnerAccount: earnerAccountA,
-        recipientTokenAccount: atas[0],
+        userTokenAccount: mintATAs[0][0],
       })
       .rpc();
 
     // add manager
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earn-manager'), signer.publicKey.toBytes()],
-      earn.programId,
+      [Buffer.from('earn_manager'), signer.publicKey.toBytes()],
+      extEarn.programId,
     );
 
-    await earn.methods
-      .configureEarnManager(new BN(10), earnManagerMerkleTree.getInclusionProof(signer.publicKey).proof)
+    await extEarn.methods
+      .addEarnManager(signer.publicKey, new BN(10))
       .accounts({
-        signer: signer.publicKey,
-        globalAccount,
+        admin: signer.publicKey,
+        globalAccount: extGlobalAccount,
         earnManagerAccount,
-        feeTokenAccount: atas[0],
+        feeTokenAccount: mintATAs[1][0],
       })
       .rpc();
 
-    // add earners under manager
-    const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerB.publicKey);
-
-    await earn.methods
-      .addEarner(earnerB.publicKey, proofs, neighbors)
+    await extEarn.methods
+      .addEarner(earnerB.publicKey)
       .accounts({
         signer: signer.publicKey,
-        globalAccount,
+        globalAccount: extGlobalAccount,
         earnerAccount: earnerAccountB,
-        userTokenAccount: atas[1],
+        userTokenAccount: mintATAs[1][1],
         earnManagerAccount,
       })
       .rpc();
 
     await earn.methods
-      .propagateIndex(new BN(1_010_000_000_000), earnerMerkleTree.getRoot(), earnManagerMerkleTree.getRoot())
+      .propagateIndex(new BN(1_010_000_000_000), earnerMerkleTree.getRoot())
       .accounts({
         signer: signer.publicKey,
         globalAccount,
-        mint: mint.publicKey,
+        mint: mints[0].publicKey,
+      })
+      .signers([signer])
+      .rpc();
+
+    await extEarn.methods
+      .sync()
+      .accounts({
+        globalAccount: extGlobalAccount,
+        mEarnGlobalAccount: globalAccount,
+        earnAuthority: signer.publicKey,
       })
       .signers([signer])
       .rpc();
@@ -219,15 +244,12 @@ describe('SDK unit tests', () => {
 
   describe('rpc', () => {
     test('get all earners', async () => {
-      const auth = await EarnAuthority.load(connection);
-      const earners = await auth.getAllEarners();
-      expect(earners).toHaveLength(2);
-
-      earners.sort((a, b) => a.data.user.toBase58().localeCompare(b.data.user.toBase58()));
-      expect(earners[0].pubkey).toEqual(earnerAccountA);
-      expect(earners[1].pubkey).toEqual(earnerAccountB);
-
-      expect(await earners[0].getHistoricalClaims()).toEqual([]);
+      for (const [index, earner] of [earnerA, earnerB].entries()) {
+        const auth = await EarnAuthority.load(connection, index === 0 ? EARN_PROGRAM : EXT_PROGRAM_ID);
+        const earners = await auth.getAllEarners();
+        expect(earners).toHaveLength(1);
+        expect(earners[0].data.user.toBase58()).toEqual(earner.publicKey.toBase58());
+      }
     });
 
     test('get earn manager', async () => {
@@ -239,7 +261,7 @@ describe('SDK unit tests', () => {
       const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
       const earners = await manager.getEarners();
       expect(earners).toHaveLength(1);
-      expect(earners[0].pubkey).toEqual(earnerAccountB);
+      expect(earners[0].data.user.toBase58()).toEqual(earnerB.publicKey.toBase58());
     });
   });
 
@@ -323,25 +345,25 @@ describe('SDK unit tests', () => {
 
     test('validate claims and send', async () => {
       const auth = await EarnAuthority.load(connection);
-      expect(auth['global'].distributed.toNumber()).toBe(0);
+      expect(auth['global'].distributed!.toNumber()).toBe(0);
 
       // will throw on simulation or validation errors
       const [ixs, amount] = await auth.simulateAndValidateClaimIxs(claimIxs);
-      expect(ixs).toHaveLength(2);
-      expect(amount.toNumber()).toEqual(70000000000);
+      expect(ixs).toHaveLength(1);
+      expect(amount.toNumber()).toEqual(50000000000);
 
       // send transactions
-      const signature = await sendAndConfirmTransaction(connection, new Transaction().add(...claimIxs), [signer]);
+      await sendAndConfirmTransaction(connection, new Transaction().add(...claimIxs), [signer]);
 
       await auth.refresh();
-      expect(auth['global'].distributed.toNumber()).toBe(70000000000);
+      expect(auth['global'].distributed!.toNumber()).toBe(50000000000);
     });
 
     test('post claim cycle validation', async () => {
       const global = await earn.account.global.fetch(globalAccount, 'processed');
       expect(global.maxSupply.toString()).toEqual('8000000000000');
       expect(global.maxYield.toString()).toEqual('80000000000');
-      expect(global.distributed.toString()).toEqual('70000000000');
+      expect(global.distributed.toString()).toEqual('50000000000');
       expect(global.claimComplete).toBeFalsy();
     });
 
@@ -352,17 +374,17 @@ describe('SDK unit tests', () => {
 
       await auth.refresh();
       expect(auth['global'].claimComplete).toBeTruthy();
-      expect(auth['global'].distributed.toString()).toEqual('70000000000');
+      expect(auth['global'].distributed!.toString()).toEqual('50000000000');
       expect(auth['global'].claimComplete).toBeTruthy();
     });
   });
 
   describe('earn manager', () => {
     test('configure', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey, 'https://sepolia.dummy.com');
+      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
 
       const dummyATA = spl.getAssociatedTokenAddressSync(
-        mint.publicKey,
+        mints[1].publicKey,
         earnerA.publicKey,
         true,
         spl.TOKEN_2022_PROGRAM_ID,
@@ -376,10 +398,10 @@ describe('SDK unit tests', () => {
     });
 
     test('add earner', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey, 'https://sepolia.dummy.com');
+      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
 
       const earnerATA = spl.getAssociatedTokenAddressSync(
-        mint.publicKey,
+        mints[1].publicKey,
         earnerC.publicKey,
         true,
         spl.TOKEN_2022_PROGRAM_ID,
@@ -397,7 +419,7 @@ describe('SDK unit tests', () => {
 /*
  * Mock subgraph and rpc data for testing
  */
-function mockSubgraph(earnerA: PublicKey, manager: PublicKey) {
+function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getTokenAccounts')
     .reply(200, {
@@ -455,35 +477,6 @@ function mockSubgraph(earnerA: PublicKey, manager: PublicKey) {
           ],
         },
       },
-    })
-    .persist();
-
-  const earner = earnerA.toBuffer().toString('hex');
-  const managerHex = manager.toBuffer().toString('hex');
-
-  // getList (earners)
-  nock('https://sepolia.dummy.com')
-    .post(
-      '/',
-      (body) => body.params?.[0].data === '0x2d229202736f6c616e612d6561726e657273000000000000000000000000000000000000',
-    )
-    .reply(200, {
-      id: 13,
-      jsonrpc: '2.0',
-      result: `0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001${earner}`,
-    })
-    .persist();
-
-  // getList (managers)
-  nock('https://sepolia.dummy.com')
-    .post(
-      '/',
-      (body) => body.params?.[0].data === '0x2d229202736f6c616e612d6561726e2d6d616e6167657273000000000000000000000000',
-    )
-    .reply(200, {
-      id: 13,
-      jsonrpc: '2.0',
-      result: `0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001${managerHex}`,
     })
     .persist();
 }

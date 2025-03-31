@@ -652,10 +652,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "earnManager",
-            "type": "publicKey"
-          },
-          {
             "name": "lastClaimIndex",
             "type": "u64"
           },
@@ -673,6 +669,10 @@
           },
           {
             "name": "userTokenAccount",
+            "type": "publicKey"
+          },
+          {
+            "name": "earnManager",
             "type": "publicKey"
           },
           {
@@ -758,17 +758,7 @@
           "index": false
         },
         {
-          "name": "recipientTokenAccount",
-          "type": "publicKey",
-          "index": false
-        },
-        {
           "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "fee",
           "type": "u64",
           "index": false
         },
@@ -780,6 +770,16 @@
         {
           "name": "index",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fee",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "recipientTokenAccount",
+          "type": "publicKey",
           "index": false
         }
       ]
@@ -826,8 +826,5 @@
       "name": "InsufficientCollateral",
       "msg": "Not enough M."
     }
-  ],
-  "metadata": {
-    "address": "ATPNKbFx7D5bQaKV4YSsoQePsUpkrihHBHLzPKTPeuzL"
-  }
+  ]
 }
