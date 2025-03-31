@@ -534,9 +534,7 @@ describe("Portal unit tests", () => {
           // earner root
           type: "bytes32",
           value: "0x1111111111111111111111111111111111111111",
-        },
-        // earner manager root
-        { type: "bytes32", value: "0x2222222222222222222222222222222222222222" }
+        }
       );
 
       const getRedeemTxns = redeem(

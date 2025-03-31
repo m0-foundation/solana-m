@@ -6,10 +6,9 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // local dependencies
 use crate::{
-    constants::ONE_HUNDRED_PERCENT,
     errors::EarnError,
     state::{
-        EarnManager, Earner, Global, EARNER_SEED, EARN_MANAGER_SEED, GLOBAL_SEED,
+        Earner, Global, EARNER_SEED, GLOBAL_SEED,
         TOKEN_AUTHORITY_SEED,
     },
     utils::token::mint_tokens,
@@ -43,16 +42,12 @@ pub struct ClaimFor<'info> {
 
     #[account(
         mut,
-        address = match earner_account.recipient_token_account {
-            Some(token_account) => token_account,
-            _ => earner_account.user_token_account,
-        },
+        address = earner_account.user_token_account
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
-        constraint = earner_account.earn_manager.is_none() || earn_manager_account.is_some() @ EarnError::RequiredAccountMissing,
         seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
@@ -62,16 +57,6 @@ pub struct ClaimFor<'info> {
 
     /// CHECK: This account is checked in the CPI to Token2022 program
     pub mint_multisig: UncheckedAccount<'info>,
-
-    #[account(
-        constraint = earn_manager_token_account.is_some() @ EarnError::RequiredAccountMissing,
-        seeds = [EARN_MANAGER_SEED, earner_account.earn_manager.unwrap().as_ref()],
-        bump = earn_manager_account.bump,
-    )]
-    pub earn_manager_account: Option<Account<'info, EarnManager>>,
-
-    #[account(mut, address = earn_manager_account.clone().unwrap().fee_token_account @ EarnError::InvalidAccount)]
-    pub earn_manager_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
 }
 
 pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
@@ -121,40 +106,6 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     let token_authority_seeds: &[&[&[u8]]] =
         &[&[TOKEN_AUTHORITY_SEED, &[ctx.bumps.token_authority_account]]];
 
-    // If the earner has an earn manager, validate the earn manager account and earn manager's token account
-    // Then, calculate any fee for the earn manager, mint those tokens, and reduce the rewards by the amount sent
-    rewards -= if let Some(_) = ctx.accounts.earner_account.earn_manager {
-        let earn_manager_account = &ctx.accounts.earn_manager_account.clone().unwrap();
-
-        // If we reach this point, then the correct accounts have been provided and we can calculate the fee split
-        // If the earn manager is not active, then no fee is taken
-        if earn_manager_account.fee_bps > 0 && earn_manager_account.is_active {
-            // Fees are rounded down in favor of the user
-            let fee = (rewards * earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
-
-            if fee > 0 {
-                mint_tokens(
-                    &ctx.accounts.earn_manager_token_account.clone().unwrap(), // to
-                    &fee,                                                      // amount
-                    &ctx.accounts.mint,                                        // mint
-                    &ctx.accounts.mint_multisig,                               // mint authority
-                    &ctx.accounts.token_authority_account,                     // signer
-                    token_authority_seeds,                                     // signer seeds
-                    &ctx.accounts.token_program,                               // token program
-                )?;
-
-                // Return the fee to reduce the rewards by
-                fee
-            } else {
-                0u64
-            }
-        } else {
-            0u64
-        }
-    } else {
-        0u64
-    };
-
     // Mint the tokens to the user's token aaccount
     // The result of the CPI is the result of the handler
     mint_tokens(
@@ -167,12 +118,24 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.token_program,           // token program
     )?;
 
-    msg!(
-        "Claimed for: {} | Index: {} | Timestamp: {}",
-        ctx.accounts.user_token_account.key(),
-        ctx.accounts.earner_account.last_claim_index,
-        ctx.accounts.earner_account.last_claim_timestamp
-    );
+    // Check the current supply of M against the max supply in the global account
+    // If it is greater, update the max supply
+    // This check is also done when an index is propagated for a bridge
+    // These are the only two actions that can mint M on Solana
+    // Therefore, we always have an accurate max supply for calculating max yield
+    if ctx.accounts.mint.supply > ctx.accounts.global_account.max_supply {
+        ctx.accounts.global_account.max_supply = ctx.accounts.mint.supply;
+    }
+
+    let user_token_key = ctx.accounts.user_token_account.key();
+
+    emit!(RewardsClaim {
+        token_account: user_token_key,
+        recipient_token_account: user_token_key,
+        amount: rewards,
+        ts: ctx.accounts.earner_account.last_claim_timestamp,
+        index: ctx.accounts.global_account.index,
+    });
 
     emit!(RewardsClaim {
         token_account: ctx.accounts.user_token_account.key(),

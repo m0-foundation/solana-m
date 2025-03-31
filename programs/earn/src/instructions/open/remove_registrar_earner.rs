@@ -5,7 +5,6 @@ use anchor_lang::prelude::*;
 
 // local dependencies
 use crate::{
-    errors::EarnError,
     state::{Earner, Global, EARNER_SEED, GLOBAL_SEED},
     utils::merkle_proof::{verify_not_in_tree, ProofElement},
 };
@@ -42,11 +41,6 @@ pub fn handler(
         proofs,
         neighbors,
     )?;
-
-    // Check that the earner does not have an earn_manager, if so, return an error
-    if let Some(_) = ctx.accounts.earner_account.earn_manager {
-        return err!(EarnError::NotAuthorized);
-    }
 
     Ok(())
 }

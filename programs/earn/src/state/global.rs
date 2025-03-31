@@ -20,6 +20,5 @@ pub struct Global {
     pub distributed: u64, // total yield distributed in this claim cycle
     pub claim_complete: bool,
     pub earner_merkle_root: [u8; 32],
-    pub earn_manager_merkle_root: [u8; 32],
     pub bump: u8,
 }
