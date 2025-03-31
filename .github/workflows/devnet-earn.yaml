@@ -17,6 +17,10 @@ jobs:
       - name: Setup Environment
         uses: ./.github/setup
 
+      - name: Build Earn program
+        run: anchor build --program-name=earn -- --features devnet --no-default-features
+        shell: bash
+
       - name: Write devkey
         run: echo "${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}" > devnet-keypair.json
         shell: bash
