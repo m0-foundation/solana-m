@@ -1,9 +1,8 @@
-import { Connection, GetProgramAccountsFilter, PublicKey, TransactionInstruction } from '@solana/web3.js';
+import { Connection, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { EvmCaller } from './evm_caller';
 import { Earner } from './earner';
 import { GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
 import { MerkleTree } from './merkle';
-import { b58, deriveDiscriminator } from './utils';
 import * as spl from '@solana/spl-token';
 import { Program } from '@coral-xyz/anchor';
 import { getProgram } from './idl';
@@ -71,13 +70,13 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const earner of programEarners) {
-      if (earners.includes(earner.user)) {
+      if (earners.includes(earner.data.user)) {
         continue;
       }
 
       // build proof
       const tree = new MerkleTree(earners);
-      const { proofs, neighbors } = tree.getExclusionProof(earner.user);
+      const { proofs, neighbors } = tree.getExclusionProof(earner.data.user);
 
       ixs.push(
         await this.program.methods
@@ -95,12 +94,9 @@ export class Registrar {
   }
 
   async getRegistrarEarners(): Promise<Earner[]> {
-    const filters: GetProgramAccountsFilter[] = [
-      { memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } },
-      { memcmp: { offset: 90, bytes: '2' } }, // no manager set
-    ];
-
-    const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
-    return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data));
+    const accounts = await getProgram(this.connection).account.earner.all([
+      { memcmp: { offset: 89, bytes: '2' } }, // no manager
+    ]);
+    return accounts.map((a) => new Earner(this.connection, a.publicKey, a.account));
   }
 }
