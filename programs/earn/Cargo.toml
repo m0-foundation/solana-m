@@ -11,7 +11,7 @@ name = "earn"
 
 [features]
 anchor-debug = ["anchor-lang/anchor-debug"]
-default = ["testing", "mainnet"]
+default = ["testing"]
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []

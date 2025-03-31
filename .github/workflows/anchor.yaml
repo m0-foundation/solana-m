@@ -10,7 +10,7 @@ on:
       - develop
 
 jobs:
-  program-tests:
+  earn-tests:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
@@ -20,7 +20,33 @@ jobs:
         uses: ./.github/setup
 
       - name: Run tests
-        run: yarn test
+        run: yarn run jest --preset ts-jest --verbose tests/unit/earn.test.ts
+        shell: bash
+
+  ext-earn-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/setup
+
+      - name: Run tests
+        run: yarn run jest --preset ts-jest --verbose tests/unit/ext_earn.test.ts
+        shell: bash
+
+  portal-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/setup
+
+      - name: Run tests
+        run: yarn run jest --preset ts-jest --verbose tests/unit/portal.test.ts
         shell: bash
 
   sdk-tests:
