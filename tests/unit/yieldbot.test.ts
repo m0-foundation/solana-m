@@ -30,7 +30,7 @@ function mockRequestData(earner: PublicKey) {
   nock.disableNetConnect();
 
   nock('https://api.studio.thegraph.com')
-    .post('/query/106645/m-token-transactions/version/latest', (body) => true)
+    .post('/query/106645/m-token-transactions/version/latest', () => true)
     .reply(200, {
       data: {
         tokenAccount: {
@@ -45,7 +45,8 @@ function mockRequestData(earner: PublicKey) {
     .post(
       '/',
       // getList (earners)
-      (body) => body.params?.[0].data === '0x2d229202736f6c616e612d6561726e657273000000000000000000000000000000000000',
+      (body: any) =>
+        body.params?.[0].data === '0x2d229202736f6c616e612d6561726e657273000000000000000000000000000000000000',
     )
     .reply(200, {
       id: 13,
@@ -69,7 +70,7 @@ function mockRequestData(earner: PublicKey) {
   // rpc request body matcher => rpc response
   const rpcMocks: [nock.RequestBodyMatcher, any][] = [
     [
-      (body) => body.method === 'getLatestBlockhash',
+      (body: any) => body.method === 'getLatestBlockhash',
       {
         context,
         value: {
@@ -79,7 +80,8 @@ function mockRequestData(earner: PublicKey) {
       },
     ],
     [
-      (body) => body.method === 'getAccountInfo' && body.params?.[0] === 'GNc6kVU8B4ZdDk6wpzUyNUo7Zs42MBLKVRz64Zojfpje', // global account
+      (body: any) =>
+        body.method === 'getAccountInfo' && body.params?.[0] === 'GNc6kVU8B4ZdDk6wpzUyNUo7Zs42MBLKVRz64Zojfpje', // global account
       {
         context,
         value: {
@@ -96,7 +98,8 @@ function mockRequestData(earner: PublicKey) {
       },
     ],
     [
-      (body) => body.method === 'getAccountInfo' && body.params?.[0] === 'mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6', // mint
+      (body: any) =>
+        body.method === 'getAccountInfo' && body.params?.[0] === 'mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6', // mint
       {
         context,
         value: {
@@ -113,7 +116,7 @@ function mockRequestData(earner: PublicKey) {
       },
     ],
     [
-      (body) => body.method === 'simulateTransaction',
+      (body: any) => body.method === 'simulateTransaction',
       {
         context,
         value: {
@@ -125,7 +128,8 @@ function mockRequestData(earner: PublicKey) {
       },
     ],
     [
-      (body) => body.method === 'getProgramAccounts' && body.params?.[1].filters?.[0].memcmp.bytes === 'gZH8R1wytJi', // earners
+      (body: any) =>
+        body.method === 'getProgramAccounts' && body.params?.[1].filters?.[0].memcmp.bytes === 'gZH8R1wytJi', // earners
       [],
     ],
   ];

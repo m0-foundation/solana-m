@@ -399,7 +399,10 @@ describe('Portal unit tests', () => {
 
       const txIds = await ssw(ctx, getRedeemTxns(), signer);
       const logs = await fetchTransactionLogs(provider, txIds[txIds.length - 1].txid);
-      expect(logs).toContain('Program log: Transferred 100000 tokens to TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM');
+      expect(logs).toContain(
+        // bridge event log
+        'Program data: bEUUGiR+tFmghgEAAAAAACAdmgAAAAAABrjKyVh/lTd1SmC57qStdEyE5pAFSFUWhol8GKBG2RIBAA==',
+      );
       expect(logs).toContain('Program log: Index update: 1000000000001 | root update: false');
 
       // verify data was propagated
