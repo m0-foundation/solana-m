@@ -1,4 +1,4 @@
-// earn/instructions/earn_manager/add_earner.rs
+// ext_earn/instructions/earn_manager/add_earner.rs
 
 // external dependencies
 use anchor_lang::prelude::*;
@@ -7,12 +7,9 @@ use anchor_spl::token_interface::TokenAccount;
 // local dependencies
 use crate::{
     constants::ANCHOR_DISCRIMINATOR_SIZE,
-    errors::EarnError,
-    state::{EarnManager, Earner, Global, EARNER_SEED, EARN_MANAGER_SEED, GLOBAL_SEED},
-    utils::{
-        merkle_proof::{verify_not_in_tree, ProofElement},
-        token::has_immutable_owner,
-    },
+    errors::ExtError,
+    state::{EarnManager, Earner, ExtGlobal, EARNER_SEED, EARN_MANAGER_SEED, EXT_GLOBAL_SEED},
+    utils::token::has_immutable_owner,
 };
 
 #[derive(Accounts)]
@@ -22,22 +19,22 @@ pub struct AddEarner<'info> {
     pub signer: Signer<'info>,
 
     #[account(
-        constraint = earn_manager_account.is_active @ EarnError::NotActive,
+        constraint = earn_manager_account.is_active @ ExtError::NotActive,
         seeds = [EARN_MANAGER_SEED, signer.key().as_ref()],
         bump = earn_manager_account.bump
     )]
     pub earn_manager_account: Account<'info, EarnManager>,
 
     #[account(
-        seeds = [GLOBAL_SEED],
+        seeds = [EXT_GLOBAL_SEED],
         bump = global_account.bump
     )]
-    pub global_account: Account<'info, Global>,
+    pub global_account: Account<'info, ExtGlobal>,
 
     #[account(
-        token::mint = global_account.mint,
+        token::mint = global_account.ext_mint,
         token::authority = user,
-        constraint = has_immutable_owner(&user_token_account) @ EarnError::MutableOwner,
+        constraint = has_immutable_owner(&user_token_account) @ ExtError::MutableOwner,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
@@ -56,19 +53,10 @@ pub struct AddEarner<'info> {
 pub fn handler(
     ctx: Context<AddEarner>,
     user: Pubkey,
-    proofs: Vec<Vec<ProofElement>>,
-    neighbors: Vec<[u8; 32]>,
 ) -> Result<()> {
-    // Verify the user is not already an earner
-    verify_not_in_tree(
-        ctx.accounts.global_account.earner_merkle_root,
-        user.to_bytes(),
-        proofs,
-        neighbors,
-    )?;
 
     ctx.accounts.earner_account.set_inner(Earner {
-        earn_manager: Some(ctx.accounts.signer.key().clone()),
+        earn_manager: ctx.accounts.signer.key(),
         recipient_token_account: None,
         last_claim_index: ctx.accounts.global_account.index,
         last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),

@@ -61,7 +61,6 @@ pub fn handler(
         distributed: 0,
         claim_complete: true,
         earner_merkle_root: [0; 32],
-        earn_manager_merkle_root: [0; 32],
         bump: ctx.bumps.global_account,
     });
 

@@ -33,7 +33,6 @@ pub fn handler(
     ctx: Context<PropagateIndex>,
     new_index: u64,
     earner_merkle_root: [u8; 32],
-    earn_manager_merkle_root: [u8; 32],
 ) -> Result<()> {
     // Cache the current supply of the M token
     let current_supply = ctx.accounts.mint.supply;
@@ -46,9 +45,6 @@ pub fn handler(
     if new_index >= ctx.accounts.global_account.index {
         if earner_merkle_root != [0u8; 32] {
             ctx.accounts.global_account.earner_merkle_root = earner_merkle_root;
-        }
-        if earn_manager_merkle_root != [0u8; 32] {
-            ctx.accounts.global_account.earn_manager_merkle_root = earn_manager_merkle_root;
         }
     }
 
@@ -109,11 +105,20 @@ pub fn handler(
     ctx.accounts.global_account.distributed = 0;
     ctx.accounts.global_account.claim_complete = false;
 
-    msg!(
-        "New claim cycle started | Index: {} | Timestamp: {}",
-        new_index,
-        ctx.accounts.global_account.max_yield
-    );
+    emit!(IndexUpdate {
+        index: new_index,
+        ts: current_timestamp,
+        supply: current_supply,
+        max_yield: ctx.accounts.global_account.max_yield,
+    });
 
     Ok(())
+}
+
+#[event]
+pub struct IndexUpdate {
+    pub index: u64,
+    pub ts: u64,
+    pub supply: u64,
+    pub max_yield: u64,
 }

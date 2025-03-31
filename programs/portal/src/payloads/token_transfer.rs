@@ -43,9 +43,8 @@ impl Readable for NativeTokenTransfer {
         additional_payload.destination_token = Readable::read(reader)?;
 
         // L2s will not propagate this data
-        if payload_len >= 104 {
+        if payload_len >= 72 {
             additional_payload.earner_root = Some(Readable::read(reader)?);
-            additional_payload.earn_manager_root = Some(Readable::read(reader)?);
         }
 
         Ok(Self {
@@ -100,7 +99,6 @@ pub struct AdditionalPayload {
     pub index: u64,
     pub destination_token: [u8; 32], // address of the token (M or Wrapped M) on the destination chain
     pub earner_root: Option<[u8; 32]>,
-    pub earn_manager_root: Option<[u8; 32]>,
 }
 
 impl AdditionalPayload {
@@ -109,7 +107,6 @@ impl AdditionalPayload {
             index: 0,
             destination_token,
             earner_root: None,
-            earn_manager_root: None,
         }
     }
 }
@@ -118,8 +115,8 @@ impl Writeable for AdditionalPayload {
     fn written_size(&self) -> usize {
         let mut size = u64::SIZE.unwrap() + self.destination_token.len();
 
-        if self.earner_root.is_some() && self.earn_manager_root.is_some() {
-            size += self.earner_root.unwrap().len() + self.earn_manager_root.unwrap().len();
+        if self.earner_root.is_some() {
+            size += self.earner_root.unwrap().len();
         }
 
         size
@@ -132,9 +129,8 @@ impl Writeable for AdditionalPayload {
         self.index.write(writer)?;
         self.destination_token.write(writer)?;
 
-        if self.earner_root.is_some() && self.earn_manager_root.is_some() {
+        if self.earner_root.is_some() {
             self.earner_root.unwrap().write(writer)?;
-            self.earn_manager_root.unwrap().write(writer)?;
         }
 
         Ok(())
