@@ -257,7 +257,7 @@ describe('SDK unit tests', () => {
         new BN(0),
         new BN(1000),
       );
-      expect(balance).toEqual(2250000000000n);
+      expect(balance.toNumber()).toEqual(2250000000000);
     });
 
     describe('weighted balance calculations', () => {
@@ -265,16 +265,18 @@ describe('SDK unit tests', () => {
       const fn = Graph['calculateTimeWeightedBalance'];
 
       test('0 balance', async () => {
-        expect(fn(new BN(0), new BN(0), new BN(1741939199), [])).toEqual(0n);
+        expect(fn(new BN(0), new BN(0), new BN(1741939199), []).toNumber()).toEqual(0);
       });
       test('no transfers balance', async () => {
-        expect(fn(new BN(110), new BN(0), new BN(1741939199), [])).toEqual(110n);
+        expect(fn(new BN(110), new BN(0), new BN(1741939199), []).toNumber()).toEqual(110);
       });
       test('one transfers halfway', async () => {
-        expect(fn(new BN(100), new BN(50), new BN(150), [{ amount: '50', ts: '100' }])).toEqual(75n);
+        expect(fn(new BN(100), new BN(50), new BN(150), [{ amount: '50', ts: '100' }]).toNumber()).toEqual(75);
       });
       test('huge transfer before calculation', async () => {
-        expect(fn(new BN(1000000), new BN(100), new BN(1500000), [{ amount: '1000000', ts: '1499995' }])).toEqual(3n);
+        expect(
+          fn(new BN(1000000), new BN(100), new BN(1500000), [{ amount: '1000000', ts: '1499995' }]).toNumber(),
+        ).toEqual(3);
       });
       test('many transfers', async () => {
         const numTransfers = 50;
@@ -289,11 +291,11 @@ describe('SDK unit tests', () => {
         const lower = new BN(transfers[transfers.length - 1].ts).sub(new BN(10));
 
         // expect balance based on linear distribution of transfers
-        const expected = 1000n - BigInt((numTransfers * transferAmount) / 2);
-        expect(fn(new BN(1000), lower, upper, transfers)).toEqual(expected);
+        const expected = 1000 - (numTransfers * transferAmount) / 2;
+        expect(fn(new BN(1000), lower, upper, transfers).toNumber()).toEqual(expected);
       });
       test('current balance is 0', async () => {
-        expect(fn(new BN(0), new BN(100), new BN(200), [{ amount: '-1000', ts: '150' }])).toEqual(500n);
+        expect(fn(new BN(0), new BN(100), new BN(200), [{ amount: '-1000', ts: '150' }]).toNumber()).toEqual(500);
       });
     });
   });
@@ -321,17 +323,18 @@ describe('SDK unit tests', () => {
 
     test('validate claims and send', async () => {
       const auth = await EarnAuthority.load(connection);
-      expect(auth['global'].distributed).toBe(0n);
+      expect(auth['global'].distributed.toNumber()).toBe(0);
 
       // will throw on simulation or validation errors
-      const amount = await auth.simulateAndValidateClaimIxs(claimIxs);
-      expect(amount).toEqual(70000000000n);
+      const [ixs, amount] = await auth.simulateAndValidateClaimIxs(claimIxs);
+      expect(ixs).toHaveLength(2);
+      expect(amount.toNumber()).toEqual(70000000000);
 
       // send transactions
       const signature = await sendAndConfirmTransaction(connection, new Transaction().add(...claimIxs), [signer]);
 
       await auth.refresh();
-      expect(auth['global'].distributed).toBe(70000000000n);
+      expect(auth['global'].distributed.toNumber()).toBe(70000000000);
     });
 
     test('post claim cycle validation', async () => {

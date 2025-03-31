@@ -63,6 +63,27 @@
       ]
     },
     {
+      "name": "setClaimCooldown",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "globalAccount",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "claimCooldown",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "setEarnAuthority",
       "accounts": [
         {
@@ -563,10 +584,6 @@
             "type": "u64"
           },
           {
-            "name": "isEarning",
-            "type": "bool"
-          },
-          {
             "name": "bump",
             "type": "u8"
           },
@@ -600,6 +617,10 @@
           },
           {
             "name": "earnAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "portalAuthority",
             "type": "publicKey"
           },
           {
@@ -800,6 +821,11 @@
       "code": 6010,
       "name": "InvalidProof",
       "msg": "Merkle proof verification failed."
+    },
+    {
+      "code": 6011,
+      "name": "MutableOwner",
+      "msg": "Token account owner cannot be mutable."
     }
   ],
   "metadata": {

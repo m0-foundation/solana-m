@@ -135,7 +135,7 @@ export class Graph {
     upperTS: BN,
     transfers: { ts: string; amount: string }[],
   ): BN {
-    if (upperTS == lowerTS || transfers.length === 0) {
+    if (upperTS.eq(lowerTS) || transfers.length === 0) {
       return balance;
     }
 
@@ -144,17 +144,20 @@ export class Graph {
 
     // use transfers to calculate the weighted balance
     for (const transfer of transfers) {
-      if (lowerTS > new BN(transfer.ts)) {
+      if (upperTS.lt(new BN(transfer.ts))) {
+        continue;
+      }
+      if (lowerTS.gt(new BN(transfer.ts))) {
         break;
       }
 
-      weightedBalance = weightedBalance.add(new BN(balance).mul(prevTS.sub(new BN(transfer.ts))));
+      weightedBalance = weightedBalance.add(balance.mul(prevTS.sub(new BN(transfer.ts))));
       balance = balance.sub(new BN(transfer.amount));
       prevTS = new BN(transfer.ts);
     }
 
     // calculate up to sinceTS
-    weightedBalance = weightedBalance.add(new BN(balance).mul(prevTS.sub(lowerTS)));
+    weightedBalance = weightedBalance.add(balance.mul(prevTS.sub(lowerTS)));
 
     // return the time-weighted balance
     return weightedBalance.div(upperTS.sub(lowerTS));

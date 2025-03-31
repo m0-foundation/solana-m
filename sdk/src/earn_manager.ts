@@ -108,7 +108,7 @@ export class EarnManager {
 
   async getEarners(): Promise<Earner[]> {
     const accounts = await getProgram(this.connection).account.earner.all([
-      { memcmp: { offset: 91, bytes: this.manager.toBase58() } },
+      { memcmp: { offset: 90, bytes: this.manager.toBase58() } },
     ]);
     return accounts.map((a) => new Earner(this.connection, a.publicKey, a.account));
   }

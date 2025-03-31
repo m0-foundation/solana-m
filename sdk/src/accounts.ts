@@ -12,6 +12,7 @@ export interface EarnManagerData {
 export interface GlobalAccountData {
   admin: PublicKey;
   earnAuthority: PublicKey;
+  portalAuthority: PublicKey;
   mint: PublicKey;
   index: BN;
   timestamp: BN;
@@ -29,7 +30,6 @@ export interface EarnerData {
   user: PublicKey;
   lastClaimIndex: BN;
   lastClaimTimestamp: BN;
-  isEarning: boolean;
   bump: number;
   userTokenAccount: PublicKey;
   earnManager: PublicKey | null;
