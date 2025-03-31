@@ -40,14 +40,14 @@ import { keysFromEnv, NttManager } from './utils';
 import { MerkleTree } from '../../sdk/src/merkle';
 import { EvmCaller } from '../../sdk/src/evm_caller';
 const EARN_IDL = require('../../target/idl/earn.json');
-const EXT_EARN_IDL = require('../../target/idl/extEarn.json');
+const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
 const PROGRAMS = {
   // TODO should these be imported from the SDK so they are consistent?
   // program id the same for devnet and mainnet
   portal: new PublicKey('mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY'),
   earn: new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c'),
-  extEarn: new PublicKey(''), // TODO need to add address
+  extEarn: new PublicKey('wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko'),
   // addresses the same across L2s
   evmTransiever: '0x0763196A091575adF99e2306E5e90E0Be5154841',
   evmPeer: '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd',
@@ -64,6 +64,15 @@ const RATE_LIMITS_24 = {
 async function main() {
   const program = new Command();
   const connection = new Connection(process.env.RPC_URL ?? '');
+
+  program
+    .command('print-ext-vault-pda')
+    .description('Print the extension earn vault PDA')
+    .action(() => {
+      const [mVaultPda] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], PROGRAMS.extEarn);
+
+      console.log(`M Vault PDA: ${mVaultPda.toBase58()}`);
+    });
 
   program
     .command('create-multisig')
