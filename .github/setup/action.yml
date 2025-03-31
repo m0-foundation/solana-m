@@ -61,5 +61,5 @@ runs:
       shell: bash
 
     - name: Build programs
-      run: anchor build
+      run: anchor build --program-name=earn && anchor build --program-name=portal
       shell: bash
