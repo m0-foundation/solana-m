@@ -8,9 +8,11 @@ const REGISTRAR_LISTS = {
 
 export class EvmCaller {
   private rpc_url: string;
+  private merkleTreeAddress: `0x${string}`;
 
-  constructor(rpc_url: string) {
+  constructor(rpc_url: string, merkleTreeAddress: `0x${string}` = '0x050258e4761650ad774b5090a5DA0e204348Eb48') {
     this.rpc_url = rpc_url;
+    this.merkleTreeAddress = merkleTreeAddress;
   }
 
   async getMerkleRoot(list: 'earners' | 'managers'): Promise<string> {
@@ -51,7 +53,7 @@ export class EvmCaller {
     ] as const;
 
     return getContract({
-      address: '0x050258e4761650ad774b5090a5DA0e204348Eb48',
+      address: this.merkleTreeAddress,
       abi,
       client: createPublicClient({
         transport: http(this.rpc_url),
