@@ -6,24 +6,19 @@ export interface EarnManagerData {
   feeBps: BN;
   feeTokenAccount: PublicKey;
   bump: number;
-  owner: PublicKey;
+  earnManager: PublicKey;
 }
 
 export interface GlobalAccountData {
   admin: PublicKey;
   earnAuthority: PublicKey;
-  portalAuthority: PublicKey;
   mint: PublicKey;
   index: BN;
   timestamp: BN;
-  claimCooldown: BN;
-  maxSupply: BN;
-  maxYield: BN;
-  distributed: BN;
-  claimComplete: boolean;
-  earnerMerkleRoot: number[];
-  earnManagerMerkleRoot: number[];
-  bump: number;
+  maxSupply?: BN;
+  maxYield?: BN;
+  distributed?: BN;
+  claimComplete?: boolean;
 }
 
 export interface EarnerData {
@@ -32,6 +27,6 @@ export interface EarnerData {
   lastClaimTimestamp: BN;
   bump: number;
   userTokenAccount: PublicKey;
-  earnManager: PublicKey | null;
-  recipientTokenAccount: PublicKey | null;
+  earnManager?: PublicKey | null;
+  recipientTokenAccount?: PublicKey | null;
 }

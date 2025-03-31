@@ -3,11 +3,6 @@ export type Earn = {
   "name": "earn",
   "constants": [
     {
-      "name": "EARN_MANAGER_SEED",
-      "type": "bytes",
-      "value": "[101, 97, 114, 110, 45, 109, 97, 110, 97, 103, 101, 114]"
-    },
-    {
       "name": "EARNER_SEED",
       "type": "bytes",
       "value": "[101, 97, 114, 110, 101, 114]"
@@ -63,27 +58,6 @@ export type Earn = {
       ]
     },
     {
-      "name": "setClaimCooldown",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "claimCooldown",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "setEarnAuthority",
       "accounts": [
         {
@@ -105,7 +79,7 @@ export type Earn = {
       ]
     },
     {
-      "name": "setEarnerRecipient",
+      "name": "setClaimCooldown",
       "accounts": [
         {
           "name": "admin",
@@ -114,22 +88,16 @@ export type Earn = {
         },
         {
           "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "earnerAccount",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "recipientTokenAccount",
-          "isMut": false,
-          "isSigner": false,
-          "isOptional": true
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "claimCooldown",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "propagateIndex",
@@ -157,15 +125,6 @@ export type Earn = {
         },
         {
           "name": "earnerMerkleRoot",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "earnManagerMerkleRoot",
           "type": {
             "array": [
               "u8",
@@ -217,18 +176,6 @@ export type Earn = {
           "name": "mintMultisig",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false,
-          "isOptional": true
-        },
-        {
-          "name": "earnManagerTokenAccount",
-          "isMut": true,
-          "isSigner": false,
-          "isOptional": true
         }
       ],
       "args": [
@@ -253,133 +200,6 @@ export type Earn = {
         }
       ],
       "args": []
-    },
-    {
-      "name": "addEarner",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userTokenAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "user",
-          "type": "publicKey"
-        },
-        {
-          "name": "proofs",
-          "type": {
-            "vec": {
-              "vec": {
-                "defined": "ProofElement"
-              }
-            }
-          }
-        },
-        {
-          "name": "neighbors",
-          "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "removeEarner",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "configureEarnManager",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTokenAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feeBps",
-          "type": "u64"
-        },
-        {
-          "name": "proof",
-          "type": {
-            "vec": {
-              "defined": "ProofElement"
-            }
-          }
-        }
-      ]
     },
     {
       "name": "addRegistrarEarner",
@@ -467,114 +287,14 @@ export type Earn = {
           }
         }
       ]
-    },
-    {
-      "name": "removeEarnManager",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "earnManager",
-          "type": "publicKey"
-        },
-        {
-          "name": "proofs",
-          "type": {
-            "vec": {
-              "vec": {
-                "defined": "ProofElement"
-              }
-            }
-          }
-        },
-        {
-          "name": "neighbors",
-          "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "removeOrphanedEarner",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
     }
   ],
   "accounts": [
-    {
-      "name": "earnManager",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "isActive",
-            "type": "bool"
-          },
-          {
-            "name": "feeBps",
-            "type": "u64"
-          },
-          {
-            "name": "feeTokenAccount",
-            "type": "publicKey"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          },
-          {
-            "name": "owner",
-            "type": "publicKey"
-          }
-        ]
-      }
-    },
     {
       "name": "earner",
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
           {
             "name": "lastClaimIndex",
             "type": "u64"
@@ -588,20 +308,12 @@ export type Earn = {
             "type": "u8"
           },
           {
-            "name": "userTokenAccount",
+            "name": "user",
             "type": "publicKey"
           },
           {
-            "name": "earnManager",
-            "type": {
-              "option": "publicKey"
-            }
-          },
-          {
-            "name": "recipientTokenAccount",
-            "type": {
-              "option": "publicKey"
-            }
+            "name": "userTokenAccount",
+            "type": "publicKey"
           }
         ]
       }
@@ -665,15 +377,6 @@ export type Earn = {
             }
           },
           {
-            "name": "earnManagerMerkleRoot",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
             "name": "bump",
             "type": "u8"
           }
@@ -714,17 +417,7 @@ export type Earn = {
           "index": false
         },
         {
-          "name": "recipientTokenAccount",
-          "type": "publicKey",
-          "index": false
-        },
-        {
           "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "managerFee",
           "type": "u64",
           "index": false
         },
@@ -825,7 +518,7 @@ export type Earn = {
     {
       "code": 6011,
       "name": "MutableOwner",
-      "msg": "Token account owner cannot be mutable."
+      "msg": "Token account owner is required to be immutable."
     }
   ]
 };
@@ -835,11 +528,6 @@ export const IDL: Earn = {
   "name": "earn",
   "constants": [
     {
-      "name": "EARN_MANAGER_SEED",
-      "type": "bytes",
-      "value": "[101, 97, 114, 110, 45, 109, 97, 110, 97, 103, 101, 114]"
-    },
-    {
       "name": "EARNER_SEED",
       "type": "bytes",
       "value": "[101, 97, 114, 110, 101, 114]"
@@ -895,27 +583,6 @@ export const IDL: Earn = {
       ]
     },
     {
-      "name": "setClaimCooldown",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "claimCooldown",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "setEarnAuthority",
       "accounts": [
         {
@@ -937,7 +604,7 @@ export const IDL: Earn = {
       ]
     },
     {
-      "name": "setEarnerRecipient",
+      "name": "setClaimCooldown",
       "accounts": [
         {
           "name": "admin",
@@ -946,22 +613,16 @@ export const IDL: Earn = {
         },
         {
           "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "earnerAccount",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "recipientTokenAccount",
-          "isMut": false,
-          "isSigner": false,
-          "isOptional": true
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "claimCooldown",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "propagateIndex",
@@ -989,15 +650,6 @@ export const IDL: Earn = {
         },
         {
           "name": "earnerMerkleRoot",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "earnManagerMerkleRoot",
           "type": {
             "array": [
               "u8",
@@ -1049,18 +701,6 @@ export const IDL: Earn = {
           "name": "mintMultisig",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false,
-          "isOptional": true
-        },
-        {
-          "name": "earnManagerTokenAccount",
-          "isMut": true,
-          "isSigner": false,
-          "isOptional": true
         }
       ],
       "args": [
@@ -1085,133 +725,6 @@ export const IDL: Earn = {
         }
       ],
       "args": []
-    },
-    {
-      "name": "addEarner",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userTokenAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "user",
-          "type": "publicKey"
-        },
-        {
-          "name": "proofs",
-          "type": {
-            "vec": {
-              "vec": {
-                "defined": "ProofElement"
-              }
-            }
-          }
-        },
-        {
-          "name": "neighbors",
-          "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "removeEarner",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "configureEarnManager",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTokenAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feeBps",
-          "type": "u64"
-        },
-        {
-          "name": "proof",
-          "type": {
-            "vec": {
-              "defined": "ProofElement"
-            }
-          }
-        }
-      ]
     },
     {
       "name": "addRegistrarEarner",
@@ -1299,114 +812,14 @@ export const IDL: Earn = {
           }
         }
       ]
-    },
-    {
-      "name": "removeEarnManager",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "earnManager",
-          "type": "publicKey"
-        },
-        {
-          "name": "proofs",
-          "type": {
-            "vec": {
-              "vec": {
-                "defined": "ProofElement"
-              }
-            }
-          }
-        },
-        {
-          "name": "neighbors",
-          "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "removeOrphanedEarner",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
     }
   ],
   "accounts": [
-    {
-      "name": "earnManager",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "isActive",
-            "type": "bool"
-          },
-          {
-            "name": "feeBps",
-            "type": "u64"
-          },
-          {
-            "name": "feeTokenAccount",
-            "type": "publicKey"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          },
-          {
-            "name": "owner",
-            "type": "publicKey"
-          }
-        ]
-      }
-    },
     {
       "name": "earner",
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "user",
-            "type": "publicKey"
-          },
           {
             "name": "lastClaimIndex",
             "type": "u64"
@@ -1420,20 +833,12 @@ export const IDL: Earn = {
             "type": "u8"
           },
           {
-            "name": "userTokenAccount",
+            "name": "user",
             "type": "publicKey"
           },
           {
-            "name": "earnManager",
-            "type": {
-              "option": "publicKey"
-            }
-          },
-          {
-            "name": "recipientTokenAccount",
-            "type": {
-              "option": "publicKey"
-            }
+            "name": "userTokenAccount",
+            "type": "publicKey"
           }
         ]
       }
@@ -1497,15 +902,6 @@ export const IDL: Earn = {
             }
           },
           {
-            "name": "earnManagerMerkleRoot",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
             "name": "bump",
             "type": "u8"
           }
@@ -1546,17 +942,7 @@ export const IDL: Earn = {
           "index": false
         },
         {
-          "name": "recipientTokenAccount",
-          "type": "publicKey",
-          "index": false
-        },
-        {
           "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "managerFee",
           "type": "u64",
           "index": false
         },
@@ -1657,7 +1043,7 @@ export const IDL: Earn = {
     {
       "code": 6011,
       "name": "MutableOwner",
-      "msg": "Token account owner cannot be mutable."
+      "msg": "Token account owner is required to be immutable."
     }
   ]
 };

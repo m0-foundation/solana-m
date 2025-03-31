@@ -1,8 +1,8 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { PROGRAM_ID } from '.';
+import { EXT_PROGRAM_ID, PROGRAM_ID } from '.';
 import { Claim, Graph } from './graph';
 import { EarnerData } from './accounts';
-import { getProgram } from './idl';
+import { getExtProgram, getProgram } from './idl';
 
 export class Earner {
   private connection: Connection;
@@ -18,22 +18,34 @@ export class Earner {
     this.data = data;
   }
 
-  static async fromTokenAccount(connection: Connection, tokenAccount: PublicKey): Promise<Earner> {
-    const [earnerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earner'), tokenAccount.toBytes()],
-      PROGRAM_ID,
-    );
+  static async fromTokenAccount(
+    connection: Connection,
+    tokenAccount: PublicKey,
+    program = EXT_PROGRAM_ID,
+  ): Promise<Earner> {
+    const [earnerAccount] = PublicKey.findProgramAddressSync([Buffer.from('earner'), tokenAccount.toBytes()], program);
 
-    const data = await getProgram(connection).account.earner.fetch(earnerAccount);
-
-    return new Earner(connection, earnerAccount, data);
+    if (program === EXT_PROGRAM_ID) {
+      const data = await getExtProgram(connection).account.earner.fetch(earnerAccount);
+      return new Earner(connection, earnerAccount, data);
+    } else {
+      const data = await getProgram(connection).account.earner.fetch(earnerAccount);
+      return new Earner(connection, earnerAccount, { ...data, earnManager: null, recipientTokenAccount: null });
+    }
   }
 
-  static async fromUserAddress(connection: Connection, user: PublicKey): Promise<Earner[]> {
-    const accounts = await getProgram(connection).account.earner.all([
-      { memcmp: { offset: 8, bytes: user.toBase58() } },
-    ]);
-    return accounts.map((a) => new Earner(connection, a.publicKey, a.account));
+  static async fromUserAddress(connection: Connection, user: PublicKey, program = EXT_PROGRAM_ID): Promise<Earner[]> {
+    const filter = [{ memcmp: { offset: 25, bytes: user.toBase58() } }];
+
+    if (program === EXT_PROGRAM_ID) {
+      const accounts = await getExtProgram(connection).account.earner.all(filter);
+      return accounts.map((a) => new Earner(connection, a.publicKey, a.account));
+    } else {
+      const accounts = await getProgram(connection).account.earner.all(filter);
+      return accounts.map(
+        (a) => new Earner(connection, a.publicKey, { ...a.account, earnManager: null, recipientTokenAccount: null }),
+      );
+    }
   }
 
   async getHistoricalClaims(): Promise<Claim[]> {

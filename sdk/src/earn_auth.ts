@@ -6,33 +6,44 @@ import {
   VersionedTransaction,
   ComputeBudgetProgram,
 } from '@solana/web3.js';
-import { GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
+import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
 import { EarnManager } from './earn_manager';
 import { GlobalAccountData } from './accounts';
 import * as spl from '@solana/spl-token';
 import { BN, Program } from '@coral-xyz/anchor';
-import { getProgram } from './idl';
+import { getExtProgram, getProgram } from './idl';
 import { Earn } from './idl/earn';
+import { ExtEarn } from './idl/ext_earn';
 
 class EarnAuthority {
   private connection: Connection;
-  private program: Program<Earn>;
+  private program: Program<Earn> | Program<ExtEarn>;
   private global: GlobalAccountData;
   private managerCache: Map<PublicKey, EarnManager> = new Map();
-  private mintMultisig: PublicKey;
+  private mintAuth: PublicKey;
 
-  private constructor(connection: Connection, global: GlobalAccountData, mintMultisig: PublicKey) {
+  programID: PublicKey;
+
+  private constructor(connection: Connection, global: GlobalAccountData, mintAuth: PublicKey, program = PROGRAM_ID) {
     this.connection = connection;
-    this.program = getProgram(connection);
+    this.programID = program;
+    this.program = program === PROGRAM_ID ? getProgram(connection) : getExtProgram(connection);
     this.global = global;
-    this.mintMultisig = mintMultisig;
+    this.mintAuth = mintAuth;
   }
 
-  static async load(connection: Connection): Promise<EarnAuthority> {
-    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
-    const global = await getProgram(connection).account.global.fetch(globalAccount);
+  static async load(connection: Connection, program = PROGRAM_ID): Promise<EarnAuthority> {
+    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], program);
+
+    let global: GlobalAccountData;
+    if (program === PROGRAM_ID) {
+      global = await getProgram(connection).account.global.fetch(globalAccount);
+    } else {
+      const extGlobal = await getExtProgram(connection).account.extGlobal.fetch(globalAccount);
+      global = { ...extGlobal, mint: extGlobal.extMint };
+    }
 
     // get mint multisig
     const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
@@ -54,12 +65,17 @@ class EarnAuthority {
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
+    if (this.programID !== PROGRAM_ID) {
+      console.error('Invalid program');
+      return null;
+    }
+
     if (this.global.claimComplete) {
       console.error('No active claim cycle');
       return null;
     }
 
-    return await this.program.methods
+    return await (this.program as Program<Earn>).methods
       .completeClaims()
       .accounts({
         earnAuthority: new PublicKey(this.global.earnAuthority),
@@ -95,48 +111,67 @@ class EarnAuthority {
       return null;
     }
 
-    // earner might have a manager
-    let earnManagerAccount: PublicKey | null = null;
-    let earnManagerTokenAccount: PublicKey | null = null;
-
-    if (earner.data.earnManager) {
-      let manager = this.managerCache.get(earner.data.earnManager);
-      if (!manager) {
-        manager = await EarnManager.fromManagerAddress(this.connection, earner.data.earnManager);
-        this.managerCache.set(earner.data.earnManager, manager);
-      }
-      earnManagerAccount = earner.data.earnManager;
-      earnManagerTokenAccount = manager.data.feeTokenAccount;
-    }
-
     // PDAs
     const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
     const [earnerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earner'), earner.data.userTokenAccount.toBuffer()],
       PROGRAM_ID,
     );
-    if (earnManagerAccount) {
-      earnManagerAccount = PublicKey.findProgramAddressSync(
-        [Buffer.from('earn-manager'), earnManagerAccount.toBytes()],
+
+    if (this.programID === EXT_PROGRAM_ID) {
+      // get manager (manager fee token account)
+      let manager = this.managerCache.get(earner.data.earnManager!);
+      if (!manager) {
+        manager = await EarnManager.fromManagerAddress(this.connection, earner.data.earnManager!);
+        this.managerCache.set(earner.data.earnManager!, manager);
+      }
+
+      const earnManagerTokenAccount = manager.data.feeTokenAccount;
+      const earnManagerAccount = PublicKey.findProgramAddressSync(
+        [Buffer.from('earn-manager'), earner.data.earnManager!.toBytes()],
         PROGRAM_ID,
       )[0];
-    }
 
-    return this.program.methods
-      .claimFor(new BN(weightedBalance.toString()))
-      .accounts({
-        earnAuthority: new PublicKey(this.global.earnAuthority),
-        globalAccount: GLOBAL_ACCOUNT,
-        mint: new PublicKey(this.global.mint),
-        tokenAuthorityAccount,
-        userTokenAccount: earner.data.userTokenAccount,
-        earnerAccount,
-        tokenProgram: spl.TOKEN_2022_PROGRAM_ID,
-        mintMultisig: this.mintMultisig,
-        earnManagerAccount,
-        earnManagerTokenAccount,
-      })
-      .instruction();
+      // vault PDAs
+      const [mVaultAccount] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID);
+      const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
+        this.global.mint,
+        mVaultAccount,
+        true,
+        spl.TOKEN_2022_PROGRAM_ID,
+      );
+
+      return (this.program as Program<ExtEarn>).methods
+        .claimFor(new BN(weightedBalance.toString()))
+        .accounts({
+          earnAuthority: this.global.earnAuthority,
+          globalAccount: EXT_GLOBAL_ACCOUNT,
+          extMint: this.global.mint,
+          extMintAuthority: this.mintAuth,
+          mVaultAccount,
+          vaultMTokenAccount,
+          userTokenAccount: earner.data.userTokenAccount,
+          earnerAccount,
+          earnManagerAccount,
+          earnManagerTokenAccount,
+          token2022: spl.TOKEN_2022_PROGRAM_ID,
+        })
+        .instruction();
+    } else {
+      return (this.program as Program<Earn>).methods
+        .claimFor(new BN(weightedBalance.toString()))
+        .accounts({
+          earnAuthority: new PublicKey(this.global.earnAuthority),
+          globalAccount: GLOBAL_ACCOUNT,
+          mint: new PublicKey(this.global.mint),
+          tokenAuthorityAccount,
+          userTokenAccount: earner.data.userTokenAccount,
+          earnerAccount,
+          tokenProgram: spl.TOKEN_2022_PROGRAM_ID,
+          mintMultisig: this.mintAuth,
+        })
+        .instruction();
+    }
   }
 
   async simulateAndValidateClaimIxs(
@@ -175,8 +210,37 @@ class EarnAuthority {
     }
 
     // validate rewards is not higher than max claimable rewards
-    if (totalRewards > this.global.maxYield) {
-      throw new Error('Claim amount exceeds max claimable rewards');
+    if (this.programID === PROGRAM_ID) {
+      if (totalRewards.gt(this.global.maxYield!)) {
+        throw new Error('Claim amount exceeds max claimable rewards');
+      }
+    } else {
+      // total supply
+      const mint = await spl.getMint(
+        this.connection,
+        this.global.mint,
+        this.connection.commitment,
+        spl.TOKEN_2022_PROGRAM_ID,
+      );
+
+      // vault balance
+      const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
+        this.global.mint,
+        PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID)[0],
+        true,
+        spl.TOKEN_2022_PROGRAM_ID,
+      );
+      const tokenAccountInfo = await spl.getAccount(
+        this.connection,
+        vaultMTokenAccount,
+        this.connection.commitment,
+        spl.TOKEN_2022_PROGRAM_ID,
+      );
+      const collateral = new BN(tokenAccountInfo.amount.toString());
+
+      if (new BN(mint.supply.toString()).add(totalRewards).gt(collateral)) {
+        throw new Error('Claim amount exceeds max claimable rewards');
+      }
     }
 
     return [filtererdTxns, totalRewards];
@@ -191,7 +255,12 @@ class EarnAuthority {
         const data = Buffer.from(log.split('Program data: ')[1], 'base64');
 
         // read rewards and fee amounts
-        rewards.push(data.readBigUInt64LE(72) + data.readBigUInt64LE(80));
+        rewards.push(data.readBigUInt64LE(40));
+
+        // ext program has a fee amount
+        if (data.length >= 72) {
+          rewards.push(data.readBigUInt64LE(64));
+        }
       }
     }
 

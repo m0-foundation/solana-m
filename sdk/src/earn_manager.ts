@@ -3,25 +3,21 @@ import BN from 'bn.js';
 import * as spl from '@solana/spl-token';
 import { GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
-import { MerkleTree } from './merkle';
-import { EvmCaller } from './evm_caller';
 import { Program } from '@coral-xyz/anchor';
-import { getProgram } from './idl';
-import { Earn } from './idl/earn';
+import { getExtProgram } from './idl';
 import { EarnManagerData } from './accounts';
+import { ExtEarn } from './idl/ext_earn';
 
 export class EarnManager {
   private connection: Connection;
-  private program: Program<Earn>;
-  private evmRPC: string | undefined;
+  private program: Program<ExtEarn>;
 
   manager: PublicKey;
   data: EarnManagerData;
 
-  constructor(connection: Connection, manager: PublicKey, pubkey: PublicKey, data: EarnManagerData, evmRPC?: string) {
+  constructor(connection: Connection, manager: PublicKey, pubkey: PublicKey, data: EarnManagerData) {
     this.connection = connection;
-    this.program = getProgram(connection);
-    this.evmRPC = evmRPC;
+    this.program = getExtProgram(connection);
     this.manager = manager;
     this.data = data;
   }
@@ -32,33 +28,23 @@ export class EarnManager {
       PROGRAM_ID,
     );
 
-    const data = await getProgram(connection).account.earnManager.fetch(earnManagerAccount);
+    const data = await getExtProgram(connection).account.earnManager.fetch(earnManagerAccount);
 
-    return new EarnManager(connection, manager, earnManagerAccount, data, evmRPC);
+    return new EarnManager(connection, manager, earnManagerAccount, data);
   }
 
   async refresh() {
-    Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.manager, this.evmRPC));
+    Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.manager));
   }
 
   async buildConfigureInstruction(feeBPS: number, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
-    if (!this.evmRPC) {
-      throw new Error('evmRPC is required to configure earn manager');
-    }
-
-    // get all earn managers for proof
-    const evmCaller = new EvmCaller(this.evmRPC);
-    const mangagers = await evmCaller.getManagers();
-    const tree = new MerkleTree(mangagers);
-    const { proof } = tree.getInclusionProof(this.manager);
-
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earn-manager'), this.manager.toBytes()],
       PROGRAM_ID,
     );
 
     return this.program.methods
-      .configureEarnManager(new BN(feeBPS), proof)
+      .configureEarnManager(new BN(feeBPS))
       .accounts({
         signer: this.manager,
         globalAccount: GLOBAL_ACCOUNT,
@@ -69,16 +55,6 @@ export class EarnManager {
   }
 
   async buildAddEarnerInstruction(user: PublicKey, userTokenAccount?: PublicKey): Promise<TransactionInstruction> {
-    if (!this.evmRPC) {
-      throw new Error('evmRPC is required to configure earn manager');
-    }
-
-    // get all registrar earners for proof
-    const evmCaller = new EvmCaller(this.evmRPC);
-    const earners = await evmCaller.getEarners();
-    const tree = new MerkleTree(earners);
-    const { proofs, neighbors } = tree.getExclusionProof(user);
-
     // derive ata if token account not provided
     if (!userTokenAccount) {
       userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
@@ -95,7 +71,7 @@ export class EarnManager {
     );
 
     return await this.program.methods
-      .addEarner(user, proofs, neighbors)
+      .addEarner(user)
       .accounts({
         signer: this.manager,
         globalAccount: GLOBAL_ACCOUNT,
@@ -107,9 +83,7 @@ export class EarnManager {
   }
 
   async getEarners(): Promise<Earner[]> {
-    const accounts = await getProgram(this.connection).account.earner.all([
-      { memcmp: { offset: 90, bytes: this.manager.toBase58() } },
-    ]);
+    const accounts = await getExtProgram(this.connection).account.earner.all();
     return accounts.map((a) => new Earner(this.connection, a.publicKey, a.account));
   }
 }
