@@ -35,15 +35,19 @@ import { createInitializeConfidentialTransferMintInstruction } from './confident
 import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
 import * as multisig from '@sqds/multisig';
 import { Earn } from '../../target/types/earn';
+import { ExtEarn } from '../../target/types/ext_earn';
 import { keysFromEnv, NttManager } from './utils';
 import { MerkleTree } from '../../sdk/src/merkle';
 import { EvmCaller } from '../../sdk/src/evm_caller';
 const EARN_IDL = require('../../target/idl/earn.json');
+const EXT_EARN_IDL = require('../../target/idl/extEarn.json');
 
 const PROGRAMS = {
+  // TODO should these be imported from the SDK so they are consistent?
   // program id the same for devnet and mainnet
   portal: new PublicKey('mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY'),
   earn: new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c'),
+  extEarn: new PublicKey(''), // TODO need to add address
   // addresses the same across L2s
   evmTransiever: '0x0763196A091575adF99e2306E5e90E0Be5154841',
   evmPeer: '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd',
@@ -65,7 +69,7 @@ async function main() {
     .command('create-multisig')
     .description('Create multisig for the mint authority')
     .action(async () => {
-      const [owner, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'MULTISIG_KEYPAIR']);
+      const [owner, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
 
       // token authorities for both programs
       const [tokenAuthPortal] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.portal);
@@ -85,20 +89,53 @@ async function main() {
     });
 
   program
-    .command('create-mint')
-    .description('Create a new Token-2022 mint')
+    .command('create-m-mint')
+    .description('Create a new Token2022 mint for the M token')
     .action(async () => {
-      const [owner, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR', 'MULTISIG_KEYPAIR']);
+      const [owner, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
 
-      await createToken2022Mint(connection, owner, mint, multisig.publicKey);
-      console.log(`Mint created: ${mint.publicKey.toBase58()}`);
+      await createToken2022Mint(
+        connection,
+        owner,
+        mint,
+        multisig.publicKey,
+        null, // no freeze authority
+        'M by M^0',
+        'M',
+        'https://assets.coingecko.com/coins/images/40048/large/M_Symbol_256.png',
+        PROGRAMS.mToken
+      );
+      console.log(`M Mint created: ${mint.publicKey.toBase58()}`);
+    });
+
+  program
+    .command('create-wm-mint')
+    .description('Create a new Token2022 mint for the Wrapped M token')
+    .action(async () => {
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']); 
+
+      const mintAuthority = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], PROGRAMS.extEarn)[0];
+      const freezeAuthority = new PublicKey(''); // TODO set freeze authority for wM
+
+      await createToken2022Mint(
+        connection,
+        owner,
+        mint, 
+        mintAuthority, 
+        freezeAuthority,
+        'WrappedM by M^0',
+        'wM',
+        'https://assets.coingecko.com/coins/images/40048/large/M_Symbol_256.png', // TODO change to wM image
+        PROGRAMS.wmToken
+      );
+      console.log(`wM Mint created: ${mint.publicKey.toBase58()}`);
     });
 
   program
     .command('initialize-portal')
     .description('Initialize the portal program')
     .action(async () => {
-      const [owner, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR', 'MULTISIG_KEYPAIR']);
+      const [owner, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'MULTISIG_KEYPAIR']);
 
       const { ctx, ntt, sender, signer } = NttManager(connection, owner, mint.publicKey);
 
@@ -117,7 +154,7 @@ async function main() {
     .command('initialize-earn')
     .description('Initialize the earn program')
     .action(async () => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
       const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
@@ -131,12 +168,43 @@ async function main() {
         .initialize(
           mint.publicKey,
           vaultPda,
-          new BN(1001886486057), // initial index
+          new BN(1001886486057), // initial index // TODO programmatically get from mainnet at deployment time
           new BN(5 * 60), // cooldown
         )
         .accounts({
           globalAccount,
           admin: owner.publicKey,
+        })
+        .signers([owner])
+        .rpc();
+    });
+
+  program
+    .command('initialize-ext-earn')
+    .description('Initialize the extension earn program')
+    .action(async () => {
+      const [owner, mMint, wmMint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
+
+      const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, PROGRAMS.extEarn, anchorProvider(connection, owner));
+      const [earnGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
+      const [extGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.extEarn);
+
+      // TODO confirm this address for the wM earn authority
+      const [vaultPda] = multisig.getVaultPda({
+        multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
+        index: 0,
+      });
+
+      await extEarn.methods
+        .initialize(vaultPda)
+        .accounts({
+          admin: owner.publicKey,
+          globalAccount: extGlobalAccount,
+          mMint: mMint.publicKey,
+          extMint: wmMint.publicKey,
+          mEarnGlobalAccount: earnGlobalAccount,
+          token2022: TOKEN_2022_PROGRAM_ID,
+          systemProgram: SystemProgram.programId
         })
         .signers([owner])
         .rpc();
@@ -163,7 +231,7 @@ async function main() {
     .command('update-lut')
     .description('Initialize or update the LUT for the portal program')
     .action(async () => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const { ctx, ntt, signer } = NttManager(connection, owner, mint.publicKey);
 
@@ -176,7 +244,7 @@ async function main() {
     .command('register-peers')
     .description('Initialize or update the LUT for the portal program')
     .action(async () => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const { ctx, ntt, signer, sender } = NttManager(connection, owner, mint.publicKey);
 
@@ -222,7 +290,7 @@ async function main() {
     .description('Add earner that is in the earner merkle tree')
     .argument('<earner>', 'The earner to add')
     .action(async (earnerAddress: string) => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
       const earner = new PublicKey(earnerAddress);
 
       // assumes ata is being used as the token account
@@ -303,14 +371,24 @@ function anchorProvider(connection: Connection, owner: Keypair) {
   });
 }
 
-async function createToken2022Mint(connection: Connection, owner: Keypair, mint: Keypair, multisig: PublicKey) {
+async function createToken2022Mint(
+  connection: Connection,
+  owner: Keypair, 
+  mint: Keypair, 
+  mintAuthority: PublicKey, 
+  freezeAuthority: PublicKey | null, 
+  tokenName: string, 
+  tokenSymbol: string,
+  tokenUri: string,
+  evmTokenAddress: string
+) {
   const metaData: TokenMetadata = {
     updateAuthority: owner.publicKey,
     mint: mint.publicKey,
-    name: 'M by M^0',
-    symbol: 'M',
-    uri: 'https://assets.coingecko.com/coins/images/40048/large/M_Symbol_256.png',
-    additionalMetadata: [['evm', '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b']],
+    name: tokenName,
+    symbol: tokenSymbol,
+    uri: tokenUri,
+    additionalMetadata: [['evm', evmTokenAddress]],
   };
 
   // mint size with extensions
@@ -343,7 +421,7 @@ async function createToken2022Mint(connection: Connection, owner: Keypair, mint:
       mint.publicKey,
       6,
       owner.publicKey,
-      null, // no freeze authority
+      freezeAuthority, // if null, there is no freeze authority
       TOKEN_2022_PROGRAM_ID,
     ),
     createInitializeInstruction({
@@ -367,7 +445,7 @@ async function createToken2022Mint(connection: Connection, owner: Keypair, mint:
       mint.publicKey,
       owner.publicKey,
       AuthorityType.MintTokens,
-      multisig,
+      mintAuthority,
       undefined,
       TOKEN_2022_PROGRAM_ID,
     ),
