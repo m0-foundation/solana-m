@@ -127,6 +127,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     emit!(RewardsClaim {
         token_account: ctx.accounts.user_token_account.key(),
         amount: rewards,
+        manager_fee,
         ts: ctx.accounts.earner_account.last_claim_timestamp,
         index: ctx.accounts.global_account.index,
     });

@@ -132,9 +132,9 @@ pub fn release_inbound_mint_multisig<'info>(
         ctx.accounts.common.mint.reload()?;
 
        emit!(BridgeEvent{
-            amount: tt.amount as i64,
+            amount: inbox_item.transfer.amount as i64,
             token_supply: ctx.accounts.common.mint.supply,
-            recipient: tt.recipient.to_bytes(),
+            recipient: inbox_item.transfer.recipient.to_bytes(),
             wormhole_chain_id: inbox_item.source_chain.id,
        });
     }

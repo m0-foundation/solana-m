@@ -401,7 +401,7 @@ describe('Portal unit tests', () => {
       const logs = await fetchTransactionLogs(provider, txIds[txIds.length - 1].txid);
       expect(logs).toContain(
         // bridge event log
-        'Program data: bEUUGiR+tFmghgEAAAAAACAdmgAAAAAABrjKyVh/lTd1SmC57qStdEyE5pAFSFUWhol8GKBG2RIBAA==',
+        'Program data: bEUUGiR+tFmghgEAAAAAAICWmAAAAAAABrjKyVh/lTd1SmC57qStdEyE5pAFSFUWhol8GKBG2RIBAA==',
       );
       expect(logs).toContain('Program log: Index update: 1000000000001 | root update: false');
 

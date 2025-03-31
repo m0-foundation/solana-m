@@ -1,6 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import { Keypair, SystemProgram, Transaction } from '@solana/web3.js';
 import {
   deserialize,
   encoding,
