@@ -10,3 +10,4 @@ devnet-keypair.json
 *.spkg
 *.log
 substreams/subgraph/build
+dist

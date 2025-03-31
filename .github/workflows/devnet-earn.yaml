@@ -5,20 +5,26 @@ on:
     branches:
       - main
     paths:
-      - "programs/earn/**"
+      - 'programs/earn/**'
 
 jobs:
   deploy-earn:
-    uses: solana-developers/github-workflows/.github/workflows/reusable-build.yaml@v0.2.5
-    with:
-      program: "portal"
-      network: "devnet"
-      deploy: true
-      upload_idl: true
-      verify: false
-      use-squads: false
-      priority-fee: "300000"
-    secrets:
-      DEVNET_SOLANA_DEPLOY_URL: ${{ secrets.DEVNET_SOLANA_DEPLOY_URL }}
-      DEVNET_DEPLOYER_KEYPAIR: ${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}
-      PROGRAM_ADDRESS_KEYPAIR: ${{ secrets.PROGRAM_ADDRESS_KEYPAIR_EARN }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/setup
+
+      - name: Build Earn program
+        run: anchor build --program-name=earn -- --features devnet --no-default-features
+        shell: bash
+
+      - name: Write devkey
+        run: echo "${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}" > devnet-keypair.json
+        shell: bash
+
+      - name: Upgrade
+        run: make upgrade-earn-devnet
+        shell: bash

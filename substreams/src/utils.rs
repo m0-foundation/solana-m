@@ -1,11 +1,11 @@
 use crate::pb::transfers::v1::{self, instruction::Update};
 use anchor_lang::{prelude::*, Discriminator};
-use earn::instructions::{claim_for::RewardsClaim, IndexUpdate};
+use earn::instructions::{claim_for::RewardsClaim, portal::IndexUpdate};
 use regex::Regex;
 use std::collections::HashMap;
 use substreams_solana::pb::sf::solana::r#type::v1::ConfirmedTransaction;
 use substreams_solana_utils::{
-    log::{self, Log},
+    log::{DataLog, Log},
     pubkey::{Pubkey, PubkeyRef},
     spl_token::TokenAccount,
 };
@@ -44,7 +44,7 @@ pub fn parse_logs_for_instruction_name(logs: Option<&Vec<Log>>) -> Option<String
     None
 }
 
-pub fn parse_log_for_events(log: &log::DataLog) -> Option<Update> {
+pub fn parse_log_for_events(log: &DataLog) -> Option<Update> {
     let data = match log.data() {
         Ok(data) => data,
         Err(_) => return None,
@@ -77,6 +77,7 @@ pub fn parse_log_for_events(log: &log::DataLog) -> Option<Update> {
             amount: claim.amount,
             token_account: claim.token_account.to_string(),
             recipient_token_account: claim.recipient_token_account.to_string(),
+            manager_fee: claim.manager_fee,
         }));
     }
 
@@ -128,4 +129,31 @@ pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
     }
 
     token_accounts.values().cloned().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use substreams_solana_utils::log::DataLog;
+
+    #[test]
+    fn test_parse_log_for_events_index_update() {
+        // Logged pulled from devnet
+        let log_str = "Program data: CHN6vDbOelfI5i/h6QAAAJ9J5GcAAAAAP3cbAAAAAAAjEgAAAAAAAA==".to_string();
+        let log = DataLog::new(&log_str);
+
+        // Parse the log
+        let result = parse_log_for_events(&log);
+        
+        // Verify the result
+        assert!(result.is_some());
+        if let Some(Update::IndexUpdate(update)) = result {
+            assert_eq!(update.index, 1004505392840);
+            assert_eq!(update.ts, 1743014303);
+            assert_eq!(update.supply, 1799999);
+            assert_eq!(update.max_yield, 4643);
+        } else {
+            panic!("Expected IndexUpdate event");
+        }
+    }
 }

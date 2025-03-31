@@ -17,16 +17,23 @@ type TokenAccount @entity {
 }
 
 type Claim @entity(immutable: true) {
-  id: Bytes! # claim-<signature>
+  id: Bytes! # claim-<token_account>-<signature>
   amount: BigInt!
+  manager_fee: BigInt!
   token_account: TokenAccount!
   recipient_token_account: TokenAccount!
   ts: BigInt!
   signature: Bytes!
 }
 
+type ClaimStats @entity(immutable: true) {
+  id: Bytes! # claim-stats
+  total_claimed: BigInt!
+  num_claims: BigInt!
+}
+
 type BalanceUpdate @entity(immutable: true) {
-  id: Bytes! # <token_account>-<signature>
+  id: Bytes! # transfer-<token_account>-<signature>
   amount: BigInt!
   token_account: TokenAccount!
   ts: BigInt!
@@ -39,4 +46,13 @@ type IndexUpdate @entity(immutable: true) {
   index: BigInt!
   ts: BigInt!
   signature: Bytes!
+}
+
+type BridgeEvent @entity(immutable: true) {
+  id: Bytes! # bridge-<signature>
+  amount: BigInt!
+  ts: BigInt!
+  signature: Bytes!
+  source_chain: String!
+  token_supply: BigInt!
 }

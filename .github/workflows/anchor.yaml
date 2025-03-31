@@ -1,4 +1,4 @@
-name: anchor-tests
+name: test
 on:
   push:
     branches:
@@ -8,48 +8,83 @@ on:
     branches:
       - main
       - develop
+
 jobs:
-  run-anchor-test:
+  earn-tests:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/setup
+
+      - name: Run tests
+        run: yarn run jest --preset ts-jest --verbose tests/unit/earn.test.ts
+        shell: bash
+
+  ext-earn-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/setup
+
+      - name: Run tests
+        run: yarn run jest --preset ts-jest --verbose tests/unit/ext_earn.test.ts
+        shell: bash
+
+  portal-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/setup
+
+      - name: Run tests
+        run: yarn run jest --preset ts-jest --verbose tests/unit/portal.test.ts
+        shell: bash
+
+  sdk-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/setup
+
+      - name: Install SDK Dependencies
+        run: cd sdk && yarn install && cd ..
+        shell: bash
+
+      - name: Run SDK tests
+        run: make test-sdk
+        shell: bash
+
+  yield-bot-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          components: rustc
-      - name: Cache Cargo dependencies
-        uses: Swatinem/rust-cache@v2
-      - name: Cache Solana CLI
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/solana/
-            ~/.local/share/solana/
-          key: solana-cli-1.18.10
-      - name: Install Solana CLI
-        run: |
-          mkdir -p ~/.local/share/solana
-          sh -c "$(curl -sSfL https://release.solana.com/v1.18.10/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-        shell: bash
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: ./node_modules/
-          key: node-modules-18
-      - name: Install Anchor CLI
-        run: npm i -g @coral-xyz/anchor-cli@v0.29.0
-        shell: bash
+          node-version: '22'
+
       - name: Install Node Dependencies
         run: npm i -g yarn && yarn install
         shell: bash
-      - name: Run tests
-        run: anchor build && yarn test
+
+      - name: Install SDK Dependencies
+        run: cd sdk && yarn install && cd ..
+        shell: bash
+
+      - name: Run yield tests
+        run: make test-yield-bot
         shell: bash
