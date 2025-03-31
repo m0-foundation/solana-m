@@ -13,5 +13,4 @@ pub struct EarnManager {
     pub fee_bps: u64,
     pub fee_token_account: Pubkey,
     pub bump: u8,
-    pub owner: Pubkey,
 }
