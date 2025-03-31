@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use anchor_lang::prelude::*;
+use ntt_messages::chain_id::ChainId;
 
 use crate::{bitmap::Bitmap, clock::current_timestamp, error::NTTError};
 
@@ -18,6 +19,7 @@ pub struct InboxItem {
     pub release_status: ReleaseStatus,
     pub index_update: u64,
     pub root_updates: Option<RootUpdates>,
+    pub source_chain: ChainId,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, Default)]

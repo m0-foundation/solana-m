@@ -19,15 +19,11 @@ use ntt_messages::{chain_id::ChainId, mode::Mode, trimmed_amount::TrimmedAmount}
 use spl_token_2022::onchain;
 
 use crate::{
-    bitmap::Bitmap,
-    config::*,
-    error::NTTError,
-    peer::NttManagerPeer,
-    queue::{
+    bitmap::Bitmap, config::*, error::NTTError, instructions::BridgeEvent, peer::NttManagerPeer, queue::{
         inbox::InboxRateLimit,
         outbox::{OutboxItem, OutboxRateLimit},
         rate_limit::RateLimitResult,
-    },
+    }
 };
 
 // this will burn the funds and create an account that either allows sending the
@@ -249,6 +245,15 @@ pub fn transfer_burn<'info>(
         recipient_address,
         should_queue,
     )?;
+
+    accs.common.mint.reload()?;
+
+    emit!(BridgeEvent{
+        amount: -(amount as i64),
+        token_supply: accs.common.mint.supply,
+        recipient: recipient_address,
+        wormhole_chain_id: recipient_chain.id,
+   });
 
     Ok(())
 }

@@ -124,6 +124,7 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
             transfer: TokenTransfer::default(),
             index_update: 0,
             root_updates: None,
+            source_chain: message.payload.to_chain(),
         };
 
         match &message.payload {

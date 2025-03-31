@@ -6,10 +6,7 @@ use solana_program::program::invoke_signed;
 use spl_token_2022::onchain;
 
 use crate::{
-    config::*,
-    error::NTTError,
-    queue::inbox::{InboxItem, ReleaseStatus},
-    spl_multisig::SplMultisig,
+    config::*, error::NTTError, instructions::BridgeEvent, queue::inbox::{InboxItem, ReleaseStatus}, spl_multisig::SplMultisig
 };
 
 #[derive(Accounts)]
@@ -132,11 +129,14 @@ pub fn release_inbound_mint_multisig<'info>(
             token_authority_sig,
         )?;
 
-        msg!(
-            "Transferred {} tokens to {}",
-            inbox_item.transfer.amount,
-            inbox_item.transfer.recipient
-        );
+        ctx.accounts.common.mint.reload()?;
+
+       emit!(BridgeEvent{
+            amount: tt.amount as i64,
+            token_supply: ctx.accounts.common.mint.supply,
+            recipient: tt.recipient.to_bytes(),
+            wormhole_chain_id: inbox_item.source_chain.id,
+       });
     }
 
     // Send update to the earn program
