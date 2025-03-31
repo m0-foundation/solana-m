@@ -1,46 +1,29 @@
-import {
-  AccountMeta,
-  Connection,
-  GetProgramAccountsFilter,
-  PublicKey,
-  SystemProgram,
-  TransactionInstruction,
-} from '@solana/web3.js';
+import { Connection, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import BN from 'bn.js';
 import * as spl from '@solana/spl-token';
 import { GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
-import { earnManagerDecoder } from './accounts';
-import { b58, deriveDiscriminator } from './utils';
 import { MerkleTree } from './merkle';
 import { EvmCaller } from './evm_caller';
 import { Program } from '@coral-xyz/anchor';
 import { getProgram } from './idl';
 import { Earn } from './idl/earn';
+import { EarnManagerData } from './accounts';
 
 export class EarnManager {
   private connection: Connection;
   private program: Program<Earn>;
-  evmRPC: string | undefined;
+  private evmRPC: string | undefined;
 
   manager: PublicKey;
-  pubkey: PublicKey;
-  isActive: boolean;
-  feeBps: number;
-  feeTokenAccount: PublicKey;
+  data: EarnManagerData;
 
-  private constructor(connection: Connection, manager: PublicKey, pubkey: PublicKey, data: Buffer, evmRPC?: string) {
+  constructor(connection: Connection, manager: PublicKey, pubkey: PublicKey, data: EarnManagerData, evmRPC?: string) {
     this.connection = connection;
     this.program = getProgram(connection);
     this.evmRPC = evmRPC;
     this.manager = manager;
-    this.pubkey = pubkey;
-
-    // decode account data
-    const values = earnManagerDecoder.decode(data);
-    this.isActive = values.isActive;
-    this.feeBps = new BN(values.feeBps.toString()).toNumber();
-    this.feeTokenAccount = new PublicKey(values.feeTokenAccount);
+    this.data = data;
   }
 
   static async fromManagerAddress(connection: Connection, manager: PublicKey, evmRPC?: string): Promise<EarnManager> {
@@ -49,10 +32,9 @@ export class EarnManager {
       PROGRAM_ID,
     );
 
-    const account = await connection.getAccountInfo(earnManagerAccount);
-    if (!account) throw new Error(`Unable to find EarnManager account at ${earnManagerAccount}`);
+    const data = await getProgram(connection).account.earnManager.fetch(earnManagerAccount);
 
-    return new EarnManager(connection, manager, earnManagerAccount, account.data, evmRPC);
+    return new EarnManager(connection, manager, earnManagerAccount, data, evmRPC);
   }
 
   async refresh() {
@@ -125,13 +107,9 @@ export class EarnManager {
   }
 
   async getEarners(): Promise<Earner[]> {
-    const filters: GetProgramAccountsFilter[] = [
-      { memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } },
+    const accounts = await getProgram(this.connection).account.earner.all([
       { memcmp: { offset: 91, bytes: this.manager.toBase58() } },
-    ];
-
-    const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, { filters });
-
-    return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data));
+    ]);
+    return accounts.map((a) => new Earner(this.connection, a.publicKey, a.account));
   }
 }

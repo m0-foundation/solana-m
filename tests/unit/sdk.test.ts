@@ -223,7 +223,7 @@ describe('SDK unit tests', () => {
       const earners = await auth.getAllEarners();
       expect(earners).toHaveLength(2);
 
-      earners.sort((a, b) => a.user.toBase58().localeCompare(b.user.toBase58()));
+      earners.sort((a, b) => a.data.user.toBase58().localeCompare(b.data.user.toBase58()));
       expect(earners[0].pubkey).toEqual(earnerAccountA);
       expect(earners[1].pubkey).toEqual(earnerAccountB);
 
@@ -232,7 +232,7 @@ describe('SDK unit tests', () => {
 
     test('get earn manager', async () => {
       const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
-      expect(manager.feeBps).toEqual(10);
+      expect(manager.data.feeBps.toNumber()).toEqual(10);
     });
 
     test('manager earners', async () => {
@@ -240,21 +240,6 @@ describe('SDK unit tests', () => {
       const earners = await manager.getEarners();
       expect(earners).toHaveLength(1);
       expect(earners[0].pubkey).toEqual(earnerAccountB);
-    });
-  });
-
-  describe('decoders', () => {
-    test('earner', async () => {
-      const dataA = Buffer.from(
-        '7H4zYC7hZ89UWS6Qo9CBLSumcS4sQoiKMNMmbmNghGEJFDLYUO+DecjmL+HpAAAArXTlZwAAAAAB/7B06uUZgFA+MMKB4P+2PMUzeAGtP/sATZeQe8G5y56bAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-        'base64',
-      );
-
-      const eA = Earner.fromAccountData(connection, earnerAccountA, dataA);
-      expect(eA.user.toBase58()).toBe('6gG7w73TvK4WTccs9N9wjYERSasczd9x68NgTDy2zBvQ');
-      expect(eA.earnManager).toBeNull();
-      expect(eA.recipientTokenAccount).toBeNull();
-      expect(eA.isEarning).toBeTruthy();
     });
   });
 
@@ -269,8 +254,8 @@ describe('SDK unit tests', () => {
       const graph = new Graph();
       const balance = await graph.getTimeWeightedBalance(
         new PublicKey('BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj'),
-        0n,
-        1000n,
+        new BN(0),
+        new BN(1000),
       );
       expect(balance).toEqual(2250000000000n);
     });
@@ -280,16 +265,16 @@ describe('SDK unit tests', () => {
       const fn = Graph['calculateTimeWeightedBalance'];
 
       test('0 balance', async () => {
-        expect(fn(0n, 0n, 1741939199n, [])).toEqual(0n);
+        expect(fn(new BN(0), new BN(0), new BN(1741939199), [])).toEqual(0n);
       });
       test('no transfers balance', async () => {
-        expect(fn(110n, 0n, 1741939199n, [])).toEqual(110n);
+        expect(fn(new BN(110), new BN(0), new BN(1741939199), [])).toEqual(110n);
       });
       test('one transfers halfway', async () => {
-        expect(fn(100n, 50n, 150n, [{ amount: '50', ts: '100' }])).toEqual(75n);
+        expect(fn(new BN(100), new BN(50), new BN(150), [{ amount: '50', ts: '100' }])).toEqual(75n);
       });
       test('huge transfer before calculation', async () => {
-        expect(fn(1000000n, 100n, 1500000n, [{ amount: '1000000', ts: '1499995' }])).toEqual(3n);
+        expect(fn(new BN(1000000), new BN(100), new BN(1500000), [{ amount: '1000000', ts: '1499995' }])).toEqual(3n);
       });
       test('many transfers', async () => {
         const numTransfers = 50;
@@ -300,15 +285,15 @@ describe('SDK unit tests', () => {
           .map((_, i) => ({ amount: '10', ts: (100n + BigInt(i * transferAmount)).toString() }))
           .reverse();
 
-        const upper = BigInt(transfers[0].ts) + 10n;
-        const lower = BigInt(transfers[transfers.length - 1].ts) - 10n;
+        const upper = new BN(transfers[0].ts).add(new BN(10));
+        const lower = new BN(transfers[transfers.length - 1].ts).sub(new BN(10));
 
         // expect balance based on linear distribution of transfers
         const expected = 1000n - BigInt((numTransfers * transferAmount) / 2);
-        expect(fn(1000n, lower, upper, transfers)).toEqual(expected);
+        expect(fn(new BN(1000), lower, upper, transfers)).toEqual(expected);
       });
       test('current balance is 0', async () => {
-        expect(fn(0n, 100n, 200n, [{ amount: '-1000', ts: '150' }])).toEqual(500n);
+        expect(fn(new BN(0), new BN(100), new BN(200), [{ amount: '-1000', ts: '150' }])).toEqual(500n);
       });
     });
   });
@@ -328,7 +313,7 @@ describe('SDK unit tests', () => {
       const earners = await auth.getAllEarners();
 
       for (const earner of earners) {
-        earner.lastClaimTimestamp = auth['global'].timestamp;
+        earner.data.lastClaimTimestamp = auth['global'].timestamp;
         const ix = await auth.buildClaimInstruction(earner);
         claimIxs.push(ix!);
       }
@@ -384,7 +369,7 @@ describe('SDK unit tests', () => {
       await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
       await manager.refresh();
 
-      expect(manager.feeBps).toEqual(15);
+      expect(manager.data.feeBps.toNumber()).toEqual(15);
     });
 
     test('add earner', async () => {
@@ -401,7 +386,7 @@ describe('SDK unit tests', () => {
       await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
 
       const earner = await Earner.fromTokenAccount(connection, earnerATA);
-      expect(earner.earnManager?.toBase58()).toEqual(manager.manager.toBase58());
+      expect(earner.data.earnManager?.toBase58()).toEqual(manager.manager.toBase58());
     });
   });
 });

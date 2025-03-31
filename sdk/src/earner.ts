@@ -1,43 +1,21 @@
-import { Connection, GetProgramAccountsFilter, PublicKey } from '@solana/web3.js';
-import { isSome } from '@solana/codecs';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { PROGRAM_ID } from '.';
-import { earnerDecoder } from './accounts';
 import { Claim, Graph } from './graph';
-import { b58, deriveDiscriminator } from './utils';
+import { EarnerData } from './accounts';
+import { getProgram } from './idl';
 
 export class Earner {
   private connection: Connection;
   private graph: Graph;
 
   pubkey: PublicKey;
-  earnManager: PublicKey | null;
-  recipientTokenAccount: PublicKey | null;
-  lastClaimIndex: bigint;
-  lastClaimTimestamp: bigint;
-  isEarning: boolean;
-  user: PublicKey;
-  userTokenAccount: PublicKey;
+  data: EarnerData;
 
-  private constructor(connection: Connection, pubkey: PublicKey, data: Buffer) {
+  constructor(connection: Connection, pubkey: PublicKey, data: EarnerData) {
     this.connection = connection;
     this.graph = new Graph();
     this.pubkey = pubkey;
-
-    const values = earnerDecoder.decode(data);
-    this.earnManager = null;
-    this.recipientTokenAccount = null;
-    this.lastClaimIndex = values.lastClaimIndex;
-    this.lastClaimTimestamp = values.lastClaimTimestamp;
-    this.isEarning = values.isEarning;
-    this.user = new PublicKey(values.user);
-    this.userTokenAccount = new PublicKey(values.userTokenAccount);
-
-    if (isSome(values.earnManager)) {
-      this.earnManager = new PublicKey(values.earnManager.value.toString());
-    }
-    if (isSome(values.recipientTokenAccount)) {
-      this.recipientTokenAccount = new PublicKey(values.recipientTokenAccount.value.toString());
-    }
+    this.data = data;
   }
 
   static async fromTokenAccount(connection: Connection, tokenAccount: PublicKey): Promise<Earner> {
@@ -45,25 +23,20 @@ export class Earner {
       [Buffer.from('earner'), tokenAccount.toBytes()],
       PROGRAM_ID,
     );
-    const account = await connection.getAccountInfo(earnerAccount);
-    if (!account) throw new Error(`Unable to find Earner account for Account ${tokenAccount}`);
-    return new Earner(connection, earnerAccount, account.data);
+
+    const data = await getProgram(connection).account.earner.fetch(earnerAccount);
+
+    return new Earner(connection, earnerAccount, data);
   }
 
   static async fromUserAddress(connection: Connection, user: PublicKey): Promise<Earner[]> {
-    const filters: GetProgramAccountsFilter[] = [
-      { memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } },
+    const accounts = await getProgram(connection).account.earner.all([
       { memcmp: { offset: 8, bytes: user.toBase58() } },
-    ];
-    const accounts = await connection.getProgramAccounts(PROGRAM_ID, { filters });
-    return accounts.map(({ account, pubkey }) => Earner.fromAccountData(connection, pubkey, account.data));
-  }
-
-  static fromAccountData(connection: Connection, pubkey: PublicKey, data: Buffer): Earner {
-    return new Earner(connection, pubkey, data);
+    ]);
+    return accounts.map((a) => new Earner(connection, a.publicKey, a.account));
   }
 
   async getHistoricalClaims(): Promise<Claim[]> {
-    return await this.graph.getHistoricalClaims(this.userTokenAccount);
+    return await this.graph.getHistoricalClaims(this.data.userTokenAccount);
   }
 }

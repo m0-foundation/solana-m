@@ -10,8 +10,7 @@ import { GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
 import { EarnManager } from './earn_manager';
-import { b58, deriveDiscriminator } from './utils';
-import { GlobalAccountData, globalDecoder } from './accounts';
+import { GlobalAccountData } from './accounts';
 import * as spl from '@solana/spl-token';
 import { BN, Program } from '@coral-xyz/anchor';
 import { getProgram } from './idl';
@@ -33,17 +32,10 @@ class EarnAuthority {
 
   static async load(connection: Connection): Promise<EarnAuthority> {
     const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
-
-    const accountInfo = await connection.getAccountInfo(globalAccount);
-    const global = globalDecoder.decode(accountInfo!.data);
+    const global = await getProgram(connection).account.global.fetch(globalAccount);
 
     // get mint multisig
-    const mint = await spl.getMint(
-      connection,
-      new PublicKey(global.mint),
-      connection.commitment,
-      spl.TOKEN_2022_PROGRAM_ID,
-    );
+    const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
 
     return new EarnAuthority(connection, global, mint.mintAuthority!);
   }
@@ -57,10 +49,8 @@ class EarnAuthority {
   }
 
   async getAllEarners(): Promise<Earner[]> {
-    const accounts = await this.connection.getProgramAccounts(PROGRAM_ID, {
-      filters: [{ memcmp: { offset: 0, bytes: b58(deriveDiscriminator('Earner')) } }],
-    });
-    return accounts.map(({ account, pubkey }) => Earner.fromAccountData(this.connection, pubkey, account.data));
+    const accounts = await getProgram(this.connection).account.earner.all();
+    return accounts.map((a) => new Earner(this.connection, a.publicKey, a.account));
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
@@ -85,23 +75,23 @@ class EarnAuthority {
     }
 
     // earner was created after last index update
-    if (earner.lastClaimTimestamp > this.global.timestamp) {
+    if (earner.data.lastClaimTimestamp > this.global.timestamp) {
       console.error('Earner created after last index update');
       return null;
     }
 
-    if (earner.lastClaimIndex == this.global.index) {
+    if (earner.data.lastClaimIndex == this.global.index) {
       console.error('Earner already claimed');
       return null;
     }
 
     const weightedBalance = await new Graph().getTimeWeightedBalance(
-      earner.userTokenAccount,
-      earner.lastClaimTimestamp,
+      earner.data.userTokenAccount,
+      earner.data.lastClaimTimestamp,
       this.global.timestamp,
     );
 
-    if (weightedBalance == 0n) {
+    if (weightedBalance.isZero()) {
       return null;
     }
 
@@ -109,20 +99,20 @@ class EarnAuthority {
     let earnManagerAccount: PublicKey | null = null;
     let earnManagerTokenAccount: PublicKey | null = null;
 
-    if (earner.earnManager) {
-      let manager = this.managerCache.get(earner.earnManager);
+    if (earner.data.earnManager) {
+      let manager = this.managerCache.get(earner.data.earnManager);
       if (!manager) {
-        manager = await EarnManager.fromManagerAddress(this.connection, earner.earnManager);
-        this.managerCache.set(earner.earnManager, manager);
+        manager = await EarnManager.fromManagerAddress(this.connection, earner.data.earnManager);
+        this.managerCache.set(earner.data.earnManager, manager);
       }
-      earnManagerAccount = earner.earnManager;
-      earnManagerTokenAccount = manager.feeTokenAccount;
+      earnManagerAccount = earner.data.earnManager;
+      earnManagerTokenAccount = manager.data.feeTokenAccount;
     }
 
     // PDAs
     const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
     const [earnerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earner'), earner.userTokenAccount.toBuffer()],
+      [Buffer.from('earner'), earner.data.userTokenAccount.toBuffer()],
       PROGRAM_ID,
     );
     if (earnManagerAccount) {
@@ -139,7 +129,7 @@ class EarnAuthority {
         globalAccount: GLOBAL_ACCOUNT,
         mint: new PublicKey(this.global.mint),
         tokenAuthorityAccount,
-        userTokenAccount: earner.userTokenAccount,
+        userTokenAccount: earner.data.userTokenAccount,
         earnerAccount,
         tokenProgram: spl.TOKEN_2022_PROGRAM_ID,
         mintMultisig: this.mintMultisig,
@@ -152,13 +142,13 @@ class EarnAuthority {
   async simulateAndValidateClaimIxs(
     ixs: TransactionInstruction[],
     batchSize = 10,
-    claimSizeThreshold = 100000n, // $0.10
-  ): Promise<[TransactionInstruction[], bigint]> {
+    claimSizeThreshold = new BN(100000), // $0.10
+  ): Promise<[TransactionInstruction[], BN]> {
     if (this.global.claimComplete) {
       throw new Error('No active claim cycle');
     }
 
-    let totalRewards = 0n;
+    let totalRewards = new BN(0);
     const filtererdTxns: TransactionInstruction[] = [];
 
     for (const [i, txn] of (await this._buildTransactions(ixs, batchSize)).entries()) {
@@ -178,7 +168,7 @@ class EarnAuthority {
       const batchRewards = this._getRewardAmounts(result.value.logs!);
       for (const [index, reward] of batchRewards.entries()) {
         if (reward > claimSizeThreshold) {
-          totalRewards += reward;
+          totalRewards = totalRewards.add(reward);
           filtererdTxns.push(ixs[i * batchSize + index]);
         }
       }
@@ -192,7 +182,7 @@ class EarnAuthority {
     return [filtererdTxns, totalRewards];
   }
 
-  private _getRewardAmounts(logs: string[]): bigint[] {
+  private _getRewardAmounts(logs: string[]): BN[] {
     const rewards: bigint[] = [];
 
     for (const log of logs) {
@@ -205,7 +195,7 @@ class EarnAuthority {
       }
     }
 
-    return rewards;
+    return rewards.map((r) => new BN(r.toString()));
   }
 
   private async _buildTransactions(

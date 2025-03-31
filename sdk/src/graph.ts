@@ -1,4 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
 import { gql, request } from 'graphql-request';
 
 type TokenAccount = {
@@ -84,7 +85,7 @@ export class Graph {
     }));
   }
 
-  async getTimeWeightedBalance(tokenAccount: PublicKey, lowerTS: bigint, upperTS: bigint): Promise<bigint> {
+  async getTimeWeightedBalance(tokenAccount: PublicKey, lowerTS: BN, upperTS: BN): Promise<BN> {
     if (lowerTS > upperTS) {
       throw new Error(`Invalid time range: ${lowerTS} - ${upperTS}`);
     }
@@ -121,7 +122,7 @@ export class Graph {
     }
 
     return Graph.calculateTimeWeightedBalance(
-      BigInt(data.tokenAccount.balance),
+      new BN(data.tokenAccount.balance),
       lowerTS,
       upperTS,
       data.tokenAccount.transfers,
@@ -129,33 +130,33 @@ export class Graph {
   }
 
   private static calculateTimeWeightedBalance(
-    balance: bigint,
-    lowerTS: bigint,
-    upperTS: bigint,
+    balance: BN,
+    lowerTS: BN,
+    upperTS: BN,
     transfers: { ts: string; amount: string }[],
-  ): bigint {
+  ): BN {
     if (upperTS == lowerTS || transfers.length === 0) {
       return balance;
     }
 
-    let weightedBalance = BigInt(0);
+    let weightedBalance = new BN(0);
     let prevTS = upperTS;
 
     // use transfers to calculate the weighted balance
     for (const transfer of transfers) {
-      if (lowerTS > BigInt(transfer.ts)) {
+      if (lowerTS > new BN(transfer.ts)) {
         break;
       }
 
-      weightedBalance += BigInt(balance) * (prevTS - BigInt(transfer.ts));
-      balance -= BigInt(transfer.amount);
-      prevTS = BigInt(transfer.ts);
+      weightedBalance = weightedBalance.add(new BN(balance).mul(prevTS.sub(new BN(transfer.ts))));
+      balance = balance.sub(new BN(transfer.amount));
+      prevTS = new BN(transfer.ts);
     }
 
     // calculate up to sinceTS
-    weightedBalance += BigInt(balance) * (prevTS - lowerTS);
+    weightedBalance = weightedBalance.add(new BN(balance).mul(prevTS.sub(lowerTS)));
 
     // return the time-weighted balance
-    return weightedBalance / (upperTS - lowerTS);
+    return weightedBalance.div(upperTS.sub(lowerTS));
   }
 }
