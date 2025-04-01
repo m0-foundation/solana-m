@@ -1,6 +1,8 @@
 use crate::pb::transfers::v1::{self, instruction::Update};
 use anchor_lang::{prelude::*, Discriminator};
 use earn::instructions::{claim_for::RewardsClaim, portal::IndexUpdate};
+use ext_earn::instructions::claim_for::RewardsClaim as ExtRewardsClaim;
+use portal::instructions::BridgeEvent;
 use regex::Regex;
 use std::collections::HashMap;
 use substreams_solana::pb::sf::solana::r#type::v1::ConfirmedTransaction;
@@ -69,15 +71,35 @@ pub fn parse_log_for_events(log: &DataLog) -> Option<Update> {
         }));
     }
     if RewardsClaim::DISCRIMINATOR == discriminator {
-        let claim = match RewardsClaim::try_from_slice(buffer) {
-            Ok(update) => update,
+        if let Ok(claim) = ExtRewardsClaim::try_from_slice(buffer) {
+            return Some(Update::Claim(v1::Claim {
+                amount: claim.amount,
+                token_account: claim.token_account.to_string(),
+                recipient_token_account: claim.recipient_token_account.to_string(),
+                manager_fee: claim.fee,
+            }));
+        } else if let Ok(claim) = RewardsClaim::try_from_slice(buffer) {
+            return Some(Update::Claim(v1::Claim {
+                amount: claim.amount,
+                token_account: claim.token_account.to_string(),
+                recipient_token_account: claim.token_account.to_string(),
+                manager_fee: 0,
+            }));
+        }
+
+        return None;
+    }
+    if BridgeEvent::DISCRIMINATOR == discriminator {
+        let event = match BridgeEvent::try_from_slice(buffer) {
+            Ok(event) => event,
             Err(_) => return None,
         };
-        return Some(Update::Claim(v1::Claim {
-            amount: claim.amount,
-            token_account: claim.token_account.to_string(),
-            recipient_token_account: claim.recipient_token_account.to_string(),
-            manager_fee: claim.manager_fee,
+        return Some(Update::BridgeEvent(v1::BridgeEvent {
+            amount: event.amount,
+            token_supply: event.token_supply,
+            from: event.from.to_vec(),
+            to: event.to.to_vec(),
+            wormhole_chain_id: event.wormhole_chain_id as u32,
         }));
     }
 

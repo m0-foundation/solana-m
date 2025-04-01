@@ -18,8 +18,8 @@ pub struct InboxItem {
     pub votes: Bitmap,
     pub release_status: ReleaseStatus,
     pub index_update: u64,
-    pub root_updates: Option<RootUpdates>,
-    pub source_chain: ChainId,
+    pub earners_root_update: Option<[u8; 32]>,
+    pub source: Source,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, Default)]
@@ -28,9 +28,10 @@ pub struct TokenTransfer {
     pub recipient: Pubkey,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, Default)]
-pub struct RootUpdates {
-    pub earner_root: [u8; 32],
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct Source {
+    pub chain: ChainId,
+    pub from: [u8; 32],
 }
 
 /// The status of an InboxItem. This determines whether the tokens are minted/unlocked to the recipient. As
