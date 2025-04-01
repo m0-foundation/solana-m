@@ -11,13 +11,17 @@
     "author": "M^0",
     "dependencies": {
         "@coral-xyz/anchor": "0.29.0",
+        "@solana/spl-token": "^0.4.13",
         "@solana/web3.js": "^1.87.6",
+        "bn.js": "^5.2.1",
         "bs58": "^6.0.0",
+        "graphql": "^16.10.0",
         "graphql-request": "6.1.0",
         "js-sha256": "^0.11.0",
         "viem": "^2.23.14"
     },
     "devDependencies": {
+        "@types/bn.js": "^5.1.6",
         "@types/node": "^20.10.0",
         "typescript": "^5.3.2"
     }
