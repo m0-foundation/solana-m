@@ -70,3 +70,10 @@ upgrade-earn-devnet: build-devnet
 
 upgrade-portal-devnet: build-devnet
 	$(call upgrade_program,portal,$(PORTAL_PROGRAM_ID))
+
+
+#
+# Railway infra
+#
+build-yield-bot:
+	docker build -t yield-bot -f services/yield-bot/Dockerfile.yield .

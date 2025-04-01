@@ -1,0 +1,17 @@
+# syntax=docker.io/docker/dockerfile:1.7-labs
+
+FROM node:22-slim
+
+WORKDIR /app
+
+COPY tsconfig.json ./
+COPY --exclude=node_modules ./services/yield-bot ./services/yield-bot
+COPY --exclude=node_modules ./sdk ./sdk
+
+RUN yarn init -y && yarn add typescript ts-node
+
+RUN cd ./services/yield-bot && yarn install
+RUN cd ./sdk && yarn install
+
+# dummy keypair
+CMD ["yarn", "ts-node", "./services/yield-bot/main.ts", "distribute", "--dryRun", "--keypair", "JIsAxWMPwERUzQQy/vnkQqsF0o7mKrZxk5GzNzB/nLFVv+jlKzp8NlDG9h5UOzCc+Fy4eKlWm7akmsPoSPVvlw=="]
