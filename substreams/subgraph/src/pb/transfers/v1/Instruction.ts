@@ -5,6 +5,7 @@
 import { Writer, Reader } from "as-proto/assembly";
 import { IndexUpdate } from "./IndexUpdate";
 import { Claim } from "./Claim";
+import { BridgeEvent } from "./BridgeEvent";
 
 export class Instruction {
   static encode(message: Instruction, writer: Writer): void {
@@ -27,6 +28,14 @@ export class Instruction {
       writer.uint32(90);
       writer.fork();
       Claim.encode(claim, writer);
+      writer.ldelim();
+    }
+
+    const bridgeEvent = message.bridgeEvent;
+    if (bridgeEvent !== null) {
+      writer.uint32(98);
+      writer.fork();
+      BridgeEvent.encode(bridgeEvent, writer);
       writer.ldelim();
     }
   }
@@ -54,6 +63,10 @@ export class Instruction {
           message.claim = Claim.decode(reader, reader.uint32());
           break;
 
+        case 12:
+          message.bridgeEvent = BridgeEvent.decode(reader, reader.uint32());
+          break;
+
         default:
           reader.skipType(tag & 7);
           break;
@@ -67,16 +80,19 @@ export class Instruction {
   instruction: string;
   indexUpdate: IndexUpdate | null;
   claim: Claim | null;
+  bridgeEvent: BridgeEvent | null;
 
   constructor(
     programId: string = "",
     instruction: string = "",
     indexUpdate: IndexUpdate | null = null,
-    claim: Claim | null = null
+    claim: Claim | null = null,
+    bridgeEvent: BridgeEvent | null = null
   ) {
     this.programId = programId;
     this.instruction = instruction;
     this.indexUpdate = indexUpdate;
     this.claim = claim;
+    this.bridgeEvent = bridgeEvent;
   }
 }

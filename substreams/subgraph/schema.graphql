@@ -1,5 +1,5 @@
 type TokenHolder @entity {
-  id: Bytes! # owner pubkey
+  id: Bytes! # <mint>-<owner>
   mint: Bytes!
   user: Bytes! @unique
   balance: BigInt!
@@ -7,8 +7,9 @@ type TokenHolder @entity {
 }
 
 type TokenAccount @entity {
-  id: Bytes! # token account pubkey
+  id: Bytes! # <token-account-pubkey>
   pubkey: Bytes! @unique
+  mint: Bytes!
   owner: TokenHolder!
   balance: BigInt!
   claims: [Claim!]! @derivedFrom(field: "token_account")
@@ -27,9 +28,10 @@ type Claim @entity(immutable: true) {
 }
 
 type ClaimStats @entity(immutable: true) {
-  id: Bytes! # claim-stats
+  id: Bytes! # claim-stat-<program-id>
   total_claimed: BigInt!
-  num_claims: BigInt!
+  num_claims: Int!
+  program_id: Bytes!
 }
 
 type BalanceUpdate @entity(immutable: true) {
@@ -53,6 +55,15 @@ type BridgeEvent @entity(immutable: true) {
   amount: BigInt!
   ts: BigInt!
   signature: Bytes!
-  source_chain: String!
   token_supply: BigInt!
+  to: Bytes!
+  from: Bytes!
+  chain: String!
+}
+
+type BridgeStats @entity(immutable: true) {
+  id: Bytes! # bridge-stats
+  bridge_volume: BigInt!
+  num_bridges: Int!
+  net_bridged_amount: BigInt!
 }

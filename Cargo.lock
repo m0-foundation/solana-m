@@ -1734,7 +1734,6 @@ dependencies = [
  "earn",
  "ext_earn",
  "five8_const",
- "portal",
  "prost",
  "regex",
  "substreams",

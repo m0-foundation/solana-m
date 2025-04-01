@@ -18,4 +18,3 @@ anchor-lang.workspace = true
 five8_const = "0.1.3"
 earn = { path = "../programs/earn" }
 ext_earn = { path = "../programs/ext_earn" }
-portal = { path = "../programs/portal" }

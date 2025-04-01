@@ -2,7 +2,6 @@ use crate::pb::transfers::v1::{self, instruction::Update};
 use anchor_lang::{prelude::*, Discriminator};
 use earn::instructions::{claim_for::RewardsClaim, portal::IndexUpdate};
 use ext_earn::instructions::claim_for::RewardsClaim as ExtRewardsClaim;
-use portal::instructions::BridgeEvent;
 use regex::Regex;
 use std::collections::HashMap;
 use substreams_solana::pb::sf::solana::r#type::v1::ConfirmedTransaction;
@@ -13,6 +12,15 @@ use substreams_solana_utils::{
 };
 
 const DISCRIMINATOR_SIZE: usize = 8;
+
+#[event]
+pub struct BridgeEvent {
+    pub amount: i64,
+    pub token_supply: u64,
+    pub from: [u8; 32],
+    pub to: [u8; 32],
+    pub wormhole_chain_id: u16,
+}
 
 pub fn parse_logs_for_events(logs: Option<&Vec<Log>>) -> Option<Update> {
     if logs.is_none() {
