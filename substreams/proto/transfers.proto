@@ -31,6 +31,7 @@ message Instruction {
   oneof update {
     IndexUpdate index_update = 10;
     Claim claim = 11;
+    BridgeEvent bridge_event = 12;
   }
 }
 
@@ -46,4 +47,13 @@ message Claim {
   string recipient_token_account = 2;
   uint64 amount = 3;
   uint64 manager_fee = 4;
+  uint64 index = 5;
+}
+
+message BridgeEvent {
+  int64 amount = 1;
+  uint64 token_supply = 2;
+  bytes from = 3;
+  bytes to = 4;
+  string chain = 5;
 }

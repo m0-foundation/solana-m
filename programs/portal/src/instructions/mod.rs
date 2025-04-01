@@ -19,6 +19,7 @@ pub use transfer::*;
 pub struct BridgeEvent {
     pub amount: i64,
     pub token_supply: u64,
-    pub recipient: [u8; 32],
+    pub from: [u8; 32],
+    pub to: [u8; 32],
     pub wormhole_chain_id: u16,
 }

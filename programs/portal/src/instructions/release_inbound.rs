@@ -138,8 +138,9 @@ pub fn release_inbound_mint_multisig<'info>(
         emit!(BridgeEvent {
             amount: inbox_item.transfer.amount as i64,
             token_supply: ctx.accounts.common.mint.supply,
-            recipient: inbox_item.transfer.recipient.to_bytes(),
-            wormhole_chain_id: inbox_item.source_chain.id,
+            to: inbox_item.transfer.recipient.to_bytes(),
+            from: inbox_item.source.from,
+            wormhole_chain_id: inbox_item.source.chain.id,
         });
     }
 
@@ -172,13 +173,13 @@ pub fn release_inbound_mint_multisig<'info>(
             token_authority_sig,
         );
 
-        let root_updates = inbox_item.root_updates.clone().unwrap_or_default();
-        earn::cpi::propagate_index(ctx, inbox_item.index_update, root_updates.earner_root)?;
+        let earner_root = inbox_item.earners_root_update.unwrap_or_default();
+        earn::cpi::propagate_index(ctx, inbox_item.index_update, earner_root)?;
 
         msg!(
             "Index update: {} | root update: {}",
             inbox_item.index_update,
-            inbox_item.root_updates.is_some()
+            inbox_item.earners_root_update.is_some()
         );
     }
 

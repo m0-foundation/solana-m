@@ -3,6 +3,7 @@
 // external dependencies
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, Token2022, TokenAccount};
+use earn::instructions::claim_for::RewardsClaim;
 
 // local dependencies
 use crate::{
@@ -166,14 +167,4 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     });
 
     Ok(())
-}
-
-#[event]
-pub struct RewardsClaim {
-    pub token_account: Pubkey,
-    pub amount: u64,
-    pub ts: u64,
-    pub index: u64,
-    pub fee: u64,
-    pub recipient_token_account: Pubkey,
 }

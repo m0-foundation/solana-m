@@ -256,7 +256,8 @@ pub fn transfer_burn<'info>(
     emit!(BridgeEvent {
         amount: -(amount as i64),
         token_supply: accs.common.mint.supply,
-        recipient: recipient_address,
+        to: recipient_address,
+        from: accs.common.from.owner.to_bytes(),
         wormhole_chain_id: recipient_chain.id,
     });
 

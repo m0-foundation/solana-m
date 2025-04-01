@@ -1,7 +1,16 @@
 import { Protobuf } from 'as-proto/assembly';
 import { TokenTransactions as protoTokenTransactions } from './pb/transfers/v1/TokenTransactions';
 import { BigInt, Bytes } from '@graphprotocol/graph-ts';
-import { TokenHolder, TokenAccount, BalanceUpdate, IndexUpdate, Claim, ClaimStats } from '../generated/schema';
+import {
+  TokenHolder,
+  TokenAccount,
+  BalanceUpdate,
+  IndexUpdate,
+  Claim,
+  ClaimStats,
+  BridgeEvent,
+  BridgeStats,
+} from '../generated/schema';
 import { TokenBalanceUpdate } from './pb/transfers/v1/TokenBalanceUpdate';
 import { decode } from 'as-base58';
 
@@ -35,20 +44,48 @@ export function handleTriggers(bytes: Uint8Array): void {
         claim.ts = BigInt.fromI64(input.blockTime);
         claim.signature = b58(txn.signature);
         claim.manager_fee = BigInt.fromI64(ix.claim!.managerFee);
+        claim.index = BigInt.fromI64(ix.claim!.index);
 
         // Aggregate Stats
-        let claimStats = ClaimStats.load(Bytes.fromUTF8('claim-stats'));
+        let claimStats = ClaimStats.load(id('claim-stats', ix.programId, ''));
         if (!claimStats) {
-          claimStats = new ClaimStats(Bytes.fromUTF8('claim-stats'));
+          claimStats = new ClaimStats(id('claim-stats', ix.programId, ''));
           claimStats.total_claimed = BigInt.zero();
-          claimStats.num_claims = BigInt.zero();
+          claimStats.num_claims = 0;
+          claimStats.program_id = b58(ix.programId);
         }
 
         claimStats.total_claimed = claimStats.total_claimed.plus(claim.amount);
-        claimStats.num_claims = claimStats.num_claims.plus(BigInt.fromU32(1));
+        claimStats.num_claims = claimStats.num_claims + 1;
 
         claim.save();
         claimStats.save();
+      }
+      if (ix.bridgeEvent) {
+        // Bridge Event
+        const bridge = new BridgeEvent(id('bridge', txn.signature, ''));
+        bridge.ts = BigInt.fromI64(input.blockTime);
+        bridge.signature = b58(txn.signature);
+        bridge.amount = BigInt.fromI64(ix.bridgeEvent!.amount);
+        bridge.to = Bytes.fromUint8Array(ix.bridgeEvent!.to);
+        bridge.from = Bytes.fromUint8Array(ix.bridgeEvent!.from);
+        bridge.chain = ix.bridgeEvent!.chain;
+
+        // Bridge Stats
+        let bridgeStats = BridgeStats.load(Bytes.fromUTF8('bridge-stats'));
+        if (!bridgeStats) {
+          bridgeStats = new BridgeStats(Bytes.fromUTF8('bridge-stats'));
+          bridgeStats.bridge_volume = BigInt.zero();
+          bridgeStats.num_bridges = 0;
+          bridgeStats.net_bridged_amount = BigInt.zero();
+        }
+
+        bridgeStats.bridge_volume = bridgeStats.bridge_volume.plus(bridge.amount.abs());
+        bridgeStats.num_bridges = bridgeStats.num_bridges + 1;
+        bridgeStats.net_bridged_amount = bridgeStats.net_bridged_amount.plus(bridge.amount);
+
+        bridge.save();
+        bridgeStats.save();
       }
     }
 
@@ -64,7 +101,7 @@ export function handleTriggers(bytes: Uint8Array): void {
       tokenHolder.balance = tokenHolder.balance.plus(delta);
 
       // BalanceUpdate
-      const balanceUpdate = new BalanceUpdate(id('tranfser', update.pubkey, txn.signature));
+      const balanceUpdate = new BalanceUpdate(id('transfer', update.pubkey, txn.signature));
       balanceUpdate.amount = delta;
       balanceUpdate.ts = BigInt.fromI64(input.blockTime);
       balanceUpdate.signature = b58(txn.signature);
@@ -82,9 +119,9 @@ export function handleTriggers(bytes: Uint8Array): void {
 }
 
 function getOrCreateTokenHolder(update: TokenBalanceUpdate): TokenHolder {
-  let tokenHolder = TokenHolder.load(b58(update.owner));
+  let tokenHolder = TokenHolder.load(holderID(update.mint, update.owner));
   if (!tokenHolder) {
-    tokenHolder = new TokenHolder(b58(update.owner));
+    tokenHolder = new TokenHolder(holderID(update.mint, update.owner));
     tokenHolder.mint = b58(update.mint);
     tokenHolder.user = b58(update.owner);
     tokenHolder.balance = BigInt.zero();
@@ -98,20 +135,27 @@ function getOrCreateTokenAccount(update: TokenBalanceUpdate): TokenAccount {
   if (!tokenAccount) {
     tokenAccount = new TokenAccount(b58(update.pubkey));
     tokenAccount.pubkey = b58(update.pubkey);
-    tokenAccount.owner = b58(update.owner);
+    tokenAccount.owner = holderID(update.mint, update.owner);
     tokenAccount.balance = BigInt.zero();
     tokenAccount.cumulative_claims = BigInt.zero();
+    tokenAccount.mint = b58(update.mint);
   }
 
   return tokenAccount;
+}
+
+function holderID(mint: string, owner: string): Bytes {
+  return b58(mint).concat(b58(owner));
 }
 
 function b58(value: string): Bytes {
   return Bytes.fromUint8Array(decode(value));
 }
 
-function id(prefix: string, account: string, signature: string): Bytes {
-  return Bytes.fromUTF8(prefix).concat(b58(account).concat(b58(signature)));
+function id(prefix: string, address: string, signature: string): Bytes {
+  return Bytes.fromUTF8(prefix)
+    .concat(b58(address))
+    .concat(b58(signature));
 }
 
 function indexId(n: i64, signature: string): Bytes {
