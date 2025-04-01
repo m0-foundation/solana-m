@@ -71,7 +71,7 @@ async function main() {
     .action(() => {
       const [mVaultPda] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], PROGRAMS.extEarn);
 
-      console.log(`M Vault PDA: ${mVaultPda.toBase58()}`);
+      console.log(`M Vault PDA: 0x${mVaultPda.toBuffer().toString('hex')}`);
     });
 
   program
