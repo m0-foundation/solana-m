@@ -66,12 +66,30 @@ async function main() {
   const connection = new Connection(process.env.RPC_URL ?? '');
 
   program
-    .command('print-ext-vault-pda')
-    .description('Print the extension earn vault PDA')
+    .command('print-addresses')
+    .description('Print the addresses of all the relevant programs and accounts')
     .action(() => {
-      const [mVaultPda] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], PROGRAMS.extEarn);
+      console.log('Programs:');
+      console.log(`Portal: ${PROGRAMS.portal.toBase58()} | 0x${PROGRAMS.portal.toBuffer().toString('hex')}`);
+      console.log(`Earn: ${PROGRAMS.earn.toBase58()} | 0x${PROGRAMS.earn.toBuffer().toString('hex')}`);
+      console.log(`ExtEarn: ${PROGRAMS.extEarn.toBase58()} | 0x${PROGRAMS.extEarn.toBuffer().toString('hex')}`);
+      
+      const [mMint, wmMint, multisig] = keysFromEnv(['M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
+      console.log(`M Mint: ${mMint.publicKey.toBase58()} | 0x${mMint.publicKey.toBuffer().toString('hex')}`);
+      console.log(`M Mint Multisig: ${multisig.publicKey.toBase58()} | 0x${multisig.publicKey.toBuffer().toString('hex')}`);
 
-      console.log(`M Vault PDA: 0x${mVaultPda.toBuffer().toString('hex')}`);
+      const [portalTokenAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.portal);
+      const [earnTokenAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.earn);
+      console.log(`Portal Token Authority PDA: ${portalTokenAuthPda.toBase58()} | 0x${portalTokenAuthPda.toBuffer().toString('hex')}`);
+      console.log(`Earn Token Authority PDA: ${earnTokenAuthPda.toBase58()} | 0x${earnTokenAuthPda.toBuffer().toString('hex')}`);
+
+      console.log(`wM Mint: ${wmMint.publicKey.toBase58()} | 0x${wmMint.publicKey.toBuffer().toString('hex')}`);
+      
+      const [mVaultPda] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], PROGRAMS.extEarn);
+      console.log(`ExtEarn M Vault PDA: ${mVaultPda.toBase58()} | 0x${mVaultPda.toBuffer().toString('hex')}`);
+
+      const [mintAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], PROGRAMS.extEarn);
+      console.log(`ExtEarn Mint Authority PDA: ${mintAuthPda.toBase58()} | 0x${mintAuthPda.toBuffer().toString('hex')}`);
     });
 
   program
