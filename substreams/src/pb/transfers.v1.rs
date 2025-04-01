@@ -96,7 +96,7 @@ pub struct BridgeEvent {
     pub from: ::prost::alloc::vec::Vec<u8>,
     #[prost(bytes="vec", tag="4")]
     pub to: ::prost::alloc::vec::Vec<u8>,
-    #[prost(uint32, tag="5")]
-    pub wormhole_chain_id: u32,
+    #[prost(string, tag="5")]
+    pub chain: ::prost::alloc::string::String,
 }
 // @@protoc_insertion_point(module)

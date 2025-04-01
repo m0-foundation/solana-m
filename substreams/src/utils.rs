@@ -107,7 +107,7 @@ pub fn parse_log_for_events(log: &DataLog) -> Option<Update> {
             token_supply: event.token_supply,
             from: event.from.to_vec(),
             to: event.to.to_vec(),
-            wormhole_chain_id: event.wormhole_chain_id as u32,
+            chain: wormhole_id_to_chain(event.wormhole_chain_id),
         }));
     }
 
@@ -159,6 +159,22 @@ pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
     }
 
     token_accounts.values().cloned().collect()
+}
+
+fn wormhole_id_to_chain(id: u16) -> String {
+    match id {
+        1 => "Solana".to_string(),
+        2 => "Ethereum".to_string(),
+        10002 => "Sepolia".to_string(),
+        23 => "Arbitrum".to_string(),
+        10003 => "Arbitrum Sepolia".to_string(),
+        21 => "Sui".to_string(),
+        24 => "Optimism Sepolia".to_string(),
+        10005 => "Optimism Sepolia".to_string(),
+        30 => "Base".to_string(),
+        10004 => "Base Sepolia".to_string(),
+        _ => format!("Unknown({})", id),
+    }
 }
 
 #[cfg(test)]

@@ -54,5 +54,5 @@ message BridgeEvent {
   uint64 token_supply = 2;
   bytes from = 3;
   bytes to = 4;
-  uint32 wormhole_chain_id = 5;
+  string chain = 5;
 }

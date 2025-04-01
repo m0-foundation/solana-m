@@ -18,8 +18,8 @@ export class BridgeEvent {
     writer.uint32(34);
     writer.bytes(message.to);
 
-    writer.uint32(40);
-    writer.uint32(message.wormholeChainId);
+    writer.uint32(42);
+    writer.string(message.chain);
   }
 
   static decode(reader: Reader, length: i32): BridgeEvent {
@@ -46,7 +46,7 @@ export class BridgeEvent {
           break;
 
         case 5:
-          message.wormholeChainId = reader.uint32();
+          message.chain = reader.string();
           break;
 
         default:
@@ -62,19 +62,19 @@ export class BridgeEvent {
   tokenSupply: u64;
   from: Uint8Array;
   to: Uint8Array;
-  wormholeChainId: u32;
+  chain: string;
 
   constructor(
     amount: i64 = 0,
     tokenSupply: u64 = 0,
     from: Uint8Array = new Uint8Array(0),
     to: Uint8Array = new Uint8Array(0),
-    wormholeChainId: u32 = 0
+    chain: string = ""
   ) {
     this.amount = amount;
     this.tokenSupply = tokenSupply;
     this.from = from;
     this.to = to;
-    this.wormholeChainId = wormholeChainId;
+    this.chain = chain;
   }
 }

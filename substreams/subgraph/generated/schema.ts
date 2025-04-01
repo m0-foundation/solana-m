@@ -743,17 +743,17 @@ export class BridgeEvent extends Entity {
     this.set("from", Value.fromBytes(value));
   }
 
-  get chain(): i32 {
+  get chain(): string {
     let value = this.get("chain");
     if (!value || value.kind == ValueKind.NULL) {
-      return 0;
+      throw new Error("Cannot return null for a required field.");
     } else {
-      return value.toI32();
+      return value.toString();
     }
   }
 
-  set chain(value: i32) {
-    this.set("chain", Value.fromI32(value));
+  set chain(value: string) {
+    this.set("chain", Value.fromString(value));
   }
 }
 

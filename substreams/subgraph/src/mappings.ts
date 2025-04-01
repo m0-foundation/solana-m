@@ -68,7 +68,7 @@ export function handleTriggers(bytes: Uint8Array): void {
         bridge.amount = BigInt.fromI64(ix.bridgeEvent!.amount);
         bridge.to = Bytes.fromUint8Array(ix.bridgeEvent!.to);
         bridge.from = Bytes.fromUint8Array(ix.bridgeEvent!.from);
-        bridge.chain = ix.bridgeEvent!.wormholeChainId;
+        bridge.chain = ix.bridgeEvent!.chain;
 
         // Bridge Stats
         let bridgeStats = BridgeStats.load(Bytes.fromUTF8('bridge-stats'));
