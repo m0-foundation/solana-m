@@ -332,10 +332,6 @@ export type Earn = {
             "type": "publicKey"
           },
           {
-            "name": "portalAuthority",
-            "type": "publicKey"
-          },
-          {
             "name": "mint",
             "type": "publicKey"
           },
@@ -375,6 +371,10 @@ export type Earn = {
                 32
               ]
             }
+          },
+          {
+            "name": "portalAuthority",
+            "type": "publicKey"
           },
           {
             "name": "bump",
@@ -857,10 +857,6 @@ export const IDL: Earn = {
             "type": "publicKey"
           },
           {
-            "name": "portalAuthority",
-            "type": "publicKey"
-          },
-          {
             "name": "mint",
             "type": "publicKey"
           },
@@ -900,6 +896,10 @@ export const IDL: Earn = {
                 32
               ]
             }
+          },
+          {
+            "name": "portalAuthority",
+            "type": "publicKey"
           },
           {
             "name": "bump",

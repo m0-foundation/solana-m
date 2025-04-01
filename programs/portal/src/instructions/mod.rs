@@ -6,8 +6,8 @@ pub mod redeem;
 pub mod release_inbound;
 pub mod transfer;
 
-use anchor_lang::prelude::*;
 pub use admin::*;
+use anchor_lang::prelude::*;
 pub use initialize::*;
 pub use luts::*;
 pub use mark_outbox_item_as_released::*;

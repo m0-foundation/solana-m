@@ -6,7 +6,11 @@ use solana_program::program::invoke_signed;
 use spl_token_2022::onchain;
 
 use crate::{
-    config::*, error::NTTError, instructions::BridgeEvent, queue::inbox::{InboxItem, ReleaseStatus}, spl_multisig::SplMultisig
+    config::*,
+    error::NTTError,
+    instructions::BridgeEvent,
+    queue::inbox::{InboxItem, ReleaseStatus},
+    spl_multisig::SplMultisig,
 };
 
 #[derive(Accounts)]
@@ -131,12 +135,12 @@ pub fn release_inbound_mint_multisig<'info>(
 
         ctx.accounts.common.mint.reload()?;
 
-       emit!(BridgeEvent{
+        emit!(BridgeEvent {
             amount: inbox_item.transfer.amount as i64,
             token_supply: ctx.accounts.common.mint.supply,
             recipient: inbox_item.transfer.recipient.to_bytes(),
             wormhole_chain_id: inbox_item.source_chain.id,
-       });
+        });
     }
 
     // Send update to the earn program
@@ -169,11 +173,7 @@ pub fn release_inbound_mint_multisig<'info>(
         );
 
         let root_updates = inbox_item.root_updates.clone().unwrap_or_default();
-        earn::cpi::propagate_index(
-            ctx,
-            inbox_item.index_update,
-            root_updates.earner_root,
-        )?;
+        earn::cpi::propagate_index(ctx, inbox_item.index_update, root_updates.earner_root)?;
 
         msg!(
             "Index update: {} | root update: {}",

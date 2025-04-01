@@ -332,10 +332,6 @@
             "type": "publicKey"
           },
           {
-            "name": "portalAuthority",
-            "type": "publicKey"
-          },
-          {
             "name": "mint",
             "type": "publicKey"
           },
@@ -375,6 +371,10 @@
                 32
               ]
             }
+          },
+          {
+            "name": "portalAuthority",
+            "type": "publicKey"
           },
           {
             "name": "bump",
@@ -520,8 +520,5 @@
       "name": "MutableOwner",
       "msg": "Token account owner is required to be immutable."
     }
-  ],
-  "metadata": {
-    "address": "MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"
-  }
+  ]
 }

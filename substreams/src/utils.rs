@@ -139,12 +139,13 @@ mod tests {
     #[test]
     fn test_parse_log_for_events_index_update() {
         // Logged pulled from devnet
-        let log_str = "Program data: CHN6vDbOelfI5i/h6QAAAJ9J5GcAAAAAP3cbAAAAAAAjEgAAAAAAAA==".to_string();
+        let log_str =
+            "Program data: CHN6vDbOelfI5i/h6QAAAJ9J5GcAAAAAP3cbAAAAAAAjEgAAAAAAAA==".to_string();
         let log = DataLog::new(&log_str);
 
         // Parse the log
         let result = parse_log_for_events(&log);
-        
+
         // Verify the result
         assert!(result.is_some());
         if let Some(Update::IndexUpdate(update)) = result {

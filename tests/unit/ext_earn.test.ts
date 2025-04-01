@@ -56,7 +56,7 @@ const yieldRecipient: Keypair = new Keypair();
 
 let svm: LiteSVM;
 let provider: LiteSVMProvider;
-let accounts: Record<string, PublicKey> = {};
+let accounts: Record<string, PublicKey | null> = {};
 let earn: Program<Earn>;
 let extEarn: Program<ExtEarn>;
 
@@ -108,7 +108,7 @@ interface EarnManager {
   earnManager?: PublicKey;
   isActive?: boolean;
   feeBps?: BN;
-  feeTokenAccount?: PublicKey;
+  feeTokenAccount?: PublicKey | null;
   bump?: number;
 }
 
@@ -827,6 +827,8 @@ const prepConfigureEarnManager = async (signer: Keypair, earnManager: PublicKey,
   accounts.earnManagerAccount = earnManagerAccount;
   if (feeTokenAccount) {
     accounts.feeTokenAccount = feeTokenAccount;
+  } else {
+    accounts.feeTokenAccount = null;
   }
 
   return { globalAccount, earnManagerAccount };
@@ -955,7 +957,9 @@ const prepSetRecipient = async (signer: Keypair, earner: PublicKey, recipientTok
   accounts.signer = signer.publicKey;
   accounts.globalAccount = getExtGlobalAccount();
   accounts.earnerAccount = earnerAccount;
+
   if (recipientTokenAccount) accounts.recipientTokenAccount = recipientTokenAccount;
+  else accounts.recipientTokenAccount = null;
 
   return { earnerAccount };
 };

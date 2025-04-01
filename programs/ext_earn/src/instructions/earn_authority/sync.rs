@@ -6,9 +6,7 @@ use crate::{
     errors::ExtError,
     state::{ExtGlobal, EXT_GLOBAL_SEED},
 };
-use earn::{
-    state::{Global as EarnGlobal},
-};
+use earn::state::Global as EarnGlobal;
 
 #[derive(Accounts)]
 pub struct Sync<'info> {
@@ -21,7 +19,7 @@ pub struct Sync<'info> {
         seeds = [EXT_GLOBAL_SEED],
         bump = global_account.bump,
         has_one = earn_authority @ ExtError::NotAuthorized,
-        has_one = m_earn_global_account @ ExtError::InvalidAccount,        
+        has_one = m_earn_global_account @ ExtError::InvalidAccount,
     )]
     pub global_account: Account<'info, ExtGlobal>,
 }
