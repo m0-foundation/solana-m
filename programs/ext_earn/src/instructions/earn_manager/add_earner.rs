@@ -50,11 +50,7 @@ pub struct AddEarner<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(
-    ctx: Context<AddEarner>,
-    user: Pubkey,
-) -> Result<()> {
-
+pub fn handler(ctx: Context<AddEarner>, user: Pubkey) -> Result<()> {
     ctx.accounts.earner_account.set_inner(Earner {
         earn_manager: ctx.accounts.signer.key(),
         recipient_token_account: None,

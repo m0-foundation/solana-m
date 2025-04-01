@@ -37,7 +37,6 @@ fn map_transfer_events(block: Block) -> TokenTransactions {
             Err(_) => continue,
         };
 
-
         let mut txn = TokenTransaction {
             signature: context.signature.to_string(),
             balance_updates: vec![],
