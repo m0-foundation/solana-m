@@ -30,6 +30,8 @@ import {
   TokenMetadata,
 } from '@solana/spl-token-metadata';
 import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
+import { createPublicClient, http } from 'viem';
+
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
 import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
@@ -64,6 +66,7 @@ const RATE_LIMITS_24 = {
 async function main() {
   const program = new Command();
   const connection = new Connection(process.env.RPC_URL ?? '');
+  const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL ?? '') });
 
   program
     .command('print-addresses')
@@ -333,7 +336,7 @@ async function main() {
       );
 
       // fetch registrar earners from mainnet
-      const evmCaller = new EvmCaller(process.env.ETH_SEPOLIA_RPC ?? '');
+      const evmCaller = new EvmCaller(evmClient);
       const earners = await evmCaller.getEarners();
 
       console.log(`earners on registrar: ${earners.map((e) => e.toBase58())}`);

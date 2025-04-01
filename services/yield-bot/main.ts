@@ -9,6 +9,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
+import { createPublicClient, http, PublicClient } from 'viem';
 import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { instructions } from '@sqds/multisig';
@@ -16,7 +17,7 @@ import { instructions } from '@sqds/multisig';
 interface ParsedOptions {
   signer: Keypair;
   connection: Connection;
-  evmRPC: string;
+  evmClient: PublicClient;
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
@@ -45,7 +46,7 @@ export async function yieldCLI() {
       const options: ParsedOptions = {
         signer,
         connection: new Connection(rpc),
-        evmRPC,
+        evmClient: createPublicClient({ transport: http(evmRPC) }),
         dryRun,
         skipCycle,
       };
@@ -64,7 +65,7 @@ export async function yieldCLI() {
 
 async function distributeYield(opt: ParsedOptions) {
   console.log('distributing yield');
-  const auth = await EarnAuthority.load(opt.connection);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient);
 
   if (opt.skipCycle) {
     console.log('skipping cycle');
@@ -107,7 +108,7 @@ async function distributeYield(opt: ParsedOptions) {
 
 async function addEarners(opt: ParsedOptions) {
   console.log('adding earners');
-  const registrar = new Registrar(opt.connection, opt.evmRPC);
+  const registrar = new Registrar(opt.connection, opt.evmClient);
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
 
   if (instructions.length === 0) {
@@ -126,7 +127,7 @@ async function addEarners(opt: ParsedOptions) {
 
 async function removeEarners(opt: ParsedOptions) {
   console.log('removing earners');
-  const registrar = new Registrar(opt.connection, opt.evmRPC);
+  const registrar = new Registrar(opt.connection, opt.evmClient);
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
 
   if (instructions.length === 0) {

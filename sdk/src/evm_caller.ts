@@ -1,5 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
-import { createPublicClient, getContract, http } from 'viem';
+import { createPublicClient, getContract, http, PublicClient } from 'viem';
+import { ETH_M_ADDRESS, ETH_MERKLE_TREE_BUILDER } from '.';
+import BN from 'bn.js';
 
 const REGISTRAR_LISTS = {
   earners: '0x736f6c616e612d6561726e657273000000000000000000000000000000000000' as `0x${string}`,
@@ -7,11 +9,13 @@ const REGISTRAR_LISTS = {
 };
 
 export class EvmCaller {
-  private rpc_url: string;
+  private client: PublicClient;
+  private mTokenAddress: `0x${string}`;
   private merkleTreeAddress: `0x${string}`;
-
-  constructor(rpc_url: string, merkleTreeAddress: `0x${string}` = '0x050258e4761650ad774b5090a5DA0e204348Eb48') {
-    this.rpc_url = rpc_url;
+  
+  constructor(client: PublicClient, mTokenAddress: `0x${string}` = ETH_M_ADDRESS, merkleTreeAddress: `0x${string}` = ETH_MERKLE_TREE_BUILDER) {
+    this.client = client;
+    this.mTokenAddress = mTokenAddress;
     this.merkleTreeAddress = merkleTreeAddress;
   }
 
@@ -26,6 +30,13 @@ export class EvmCaller {
 
   async getManagers(): Promise<PublicKey[]> {
     return this.getList('managers');
+  }
+
+  async getCurrentIndexAndTime(): Promise<{ currentIndex: BN, currentTime: BN }> {
+    const contract = this._getMTokenContract();
+    const currentTime = await this.client.getBlock().then((block) => new BN(block.timestamp.toString()));
+    const currentIndex = new BN((await contract.read.currentIndex()).toString());
+    return { currentIndex, currentTime };
   }
 
   private async getList(list: 'earners' | 'managers'): Promise<PublicKey[]> {
@@ -55,9 +66,26 @@ export class EvmCaller {
     return getContract({
       address: this.merkleTreeAddress,
       abi,
-      client: createPublicClient({
-        transport: http(this.rpc_url),
-      }),
+      client: this.client,
     });
   }
+
+  private _getMTokenContract() {
+    const abi = [
+      {
+        inputs: [],
+        name: 'currentIndex',
+        outputs: [{ internalType: 'uint256', name: 'currentIndex', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      }
+    ] as const;
+
+    return getContract({
+      address: this.mTokenAddress,
+      abi,
+      client: this.client
+    });
+  }
+
 }
