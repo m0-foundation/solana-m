@@ -1732,7 +1732,6 @@ dependencies = [
  "anchor-lang",
  "bs58 0.5.1",
  "earn",
- "ext_earn",
  "five8_const",
  "prost",
  "regex",

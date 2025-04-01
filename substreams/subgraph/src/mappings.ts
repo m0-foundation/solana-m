@@ -44,11 +44,12 @@ export function handleTriggers(bytes: Uint8Array): void {
         claim.ts = BigInt.fromI64(input.blockTime);
         claim.signature = b58(txn.signature);
         claim.manager_fee = BigInt.fromI64(ix.claim!.managerFee);
+        claim.index = BigInt.fromI64(ix.claim!.index);
 
         // Aggregate Stats
-        let claimStats = ClaimStats.load(id('claim-stats', ix.programId));
+        let claimStats = ClaimStats.load(id('claim-stats', ix.programId, ''));
         if (!claimStats) {
-          claimStats = new ClaimStats(id('claim-stats', ix.programId));
+          claimStats = new ClaimStats(id('claim-stats', ix.programId, ''));
           claimStats.total_claimed = BigInt.zero();
           claimStats.num_claims = 0;
           claimStats.program_id = b58(ix.programId);
@@ -62,7 +63,7 @@ export function handleTriggers(bytes: Uint8Array): void {
       }
       if (ix.bridgeEvent) {
         // Bridge Event
-        const bridge = new BridgeEvent(id('bridge', txn.signature));
+        const bridge = new BridgeEvent(id('bridge', txn.signature, ''));
         bridge.ts = BigInt.fromI64(input.blockTime);
         bridge.signature = b58(txn.signature);
         bridge.amount = BigInt.fromI64(ix.bridgeEvent!.amount);
@@ -118,9 +119,9 @@ export function handleTriggers(bytes: Uint8Array): void {
 }
 
 function getOrCreateTokenHolder(update: TokenBalanceUpdate): TokenHolder {
-  let tokenHolder = TokenHolder.load(b58(update.mint).concat(b58(update.owner)));
+  let tokenHolder = TokenHolder.load(holderID(update.mint, update.owner));
   if (!tokenHolder) {
-    tokenHolder = new TokenHolder(b58(update.mint).concat(b58(update.owner)));
+    tokenHolder = new TokenHolder(holderID(update.mint, update.owner));
     tokenHolder.mint = b58(update.mint);
     tokenHolder.user = b58(update.owner);
     tokenHolder.balance = BigInt.zero();
@@ -134,7 +135,7 @@ function getOrCreateTokenAccount(update: TokenBalanceUpdate): TokenAccount {
   if (!tokenAccount) {
     tokenAccount = new TokenAccount(b58(update.pubkey));
     tokenAccount.pubkey = b58(update.pubkey);
-    tokenAccount.owner = b58(update.owner);
+    tokenAccount.owner = holderID(update.mint, update.owner);
     tokenAccount.balance = BigInt.zero();
     tokenAccount.cumulative_claims = BigInt.zero();
     tokenAccount.mint = b58(update.mint);
@@ -143,14 +144,18 @@ function getOrCreateTokenAccount(update: TokenBalanceUpdate): TokenAccount {
   return tokenAccount;
 }
 
+function holderID(mint: string, owner: string): Bytes {
+  return b58(mint).concat(b58(owner));
+}
+
 function b58(value: string): Bytes {
   return Bytes.fromUint8Array(decode(value));
 }
 
-function id(prefix: string, address: string, signature?: string): Bytes {
-  const id = Bytes.fromUTF8(prefix).concat(b58(address));
-  if (signature) return id.concat(b58(signature));
-  return id;
+function id(prefix: string, address: string, signature: string): Bytes {
+  return Bytes.fromUTF8(prefix)
+    .concat(b58(address))
+    .concat(b58(signature));
 }
 
 function indexId(n: i64, signature: string): Bytes {

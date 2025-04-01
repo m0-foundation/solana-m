@@ -25,9 +25,10 @@ type Claim @entity(immutable: true) {
   recipient_token_account: TokenAccount!
   ts: BigInt!
   signature: Bytes!
+  index: BigInt!
 }
 
-type ClaimStats @entity(immutable: true) {
+type ClaimStats @entity {
   id: Bytes! # claim-stat-<program-id>
   total_claimed: BigInt!
   num_claims: Int!
@@ -61,7 +62,7 @@ type BridgeEvent @entity(immutable: true) {
   chain: String!
 }
 
-type BridgeStats @entity(immutable: true) {
+type BridgeStats @entity {
   id: Bytes! # bridge-stats
   bridge_volume: BigInt!
   num_bridges: Int!

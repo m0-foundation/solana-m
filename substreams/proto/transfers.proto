@@ -47,6 +47,7 @@ message Claim {
   string recipient_token_account = 2;
   uint64 amount = 3;
   uint64 manager_fee = 4;
+  uint64 index = 5;
 }
 
 message BridgeEvent {

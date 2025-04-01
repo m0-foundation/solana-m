@@ -126,9 +126,11 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
     emit!(RewardsClaim {
         token_account: ctx.accounts.user_token_account.key(),
+        recipient_token_account: ctx.accounts.user_token_account.key(),
         amount: rewards,
         ts: ctx.accounts.earner_account.last_claim_timestamp,
         index: ctx.accounts.global_account.index,
+        fee: 0,
     });
 
     Ok(())
@@ -137,7 +139,9 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 #[event]
 pub struct RewardsClaim {
     pub token_account: Pubkey,
+    pub recipient_token_account: Pubkey,
     pub amount: u64,
     pub ts: u64,
     pub index: u64,
+    pub fee: u64,
 }
