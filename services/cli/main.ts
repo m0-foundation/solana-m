@@ -124,7 +124,7 @@ async function main() {
       const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']); 
 
       const mintAuthority = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], PROGRAMS.extEarn)[0];
-      const freezeAuthority = new PublicKey(''); // TODO set freeze authority for wM
+      const freezeAuthority = owner.publicKey; // TODO set freeze authority for wM
 
       await createToken2022Mint(
         connection,
