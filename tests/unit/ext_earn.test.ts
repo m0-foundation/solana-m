@@ -31,7 +31,7 @@ const EARN_IDL = require('../../target/idl/earn.json');
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
 const EARN_PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c');
-const EXT_EARN_PROGRAM_ID = new PublicKey('ATPNKbFx7D5bQaKV4YSsoQePsUpkrihHBHLzPKTPeuzL');
+const EXT_EARN_PROGRAM_ID = new PublicKey('wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko');
 // Unit tests for ext earn program
 
 const ZERO_WORD = new Array(32).fill(0);
