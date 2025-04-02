@@ -32,7 +32,7 @@ import {
 import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
-import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { Program, BN } from '@coral-xyz/anchor';
 import * as multisig from '@sqds/multisig';
 import { Earn } from '../../target/types/earn';
 import { ExtEarn } from '../../target/types/ext_earn';
@@ -212,21 +212,26 @@ async function main() {
   program
     .command('initialize-earn')
     .description('Initialize the earn program')
-    .action(async () => {
+    .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
+    .action(async ({ squadsEarnAuth }) => {
       const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
       const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
 
-      const [vaultPda] = multisig.getVaultPda({
-        multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
-        index: 0,
-      });
+      let earnAuth = owner.publicKey;
+
+      if (squadsEarnAuth) {
+        earnAuth = multisig.getVaultPda({
+          multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
+          index: 0,
+        })[0];
+      }
 
       await earn.methods
         .initialize(
           mint.publicKey,
-          vaultPda,
+          earnAuth,
           new BN(1001886486057), // initial index // TODO programmatically get from mainnet at deployment time
           new BN(5 * 60), // cooldown
         )
