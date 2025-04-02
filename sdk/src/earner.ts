@@ -7,6 +7,7 @@ import { Claim, Graph } from './graph';
 import { EarnerData } from './accounts';
 import { getExtProgram, getProgram } from './idl';
 import { EvmCaller } from './evm_caller';
+import { EarnManager } from './earn_manager';
 
 export class Earner {
   private connection: Connection;
@@ -81,6 +82,21 @@ export class Earner {
       currentTime,
     );
 
-    return earnerWeightedBalance.mul(currentIndex.sub(this.data.lastClaimIndex)).div(this.data.lastClaimIndex);
+    let pendingYield = earnerWeightedBalance.mul(currentIndex.sub(this.data.lastClaimIndex)).div(this.data.lastClaimIndex);
+
+    // Check if the earner has an earn manager
+    // If so, check if the earn manager has a fee
+    // If so, calculate the fee and subtract it from the pending yield
+    if (this.data.earnManager) {
+      const earnManager = await EarnManager.fromManagerAddress(this.connection, this.evmClient, this.data.earnManager);
+      
+      if (earnManager.data.feeBps > new BN(0)) {
+        const fee = pendingYield.mul(earnManager.data.feeBps).div(new BN(10000));
+
+        pendingYield = pendingYield.sub(fee);
+      }
+    }
+
+    return pendingYield;
   }
 }
