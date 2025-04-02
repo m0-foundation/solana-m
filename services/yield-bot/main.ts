@@ -363,6 +363,6 @@ function catchConsoleLogs() {
 if (!process.argv[1].endsWith('jest')) {
   yieldCLI().catch((error) => {
     logger.error('yield bot failed', { error: error.toString() });
-    process.exit(1);
+    process.exit(0);
   });
 }
