@@ -158,6 +158,19 @@ export class TokenAccount extends Entity {
     this.set("pubkey", Value.fromBytes(value));
   }
 
+  get mint(): Bytes {
+    let value = this.get("mint");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set mint(value: Bytes) {
+    this.set("mint", Value.fromBytes(value));
+  }
+
   get owner(): Bytes {
     let value = this.get("owner");
     if (!value || value.kind == ValueKind.NULL) {
@@ -332,6 +345,19 @@ export class Claim extends Entity {
   set signature(value: Bytes) {
     this.set("signature", Value.fromBytes(value));
   }
+
+  get index(): BigInt {
+    let value = this.get("index");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set index(value: BigInt) {
+    this.set("index", Value.fromBigInt(value));
+  }
 }
 
 export class ClaimStats extends Entity {
@@ -390,17 +416,30 @@ export class ClaimStats extends Entity {
     this.set("total_claimed", Value.fromBigInt(value));
   }
 
-  get num_claims(): BigInt {
+  get num_claims(): i32 {
     let value = this.get("num_claims");
     if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
+      return 0;
     } else {
-      return value.toBigInt();
+      return value.toI32();
     }
   }
 
-  set num_claims(value: BigInt) {
-    this.set("num_claims", Value.fromBigInt(value));
+  set num_claims(value: i32) {
+    this.set("num_claims", Value.fromI32(value));
+  }
+
+  get program_id(): Bytes {
+    let value = this.get("program_id");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set program_id(value: Bytes) {
+    this.set("program_id", Value.fromBytes(value));
   }
 }
 
@@ -678,19 +717,6 @@ export class BridgeEvent extends Entity {
     this.set("signature", Value.fromBytes(value));
   }
 
-  get source_chain(): string {
-    let value = this.get("source_chain");
-    if (!value || value.kind == ValueKind.NULL) {
-      throw new Error("Cannot return null for a required field.");
-    } else {
-      return value.toString();
-    }
-  }
-
-  set source_chain(value: string) {
-    this.set("source_chain", Value.fromString(value));
-  }
-
   get token_supply(): BigInt {
     let value = this.get("token_supply");
     if (!value || value.kind == ValueKind.NULL) {
@@ -702,6 +728,128 @@ export class BridgeEvent extends Entity {
 
   set token_supply(value: BigInt) {
     this.set("token_supply", Value.fromBigInt(value));
+  }
+
+  get to(): Bytes {
+    let value = this.get("to");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set to(value: Bytes) {
+    this.set("to", Value.fromBytes(value));
+  }
+
+  get from(): Bytes {
+    let value = this.get("from");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set from(value: Bytes) {
+    this.set("from", Value.fromBytes(value));
+  }
+
+  get chain(): string {
+    let value = this.get("chain");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
+  }
+
+  set chain(value: string) {
+    this.set("chain", Value.fromString(value));
+  }
+}
+
+export class BridgeStats extends Entity {
+  constructor(id: Bytes) {
+    super();
+    this.set("id", Value.fromBytes(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save BridgeStats entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.BYTES,
+        `Entities of type BridgeStats must have an ID of type Bytes but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+      );
+      store.set("BridgeStats", id.toBytes().toHexString(), this);
+    }
+  }
+
+  static loadInBlock(id: Bytes): BridgeStats | null {
+    return changetype<BridgeStats | null>(
+      store.get_in_block("BridgeStats", id.toHexString()),
+    );
+  }
+
+  static load(id: Bytes): BridgeStats | null {
+    return changetype<BridgeStats | null>(
+      store.get("BridgeStats", id.toHexString()),
+    );
+  }
+
+  get id(): Bytes {
+    let value = this.get("id");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set id(value: Bytes) {
+    this.set("id", Value.fromBytes(value));
+  }
+
+  get bridge_volume(): BigInt {
+    let value = this.get("bridge_volume");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set bridge_volume(value: BigInt) {
+    this.set("bridge_volume", Value.fromBigInt(value));
+  }
+
+  get num_bridges(): i32 {
+    let value = this.get("num_bridges");
+    if (!value || value.kind == ValueKind.NULL) {
+      return 0;
+    } else {
+      return value.toI32();
+    }
+  }
+
+  set num_bridges(value: i32) {
+    this.set("num_bridges", Value.fromI32(value));
+  }
+
+  get net_bridged_amount(): BigInt {
+    let value = this.get("net_bridged_amount");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set net_bridged_amount(value: BigInt) {
+    this.set("net_bridged_amount", Value.fromBigInt(value));
   }
 }
 

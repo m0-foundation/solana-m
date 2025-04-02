@@ -38,4 +38,4 @@ modules:
 network: solana-devnet
 
 params:
-  map_filtered_transactions: account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6
+  map_filtered_transactions: account:mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6 || account:mzeroXDoBpRVhnEXBra27qzAMdxgpWVY3DzQW7xMVJp

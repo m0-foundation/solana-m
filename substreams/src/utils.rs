@@ -12,6 +12,15 @@ use substreams_solana_utils::{
 
 const DISCRIMINATOR_SIZE: usize = 8;
 
+#[event]
+pub struct BridgeEvent {
+    pub amount: i64,
+    pub token_supply: u64,
+    pub from: [u8; 32],
+    pub to: [u8; 32],
+    pub wormhole_chain_id: u16,
+}
+
 pub fn parse_logs_for_events(logs: Option<&Vec<Log>>) -> Option<Update> {
     if logs.is_none() {
         return None;
@@ -70,14 +79,28 @@ pub fn parse_log_for_events(log: &DataLog) -> Option<Update> {
     }
     if RewardsClaim::DISCRIMINATOR == discriminator {
         let claim = match RewardsClaim::try_from_slice(buffer) {
-            Ok(update) => update,
+            Ok(claim) => claim,
             Err(_) => return None,
         };
         return Some(Update::Claim(v1::Claim {
             amount: claim.amount,
             token_account: claim.token_account.to_string(),
             recipient_token_account: claim.recipient_token_account.to_string(),
-            manager_fee: claim.manager_fee,
+            manager_fee: claim.fee,
+            index: claim.index,
+        }));
+    }
+    if BridgeEvent::DISCRIMINATOR == discriminator {
+        let event = match BridgeEvent::try_from_slice(buffer) {
+            Ok(event) => event,
+            Err(_) => return None,
+        };
+        return Some(Update::BridgeEvent(v1::BridgeEvent {
+            amount: event.amount,
+            token_supply: event.token_supply,
+            from: event.from.to_vec(),
+            to: event.to.to_vec(),
+            chain: wormhole_id_to_chain(event.wormhole_chain_id),
         }));
     }
 
@@ -129,6 +152,22 @@ pub fn token_accounts(t: &ConfirmedTransaction) -> Vec<TokenAccount> {
     }
 
     token_accounts.values().cloned().collect()
+}
+
+fn wormhole_id_to_chain(id: u16) -> String {
+    match id {
+        1 => "Solana".to_string(),
+        2 => "Ethereum".to_string(),
+        10002 => "Sepolia".to_string(),
+        23 => "Arbitrum".to_string(),
+        10003 => "Arbitrum Sepolia".to_string(),
+        21 => "Sui".to_string(),
+        24 => "Optimism Sepolia".to_string(),
+        10005 => "Optimism Sepolia".to_string(),
+        30 => "Base".to_string(),
+        10004 => "Base Sepolia".to_string(),
+        _ => format!("Unknown({})", id),
+    }
 }
 
 #[cfg(test)]

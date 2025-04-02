@@ -45,7 +45,7 @@ pub struct Instruction {
     pub program_id: ::prost::alloc::string::String,
     #[prost(string, optional, tag="2")]
     pub instruction: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(oneof="instruction::Update", tags="10, 11")]
+    #[prost(oneof="instruction::Update", tags="10, 11, 12")]
     pub update: ::core::option::Option<instruction::Update>,
 }
 /// Nested message and enum types in `Instruction`.
@@ -57,6 +57,8 @@ pub mod instruction {
         IndexUpdate(super::IndexUpdate),
         #[prost(message, tag="11")]
         Claim(super::Claim),
+        #[prost(message, tag="12")]
+        BridgeEvent(super::BridgeEvent),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -82,5 +84,21 @@ pub struct Claim {
     pub amount: u64,
     #[prost(uint64, tag="4")]
     pub manager_fee: u64,
+    #[prost(uint64, tag="5")]
+    pub index: u64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BridgeEvent {
+    #[prost(int64, tag="1")]
+    pub amount: i64,
+    #[prost(uint64, tag="2")]
+    pub token_supply: u64,
+    #[prost(bytes="vec", tag="3")]
+    pub from: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes="vec", tag="4")]
+    pub to: ::prost::alloc::vec::Vec<u8>,
+    #[prost(string, tag="5")]
+    pub chain: ::prost::alloc::string::String,
 }
 // @@protoc_insertion_point(module)

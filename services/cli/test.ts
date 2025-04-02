@@ -14,7 +14,7 @@ async function main() {
     .argument('[number]', 'amount', '100000')
     .action(async (receiver, amount) => {
       const connection = new Connection(process.env.RPC_URL ?? '');
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
       const { ctx, ntt, sender, signer } = NttManager(connection, owner, mint.publicKey);
 
       const outboxItem = Keypair.generate();

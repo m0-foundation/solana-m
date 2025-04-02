@@ -10,7 +10,7 @@ use anchor_lang::prelude::*;
 
 use instructions::*;
 
-declare_id!("ATPNKbFx7D5bQaKV4YSsoQePsUpkrihHBHLzPKTPeuzL");
+declare_id!("wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko");
 
 #[program]
 pub mod ext_earn {

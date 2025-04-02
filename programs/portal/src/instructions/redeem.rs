@@ -10,7 +10,7 @@ use crate::{
     payloads::Payload,
     peer::NttManagerPeer,
     queue::{
-        inbox::{InboxItem, InboxRateLimit, ReleaseStatus, RootUpdates, TokenTransfer},
+        inbox::{InboxItem, InboxRateLimit, ReleaseStatus, Source, TokenTransfer},
         outbox::OutboxRateLimit,
         rate_limit::RateLimitResult,
     },
@@ -123,8 +123,11 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
             votes: Bitmap::new(),
             transfer: TokenTransfer::default(),
             index_update: 0,
-            root_updates: None,
-            source_chain: message.payload.to_chain(),
+            earners_root_update: None,
+            source: Source {
+                chain: transceiver_message.from_chain,
+                from: message.sender,
+            },
         };
 
         match &message.payload {
@@ -147,9 +150,7 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
 
                 // payloads from mainnet might have merkle root updates
                 if payload.earner_root.is_some() {
-                    inbox_item.root_updates = Some(RootUpdates {
-                        earner_root: payload.earner_root.unwrap(),
-                    });
+                    inbox_item.earners_root_update = Some(payload.earner_root.unwrap());
                 }
             }
         };
