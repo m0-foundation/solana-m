@@ -16,13 +16,13 @@ import winston from 'winston';
 
 const logger = winston.createLogger({
   level: 'info',
-  format: winston.format.json(),
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+    winston.format.json(),
+  ),
   defaultMeta: { name: 'yield-bot' },
   transports: [new winston.transports.Console()],
 });
-
-console.log = (...data: any[]) => logger.info(`${data}`);
-console.error = (...data: any[]) => logger.error(`${data}`);
 
 interface ParsedOptions {
   signer: Keypair;
@@ -35,6 +35,7 @@ interface ParsedOptions {
 
 // entrypoint for the yield bot command
 export async function yieldCLI() {
+  catchConsoleLogs();
   const program = new Command();
 
   program
@@ -74,8 +75,12 @@ export async function yieldCLI() {
 }
 
 async function distributeYield(opt: ParsedOptions) {
-  logger.info('distributing yield');
   const auth = await EarnAuthority.load(opt.connection);
+
+  if (auth['global'].claimComplete) {
+    logger.info('claim cycle already complete');
+    return;
+  }
 
   if (opt.skipCycle) {
     logger.info('skipping cycle');
@@ -103,7 +108,7 @@ async function distributeYield(opt: ParsedOptions) {
   const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
 
   logger.info('distributing M yield', {
-    amount: distributed,
+    amount: distributed.toNumber(),
     claims: filteredIxs.length,
     belowThreshold: claimIxs.length - filteredIxs.length,
   });
@@ -343,10 +348,21 @@ async function proposeSquadsTransaction(
   return tx;
 }
 
+function catchConsoleLogs() {
+  console.log = (message?: any, ...optionalParams: any[]) =>
+    logger.info(message ?? 'console log', {
+      params: optionalParams.map((p) => p.toString()),
+    });
+  console.error = (message?: any, ...optionalParams: any[]) =>
+    logger.error(message ?? 'console error', {
+      params: optionalParams.map((p) => p.toString()),
+    });
+}
+
 // do not run the cli if this is being imported by jest
 if (!process.argv[1].endsWith('jest')) {
   yieldCLI().catch((error) => {
-    logger.error(error);
+    logger.error('yield bot failed', { error: error.toString() });
     process.exit(1);
   });
 }
