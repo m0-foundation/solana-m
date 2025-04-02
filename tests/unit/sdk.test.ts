@@ -8,7 +8,7 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { createPublicClient, http } from '../../sdk/src';
+import { createPublicClient, createTestClient, http } from '../../sdk/src';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { MerkleTree } from '../../sdk/src/merkle';
@@ -20,7 +20,6 @@ import { Earner } from '../../sdk/src/earner';
 import nock from 'nock';
 import { Earn } from '../../sdk/src/idl/earn';
 import { ExtEarn } from '../../sdk/src/idl/ext_earn';
-import { create } from 'domain';
 const EARN_IDL = require('../../sdk/src/idl/earn.json');
 const EXT_EARN_IDL = require('../../sdk/src/idl/ext_earn.json');
 
@@ -56,6 +55,7 @@ describe('SDK unit tests', () => {
   const [tokenAuth] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], earn.programId);
 
   // use local EVM testnet (anvil)
+  const testClient = createTestClient({ mode: 'anvil', transport: http('http://localhost:8545') });
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
 
   beforeAll(async () => {
@@ -342,7 +342,7 @@ describe('SDK unit tests', () => {
       const earners = await auth.getAllEarners();
 
       for (const earner of earners) {
-        earner.data.lastClaimTimestamp = auth['global'].timestamp;
+        // earner.data.lastClaimTimestamp = auth['global'].timestamp;
         const ix = await auth.buildClaimInstruction(earner);
         claimIxs.push(ix!);
       }
@@ -419,6 +419,79 @@ describe('SDK unit tests', () => {
       expect(earner.data.earnManager?.toBase58()).toEqual(manager.manager.toBase58());
     });
   });
+
+  describe('earner', () => {
+
+    describe('getClaimedYield', () => {
+      test('earn program', async () => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[0].publicKey,
+          earnerA.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EARN_PROGRAM);
+        const claimed = await earner.getClaimedYield();
+        expect(claimed.toString()).toEqual('9000000');
+      });
+
+      test('ext earn program', async () => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earnerB.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
+        const claimed = await earner.getClaimedYield();
+        expect(claimed.toString()).toEqual('5000000');
+      });
+    });
+
+    describe('getPendingYield', () => {
+      test('earn program', async () => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[0].publicKey,
+          earnerA.publicKey,
+          true,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EARN_PROGRAM);
+        const pending = await earner.getPendingYield();
+        console.log(pending.toString());
+        
+      });
+
+      // test('ext earn program - no manager fee', async () => {
+      //   const earnerATA = spl.getAssociatedTokenAddressSync(
+      //     mints[1].publicKey,
+      //     earnerC.publicKey,
+      //     true,
+      //     spl.TOKEN_2022_PROGRAM_ID,
+      //   )
+
+      //   const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
+      //   const pending = await earner.getPendingYield();
+      //   console.log(pending.toString());
+      // });
+
+      // test('ext earn program - with manager fee', async () => {
+      //   const earnerATA = spl.getAssociatedTokenAddressSync(
+      //     mints[1].publicKey,
+      //     earnerC.publicKey,
+      //     true,
+      //     spl.TOKEN_2022_PROGRAM_ID,
+      //   )
+
+      //   const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
+      //   const pending = await earner.getPendingYield();
+      //   console.log(pending.toString());
+      // });
+    });
+  });
 });
 
 /*
@@ -453,7 +526,7 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) => body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+      (body) => body.operationName === 'getBalanceUpdates' && body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
     )
     .reply(200, {
       data: {
@@ -468,7 +541,7 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) => body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+      (body) => body.operationName === 'getBalanceUpdates' && body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
     )
     .reply(200, {
       data: {
@@ -484,4 +557,50 @@ function mockSubgraph() {
       },
     })
     .persist();
+
+  nock('https://api.studio.thegraph.com')
+    .post(
+      '/query/106645/m-token-transactions/version/latest',
+      (body) => body.operationName === 'getClaimsForTokenAccount' && body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+    ).reply(200, {
+      data: {
+        claims: [
+          {
+            amount: '5000000',
+            ts: '100',
+            signature: '0x',
+            recipient_token_account: {
+              pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+            },
+          },
+          {
+            amount: '4000000',
+            ts: '200',
+            signature: '0x',
+            recipient_token_account: {
+              pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+            },
+          },
+        ],
+      }
+  });
+
+  nock('https://api.studio.thegraph.com')
+    .post(
+      '/query/106645/m-token-transactions/version/latest',
+      (body) => body.operationName === 'getClaimsForTokenAccount' && body.variables.tokenAccountId !== '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+    ).reply(200, {
+      data: {
+        claims: [
+          {
+            amount: '5000000',
+            ts: '100',
+            signature: '0x',
+            recipient_token_account: {
+              pubkey: '0xd088f35850618fd9c71c18b2c8ebcdff4dfc192bb22b64826fac4dc0136b5685',
+            },
+          },
+        ],
+      }
+  });
 }

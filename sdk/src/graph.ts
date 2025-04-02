@@ -53,7 +53,7 @@ export class Graph {
 
   async getHistoricalClaims(tokenAccount: PublicKey): Promise<Claim[]> {
     const query = gql`
-      query GetClaimsForTokenAccount($tokenAccountId: Bytes!) {
+      query getClaimsForTokenAccount($tokenAccountId: Bytes!) {
         claims(where: { token_account: $tokenAccountId }, orderBy: ts, orderDirection: desc) {
           amount
           ts

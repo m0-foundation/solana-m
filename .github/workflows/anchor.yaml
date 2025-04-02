@@ -57,6 +57,9 @@ jobs:
       - name: Setup Environment
         uses: ./.github/setup
 
+      - name: Install Foundry Toolchain
+        uses: foundry-rs/foundry-toolchain@v1
+
       - name: Install SDK Dependencies
         run: cd sdk && yarn install && cd ..
         shell: bash

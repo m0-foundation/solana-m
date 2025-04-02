@@ -72,9 +72,12 @@ export class Earner {
     // - Fetching the weighted balance of the earner from the last claim timestamp to the current timestamp
     // - Calculating the pending yield as: ((current index - last claim index) / last claim index) * weighted balance
 
+    const currentTime = new BN(Math.floor(Date.now() / 1000));
+
     const evmCaller = new EvmCaller(this.evmClient);
 
-    const { currentIndex, currentTime } = await evmCaller.getCurrentIndexAndTime();
+    // const { currentIndex, currentTime } = await evmCaller.getCurrentIndexAndTime();
+    const currentIndex = await evmCaller.getCurrentIndex();
 
     const earnerWeightedBalance = await this.graph.getTimeWeightedBalance(
       this.data.userTokenAccount,
@@ -82,7 +85,13 @@ export class Earner {
       currentTime,
     );
 
-    let pendingYield = earnerWeightedBalance.mul(currentIndex.sub(this.data.lastClaimIndex)).div(this.data.lastClaimIndex);
+    console.log('earnerWeightedBalance', earnerWeightedBalance.toString());
+    console.log('currentIndex', currentIndex.toString());
+    console.log('lastClaimIndex', this.data.lastClaimIndex.toString());
+
+    let pendingYield = this.data.lastClaimIndex >= currentIndex ? new BN(0) : earnerWeightedBalance.mul(currentIndex.sub(this.data.lastClaimIndex)).div(this.data.lastClaimIndex);
+
+    console.log('pendingYield', pendingYield.toString());
 
     // Check if the earner has an earn manager
     // If so, check if the earn manager has a fee

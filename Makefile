@@ -8,11 +8,12 @@ test-yield-bot:
 	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts 
 
 test-sdk:
-	@anchor localnet --skip-build > /dev/null 2>&1 & \
-	anvil > /dev/null 2>&1 & \
+	@anvil -f https://gateway.tenderly.co/public/sepolia -b 1 > /dev/null 2>&1 & \
+	sleep 2 && \
+	anchor localnet --skip-build > /dev/null 2>&1 & \
 	sleep 2 && \
 	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
-	kill -9 $$(lsof -ti:8899)
+	kill -9 $$(lsof -ti:8899) & kill -9 $$(lsof -ti:8545)
 
 test-local-validator:
 	solana-test-validator --deactivate-feature EenyoWx9UMXYKpR8mW5Jmfmy2fRjzUtM7NduYMY8bx33 -r \

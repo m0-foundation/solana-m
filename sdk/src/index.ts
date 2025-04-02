@@ -15,4 +15,4 @@ export const ETH_M_ADDRESS: `0x${string}` = '0x866A2BF4E572CbcF37D5071A7a58503Bf
 export const ETH_MERKLE_TREE_BUILDER: `0x${string}` = '0x050258e4761650ad774b5090a5DA0e204348Eb48';
 
 // Re-export the viem PublicClient type
-export { PublicClient, createPublicClient, http } from 'viem';
+export { PublicClient, createPublicClient, createTestClient, http } from 'viem';
