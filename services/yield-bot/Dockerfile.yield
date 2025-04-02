@@ -32,4 +32,5 @@ COPY --from=builder /app/node_modules ./node_modules
 # Set production environment
 ENV NODE_ENV=production
 
-CMD ["node_modules/.bin/ts-node", "./services/yield-bot/main.ts", "distribute", "--dryRun", "--keypair", "JIsAxWMPwERUzQQy/vnkQqsF0o7mKrZxk5GzNzB/nLFVv+jlKzp8NlDG9h5UOzCc+Fy4eKlWm7akmsPoSPVvlw=="]
+# Use the environment variable in the command
+CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --dryRun --keypair \"$KEYPAIR\""]
