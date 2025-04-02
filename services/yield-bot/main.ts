@@ -12,6 +12,17 @@ import {
 import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { instructions } from '@sqds/multisig';
+import winston from 'winston';
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  defaultMeta: { name: 'yield-bot' },
+  transports: [new winston.transports.Console()],
+});
+
+console.log = (...data: any[]) => logger.info(`${data}`);
+console.error = (...data: any[]) => logger.error(`${data}`);
 
 interface ParsedOptions {
   signer: Keypair;
@@ -63,18 +74,18 @@ export async function yieldCLI() {
 }
 
 async function distributeYield(opt: ParsedOptions) {
-  console.log('distributing yield');
+  logger.info('distributing yield');
   const auth = await EarnAuthority.load(opt.connection);
 
   if (opt.skipCycle) {
-    console.log('skipping cycle');
+    logger.info('skipping cycle');
     const ix = await auth.buildCompleteClaimCycleInstruction();
     if (!ix) {
       return;
     }
 
     const signature = await buildAndSendTransaction(opt, [ix]);
-    console.log(`cycle complete: ${signature}`);
+    logger.info(`cycle complete: ${signature}`);
     return;
   }
 
@@ -84,13 +95,13 @@ async function distributeYield(opt: ParsedOptions) {
   // build claim instructions
   let claimIxs: TransactionInstruction[] = [];
   for (const earner of earners) {
-    console.log(`claiming yield for ${earner.pubkey.toBase58()}`);
+    logger.info(`claiming yield for ${earner.pubkey.toBase58()}`);
     const ix = await auth.buildClaimInstruction(earner);
     if (ix) claimIxs.push(ix);
   }
 
   const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
-  console.log(`distributing ${distributed} M in yield`);
+  logger.info(`distributing ${distributed} M in yield`);
 
   // complete cycle on last claim transaction
   const ix = await auth.buildCompleteClaimCycleInstruction();
@@ -102,45 +113,45 @@ async function distributeYield(opt: ParsedOptions) {
 
   // send all the claims
   const signatures = await buildAndSendTransaction(opt, filteredIxs);
-  console.log(`yield distributed: ${signatures}`);
+  logger.info(`yield distributed: ${signatures}`);
 }
 
 async function addEarners(opt: ParsedOptions) {
-  console.log('adding earners');
+  logger.info('adding earners');
   const registrar = new Registrar(opt.connection, opt.evmRPC);
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
 
   if (instructions.length === 0) {
-    console.log('no earners to add');
+    logger.info('no earners to add');
     return;
   }
 
   if (opt.dryRun) {
-    console.log(`dry run: not adding ${instructions.length} earners`);
+    logger.info(`dry run: not adding ${instructions.length} earners`);
     return;
   }
 
   const signature = await buildAndSendTransaction(opt, instructions);
-  console.log(`added ${instructions.length} earners: ${signature}`);
+  logger.info(`added ${instructions.length} earners: ${signature}`);
 }
 
 async function removeEarners(opt: ParsedOptions) {
-  console.log('removing earners');
+  logger.info('removing earners');
   const registrar = new Registrar(opt.connection, opt.evmRPC);
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
 
   if (instructions.length === 0) {
-    console.log('no earners to remove');
+    logger.info('no earners to remove');
     return;
   }
 
   if (opt.dryRun) {
-    console.log(`dry run: not removing ${instructions.length} earners`);
+    logger.info(`dry run: not removing ${instructions.length} earners`);
     return;
   }
 
   const signature = await buildAndSendTransaction(opt, instructions);
-  console.log(`removed ${instructions.length} earners: ${signature}`);
+  logger.info(`removed ${instructions.length} earners: ${signature}`);
 }
 
 async function buildAndSendTransaction(
@@ -253,7 +264,7 @@ async function getPriorityFee(): Promise<number> {
 
     // use the 75th percentile as a reasonable default
     const priorityFee = data.sol.per_compute_unit.percentiles['75'];
-    console.log(`got priority fee: ${priorityFee}`);
+    logger.info(`got priority fee: ${priorityFee}`);
 
     return priorityFee;
   } catch (error) {
