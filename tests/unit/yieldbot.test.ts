@@ -3,6 +3,7 @@ import nock from 'nock';
 import { yieldCLI } from '../../services/yield-bot/main';
 
 const SVM_RPC = 'https://api.devnet.solana.com';
+const EVM_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
 
 describe('Yield bot tests', () => {
   const earner = Keypair.generate();
@@ -13,9 +14,9 @@ describe('Yield bot tests', () => {
     const secret = 'JIsAxWMPwERUzQQy/vnkQqsF0o7mKrZxk5GzNzB/nLFVv+jlKzp8NlDG9h5UOzCc+Fy4eKlWm7akmsPoSPVvlw==';
 
     // mock command-line arguments
-    process.argv = ['node', 'maint.ts', 'distribute'];
+    process.argv = ['node', 'main.ts', 'distribute'];
     process.argv.push('-k', secret);
-    process.argv.push('-e', 'https://sepolia.dummy.com');
+    process.argv.push('-e', EVM_RPC);
     process.argv.push('-r', SVM_RPC);
     process.argv.push('--dryRun');
 
@@ -41,7 +42,7 @@ function mockRequestData(earner: PublicKey) {
     })
     .persist();
 
-  nock('https://sepolia.dummy.com')
+  nock(EVM_RPC)
     .post(
       '/',
       // getList (earners)

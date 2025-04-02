@@ -8,6 +8,7 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
+import { createPublicClient, http } from '../../sdk/src';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { MerkleTree } from '../../sdk/src/merkle';
@@ -19,6 +20,7 @@ import { Earner } from '../../sdk/src/earner';
 import nock from 'nock';
 import { Earn } from '../../sdk/src/idl/earn';
 import { ExtEarn } from '../../sdk/src/idl/ext_earn';
+import { create } from 'domain';
 const EARN_IDL = require('../../sdk/src/idl/earn.json');
 const EXT_EARN_IDL = require('../../sdk/src/idl/ext_earn.json');
 
@@ -52,6 +54,9 @@ describe('SDK unit tests', () => {
   const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], earn.programId);
   const [extGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], extEarn.programId);
   const [tokenAuth] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], earn.programId);
+
+  // use local EVM testnet (anvil)
+  const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
 
   beforeAll(async () => {
     const mintATAs = [];
@@ -245,7 +250,7 @@ describe('SDK unit tests', () => {
   describe('rpc', () => {
     test('get all earners', async () => {
       for (const [index, earner] of [earnerA, earnerB].entries()) {
-        const auth = await EarnAuthority.load(connection, index === 0 ? EARN_PROGRAM : EXT_PROGRAM_ID);
+        const auth = await EarnAuthority.load(connection, evmClient, index === 0 ? EARN_PROGRAM : EXT_PROGRAM_ID);
         const earners = await auth.getAllEarners();
         expect(earners).toHaveLength(1);
         expect(earners[0].data.user.toBase58()).toEqual(earner.publicKey.toBase58());
@@ -253,12 +258,12 @@ describe('SDK unit tests', () => {
     });
 
     test('get earn manager', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
       expect(manager.data.feeBps.toNumber()).toEqual(10);
     });
 
     test('manager earners', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
       const earners = await manager.getEarners();
       expect(earners).toHaveLength(1);
       expect(earners[0].data.user.toBase58()).toEqual(earnerB.publicKey.toBase58());
@@ -333,7 +338,7 @@ describe('SDK unit tests', () => {
     const claimIxs: TransactionInstruction[] = [];
 
     test('build claims', async () => {
-      const auth = await EarnAuthority.load(connection);
+      const auth = await EarnAuthority.load(connection, evmClient);
       const earners = await auth.getAllEarners();
 
       for (const earner of earners) {
@@ -344,7 +349,7 @@ describe('SDK unit tests', () => {
     });
 
     test('validate claims and send', async () => {
-      const auth = await EarnAuthority.load(connection);
+      const auth = await EarnAuthority.load(connection, evmClient);
       expect(auth['global'].distributed!.toNumber()).toBe(0);
 
       // will throw on simulation or validation errors
@@ -368,7 +373,7 @@ describe('SDK unit tests', () => {
     });
 
     test('set claim cycle complete', async () => {
-      const auth = await EarnAuthority.load(connection);
+      const auth = await EarnAuthority.load(connection, evmClient);
       const ix = await auth.buildCompleteClaimCycleInstruction();
       await sendAndConfirmTransaction(connection, new Transaction().add(ix!), [signer]);
 
@@ -381,7 +386,7 @@ describe('SDK unit tests', () => {
 
   describe('earn manager', () => {
     test('configure', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
 
       const dummyATA = spl.getAssociatedTokenAddressSync(
         mints[1].publicKey,
@@ -398,7 +403,7 @@ describe('SDK unit tests', () => {
     });
 
     test('add earner', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
 
       const earnerATA = spl.getAssociatedTokenAddressSync(
         mints[1].publicKey,
@@ -410,7 +415,7 @@ describe('SDK unit tests', () => {
       const ix = await manager.buildAddEarnerInstruction(earnerC.publicKey, earnerATA);
       await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
 
-      const earner = await Earner.fromTokenAccount(connection, earnerATA);
+      const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA);
       expect(earner.data.earnManager?.toBase58()).toEqual(manager.manager.toBase58());
     });
   });

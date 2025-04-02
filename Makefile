@@ -9,6 +9,7 @@ test-yield-bot:
 
 test-sdk:
 	@anchor localnet --skip-build > /dev/null 2>&1 & \
+	anvil > /dev/null 2>&1 & \
 	sleep 2 && \
 	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
 	kill -9 $$(lsof -ti:8899)
