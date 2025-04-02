@@ -7,10 +7,15 @@ import Decimal from 'decimal.js';
 
 export const Holders = () => {
   const { rpcUrl } = useSettings();
-  const { data: mintData } = useData(getMintsRPC);
-  const { data: holderData } = useData(tokenHolders);
+  const { data: mintData } = useData('rpc', getMintsRPC);
+  const { data: holderData } = useData('subgraph', tokenHolders);
 
-  const mintSupply = new Decimal(mintData?.M.supply.toString() || '1').div(1e6);
+  // use total supply to calc percentage
+  const toPercentage = (balance: number) => {
+    const supply = mintData?.M?.supply.toString();
+    if (!supply) return 1;
+    return new Decimal(balance).div(new Decimal(supply).div(1e6)).toNumber();
+  };
 
   return (
     <div>
@@ -40,7 +45,7 @@ export const Holders = () => {
               </td>
               <td className="px-2 py-4">M {formatAmount(holder.balance)}</td>
               <td className="px-2 py-4">
-                <ProgressBar percentage={new Decimal(holder.balance).div(mintSupply).toNumber()} />
+                <ProgressBar percentage={toPercentage(holder.balance)} />
               </td>
             </tr>
           ))}

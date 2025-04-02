@@ -1,15 +1,15 @@
+# syntax=docker.io/docker/dockerfile:1.7-labs
+
 FROM node:lts-alpine AS build
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
-
 # Copy local code to the container image.
-COPY . ./
+COPY --exclude=node_modules . ./
 
 # Build the app.
-RUN npm run build
+RUN yarn install
+RUN yarn run build
 
 # Use the Caddy image
 FROM caddy

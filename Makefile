@@ -105,3 +105,10 @@ deploy-index-bot:
 	docker build --build-arg now="$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:index-bot -f services/index-bot/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:index-bot
 	railway redeploy --service "index bot" --yes
+
+deploy-dashboard:
+	cd dashboard && \
+	op inject -i .env -o .env.production && \
+	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:dashboard . && \
+	rm .env.production
+	docker push ghcr.io/m0-foundation/solana-m:dashboard
