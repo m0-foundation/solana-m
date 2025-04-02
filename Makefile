@@ -75,5 +75,6 @@ upgrade-portal-devnet: build-devnet
 #
 # Railway infra
 #
-build-yield-bot:
-	docker build -t yield-bot -f services/yield-bot/Dockerfile.yield .
+update-yield-bot-image:
+	docker build -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile.yield .
+	docker push ghcr.io/m0-foundation/solana-m:yield-bot
