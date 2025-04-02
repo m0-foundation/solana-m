@@ -13,6 +13,7 @@ import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { instructions } from '@sqds/multisig';
 import winston from 'winston';
+import { sign } from 'crypto';
 
 const logger = winston.createLogger({
   level: 'info',
@@ -85,7 +86,7 @@ async function distributeYield(opt: ParsedOptions) {
     }
 
     const signature = await buildAndSendTransaction(opt, [ix]);
-    logger.info(`cycle complete: ${signature}`);
+    logger.info('cycle complete', { signature });
     return;
   }
 
@@ -95,13 +96,18 @@ async function distributeYield(opt: ParsedOptions) {
   // build claim instructions
   let claimIxs: TransactionInstruction[] = [];
   for (const earner of earners) {
-    logger.info(`claiming yield for ${earner.pubkey.toBase58()}`);
+    logger.info('claiming yield for user', { earner: earner.pubkey.toBase58() });
     const ix = await auth.buildClaimInstruction(earner);
     if (ix) claimIxs.push(ix);
   }
 
   const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
-  logger.info(`distributing ${distributed} M in yield`);
+
+  logger.info('distributing M yield', {
+    amount: distributed,
+    claims: filteredIxs.length,
+    belowThreshold: claimIxs.length - filteredIxs.length,
+  });
 
   // complete cycle on last claim transaction
   const ix = await auth.buildCompleteClaimCycleInstruction();
@@ -112,8 +118,8 @@ async function distributeYield(opt: ParsedOptions) {
   filteredIxs.push(ix);
 
   // send all the claims
-  const signatures = await buildAndSendTransaction(opt, filteredIxs);
-  logger.info(`yield distributed: ${signatures}`);
+  const signatures = await buildAndSendTransaction(opt, filteredIxs, 10, 'yield claim');
+  logger.info('yield distributed', { signatures });
 }
 
 async function addEarners(opt: ParsedOptions) {
@@ -127,12 +133,12 @@ async function addEarners(opt: ParsedOptions) {
   }
 
   if (opt.dryRun) {
-    logger.info(`dry run: not adding ${instructions.length} earners`);
+    logger.info('dry run: not adding earners', { earners: instructions.length });
     return;
   }
 
-  const signature = await buildAndSendTransaction(opt, instructions);
-  logger.info(`added ${instructions.length} earners: ${signature}`);
+  const signature = await buildAndSendTransaction(opt, instructions, 10, 'adding earners');
+  logger.info('added earners', { signature, earners: instructions.length });
 }
 
 async function removeEarners(opt: ParsedOptions) {
@@ -146,12 +152,12 @@ async function removeEarners(opt: ParsedOptions) {
   }
 
   if (opt.dryRun) {
-    logger.info(`dry run: not removing ${instructions.length} earners`);
+    logger.info('dry run: not removing earners', { earners: instructions.length });
     return;
   }
 
-  const signature = await buildAndSendTransaction(opt, instructions);
-  logger.info(`removed ${instructions.length} earners: ${signature}`);
+  const signature = await buildAndSendTransaction(opt, instructions, 10, 'removing earners');
+  logger.info('removed earners', { signature, earners: instructions.length });
 }
 
 async function buildAndSendTransaction(
@@ -161,12 +167,13 @@ async function buildAndSendTransaction(
   memo?: string,
 ): Promise<string[]> {
   const priorityFee = await getPriorityFee();
+  const logs: string[][] = [];
 
   // simulate transactions first
   for (const txn of await buildTransactions(opt, ixs, priorityFee, batchSize, memo)) {
     const result = await opt.connection.simulateTransaction(txn, { sigVerify: false });
     if (result.value.err) {
-      console.error({
+      logger.error({
         message: 'Transaction simulation failed',
         logs: result.value.logs,
         err: result.value.err,
@@ -174,17 +181,26 @@ async function buildAndSendTransaction(
       });
       throw new Error(`Transaction simulation failed: ${result.value.logs}`);
     }
+
+    logs.push(result.value.logs ?? []);
   }
 
   const returnData: string[] = [];
-  for (const txn of await buildTransactions(opt, ixs, priorityFee, batchSize, memo)) {
+  for (const [i, txn] of (await buildTransactions(opt, ixs, priorityFee, batchSize, memo)).entries()) {
     // return serialized transaction instead on dry run
     if (opt.dryRun) {
       returnData.push(Buffer.from(txn.serialize()).toString('base64'));
       continue;
     }
 
-    returnData.push(await opt.connection.sendTransaction(txn, { skipPreflight: true }));
+    const sig = await opt.connection.sendTransaction(txn, { skipPreflight: true });
+    returnData.push(sig);
+
+    logger.info('sent transaction', {
+      base64: Buffer.from(txn.serialize()).toString('base64'),
+      logs: logs[i],
+      signature: sig,
+    });
   }
 
   if (opt.dryRun) {
@@ -251,24 +267,24 @@ async function getPriorityFee(): Promise<number> {
     const response = await fetch('https://quicknode.com/_gas-tracker?slug=solana');
 
     if (!response.ok) {
-      console.warn(`failed to fetch priority fee data: ${response.status} ${response.statusText}`);
+      logger.warn('failed to fetch priority fee data', { status: response.status, response: response.statusText });
       return defaultFee;
     }
 
     const data = await response.json();
 
     if (!data?.sol?.per_compute_unit?.percentiles) {
-      console.warn('invalid gas tracker response format');
+      logger.warn('invalid gas tracker response format');
       return defaultFee;
     }
 
     // use the 75th percentile as a reasonable default
     const priorityFee = data.sol.per_compute_unit.percentiles['75'];
-    logger.info(`got priority fee: ${priorityFee}`);
+    logger.debug('got priority fee', { priorityFee });
 
     return priorityFee;
   } catch (error) {
-    console.warn(`error fetching priority fee: ${error}`);
+    logger.warn('error fetching priority fee', { error });
     return defaultFee;
   }
 }
@@ -305,7 +321,7 @@ async function proposeSquadsTransaction(
     vaultIndex: 0,
     ephemeralSigners: 0,
     transactionMessage,
-    memo: memo ?? 'proposal from yield bot',
+    memo: `yield bot: ${memo ?? 'proposal with no memo'}`,
   });
 
   // propose transaction
@@ -331,7 +347,7 @@ async function proposeSquadsTransaction(
 // do not run the cli if this is being imported by jest
 if (!process.argv[1].endsWith('jest')) {
   yieldCLI().catch((error) => {
-    console.error(error);
+    logger.error(error);
     process.exit(1);
   });
 }
