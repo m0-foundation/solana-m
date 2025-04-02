@@ -13,7 +13,6 @@ import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { instructions } from '@sqds/multisig';
 import winston from 'winston';
-import { sign } from 'crypto';
 
 const logger = winston.createLogger({
   level: 'info',
