@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { createPublicClient, getContract, http, PublicClient } from 'viem';
+import { getContract, PublicClient } from 'viem';
 import { ETH_M_ADDRESS, ETH_MERKLE_TREE_BUILDER } from '.';
 import BN from 'bn.js';
 

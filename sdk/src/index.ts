@@ -13,3 +13,6 @@ export const EXT_GLOBAL_ACCOUNT = PublicKey.findProgramAddressSync([Buffer.from(
 // Ethereum contract addresses
 export const ETH_M_ADDRESS: `0x${string}` = '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b';
 export const ETH_MERKLE_TREE_BUILDER: `0x${string}` = '0x050258e4761650ad774b5090a5DA0e204348Eb48';
+
+// Re-export the viem PublicClient type
+export { PublicClient, createPublicClient, http } from 'viem';

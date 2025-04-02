@@ -9,9 +9,9 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { createPublicClient, http, PublicClient } from 'viem';
 import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
+import { PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
 
 interface ParsedOptions {
@@ -43,10 +43,12 @@ export async function yieldCLI() {
         signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
       }
 
+      const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
+
       const options: ParsedOptions = {
         signer,
         connection: new Connection(rpc),
-        evmClient: createPublicClient({ transport: http(evmRPC) }),
+        evmClient,
         dryRun,
         skipCycle,
       };
