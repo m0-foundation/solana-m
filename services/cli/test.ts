@@ -1,11 +1,71 @@
-import { Connection, Keypair } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { signSendWait, UniversalAddress } from '@wormhole-foundation/sdk';
 import { Command } from 'commander';
 import * as multisig from '@sqds/multisig';
-import { keysFromEnv, NttManager } from './utils';
+import { anchorProvider, keysFromEnv, NttManager } from './utils';
+import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID } from '../../sdk/src';
+import { getOrCreateAssociatedTokenAccount, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
+import BN from 'bn.js';
+import { Program } from '@coral-xyz/anchor';
+import { ExtEarn } from '../../target/types/ext_earn';
+const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
 async function main() {
   const program = new Command();
+
+  program
+    .command('wrap-m')
+    .description('Wrap M to wM')
+    .argument('[number]', 'amount', '100000') // 0.1 M
+    .action(async (amount) => {
+      const connection = new Connection(process.env.RPC_URL ?? '');
+      const [sender, m, wM] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
+      const program = new Program<ExtEarn>(EXT_EARN_IDL, EXT_PROGRAM_ID, anchorProvider(connection, sender));
+
+      const mVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], EXT_PROGRAM_ID)[0];
+      const extMintAuthority = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], EXT_PROGRAM_ID)[0];
+
+      const atas: PublicKey[] = [];
+      for (const [mint, owner] of [
+        [m.publicKey, sender.publicKey],
+        [wM.publicKey, sender.publicKey],
+        [m.publicKey, mVault],
+      ]) {
+        const { address } = await getOrCreateAssociatedTokenAccount(
+          connection,
+          sender,
+          mint,
+          owner,
+          true,
+          undefined,
+          undefined,
+          TOKEN_2022_PROGRAM_ID,
+        );
+        atas.push(address);
+      }
+
+      const [userMTokenAccount, userExtTokenAccount, vaultMTokenAccount] = atas;
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+
+      const sig = await program.methods
+        .wrap(new BN(amount))
+        .accounts({
+          signer: sender.publicKey,
+          mMint: m.publicKey,
+          extMint: wM.publicKey,
+          globalAccount: EXT_GLOBAL_ACCOUNT,
+          mVault,
+          extMintAuthority,
+          userMTokenAccount,
+          vaultMTokenAccount,
+          userExtTokenAccount,
+          token2022: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([sender])
+        .rpc({ commitment: 'processed' });
+
+      console.log(`Wrapped ${amount} M: ${sig}`);
+    });
 
   program
     .command('send-testnet')

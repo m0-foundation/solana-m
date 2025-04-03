@@ -32,22 +32,22 @@ import {
 import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
-import { Program, Wallet, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { Program, BN } from '@coral-xyz/anchor';
 import * as multisig from '@sqds/multisig';
 import { Earn } from '../../target/types/earn';
 import { ExtEarn } from '../../target/types/ext_earn';
-import { keysFromEnv, NttManager } from './utils';
+import { anchorProvider, keysFromEnv, NttManager } from './utils';
 import { MerkleTree } from '../../sdk/src/merkle';
 import { EvmCaller } from '../../sdk/src/evm_caller';
+import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
 const EARN_IDL = require('../../target/idl/earn.json');
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
 const PROGRAMS = {
-  // TODO should these be imported from the SDK so they are consistent?
   // program id the same for devnet and mainnet
   portal: new PublicKey('mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY'),
-  earn: new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c'),
-  extEarn: new PublicKey('wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko'),
+  earn: PROGRAM_ID,
+  extEarn: EXT_PROGRAM_ID,
   // addresses the same across L2s
   evmTransiever: '0x0763196A091575adF99e2306E5e90E0Be5154841',
   evmPeer: '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd',
@@ -69,27 +69,32 @@ async function main() {
     .command('print-addresses')
     .description('Print the addresses of all the relevant programs and accounts')
     .action(() => {
-      console.log('Programs:');
-      console.log(`Portal: ${PROGRAMS.portal.toBase58()} | 0x${PROGRAMS.portal.toBuffer().toString('hex')}`);
-      console.log(`Earn: ${PROGRAMS.earn.toBase58()} | 0x${PROGRAMS.earn.toBuffer().toString('hex')}`);
-      console.log(`ExtEarn: ${PROGRAMS.extEarn.toBase58()} | 0x${PROGRAMS.extEarn.toBuffer().toString('hex')}`);
-      
       const [mMint, wmMint, multisig] = keysFromEnv(['M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
-      console.log(`M Mint: ${mMint.publicKey.toBase58()} | 0x${mMint.publicKey.toBuffer().toString('hex')}`);
-      console.log(`M Mint Multisig: ${multisig.publicKey.toBase58()} | 0x${multisig.publicKey.toBuffer().toString('hex')}`);
-
       const [portalTokenAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.portal);
       const [earnTokenAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.earn);
-      console.log(`Portal Token Authority PDA: ${portalTokenAuthPda.toBase58()} | 0x${portalTokenAuthPda.toBuffer().toString('hex')}`);
-      console.log(`Earn Token Authority PDA: ${earnTokenAuthPda.toBase58()} | 0x${earnTokenAuthPda.toBuffer().toString('hex')}`);
-
-      console.log(`wM Mint: ${wmMint.publicKey.toBase58()} | 0x${wmMint.publicKey.toBuffer().toString('hex')}`);
-      
       const [mVaultPda] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], PROGRAMS.extEarn);
-      console.log(`ExtEarn M Vault PDA: ${mVaultPda.toBase58()} | 0x${mVaultPda.toBuffer().toString('hex')}`);
-
       const [mintAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], PROGRAMS.extEarn);
-      console.log(`ExtEarn Mint Authority PDA: ${mintAuthPda.toBase58()} | 0x${mintAuthPda.toBuffer().toString('hex')}`);
+
+      const addresses = {
+        'Portal Program': PROGRAMS.portal,
+        'Earn Program': PROGRAMS.earn,
+        'ExtEarn Program': PROGRAMS.extEarn,
+        'M Mint': mMint.publicKey,
+        'M Mint Multisig': multisig.publicKey,
+        'Portal Token Authority': portalTokenAuthPda,
+        'Earn Token Authority': earnTokenAuthPda,
+        'wM Mint': wmMint.publicKey,
+        'ExtEarn M Vault': mVaultPda,
+        'ExtEarn Mint Authority': mintAuthPda,
+      };
+
+      const tableData = Object.entries(addresses).map(([name, pubkey]) => ({
+        Name: name,
+        Address: pubkey.toBase58(),
+        Hex: `0x${pubkey.toBuffer().toString('hex')}`,
+      }));
+
+      console.table(tableData);
     });
 
   program
@@ -129,8 +134,8 @@ async function main() {
         null, // no freeze authority
         'M by M^0',
         'M',
-        'https://assets.coingecko.com/coins/images/40048/large/M_Symbol_256.png',
-        PROGRAMS.mToken
+        'https://media.m0.org/logos/svg/M_Symbol_512.svg',
+        PROGRAMS.mToken,
       );
       console.log(`M Mint created: ${mint.publicKey.toBase58()}`);
     });
@@ -138,22 +143,23 @@ async function main() {
   program
     .command('create-wm-mint')
     .description('Create a new Token2022 mint for the Wrapped M token')
-    .action(async () => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']); 
+    .argument('freeze authority', 'The freeze authority for the mint (pubkey)')
+    .action(async (freezeAuth: string) => {
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']);
 
       const mintAuthority = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], PROGRAMS.extEarn)[0];
-      const freezeAuthority = owner.publicKey; // TODO set freeze authority for wM
+      const freezeAuthority = new PublicKey(freezeAuth);
 
       await createToken2022Mint(
         connection,
         owner,
-        mint, 
-        mintAuthority, 
+        mint,
+        mintAuthority,
         freezeAuthority,
         'WrappedM by M^0',
         'wM',
-        'https://assets.coingecko.com/coins/images/40048/large/M_Symbol_256.png', // TODO change to wM image
-        PROGRAMS.wmToken
+        'https://media.m0.org/logos/svg/wM_Symbol_512.svg',
+        PROGRAMS.wmToken,
       );
       console.log(`wM Mint created: ${mint.publicKey.toBase58()}`);
     });
@@ -180,21 +186,26 @@ async function main() {
   program
     .command('initialize-earn')
     .description('Initialize the earn program')
-    .action(async () => {
+    .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
+    .action(async ({ squadsEarnAuth }) => {
       const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
       const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
 
-      const [vaultPda] = multisig.getVaultPda({
-        multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
-        index: 0,
-      });
+      let earnAuth = owner.publicKey;
+
+      if (squadsEarnAuth) {
+        earnAuth = multisig.getVaultPda({
+          multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
+          index: 0,
+        })[0];
+      }
 
       await earn.methods
         .initialize(
           mint.publicKey,
-          vaultPda,
+          earnAuth,
           new BN(1001886486057), // initial index // TODO programmatically get from mainnet at deployment time
           new BN(5 * 60), // cooldown
         )
@@ -209,21 +220,25 @@ async function main() {
   program
     .command('initialize-ext-earn')
     .description('Initialize the extension earn program')
-    .action(async () => {
+    .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
+    .action(async ({ squadsEarnAuth }) => {
       const [owner, mMint, wmMint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
 
       const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, PROGRAMS.extEarn, anchorProvider(connection, owner));
       const [earnGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
       const [extGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.extEarn);
 
-      // TODO confirm this address for the wM earn authority
-      const [vaultPda] = multisig.getVaultPda({
-        multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
-        index: 0,
-      });
+      let earnAuth = owner.publicKey;
+
+      if (squadsEarnAuth) {
+        earnAuth = multisig.getVaultPda({
+          multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
+          index: 0,
+        })[0];
+      }
 
       await extEarn.methods
-        .initialize(vaultPda)
+        .initialize(earnAuth)
         .accounts({
           admin: owner.publicKey,
           globalAccount: extGlobalAccount,
@@ -231,7 +246,7 @@ async function main() {
           extMint: wmMint.publicKey,
           mEarnGlobalAccount: earnGlobalAccount,
           token2022: TOKEN_2022_PROGRAM_ID,
-          systemProgram: SystemProgram.programId
+          systemProgram: SystemProgram.programId,
         })
         .signers([owner])
         .rpc();
@@ -391,23 +406,16 @@ async function main() {
   await program.parseAsync(process.argv);
 }
 
-function anchorProvider(connection: Connection, owner: Keypair) {
-  return new AnchorProvider(connection, new Wallet(owner), {
-    commitment: 'confirmed',
-    skipPreflight: false,
-  });
-}
-
 async function createToken2022Mint(
   connection: Connection,
-  owner: Keypair, 
-  mint: Keypair, 
-  mintAuthority: PublicKey, 
-  freezeAuthority: PublicKey | null, 
-  tokenName: string, 
+  owner: Keypair,
+  mint: Keypair,
+  mintAuthority: PublicKey,
+  freezeAuthority: PublicKey | null,
+  tokenName: string,
   tokenSymbol: string,
   tokenUri: string,
-  evmTokenAddress: string
+  evmTokenAddress: string,
 ) {
   const metaData: TokenMetadata = {
     updateAuthority: owner.publicKey,
