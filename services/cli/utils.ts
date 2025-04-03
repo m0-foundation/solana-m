@@ -2,6 +2,7 @@ import { Keypair, Connection, PublicKey } from '@solana/web3.js';
 import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
 import { SolanaPlatform, SolanaSendSigner } from '@wormhole-foundation/sdk-solana';
 import { Wormhole } from '@wormhole-foundation/sdk';
+import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 
 const PORTAL = new PublicKey('mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY');
 
@@ -38,4 +39,11 @@ export function NttManager(connection: Connection, owner: Keypair, mint: PublicK
   );
 
   return { ctx, ntt, signer, sender };
+}
+
+export function anchorProvider(connection: Connection, owner: Keypair) {
+  return new AnchorProvider(connection, new Wallet(owner), {
+    commitment: 'confirmed',
+    skipPreflight: false,
+  });
 }

@@ -7,6 +7,7 @@ macro_rules! pubkey {
 }
 
 pub const MINT: Pubkey = pubkey!("mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6");
+pub const EXT_MINT: Pubkey = pubkey!("mzeroXDoBpRVhnEXBra27qzAMdxgpWVY3DzQW7xMVJp");
 pub const COMPUTE_PID: Pubkey = pubkey!("ComputeBudget111111111111111111111111111111");
 pub const SYSTEM_PID: Pubkey = pubkey!("11111111111111111111111111111111");
 pub const MEMO_PID: Pubkey = pubkey!("Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo");

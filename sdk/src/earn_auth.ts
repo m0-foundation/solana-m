@@ -197,7 +197,7 @@ class EarnAuthority {
         console.error({
           message: 'Claim batch simulation failed',
           logs: result.value.logs,
-          err: result.value.err,
+          err: result.value.err.toString(),
           b64: Buffer.from(txn.serialize()).toString('base64'),
         });
         throw new Error(`Claim batch simulation failed: ${JSON.stringify(result.value.err)}`);

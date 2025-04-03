@@ -41,6 +41,7 @@ yield-bot-devnet:
 # Devnet upgrade commands
 #
 EARN_PROGRAM_ID := MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c
+EXT_EARN_PROGRAM_ID := wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko
 PORTAL_PROGRAM_ID := mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY
 DEVNET_KEYPAIR := devnet-keypair.json
 COMPUTE_UNIT_PRICE := 300000
@@ -69,5 +70,18 @@ endef
 upgrade-earn-devnet: build-devnet
 	$(call upgrade_program,earn,$(EARN_PROGRAM_ID))
 
+upgrade-earn-devnet: build-devnet
+	$(call upgrade_program,ext_earn,$(EXT_EARN_PROGRAM_ID))
+
 upgrade-portal-devnet: build-devnet
 	$(call upgrade_program,portal,$(PORTAL_PROGRAM_ID))
+
+
+#
+# Railway infra
+#
+deploy-yield-bot:
+	railway environment development
+	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile .
+	docker push ghcr.io/m0-foundation/solana-m:yield-bot
+	railway redeploy --service solana-m --yes
