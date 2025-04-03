@@ -8,6 +8,7 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
+import { createPublicClient, createTestClient, http } from '../../sdk/src';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { MerkleTree } from '../../sdk/src/merkle';
@@ -52,6 +53,42 @@ describe('SDK unit tests', () => {
   const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], earn.programId);
   const [extGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], extEarn.programId);
   const [tokenAuth] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], earn.programId);
+
+  // use local EVM testnet (anvil)
+  const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
+
+  // change the timestamp and latest index on EVM to have deterministic results in the tests
+  const testClient = createTestClient({ mode: 'anvil', transport: http('http://localhost:8545') });
+
+  const setIndex = async (index: BN, timestamp: BN) => {
+    // Slot 0 on the M Token stores three values:
+    // 1. latestIndex (16 bytes)
+    // 2. latestRate (4 bytes)
+    // 3. latestUpdateTimeStamp (5 bytes)
+
+    const slot: `0x${string}` = ('0x' + new BN(0).toString('hex').padStart(64, '0')) as `0x${string}`;
+
+    // Get the current value of the slot
+    const currentValue =
+      (await evmClient.getStorageAt({
+        address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+        slot,
+      })) ?? slot; // fallback to 0 value if not found, we use the slot variable here for convenience since it is that value
+
+    const latestRate = currentValue.slice(32, 40);
+
+    // Construct the new value and set it
+    const newIndex = index.toString('hex').padStart(32, '0');
+    const newTimestamp = timestamp.toString('hex').padStart(24, '0');
+
+    const newValue = ('0x' + newTimestamp + latestRate + newIndex) as `0x${string}`;
+
+    testClient.setStorageAt({
+      address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+      index: slot,
+      value: newValue,
+    });
+  };
 
   beforeAll(async () => {
     const mintATAs = [];
@@ -245,7 +282,7 @@ describe('SDK unit tests', () => {
   describe('rpc', () => {
     test('get all earners', async () => {
       for (const [index, earner] of [earnerA, earnerB].entries()) {
-        const auth = await EarnAuthority.load(connection, index === 0 ? EARN_PROGRAM : EXT_PROGRAM_ID);
+        const auth = await EarnAuthority.load(connection, evmClient, index === 0 ? EARN_PROGRAM : EXT_PROGRAM_ID);
         const earners = await auth.getAllEarners();
         expect(earners).toHaveLength(1);
         expect(earners[0].data.user.toBase58()).toEqual(earner.publicKey.toBase58());
@@ -253,12 +290,12 @@ describe('SDK unit tests', () => {
     });
 
     test('get earn manager', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
       expect(manager.data.feeBps.toNumber()).toEqual(10);
     });
 
     test('manager earners', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
       const earners = await manager.getEarners();
       expect(earners).toHaveLength(1);
       expect(earners[0].data.user.toBase58()).toEqual(earnerB.publicKey.toBase58());
@@ -333,18 +370,18 @@ describe('SDK unit tests', () => {
     const claimIxs: TransactionInstruction[] = [];
 
     test('build claims', async () => {
-      const auth = await EarnAuthority.load(connection);
+      const auth = await EarnAuthority.load(connection, evmClient);
       const earners = await auth.getAllEarners();
 
       for (const earner of earners) {
-        earner.data.lastClaimTimestamp = auth['global'].timestamp;
+        // earner.data.lastClaimTimestamp = auth['global'].timestamp;
         const ix = await auth.buildClaimInstruction(earner);
         claimIxs.push(ix!);
       }
     });
 
     test('validate claims and send', async () => {
-      const auth = await EarnAuthority.load(connection);
+      const auth = await EarnAuthority.load(connection, evmClient);
       expect(auth['global'].distributed!.toNumber()).toBe(0);
 
       // will throw on simulation or validation errors
@@ -368,7 +405,7 @@ describe('SDK unit tests', () => {
     });
 
     test('set claim cycle complete', async () => {
-      const auth = await EarnAuthority.load(connection);
+      const auth = await EarnAuthority.load(connection, evmClient);
       const ix = await auth.buildCompleteClaimCycleInstruction();
       await sendAndConfirmTransaction(connection, new Transaction().add(ix!), [signer]);
 
@@ -381,7 +418,7 @@ describe('SDK unit tests', () => {
 
   describe('earn manager', () => {
     test('configure', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
 
       const dummyATA = spl.getAssociatedTokenAddressSync(
         mints[1].publicKey,
@@ -398,7 +435,7 @@ describe('SDK unit tests', () => {
     });
 
     test('add earner', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
 
       const earnerATA = spl.getAssociatedTokenAddressSync(
         mints[1].publicKey,
@@ -410,8 +447,112 @@ describe('SDK unit tests', () => {
       const ix = await manager.buildAddEarnerInstruction(earnerC.publicKey, earnerATA);
       await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
 
-      const earner = await Earner.fromTokenAccount(connection, earnerATA);
+      const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA);
       expect(earner.data.earnManager?.toBase58()).toEqual(manager.manager.toBase58());
+    });
+  });
+
+  describe('earner', () => {
+    describe('getClaimedYield', () => {
+      test('earn program', async () => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[0].publicKey,
+          earnerA.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EARN_PROGRAM);
+        const claimed = await earner.getClaimedYield();
+        expect(claimed.toString()).toEqual('9000000');
+      });
+
+      test('ext earn program', async () => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earnerB.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
+        const claimed = await earner.getClaimedYield();
+        expect(claimed.toString()).toEqual('5000000');
+      });
+    });
+
+    describe('getPendingYield', () => {
+      beforeAll(async () => {
+        // Set a later index on the EVM contract so that there is some pending yield
+        await setIndex(new BN(1_020_100_000_000), new BN((await evmClient.getBlock()).timestamp.toString()));
+      });
+
+      test('earn program', async () => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[0].publicKey,
+          earnerA.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EARN_PROGRAM);
+        const pending = await earner.getPendingYield();
+
+        // Earner's weighted balance over the period is 5,000,000 M
+        // The index is increased by 1% since their last claim
+        // Therefore, the pending yield should be 50,000 M
+        expect(pending.toString()).toEqual('50000000000'.toString());
+      });
+
+      test('ext earn program - with manager fee', async () => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earnerB.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
+        const pending = await earner.getPendingYield();
+
+        // Earners's weighted balance over the period is 2,000,000
+        // The index increased by 2.01% since their last claim
+        // The total pending yield is 40,200 M
+        // The earn manager takes a 15 basis point fee
+        // Therefore, the earner's pending yield should be 40,200 * (1 - 0.0015) = 40,139.7 M
+        expect(pending.toString()).toEqual('40139700000'.toString());
+      });
+
+      test('ext earn program - no manager fee', async () => {
+        // Set the earn manager to 0% fee
+        const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
+
+        const dummyATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earnerA.publicKey,
+          true,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const ix = await manager.buildConfigureInstruction(0, dummyATA);
+        await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
+
+        // Get the pending yield for the earner and compare with the expected value
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earnerB.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
+        const pending = await earner.getPendingYield();
+
+        // Earner's weighted balance over the period is 2,000,000 M
+        // The index increased by 2.01% since their last claim
+        // The total pending yield is 40,200 M
+        expect(pending.toString()).toEqual('40200000000'.toString());
+      });
     });
   });
 });
@@ -448,7 +589,9 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) => body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+      (body) =>
+        body.operationName === 'getBalanceUpdates' &&
+        body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
     )
     .reply(200, {
       data: {
@@ -463,7 +606,9 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) => body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+      (body) =>
+        body.operationName === 'getBalanceUpdates' &&
+        body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
     )
     .reply(200, {
       data: {
@@ -479,4 +624,56 @@ function mockSubgraph() {
       },
     })
     .persist();
+
+  nock('https://api.studio.thegraph.com')
+    .post(
+      '/query/106645/m-token-transactions/version/latest',
+      (body) =>
+        body.operationName === 'getClaimsForTokenAccount' &&
+        body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+    )
+    .reply(200, {
+      data: {
+        claims: [
+          {
+            amount: '5000000',
+            ts: '100',
+            signature: '0x',
+            recipient_token_account: {
+              pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+            },
+          },
+          {
+            amount: '4000000',
+            ts: '200',
+            signature: '0x',
+            recipient_token_account: {
+              pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+            },
+          },
+        ],
+      },
+    });
+
+  nock('https://api.studio.thegraph.com')
+    .post(
+      '/query/106645/m-token-transactions/version/latest',
+      (body) =>
+        body.operationName === 'getClaimsForTokenAccount' &&
+        body.variables.tokenAccountId !== '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+    )
+    .reply(200, {
+      data: {
+        claims: [
+          {
+            amount: '5000000',
+            ts: '100',
+            signature: '0x',
+            recipient_token_account: {
+              pubkey: '0xd088f35850618fd9c71c18b2c8ebcdff4dfc192bb22b64826fac4dc0136b5685',
+            },
+          },
+        ],
+      },
+    });
 }

@@ -11,6 +11,7 @@ import {
 } from '@solana/web3.js';
 import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
+import { PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
 import winston from 'winston';
 
@@ -19,7 +20,7 @@ const logger = configureLogger();
 interface ParsedOptions {
   signer: Keypair;
   connection: Connection;
-  evmRPC: string;
+  evmClient: PublicClient;
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
@@ -46,10 +47,12 @@ export async function yieldCLI() {
         signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
       }
 
+      const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
+
       const options: ParsedOptions = {
         signer,
         connection: new Connection(rpc),
-        evmRPC,
+        evmClient,
         dryRun,
         skipCycle,
       };
@@ -67,7 +70,7 @@ export async function yieldCLI() {
 }
 
 async function distributeYield(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient);
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
@@ -119,8 +122,9 @@ async function distributeYield(opt: ParsedOptions) {
 }
 
 async function addEarners(opt: ParsedOptions) {
-  logger.info('adding earners');
-  const registrar = new Registrar(opt.connection, opt.evmRPC);
+  console.log('adding earners');
+  const registrar = new Registrar(opt.connection, opt.evmClient);
+
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
 
   if (instructions.length === 0) {
@@ -133,8 +137,9 @@ async function addEarners(opt: ParsedOptions) {
 }
 
 async function removeEarners(opt: ParsedOptions) {
-  logger.info('removing earners');
-  const registrar = new Registrar(opt.connection, opt.evmRPC);
+  console.log('removing earners');
+  const registrar = new Registrar(opt.connection, opt.evmClient);
+
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
 
   if (instructions.length === 0) {

@@ -1,1661 +1,1655 @@
 export type ExtEarn = {
-  "version": "0.1.0",
-  "name": "ext_earn",
-  "constants": [
+  version: '0.1.0';
+  name: 'ext_earn';
+  constants: [
     {
-      "name": "EARNER_SEED",
-      "type": "bytes",
-      "value": "[101, 97, 114, 110, 101, 114]"
+      name: 'EARNER_SEED';
+      type: 'bytes';
+      value: '[101, 97, 114, 110, 101, 114]';
     },
     {
-      "name": "EARN_MANAGER_SEED",
-      "type": "bytes",
-      "value": "[101, 97, 114, 110, 95, 109, 97, 110, 97, 103, 101, 114]"
+      name: 'EARN_MANAGER_SEED';
+      type: 'bytes';
+      value: '[101, 97, 114, 110, 95, 109, 97, 110, 97, 103, 101, 114]';
     },
     {
-      "name": "EXT_GLOBAL_SEED",
-      "type": "bytes",
-      "value": "[103, 108, 111, 98, 97, 108]"
+      name: 'EXT_GLOBAL_SEED';
+      type: 'bytes';
+      value: '[103, 108, 111, 98, 97, 108]';
     },
     {
-      "name": "MINT_AUTHORITY_SEED",
-      "type": "bytes",
-      "value": "[109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
+      name: 'MINT_AUTHORITY_SEED';
+      type: 'bytes';
+      value: '[109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]';
     },
     {
-      "name": "M_VAULT_SEED",
-      "type": "bytes",
-      "value": "[109, 95, 118, 97, 117, 108, 116]"
-    }
-  ],
-  "instructions": [
+      name: 'M_VAULT_SEED';
+      type: 'bytes';
+      value: '[109, 95, 118, 97, 117, 108, 116]';
+    },
+  ];
+  instructions: [
     {
-      "name": "initialize",
-      "accounts": [
+      name: 'initialize';
+      accounts: [
         {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
+          name: 'admin';
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "mMint",
-          "isMut": false,
-          "isSigner": false
+          name: 'mMint';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "extMint",
-          "isMut": false,
-          "isSigner": false
+          name: 'extMint';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "mEarnGlobalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'mEarnGlobalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "token2022",
-          "isMut": false,
-          "isSigner": false
+          name: 'token2022';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: 'systemProgram';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "earnAuthority",
-          "type": "publicKey"
-        }
-      ]
+          name: 'earnAuthority';
+          type: 'publicKey';
+        },
+      ];
     },
     {
-      "name": "setEarnAuthority",
-      "accounts": [
+      name: 'setEarnAuthority';
+      accounts: [
         {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
+          name: 'admin';
+          isMut: false;
+          isSigner: true;
         },
         {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: 'globalAccount';
+          isMut: true;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "newEarnAuthority",
-          "type": "publicKey"
-        }
-      ]
+          name: 'newEarnAuthority';
+          type: 'publicKey';
+        },
+      ];
     },
     {
-      "name": "addEarnManager",
-      "accounts": [
+      name: 'addEarnManager';
+      accounts: [
         {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
+          name: 'admin';
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnManagerAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "feeTokenAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'feeTokenAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: 'systemProgram';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "earnManager",
-          "type": "publicKey"
+          name: 'earnManager';
+          type: 'publicKey';
         },
         {
-          "name": "feeBps",
-          "type": "u64"
-        }
-      ]
+          name: 'feeBps';
+          type: 'u64';
+        },
+      ];
     },
     {
-      "name": "removeEarnManager",
-      "accounts": [
+      name: 'removeEarnManager';
+      accounts: [
         {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
+          name: 'admin';
+          isMut: false;
+          isSigner: true;
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
+          name: 'earnManagerAccount';
+          isMut: true;
+          isSigner: false;
+        },
+      ];
+      args: [];
     },
     {
-      "name": "claimFor",
-      "accounts": [
+      name: 'claimFor';
+      accounts: [
         {
-          "name": "earnAuthority",
-          "isMut": false,
-          "isSigner": true
+          name: 'earnAuthority';
+          isMut: false;
+          isSigner: true;
         },
         {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "extMint",
-          "isMut": true,
-          "isSigner": false
+          name: 'extMint';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "extMintAuthority",
-          "isMut": false,
-          "isSigner": false
+          name: 'extMintAuthority';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "mVaultAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'mVaultAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "vaultMTokenAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'vaultMTokenAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "userTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userTokenAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'earnManagerAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "earnManagerTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnManagerTokenAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "token2022",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: 'token2022';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "snapshotBalance",
-          "type": "u64"
-        }
-      ]
+          name: 'snapshotBalance';
+          type: 'u64';
+        },
+      ];
     },
     {
-      "name": "sync",
-      "accounts": [
+      name: 'sync';
+      accounts: [
         {
-          "name": "earnAuthority",
-          "isMut": false,
-          "isSigner": true
+          name: 'earnAuthority';
+          isMut: false;
+          isSigner: true;
         },
         {
-          "name": "mEarnGlobalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'mEarnGlobalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
+          name: 'globalAccount';
+          isMut: true;
+          isSigner: false;
+        },
+      ];
+      args: [];
     },
     {
-      "name": "addEarner",
-      "accounts": [
+      name: 'addEarner';
+      accounts: [
         {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
+          name: 'signer';
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'earnManagerAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "userTokenAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'userTokenAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: 'systemProgram';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "user",
-          "type": "publicKey"
-        }
-      ]
+          name: 'user';
+          type: 'publicKey';
+        },
+      ];
     },
     {
-      "name": "removeEarner",
-      "accounts": [
+      name: 'removeEarner';
+      accounts: [
         {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
+          name: 'signer';
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'earnManagerAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
+          name: 'systemProgram';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [];
     },
     {
-      "name": "configureEarnManager",
-      "accounts": [
+      name: 'configureEarnManager';
+      accounts: [
         {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
+          name: 'signer';
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnManagerAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "feeTokenAccount",
-          "isMut": false,
-          "isSigner": false,
-          "isOptional": true
-        }
-      ],
-      "args": [
+          name: 'feeTokenAccount';
+          isMut: false;
+          isSigner: false;
+          isOptional: true;
+        },
+      ];
+      args: [
         {
-          "name": "feeBps",
-          "type": {
-            "option": "u64"
-          }
-        }
-      ]
+          name: 'feeBps';
+          type: {
+            option: 'u64';
+          };
+        },
+      ];
     },
     {
-      "name": "transferEarner",
-      "accounts": [
+      name: 'transferEarner';
+      accounts: [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
+          name: 'signer';
+          isMut: false;
+          isSigner: true;
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "fromEarnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'fromEarnManagerAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "toEarnManagerAccount",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: 'toEarnManagerAccount';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "toEarnManager",
-          "type": "publicKey"
-        }
-      ]
+          name: 'toEarnManager';
+          type: 'publicKey';
+        },
+      ];
     },
     {
-      "name": "setRecipient",
-      "accounts": [
+      name: 'setRecipient';
+      accounts: [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
+          name: 'signer';
+          isMut: false;
+          isSigner: true;
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "recipientTokenAccount",
-          "isMut": false,
-          "isSigner": false,
-          "isOptional": true
-        }
-      ],
-      "args": []
+          name: 'recipientTokenAccount';
+          isMut: false;
+          isSigner: false;
+          isOptional: true;
+        },
+      ];
+      args: [];
     },
     {
-      "name": "wrap",
-      "accounts": [
+      name: 'wrap';
+      accounts: [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
+          name: 'signer';
+          isMut: false;
+          isSigner: true;
         },
         {
-          "name": "mMint",
-          "isMut": false,
-          "isSigner": false
+          name: 'mMint';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "extMint",
-          "isMut": true,
-          "isSigner": false
+          name: 'extMint';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "mVault",
-          "isMut": false,
-          "isSigner": false
+          name: 'mVault';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "extMintAuthority",
-          "isMut": false,
-          "isSigner": false
+          name: 'extMintAuthority';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "userMTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userMTokenAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "vaultMTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'vaultMTokenAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "userExtTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userExtTokenAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "token2022",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: 'token2022';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
+          name: 'amount';
+          type: 'u64';
+        },
+      ];
     },
     {
-      "name": "unwrap",
-      "accounts": [
+      name: 'unwrap';
+      accounts: [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
+          name: 'signer';
+          isMut: false;
+          isSigner: true;
         },
         {
-          "name": "mMint",
-          "isMut": false,
-          "isSigner": false
+          name: 'mMint';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "extMint",
-          "isMut": true,
-          "isSigner": false
+          name: 'extMint';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "mVault",
-          "isMut": false,
-          "isSigner": false
+          name: 'mVault';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "userMTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userMTokenAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "vaultMTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'vaultMTokenAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "userExtTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userExtTokenAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "token2022",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: 'token2022';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
+          name: 'amount';
+          type: 'u64';
+        },
+      ];
     },
     {
-      "name": "removeOrphanedEarner",
-      "accounts": [
+      name: 'removeOrphanedEarner';
+      accounts: [
         {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
+          name: 'signer';
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount';
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'earnManagerAccount';
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    }
-  ],
-  "accounts": [
+          name: 'systemProgram';
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [];
+    },
+  ];
+  accounts: [
     {
-      "name": "global",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: 'global';
+      type: {
+        kind: 'struct';
+        fields: [
           {
-            "name": "admin",
-            "type": "publicKey"
+            name: 'admin';
+            type: 'publicKey';
           },
           {
-            "name": "earnAuthority",
-            "type": "publicKey"
+            name: 'earnAuthority';
+            type: 'publicKey';
           },
           {
-            "name": "portalAuthority",
-            "type": "publicKey"
+            name: 'portalAuthority';
+            type: 'publicKey';
           },
           {
-            "name": "mint",
-            "type": "publicKey"
+            name: 'mint';
+            type: 'publicKey';
           },
           {
-            "name": "index",
-            "type": "u64"
+            name: 'index';
+            type: 'u64';
           },
           {
-            "name": "timestamp",
-            "type": "u64"
+            name: 'timestamp';
+            type: 'u64';
           },
           {
-            "name": "claimCooldown",
-            "type": "u64"
+            name: 'claimCooldown';
+            type: 'u64';
           },
           {
-            "name": "maxSupply",
-            "type": "u64"
+            name: 'maxSupply';
+            type: 'u64';
           },
           {
-            "name": "maxYield",
-            "type": "u64"
+            name: 'maxYield';
+            type: 'u64';
           },
           {
-            "name": "distributed",
-            "type": "u64"
+            name: 'distributed';
+            type: 'u64';
           },
           {
-            "name": "claimComplete",
-            "type": "bool"
+            name: 'claimComplete';
+            type: 'bool';
           },
           {
-            "name": "earnerMerkleRoot",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            name: 'earnerMerkleRoot';
+            type: {
+              array: ['u8', 32];
+            };
           },
           {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
+            name: 'bump';
+            type: 'u8';
+          },
+        ];
+      };
     },
     {
-      "name": "earnManager",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: 'earnManager';
+      type: {
+        kind: 'struct';
+        fields: [
           {
-            "name": "earnManager",
-            "type": "publicKey"
+            name: 'earnManager';
+            type: 'publicKey';
           },
           {
-            "name": "isActive",
-            "type": "bool"
+            name: 'isActive';
+            type: 'bool';
           },
           {
-            "name": "feeBps",
-            "type": "u64"
+            name: 'feeBps';
+            type: 'u64';
           },
           {
-            "name": "feeTokenAccount",
-            "type": "publicKey"
+            name: 'feeTokenAccount';
+            type: 'publicKey';
           },
           {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
+            name: 'bump';
+            type: 'u8';
+          },
+        ];
+      };
     },
     {
-      "name": "earner",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: 'earner';
+      type: {
+        kind: 'struct';
+        fields: [
           {
-            "name": "lastClaimIndex",
-            "type": "u64"
+            name: 'lastClaimIndex';
+            type: 'u64';
           },
           {
-            "name": "lastClaimTimestamp",
-            "type": "u64"
+            name: 'lastClaimTimestamp';
+            type: 'u64';
           },
           {
-            "name": "bump",
-            "type": "u8"
+            name: 'bump';
+            type: 'u8';
           },
           {
-            "name": "user",
-            "type": "publicKey"
+            name: 'user';
+            type: 'publicKey';
           },
           {
-            "name": "userTokenAccount",
-            "type": "publicKey"
+            name: 'userTokenAccount';
+            type: 'publicKey';
           },
           {
-            "name": "earnManager",
-            "type": "publicKey"
+            name: 'earnManager';
+            type: 'publicKey';
           },
           {
-            "name": "recipientTokenAccount",
-            "type": {
-              "option": "publicKey"
-            }
-          }
-        ]
-      }
+            name: 'recipientTokenAccount';
+            type: {
+              option: 'publicKey';
+            };
+          },
+        ];
+      };
     },
     {
-      "name": "extGlobal",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: 'extGlobal';
+      type: {
+        kind: 'struct';
+        fields: [
           {
-            "name": "admin",
-            "type": "publicKey"
+            name: 'admin';
+            type: 'publicKey';
           },
           {
-            "name": "earnAuthority",
-            "type": "publicKey"
+            name: 'earnAuthority';
+            type: 'publicKey';
           },
           {
-            "name": "extMint",
-            "type": "publicKey"
+            name: 'extMint';
+            type: 'publicKey';
           },
           {
-            "name": "mMint",
-            "type": "publicKey"
+            name: 'mMint';
+            type: 'publicKey';
           },
           {
-            "name": "mEarnGlobalAccount",
-            "type": "publicKey"
+            name: 'mEarnGlobalAccount';
+            type: 'publicKey';
           },
           {
-            "name": "index",
-            "type": "u64"
+            name: 'index';
+            type: 'u64';
           },
           {
-            "name": "timestamp",
-            "type": "u64"
+            name: 'timestamp';
+            type: 'u64';
           },
           {
-            "name": "bump",
-            "type": "u8"
+            name: 'bump';
+            type: 'u8';
           },
           {
-            "name": "mVaultBump",
-            "type": "u8"
+            name: 'mVaultBump';
+            type: 'u8';
           },
           {
-            "name": "extMintAuthorityBump",
-            "type": "u8"
-          }
-        ]
-      }
-    }
-  ],
-  "events": [
+            name: 'extMintAuthorityBump';
+            type: 'u8';
+          },
+        ];
+      };
+    },
+  ];
+  events: [
     {
-      "name": "IndexUpdate",
-      "fields": [
+      name: 'IndexUpdate';
+      fields: [
         {
-          "name": "index",
-          "type": "u64",
-          "index": false
+          name: 'index';
+          type: 'u64';
+          index: false;
         },
         {
-          "name": "ts",
-          "type": "u64",
-          "index": false
-        }
-      ]
+          name: 'ts';
+          type: 'u64';
+          index: false;
+        },
+      ];
     },
     {
-      "name": "RewardsClaim",
-      "fields": [
+      name: 'RewardsClaim';
+      fields: [
         {
-          "name": "tokenAccount",
-          "type": "publicKey",
-          "index": false
+          name: 'tokenAccount';
+          type: 'publicKey';
+          index: false;
         },
         {
-          "name": "amount",
-          "type": "u64",
-          "index": false
+          name: 'amount';
+          type: 'u64';
+          index: false;
         },
         {
-          "name": "ts",
-          "type": "u64",
-          "index": false
+          name: 'ts';
+          type: 'u64';
+          index: false;
         },
         {
-          "name": "index",
-          "type": "u64",
-          "index": false
+          name: 'index';
+          type: 'u64';
+          index: false;
         },
         {
-          "name": "fee",
-          "type": "u64",
-          "index": false
+          name: 'fee';
+          type: 'u64';
+          index: false;
         },
         {
-          "name": "recipientTokenAccount",
-          "type": "publicKey",
-          "index": false
-        }
-      ]
-    }
-  ],
-  "errors": [
+          name: 'recipientTokenAccount';
+          type: 'publicKey';
+          index: false;
+        },
+      ];
+    },
+  ];
+  errors: [
     {
-      "code": 6000,
-      "name": "AlreadyClaimed",
-      "msg": "Already claimed for user."
+      code: 6000;
+      name: 'AlreadyClaimed';
+      msg: 'Already claimed for user.';
     },
     {
-      "code": 6001,
-      "name": "NotAuthorized",
-      "msg": "Invalid signer."
+      code: 6001;
+      name: 'NotAuthorized';
+      msg: 'Invalid signer.';
     },
     {
-      "code": 6002,
-      "name": "InvalidParam",
-      "msg": "Invalid parameter."
+      code: 6002;
+      name: 'InvalidParam';
+      msg: 'Invalid parameter.';
     },
     {
-      "code": 6003,
-      "name": "InvalidAccount",
-      "msg": "Account does not match the expected key."
+      code: 6003;
+      name: 'InvalidAccount';
+      msg: 'Account does not match the expected key.';
     },
     {
-      "code": 6004,
-      "name": "Active",
-      "msg": "Account is currently active."
+      code: 6004;
+      name: 'Active';
+      msg: 'Account is currently active.';
     },
     {
-      "code": 6005,
-      "name": "NotActive",
-      "msg": "Account is not currently active."
+      code: 6005;
+      name: 'NotActive';
+      msg: 'Account is not currently active.';
     },
     {
-      "code": 6006,
-      "name": "MutableOwner",
-      "msg": "Token account owner is required to be immutable."
+      code: 6006;
+      name: 'MutableOwner';
+      msg: 'Token account owner is required to be immutable.';
     },
     {
-      "code": 6007,
-      "name": "InsufficientCollateral",
-      "msg": "Not enough M."
-    }
-  ]
+      code: 6007;
+      name: 'InsufficientCollateral';
+      msg: 'Not enough M.';
+    },
+  ];
 };
 
 export const IDL: ExtEarn = {
-  "version": "0.1.0",
-  "name": "ext_earn",
-  "constants": [
+  version: '0.1.0',
+  name: 'ext_earn',
+  constants: [
     {
-      "name": "EARNER_SEED",
-      "type": "bytes",
-      "value": "[101, 97, 114, 110, 101, 114]"
+      name: 'EARNER_SEED',
+      type: 'bytes',
+      value: '[101, 97, 114, 110, 101, 114]',
     },
     {
-      "name": "EARN_MANAGER_SEED",
-      "type": "bytes",
-      "value": "[101, 97, 114, 110, 95, 109, 97, 110, 97, 103, 101, 114]"
+      name: 'EARN_MANAGER_SEED',
+      type: 'bytes',
+      value: '[101, 97, 114, 110, 95, 109, 97, 110, 97, 103, 101, 114]',
     },
     {
-      "name": "EXT_GLOBAL_SEED",
-      "type": "bytes",
-      "value": "[103, 108, 111, 98, 97, 108]"
+      name: 'EXT_GLOBAL_SEED',
+      type: 'bytes',
+      value: '[103, 108, 111, 98, 97, 108]',
     },
     {
-      "name": "MINT_AUTHORITY_SEED",
-      "type": "bytes",
-      "value": "[109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
+      name: 'MINT_AUTHORITY_SEED',
+      type: 'bytes',
+      value: '[109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]',
     },
     {
-      "name": "M_VAULT_SEED",
-      "type": "bytes",
-      "value": "[109, 95, 118, 97, 117, 108, 116]"
-    }
+      name: 'M_VAULT_SEED',
+      type: 'bytes',
+      value: '[109, 95, 118, 97, 117, 108, 116]',
+    },
   ],
-  "instructions": [
+  instructions: [
     {
-      "name": "initialize",
-      "accounts": [
+      name: 'initialize',
+      accounts: [
         {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
+          name: 'admin',
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "mMint",
-          "isMut": false,
-          "isSigner": false
+          name: 'mMint',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "extMint",
-          "isMut": false,
-          "isSigner": false
+          name: 'extMint',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "mEarnGlobalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'mEarnGlobalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "token2022",
-          "isMut": false,
-          "isSigner": false
+          name: 'token2022',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'systemProgram',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "earnAuthority",
-          "type": "publicKey"
-        }
-      ]
+          name: 'earnAuthority',
+          type: 'publicKey',
+        },
+      ],
     },
     {
-      "name": "setEarnAuthority",
-      "accounts": [
+      name: 'setEarnAuthority',
+      accounts: [
         {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
+          name: 'admin',
+          isMut: false,
+          isSigner: true,
         },
         {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
-        }
+          name: 'globalAccount',
+          isMut: true,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "newEarnAuthority",
-          "type": "publicKey"
-        }
-      ]
+          name: 'newEarnAuthority',
+          type: 'publicKey',
+        },
+      ],
     },
     {
-      "name": "addEarnManager",
-      "accounts": [
+      name: 'addEarnManager',
+      accounts: [
         {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
+          name: 'admin',
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnManagerAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "feeTokenAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'feeTokenAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'systemProgram',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "earnManager",
-          "type": "publicKey"
+          name: 'earnManager',
+          type: 'publicKey',
         },
         {
-          "name": "feeBps",
-          "type": "u64"
-        }
-      ]
+          name: 'feeBps',
+          type: 'u64',
+        },
+      ],
     },
     {
-      "name": "removeEarnManager",
-      "accounts": [
+      name: 'removeEarnManager',
+      accounts: [
         {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
+          name: 'admin',
+          isMut: false,
+          isSigner: true,
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
-        }
+          name: 'earnManagerAccount',
+          isMut: true,
+          isSigner: false,
+        },
       ],
-      "args": []
+      args: [],
     },
     {
-      "name": "claimFor",
-      "accounts": [
+      name: 'claimFor',
+      accounts: [
         {
-          "name": "earnAuthority",
-          "isMut": false,
-          "isSigner": true
+          name: 'earnAuthority',
+          isMut: false,
+          isSigner: true,
         },
         {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "extMint",
-          "isMut": true,
-          "isSigner": false
+          name: 'extMint',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "extMintAuthority",
-          "isMut": false,
-          "isSigner": false
+          name: 'extMintAuthority',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "mVaultAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'mVaultAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "vaultMTokenAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'vaultMTokenAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "userTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userTokenAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'earnManagerAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "earnManagerTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnManagerTokenAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "token2022",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'token2022',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "snapshotBalance",
-          "type": "u64"
-        }
-      ]
+          name: 'snapshotBalance',
+          type: 'u64',
+        },
+      ],
     },
     {
-      "name": "sync",
-      "accounts": [
+      name: 'sync',
+      accounts: [
         {
-          "name": "earnAuthority",
-          "isMut": false,
-          "isSigner": true
+          name: 'earnAuthority',
+          isMut: false,
+          isSigner: true,
         },
         {
-          "name": "mEarnGlobalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'mEarnGlobalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "globalAccount",
-          "isMut": true,
-          "isSigner": false
-        }
+          name: 'globalAccount',
+          isMut: true,
+          isSigner: false,
+        },
       ],
-      "args": []
+      args: [],
     },
     {
-      "name": "addEarner",
-      "accounts": [
+      name: 'addEarner',
+      accounts: [
         {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
+          name: 'signer',
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'earnManagerAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "userTokenAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'userTokenAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'systemProgram',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "user",
-          "type": "publicKey"
-        }
-      ]
+          name: 'user',
+          type: 'publicKey',
+        },
+      ],
     },
     {
-      "name": "removeEarner",
-      "accounts": [
+      name: 'removeEarner',
+      accounts: [
         {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
+          name: 'signer',
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'earnManagerAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'systemProgram',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": []
+      args: [],
     },
     {
-      "name": "configureEarnManager",
-      "accounts": [
+      name: 'configureEarnManager',
+      accounts: [
         {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
+          name: 'signer',
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnManagerAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "feeTokenAccount",
-          "isMut": false,
-          "isSigner": false,
-          "isOptional": true
-        }
+          name: 'feeTokenAccount',
+          isMut: false,
+          isSigner: false,
+          isOptional: true,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "feeBps",
-          "type": {
-            "option": "u64"
-          }
-        }
-      ]
+          name: 'feeBps',
+          type: {
+            option: 'u64',
+          },
+        },
+      ],
     },
     {
-      "name": "transferEarner",
-      "accounts": [
+      name: 'transferEarner',
+      accounts: [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
+          name: 'signer',
+          isMut: false,
+          isSigner: true,
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "fromEarnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'fromEarnManagerAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "toEarnManagerAccount",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'toEarnManagerAccount',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "toEarnManager",
-          "type": "publicKey"
-        }
-      ]
+          name: 'toEarnManager',
+          type: 'publicKey',
+        },
+      ],
     },
     {
-      "name": "setRecipient",
-      "accounts": [
+      name: 'setRecipient',
+      accounts: [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
+          name: 'signer',
+          isMut: false,
+          isSigner: true,
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "recipientTokenAccount",
-          "isMut": false,
-          "isSigner": false,
-          "isOptional": true
-        }
+          name: 'recipientTokenAccount',
+          isMut: false,
+          isSigner: false,
+          isOptional: true,
+        },
       ],
-      "args": []
+      args: [],
     },
     {
-      "name": "wrap",
-      "accounts": [
+      name: 'wrap',
+      accounts: [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
+          name: 'signer',
+          isMut: false,
+          isSigner: true,
         },
         {
-          "name": "mMint",
-          "isMut": false,
-          "isSigner": false
+          name: 'mMint',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "extMint",
-          "isMut": true,
-          "isSigner": false
+          name: 'extMint',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "mVault",
-          "isMut": false,
-          "isSigner": false
+          name: 'mVault',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "extMintAuthority",
-          "isMut": false,
-          "isSigner": false
+          name: 'extMintAuthority',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "userMTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userMTokenAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "vaultMTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'vaultMTokenAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "userExtTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userExtTokenAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "token2022",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'token2022',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
+          name: 'amount',
+          type: 'u64',
+        },
+      ],
     },
     {
-      "name": "unwrap",
-      "accounts": [
+      name: 'unwrap',
+      accounts: [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
+          name: 'signer',
+          isMut: false,
+          isSigner: true,
         },
         {
-          "name": "mMint",
-          "isMut": false,
-          "isSigner": false
+          name: 'mMint',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "extMint",
-          "isMut": true,
-          "isSigner": false
+          name: 'extMint',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "mVault",
-          "isMut": false,
-          "isSigner": false
+          name: 'mVault',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "userMTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userMTokenAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "vaultMTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'vaultMTokenAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "userExtTokenAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'userExtTokenAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "token2022",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'token2022',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
+          name: 'amount',
+          type: 'u64',
+        },
+      ],
     },
     {
-      "name": "removeOrphanedEarner",
-      "accounts": [
+      name: 'removeOrphanedEarner',
+      accounts: [
         {
-          "name": "signer",
-          "isMut": true,
-          "isSigner": true
+          name: 'signer',
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "globalAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'globalAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "earnerAccount",
-          "isMut": true,
-          "isSigner": false
+          name: 'earnerAccount',
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "earnManagerAccount",
-          "isMut": false,
-          "isSigner": false
+          name: 'earnManagerAccount',
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
+          name: 'systemProgram',
+          isMut: false,
+          isSigner: false,
+        },
       ],
-      "args": []
-    }
+      args: [],
+    },
   ],
-  "accounts": [
+  accounts: [
     {
-      "name": "global",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: 'global',
+      type: {
+        kind: 'struct',
+        fields: [
           {
-            "name": "admin",
-            "type": "publicKey"
+            name: 'admin',
+            type: 'publicKey',
           },
           {
-            "name": "earnAuthority",
-            "type": "publicKey"
+            name: 'earnAuthority',
+            type: 'publicKey',
           },
           {
-            "name": "portalAuthority",
-            "type": "publicKey"
+            name: 'portalAuthority',
+            type: 'publicKey',
           },
           {
-            "name": "mint",
-            "type": "publicKey"
+            name: 'mint',
+            type: 'publicKey',
           },
           {
-            "name": "index",
-            "type": "u64"
+            name: 'index',
+            type: 'u64',
           },
           {
-            "name": "timestamp",
-            "type": "u64"
+            name: 'timestamp',
+            type: 'u64',
           },
           {
-            "name": "claimCooldown",
-            "type": "u64"
+            name: 'claimCooldown',
+            type: 'u64',
           },
           {
-            "name": "maxSupply",
-            "type": "u64"
+            name: 'maxSupply',
+            type: 'u64',
           },
           {
-            "name": "maxYield",
-            "type": "u64"
+            name: 'maxYield',
+            type: 'u64',
           },
           {
-            "name": "distributed",
-            "type": "u64"
+            name: 'distributed',
+            type: 'u64',
           },
           {
-            "name": "claimComplete",
-            "type": "bool"
+            name: 'claimComplete',
+            type: 'bool',
           },
           {
-            "name": "earnerMerkleRoot",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            name: 'earnerMerkleRoot',
+            type: {
+              array: ['u8', 32],
+            },
           },
           {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
+            name: 'bump',
+            type: 'u8',
+          },
+        ],
+      },
     },
     {
-      "name": "earnManager",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: 'earnManager',
+      type: {
+        kind: 'struct',
+        fields: [
           {
-            "name": "earnManager",
-            "type": "publicKey"
+            name: 'earnManager',
+            type: 'publicKey',
           },
           {
-            "name": "isActive",
-            "type": "bool"
+            name: 'isActive',
+            type: 'bool',
           },
           {
-            "name": "feeBps",
-            "type": "u64"
+            name: 'feeBps',
+            type: 'u64',
           },
           {
-            "name": "feeTokenAccount",
-            "type": "publicKey"
+            name: 'feeTokenAccount',
+            type: 'publicKey',
           },
           {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
+            name: 'bump',
+            type: 'u8',
+          },
+        ],
+      },
     },
     {
-      "name": "earner",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: 'earner',
+      type: {
+        kind: 'struct',
+        fields: [
           {
-            "name": "lastClaimIndex",
-            "type": "u64"
+            name: 'lastClaimIndex',
+            type: 'u64',
           },
           {
-            "name": "lastClaimTimestamp",
-            "type": "u64"
+            name: 'lastClaimTimestamp',
+            type: 'u64',
           },
           {
-            "name": "bump",
-            "type": "u8"
+            name: 'bump',
+            type: 'u8',
           },
           {
-            "name": "user",
-            "type": "publicKey"
+            name: 'user',
+            type: 'publicKey',
           },
           {
-            "name": "userTokenAccount",
-            "type": "publicKey"
+            name: 'userTokenAccount',
+            type: 'publicKey',
           },
           {
-            "name": "earnManager",
-            "type": "publicKey"
+            name: 'earnManager',
+            type: 'publicKey',
           },
           {
-            "name": "recipientTokenAccount",
-            "type": {
-              "option": "publicKey"
-            }
-          }
-        ]
-      }
+            name: 'recipientTokenAccount',
+            type: {
+              option: 'publicKey',
+            },
+          },
+        ],
+      },
     },
     {
-      "name": "extGlobal",
-      "type": {
-        "kind": "struct",
-        "fields": [
+      name: 'extGlobal',
+      type: {
+        kind: 'struct',
+        fields: [
           {
-            "name": "admin",
-            "type": "publicKey"
+            name: 'admin',
+            type: 'publicKey',
           },
           {
-            "name": "earnAuthority",
-            "type": "publicKey"
+            name: 'earnAuthority',
+            type: 'publicKey',
           },
           {
-            "name": "extMint",
-            "type": "publicKey"
+            name: 'extMint',
+            type: 'publicKey',
           },
           {
-            "name": "mMint",
-            "type": "publicKey"
+            name: 'mMint',
+            type: 'publicKey',
           },
           {
-            "name": "mEarnGlobalAccount",
-            "type": "publicKey"
+            name: 'mEarnGlobalAccount',
+            type: 'publicKey',
           },
           {
-            "name": "index",
-            "type": "u64"
+            name: 'index',
+            type: 'u64',
           },
           {
-            "name": "timestamp",
-            "type": "u64"
+            name: 'timestamp',
+            type: 'u64',
           },
           {
-            "name": "bump",
-            "type": "u8"
+            name: 'bump',
+            type: 'u8',
           },
           {
-            "name": "mVaultBump",
-            "type": "u8"
+            name: 'mVaultBump',
+            type: 'u8',
           },
           {
-            "name": "extMintAuthorityBump",
-            "type": "u8"
-          }
-        ]
-      }
-    }
+            name: 'extMintAuthorityBump',
+            type: 'u8',
+          },
+        ],
+      },
+    },
   ],
-  "events": [
+  events: [
     {
-      "name": "IndexUpdate",
-      "fields": [
+      name: 'IndexUpdate',
+      fields: [
         {
-          "name": "index",
-          "type": "u64",
-          "index": false
+          name: 'index',
+          type: 'u64',
+          index: false,
         },
         {
-          "name": "ts",
-          "type": "u64",
-          "index": false
-        }
-      ]
+          name: 'ts',
+          type: 'u64',
+          index: false,
+        },
+      ],
     },
     {
-      "name": "RewardsClaim",
-      "fields": [
+      name: 'RewardsClaim',
+      fields: [
         {
-          "name": "tokenAccount",
-          "type": "publicKey",
-          "index": false
+          name: 'tokenAccount',
+          type: 'publicKey',
+          index: false,
         },
         {
-          "name": "amount",
-          "type": "u64",
-          "index": false
+          name: 'amount',
+          type: 'u64',
+          index: false,
         },
         {
-          "name": "ts",
-          "type": "u64",
-          "index": false
+          name: 'ts',
+          type: 'u64',
+          index: false,
         },
         {
-          "name": "index",
-          "type": "u64",
-          "index": false
+          name: 'index',
+          type: 'u64',
+          index: false,
         },
         {
-          "name": "fee",
-          "type": "u64",
-          "index": false
+          name: 'fee',
+          type: 'u64',
+          index: false,
         },
         {
-          "name": "recipientTokenAccount",
-          "type": "publicKey",
-          "index": false
-        }
-      ]
-    }
+          name: 'recipientTokenAccount',
+          type: 'publicKey',
+          index: false,
+        },
+      ],
+    },
   ],
-  "errors": [
+  errors: [
     {
-      "code": 6000,
-      "name": "AlreadyClaimed",
-      "msg": "Already claimed for user."
+      code: 6000,
+      name: 'AlreadyClaimed',
+      msg: 'Already claimed for user.',
     },
     {
-      "code": 6001,
-      "name": "NotAuthorized",
-      "msg": "Invalid signer."
+      code: 6001,
+      name: 'NotAuthorized',
+      msg: 'Invalid signer.',
     },
     {
-      "code": 6002,
-      "name": "InvalidParam",
-      "msg": "Invalid parameter."
+      code: 6002,
+      name: 'InvalidParam',
+      msg: 'Invalid parameter.',
     },
     {
-      "code": 6003,
-      "name": "InvalidAccount",
-      "msg": "Account does not match the expected key."
+      code: 6003,
+      name: 'InvalidAccount',
+      msg: 'Account does not match the expected key.',
     },
     {
-      "code": 6004,
-      "name": "Active",
-      "msg": "Account is currently active."
+      code: 6004,
+      name: 'Active',
+      msg: 'Account is currently active.',
     },
     {
-      "code": 6005,
-      "name": "NotActive",
-      "msg": "Account is not currently active."
+      code: 6005,
+      name: 'NotActive',
+      msg: 'Account is not currently active.',
     },
     {
-      "code": 6006,
-      "name": "MutableOwner",
-      "msg": "Token account owner is required to be immutable."
+      code: 6006,
+      name: 'MutableOwner',
+      msg: 'Token account owner is required to be immutable.',
     },
     {
-      "code": 6007,
-      "name": "InsufficientCollateral",
-      "msg": "Not enough M."
-    }
-  ]
+      code: 6007,
+      name: 'InsufficientCollateral',
+      msg: 'Not enough M.',
+    },
+  ],
 };

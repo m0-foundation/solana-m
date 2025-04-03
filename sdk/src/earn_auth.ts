@@ -6,6 +6,8 @@ import {
   VersionedTransaction,
   ComputeBudgetProgram,
 } from '@solana/web3.js';
+import { PublicClient } from 'viem';
+
 import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
@@ -19,6 +21,7 @@ import { ExtEarn } from './idl/ext_earn';
 
 class EarnAuthority {
   private connection: Connection;
+  private evmClient: PublicClient;
   private program: Program<Earn> | Program<ExtEarn>;
   private global: GlobalAccountData;
   private managerCache: Map<PublicKey, EarnManager> = new Map();
@@ -26,15 +29,22 @@ class EarnAuthority {
 
   programID: PublicKey;
 
-  private constructor(connection: Connection, global: GlobalAccountData, mintAuth: PublicKey, program = PROGRAM_ID) {
+  private constructor(
+    connection: Connection,
+    evmClient: PublicClient,
+    global: GlobalAccountData,
+    mintAuth: PublicKey,
+    program = PROGRAM_ID,
+  ) {
     this.connection = connection;
+    this.evmClient = evmClient;
     this.programID = program;
     this.program = program === PROGRAM_ID ? getProgram(connection) : getExtProgram(connection);
     this.global = global;
     this.mintAuth = mintAuth;
   }
 
-  static async load(connection: Connection, program = PROGRAM_ID): Promise<EarnAuthority> {
+  static async load(connection: Connection, evmClient: PublicClient, program = PROGRAM_ID): Promise<EarnAuthority> {
     const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], program);
 
     let global: GlobalAccountData;
@@ -48,11 +58,11 @@ class EarnAuthority {
     // get mint multisig
     const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
 
-    return new EarnAuthority(connection, global, mint.mintAuthority!, program);
+    return new EarnAuthority(connection, evmClient, global, mint.mintAuthority!, program);
   }
 
   async refresh(): Promise<void> {
-    Object.assign(this, await EarnAuthority.load(this.connection));
+    Object.assign(this, await EarnAuthority.load(this.connection, this.evmClient));
   }
 
   public get admin() {
@@ -61,7 +71,7 @@ class EarnAuthority {
 
   async getAllEarners(): Promise<Earner[]> {
     const accounts = await this.program.account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account));
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
@@ -122,7 +132,7 @@ class EarnAuthority {
       // get manager (manager fee token account)
       let manager = this.managerCache.get(earner.data.earnManager!);
       if (!manager) {
-        manager = await EarnManager.fromManagerAddress(this.connection, earner.data.earnManager!);
+        manager = await EarnManager.fromManagerAddress(this.connection, this.evmClient, earner.data.earnManager!);
         this.managerCache.set(earner.data.earnManager!, manager);
       }
 

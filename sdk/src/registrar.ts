@@ -1,4 +1,6 @@
 import { Connection, PublicKey, TransactionInstruction } from '@solana/web3.js';
+import { PublicClient } from 'viem';
+
 import { EvmCaller } from './evm_caller';
 import { Earner } from './earner';
 import { GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
@@ -10,23 +12,23 @@ import { Earn } from './idl/earn';
 
 export class Registrar {
   private connection: Connection;
+  private evmClient: PublicClient;
   private program: Program<Earn>;
-  evmRPC: string;
 
-  constructor(connection: Connection, evmRPC: string) {
+  constructor(connection: Connection, evmClient: PublicClient) {
     this.connection = connection;
+    this.evmClient = evmClient;
     this.program = getProgram(connection);
-    this.evmRPC = evmRPC;
   }
 
   async buildMissingEarnersInstructions(signer: PublicKey): Promise<TransactionInstruction[]> {
     // get all earners that should be registered
-    const evmCaller = new EvmCaller(this.evmRPC);
+    const evmCaller = new EvmCaller(this.evmClient);
     const earners = await evmCaller.getEarners();
 
     const ixs: TransactionInstruction[] = [];
     for (const user of earners) {
-      const existingEarners = await Earner.fromUserAddress(this.connection, user);
+      const existingEarners = await Earner.fromUserAddress(this.connection, this.evmClient, user);
       if (existingEarners.length > 0) {
         continue;
       }
@@ -62,7 +64,7 @@ export class Registrar {
 
   async buildRemovedEarnersInstructions(signer: PublicKey): Promise<TransactionInstruction[]> {
     // get all earners on registrar
-    const evmCaller = new EvmCaller(this.evmRPC);
+    const evmCaller = new EvmCaller(this.evmClient);
     const earners = await evmCaller.getEarners();
 
     // get all eaners on the earn program
@@ -97,6 +99,6 @@ export class Registrar {
     const accounts = await getProgram(this.connection).account.earner.all([
       { memcmp: { offset: 89, bytes: '2' } }, // no manager
     ]);
-    return accounts.map((a) => new Earner(this.connection, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account));
   }
 }
