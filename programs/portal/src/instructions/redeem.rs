@@ -6,11 +6,12 @@ use crate::{
     bitmap::Bitmap,
     config::*,
     error::NTTError,
+    instructions::BridgeEvent,
     messages::ValidatedTransceiverMessage,
     payloads::Payload,
     peer::NttManagerPeer,
     queue::{
-        inbox::{InboxItem, InboxRateLimit, ReleaseStatus, Source, TokenTransfer},
+        inbox::{InboxItem, InboxRateLimit, ReleaseStatus, TokenTransfer},
         outbox::OutboxRateLimit,
         rate_limit::RateLimitResult,
     },
@@ -124,10 +125,6 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
             transfer: TokenTransfer::default(),
             index_update: 0,
             earners_root_update: None,
-            source: Source {
-                chain: transceiver_message.from_chain,
-                from: message.sender,
-            },
         };
 
         match &message.payload {
@@ -142,6 +139,15 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
                     inbox_item.transfer.amount = amount;
                     inbox_item.transfer.recipient =
                         Pubkey::try_from(ntt.to).map_err(|_| NTTError::InvalidRecipientAddress)?;
+
+                    // emit event for tracking
+                    emit!(BridgeEvent {
+                        amount: inbox_item.transfer.amount as i64,
+                        token_supply: accs.mint.supply + amount as u64,
+                        to: inbox_item.transfer.recipient.to_bytes(),
+                        from: message.sender,
+                        wormhole_chain_id: transceiver_message.from_chain.id,
+                    });
                 }
 
                 // payloads from L2s might have an index update

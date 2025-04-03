@@ -8,7 +8,6 @@ use spl_token_2022::onchain;
 use crate::{
     config::*,
     error::NTTError,
-    instructions::BridgeEvent,
     queue::inbox::{InboxItem, ReleaseStatus},
     spl_multisig::SplMultisig,
 };
@@ -134,14 +133,6 @@ pub fn release_inbound_mint_multisig<'info>(
         )?;
 
         ctx.accounts.common.mint.reload()?;
-
-        emit!(BridgeEvent {
-            amount: inbox_item.transfer.amount as i64,
-            token_supply: ctx.accounts.common.mint.supply,
-            to: inbox_item.transfer.recipient.to_bytes(),
-            from: inbox_item.source.from,
-            wormhole_chain_id: inbox_item.source.chain.id,
-        });
     }
 
     // Send update to the earn program
