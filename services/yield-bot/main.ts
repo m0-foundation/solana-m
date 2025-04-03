@@ -14,15 +14,7 @@ import EarnAuthority from '../../sdk/src/earn_auth';
 import { instructions } from '@sqds/multisig';
 import winston from 'winston';
 
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-    winston.format.json(),
-  ),
-  defaultMeta: { name: 'yield-bot' },
-  transports: [new winston.transports.Console()],
-});
+const logger = configureLogger();
 
 interface ParsedOptions {
   signer: Keypair;
@@ -136,11 +128,6 @@ async function addEarners(opt: ParsedOptions) {
     return;
   }
 
-  if (opt.dryRun) {
-    logger.info('dry run: not adding earners', { earners: instructions.length });
-    return;
-  }
-
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'adding earners');
   logger.info('added earners', { signature, earners: instructions.length });
 }
@@ -152,11 +139,6 @@ async function removeEarners(opt: ParsedOptions) {
 
   if (instructions.length === 0) {
     logger.info('no earners to remove');
-    return;
-  }
-
-  if (opt.dryRun) {
-    logger.info('dry run: not removing earners', { earners: instructions.length });
     return;
   }
 
@@ -346,6 +328,30 @@ async function proposeSquadsTransaction(
   tx.sign([opt.signer]);
 
   return tx;
+}
+
+function configureLogger() {
+  let format: winston.Logform.Format;
+
+  if (process.env.NODE_ENV !== 'production') {
+    format = winston.format.combine(
+      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+      winston.format.colorize(),
+      winston.format.simple(),
+    );
+  } else {
+    format = winston.format.combine(
+      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+      winston.format.json(),
+    );
+  }
+
+  return winston.createLogger({
+    level: 'info',
+    format,
+    defaultMeta: { name: 'yield-bot' },
+    transports: [new winston.transports.Console()],
+  });
 }
 
 function catchConsoleLogs() {
