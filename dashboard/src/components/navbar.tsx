@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { SettingsModal } from './settings';
 import { FiSettings } from 'react-icons/fi';
+import { NavLink, useLocation } from 'react-router-dom';
 
 export const Navbar = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  let location = useLocation();
 
   return (
     <nav className="bg-off-black py-2">
@@ -20,18 +22,16 @@ export const Navbar = () => {
           <div className="space-x-4 flex items-center">
             {[
               { path: '/', label: 'Home' },
-              { path: '/wrap', label: 'wrap' },
-              { path: '/bridge', label: 'bridge' },
+              { path: '/wrap', label: 'Wrap' },
+              { path: '/bridge', label: 'Bridge' },
             ].map(({ path, label }) => (
-              <a
+              <NavLink
                 key={path}
-                href={path}
-                className={`px-2 py-1.5 text-gray-300 text-sm ${
-                  window.location.pathname === path ? 'bg-gray-700' : ''
-                }`}
+                to={path}
+                className={`px-2 py-1.5 text-gray-300 text-sm ${location.pathname === path ? 'bg-gray-700' : ''}`}
               >
                 {label}
-              </a>
+              </NavLink>
             ))}
           </div>
         </div>
