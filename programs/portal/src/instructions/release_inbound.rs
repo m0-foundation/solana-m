@@ -88,6 +88,7 @@ pub fn release_inbound_mint_multisig<'info>(
     let inbox_item = &mut ctx.accounts.common.inbox_item;
 
     if !inbox_item.try_release()? {
+        msg!("Item cannot be released: {:?}", inbox_item.release_status);
         if args.revert_on_delay {
             return Err(NTTError::CantReleaseYet.into());
         }

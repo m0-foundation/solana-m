@@ -57,8 +57,8 @@ const PROGRAMS = {
 };
 
 const RATE_LIMITS_24 = {
-  inbound: 100_000_000n,
-  outbound: 100_000_000n,
+  inbound: 100000000_000000n, // $ 100MM
+  outbound: 100000000_000000n, // $ 100MM
 };
 
 async function main() {
