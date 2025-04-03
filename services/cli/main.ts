@@ -30,7 +30,7 @@ import {
   TokenMetadata,
 } from '@solana/spl-token-metadata';
 import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, http } from '../../sdk/src';
 
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
