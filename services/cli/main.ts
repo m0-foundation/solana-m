@@ -75,52 +75,26 @@ async function main() {
       const [mVaultPda] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], PROGRAMS.extEarn);
       const [mintAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], PROGRAMS.extEarn);
 
-      const addresses = [
-        {
-          Name: 'Portal Program',
-          Address: PROGRAMS.portal.toBase58(),
-          Hex: `0x${PROGRAMS.portal.toBuffer().toString('hex')}`,
-        },
-        {
-          Name: 'Earn Program',
-          Address: PROGRAMS.earn.toBase58(),
-          Hex: `0x${PROGRAMS.earn.toBuffer().toString('hex')}`,
-        },
-        {
-          Name: 'ExtEarn Program',
-          Address: PROGRAMS.extEarn.toBase58(),
-          Hex: `0x${PROGRAMS.extEarn.toBuffer().toString('hex')}`,
-        },
-        { Name: 'M Mint', Address: mMint.publicKey.toBase58(), Hex: `0x${mMint.publicKey.toBuffer().toString('hex')}` },
-        {
-          Name: 'M Mint Multisig',
-          Address: multisig.publicKey.toBase58(),
-          Hex: `0x${multisig.publicKey.toBuffer().toString('hex')}`,
-        },
-        {
-          Name: 'Portal Token Authority',
-          Address: portalTokenAuthPda.toBase58(),
-          Hex: `0x${portalTokenAuthPda.toBuffer().toString('hex')}`,
-        },
-        {
-          Name: 'Earn Token Authority',
-          Address: earnTokenAuthPda.toBase58(),
-          Hex: `0x${earnTokenAuthPda.toBuffer().toString('hex')}`,
-        },
-        {
-          Name: 'wM Mint',
-          Address: wmMint.publicKey.toBase58(),
-          Hex: `0x${wmMint.publicKey.toBuffer().toString('hex')}`,
-        },
-        { Name: 'ExtEarn M Vault', Address: mVaultPda.toBase58(), Hex: `0x${mVaultPda.toBuffer().toString('hex')}` },
-        {
-          Name: 'ExtEarn Mint Authority',
-          Address: mintAuthPda.toBase58(),
-          Hex: `0x${mintAuthPda.toBuffer().toString('hex')}`,
-        },
-      ];
+      const addresses = {
+        'Portal Program': PROGRAMS.portal,
+        'Earn Program': PROGRAMS.earn,
+        'ExtEarn Program': PROGRAMS.extEarn,
+        'M Mint': mMint.publicKey,
+        'M Mint Multisig': multisig.publicKey,
+        'Portal Token Authority': portalTokenAuthPda,
+        'Earn Token Authority': earnTokenAuthPda,
+        'wM Mint': wmMint.publicKey,
+        'ExtEarn M Vault': mVaultPda,
+        'ExtEarn Mint Authority': mintAuthPda,
+      };
 
-      console.table(addresses);
+      const tableData = Object.entries(addresses).map(([name, pubkey]) => ({
+        Name: name,
+        Address: pubkey.toBase58(),
+        Hex: `0x${pubkey.toBuffer().toString('hex')}`,
+      }));
+
+      console.table(tableData);
     });
 
   program
