@@ -12,8 +12,12 @@ export class EvmCaller {
   private client: PublicClient;
   private mTokenAddress: `0x${string}`;
   private merkleTreeAddress: `0x${string}`;
-  
-  constructor(client: PublicClient, mTokenAddress: `0x${string}` = ETH_M_ADDRESS, merkleTreeAddress: `0x${string}` = ETH_MERKLE_TREE_BUILDER) {
+
+  constructor(
+    client: PublicClient,
+    mTokenAddress: `0x${string}` = ETH_M_ADDRESS,
+    merkleTreeAddress: `0x${string}` = ETH_MERKLE_TREE_BUILDER,
+  ) {
     this.client = client;
     this.mTokenAddress = mTokenAddress;
     this.merkleTreeAddress = merkleTreeAddress;
@@ -76,14 +80,13 @@ export class EvmCaller {
         outputs: [{ internalType: 'uint256', name: 'currentIndex', type: 'uint256' }],
         stateMutability: 'view',
         type: 'function',
-      }
+      },
     ] as const;
 
     return getContract({
       address: this.mTokenAddress,
       abi,
-      client: this.client
+      client: this.client,
     });
   }
-
 }

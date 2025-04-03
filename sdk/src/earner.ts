@@ -38,11 +38,20 @@ export class Earner {
       return new Earner(connection, evmClient, earnerAccount, data);
     } else {
       const data = await getProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, earnerAccount, { ...data, earnManager: null, recipientTokenAccount: null });
+      return new Earner(connection, evmClient, earnerAccount, {
+        ...data,
+        earnManager: null,
+        recipientTokenAccount: null,
+      });
     }
   }
 
-  static async fromUserAddress(connection: Connection, evmClient: PublicClient, user: PublicKey, program = EXT_PROGRAM_ID): Promise<Earner[]> {
+  static async fromUserAddress(
+    connection: Connection,
+    evmClient: PublicClient,
+    user: PublicKey,
+    program = EXT_PROGRAM_ID,
+  ): Promise<Earner[]> {
     const filter = [{ memcmp: { offset: 25, bytes: user.toBase58() } }];
 
     if (program === EXT_PROGRAM_ID) {
@@ -51,7 +60,12 @@ export class Earner {
     } else {
       const accounts = await getProgram(connection).account.earner.all(filter);
       return accounts.map(
-        (a) => new Earner(connection, evmClient, a.publicKey, { ...a.account, earnManager: null, recipientTokenAccount: null }),
+        (a) =>
+          new Earner(connection, evmClient, a.publicKey, {
+            ...a.account,
+            earnManager: null,
+            recipientTokenAccount: null,
+          }),
       );
     }
   }
@@ -84,14 +98,17 @@ export class Earner {
       currentTime,
     );
 
-    let pendingYield = this.data.lastClaimIndex >= currentIndex ? new BN(0) : earnerWeightedBalance.mul(currentIndex.sub(this.data.lastClaimIndex)).div(this.data.lastClaimIndex);
+    let pendingYield =
+      this.data.lastClaimIndex >= currentIndex
+        ? new BN(0)
+        : earnerWeightedBalance.mul(currentIndex.sub(this.data.lastClaimIndex)).div(this.data.lastClaimIndex);
 
     // Check if the earner has an earn manager
     // If so, check if the earn manager has a fee
     // If so, calculate the fee and subtract it from the pending yield
     if (this.data.earnManager) {
       const earnManager = await EarnManager.fromManagerAddress(this.connection, this.evmClient, this.data.earnManager);
-      
+
       if (earnManager.data.feeBps > new BN(0)) {
         const fee = pendingYield.mul(earnManager.data.feeBps).div(new BN(10000));
 

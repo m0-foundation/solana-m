@@ -18,7 +18,13 @@ export class EarnManager {
   manager: PublicKey;
   data: EarnManagerData;
 
-  constructor(connection: Connection, evmClient: PublicClient, manager: PublicKey, pubkey: PublicKey, data: EarnManagerData) {
+  constructor(
+    connection: Connection,
+    evmClient: PublicClient,
+    manager: PublicKey,
+    pubkey: PublicKey,
+    data: EarnManagerData,
+  ) {
     this.connection = connection;
     this.program = getExtProgram(connection);
     this.evmClient = evmClient;
@@ -26,7 +32,11 @@ export class EarnManager {
     this.data = data;
   }
 
-  static async fromManagerAddress(connection: Connection, evmClient: PublicClient, manager: PublicKey): Promise<EarnManager> {
+  static async fromManagerAddress(
+    connection: Connection,
+    evmClient: PublicClient,
+    manager: PublicKey,
+  ): Promise<EarnManager> {
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earn_manager'), manager.toBytes()],
       EXT_PROGRAM_ID,

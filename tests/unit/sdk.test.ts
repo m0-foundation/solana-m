@@ -66,13 +66,14 @@ describe('SDK unit tests', () => {
     // 2. latestRate (4 bytes)
     // 3. latestUpdateTimeStamp (5 bytes)
 
-    const slot: `0x${string}` = '0x' + new BN(0).toString('hex').padStart(64, '0') as `0x${string}`;
+    const slot: `0x${string}` = ('0x' + new BN(0).toString('hex').padStart(64, '0')) as `0x${string}`;
 
     // Get the current value of the slot
-    const currentValue = await evmClient.getStorageAt({
-      address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
-      slot
-    }) ?? slot; // fallback to 0 value if not found, we use the slot variable here for convenience since it is that value 
+    const currentValue =
+      (await evmClient.getStorageAt({
+        address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+        slot,
+      })) ?? slot; // fallback to 0 value if not found, we use the slot variable here for convenience since it is that value
 
     const latestRate = currentValue.slice(32, 40);
 
@@ -82,15 +83,12 @@ describe('SDK unit tests', () => {
 
     const newValue = ('0x' + newTimestamp + latestRate + newIndex) as `0x${string}`;
 
-    testClient.setStorageAt(
-      {
-        address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
-        index: slot,
-        value: newValue,
-      }
-    );
+    testClient.setStorageAt({
+      address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+      index: slot,
+      value: newValue,
+    });
   };
-
 
   beforeAll(async () => {
     const mintATAs = [];
@@ -455,7 +453,6 @@ describe('SDK unit tests', () => {
   });
 
   describe('earner', () => {
-
     describe('getClaimedYield', () => {
       test('earn program', async () => {
         const earnerATA = spl.getAssociatedTokenAddressSync(
@@ -488,7 +485,7 @@ describe('SDK unit tests', () => {
       beforeAll(async () => {
         // Set a later index on the EVM contract so that there is some pending yield
         await setIndex(new BN(1_020_100_000_000), new BN((await evmClient.getBlock()).timestamp.toString()));
-      })
+      });
 
       test('earn program', async () => {
         const earnerATA = spl.getAssociatedTokenAddressSync(
@@ -500,7 +497,7 @@ describe('SDK unit tests', () => {
 
         const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EARN_PROGRAM);
         const pending = await earner.getPendingYield();
-        
+
         // Earner's weighted balance over the period is 5,000,000 M
         // The index is increased by 1% since their last claim
         // Therefore, the pending yield should be 50,000 M
@@ -513,11 +510,11 @@ describe('SDK unit tests', () => {
           earnerB.publicKey,
           false,
           spl.TOKEN_2022_PROGRAM_ID,
-        )
+        );
 
         const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
         const pending = await earner.getPendingYield();
-        
+
         // Earners's weighted balance over the period is 2,000,000
         // The index increased by 2.01% since their last claim
         // The total pending yield is 40,200 M
@@ -525,7 +522,7 @@ describe('SDK unit tests', () => {
         // Therefore, the earner's pending yield should be 40,200 * (1 - 0.0015) = 40,139.7 M
         expect(pending.toString()).toEqual('40139700000'.toString());
       });
-      
+
       test('ext earn program - no manager fee', async () => {
         // Set the earn manager to 0% fee
         const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
@@ -546,11 +543,11 @@ describe('SDK unit tests', () => {
           earnerB.publicKey,
           false,
           spl.TOKEN_2022_PROGRAM_ID,
-        )
+        );
 
         const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
         const pending = await earner.getPendingYield();
-        
+
         // Earner's weighted balance over the period is 2,000,000 M
         // The index increased by 2.01% since their last claim
         // The total pending yield is 40,200 M
@@ -592,7 +589,9 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) => body.operationName === 'getBalanceUpdates' && body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+      (body) =>
+        body.operationName === 'getBalanceUpdates' &&
+        body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
     )
     .reply(200, {
       data: {
@@ -607,7 +606,9 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) => body.operationName === 'getBalanceUpdates' && body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+      (body) =>
+        body.operationName === 'getBalanceUpdates' &&
+        body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
     )
     .reply(200, {
       data: {
@@ -627,8 +628,11 @@ function mockSubgraph() {
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) => body.operationName === 'getClaimsForTokenAccount' && body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
-    ).reply(200, {
+      (body) =>
+        body.operationName === 'getClaimsForTokenAccount' &&
+        body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+    )
+    .reply(200, {
       data: {
         claims: [
           {
@@ -648,14 +652,17 @@ function mockSubgraph() {
             },
           },
         ],
-      }
-  });
+      },
+    });
 
   nock('https://api.studio.thegraph.com')
     .post(
       '/query/106645/m-token-transactions/version/latest',
-      (body) => body.operationName === 'getClaimsForTokenAccount' && body.variables.tokenAccountId !== '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
-    ).reply(200, {
+      (body) =>
+        body.operationName === 'getClaimsForTokenAccount' &&
+        body.variables.tokenAccountId !== '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
+    )
+    .reply(200, {
       data: {
         claims: [
           {
@@ -667,6 +674,6 @@ function mockSubgraph() {
             },
           },
         ],
-      }
-  });
+      },
+    });
 }

@@ -29,7 +29,13 @@ class EarnAuthority {
 
   programID: PublicKey;
 
-  private constructor(connection: Connection, evmClient: PublicClient, global: GlobalAccountData, mintAuth: PublicKey, program = PROGRAM_ID) {
+  private constructor(
+    connection: Connection,
+    evmClient: PublicClient,
+    global: GlobalAccountData,
+    mintAuth: PublicKey,
+    program = PROGRAM_ID,
+  ) {
     this.connection = connection;
     this.evmClient = evmClient;
     this.programID = program;

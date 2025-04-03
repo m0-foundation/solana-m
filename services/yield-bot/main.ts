@@ -124,7 +124,7 @@ async function distributeYield(opt: ParsedOptions) {
 async function addEarners(opt: ParsedOptions) {
   console.log('adding earners');
   const registrar = new Registrar(opt.connection, opt.evmClient);
-  
+
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
 
   if (instructions.length === 0) {

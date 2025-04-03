@@ -10,7 +10,6 @@ import { Program } from '@coral-xyz/anchor';
 import { getProgram } from './idl';
 import { Earn } from './idl/earn';
 
-
 export class Registrar {
   private connection: Connection;
   private evmClient: PublicClient;
