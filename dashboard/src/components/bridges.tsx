@@ -15,7 +15,7 @@ const chainIcons: { [key: string]: string } = {
 
 export const Bridges = () => {
   const { rpcUrl } = useSettings();
-  const { data } = useData('bridges:subgraph', bridgeEvents);
+  const { data } = useData('bridges:subgraph', (url) => bridgeEvents(url, 5));
 
   return (
     <div>
@@ -44,20 +44,20 @@ export const Bridges = () => {
                   {formatString(bs58.encode(event.signature))}
                 </a>
               </td>
-              <td className="px-2 py-4">
+              <td className="px-2 py-2">
                 <div className="flex items-center gap-2">
                   <img
                     src={event.from.toString().startsWith('0x') ? chainIcons[event.chain] : chainIcons.Solana}
-                    className="w-6 h-6 rounded-full"
+                    className="w-5 h-5 rounded-full"
                   />
                   {formatString(event.from.toString())}
                 </div>
               </td>
-              <td className="px-2 py-4">
+              <td className="px-2 py-2">
                 <div className="flex items-center gap-2">
                   <img
                     src={event.to.toString().startsWith('0x') ? chainIcons[event.chain] : chainIcons.Solana}
-                    className="w-6 h-6 rounded-full"
+                    className="w-5 h-5 rounded-full"
                   />
                   {formatString(event.to.toString())}
                 </div>
