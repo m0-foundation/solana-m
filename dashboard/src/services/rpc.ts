@@ -1,8 +1,10 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Mint, TOKEN_2022_PROGRAM_ID, unpackMint } from '@solana/spl-token';
+import { M_MINT, wM_MINT } from './consts';
 
-const MINT_ADDRESSES: Record<string, PublicKey> = {
-  M: new PublicKey('mzeroZRGCah3j5xEWp2Nih3GDejSBbH1rbHoxDg8By6'), // M
+export const MINT_ADDRESSES: Record<string, PublicKey> = {
+  M: M_MINT,
+  wM: wM_MINT,
 };
 
 export const getMintsRPC = async (rpcURL: string): Promise<Record<string, Mint>> => {

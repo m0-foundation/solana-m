@@ -6,15 +6,17 @@ import { formatAmount } from '../services/utils';
 import { LoadingSkeleton } from './loading';
 
 export const StatsBar = () => {
-  const { data: mintData, isLoading: mintLoading } = useData('rpc', getMintsRPC);
-  const { data: claimData, isLoading: claimLoading } = useData('subgraph', (url) => claimStats(url, EARN_PROGRAM_ID));
+  const { data: mintData, isLoading: mintLoading } = useData('mints:rpc', getMintsRPC);
+  const { data: claimData, isLoading: claimLoading } = useData('claimStats:subgraph', (url) =>
+    claimStats(url, EARN_PROGRAM_ID),
+  );
 
   return (
     <div className="bg-off-blue px-4 py-5">
       <div className="max-w-6xl mx-auto flex items-center space-x-10">
         <Stat title="$M supply" value={formatAmount(mintData?.M?.supply)} isLoading={mintLoading} />
         <Stat title="$M yield" value={formatAmount(claimData?.totalClaimed)} isLoading={claimLoading} />
-        <Stat title="$wM supply" value="0" isLoading={false} />
+        <Stat title="$wM supply" value={formatAmount(mintData?.wM?.supply)} isLoading={mintLoading} />
       </div>
     </div>
   );
@@ -24,7 +26,7 @@ const Stat = ({ title, value, isLoading = false }: { title: string; value?: stri
   return (
     <div className="flex flex-col">
       <span className="text-xs">{title}</span>
-      {isLoading ? <LoadingSkeleton h={28} /> : <span className="text-xl font-medium">{value ?? ''}</span>}
+      {isLoading ? <LoadingSkeleton h={5} /> : <span className="text-xl font-medium">{value ?? ''}</span>}
     </div>
   );
 };

@@ -20,7 +20,8 @@ export const Navbar = () => {
           <div className="space-x-4 flex items-center">
             {[
               { path: '/', label: 'Home' },
-              { path: '/yield', label: 'Yield' },
+              { path: '/wrap', label: 'wrap' },
+              { path: '/bridge', label: 'bridge' },
             ].map(({ path, label }) => (
               <a
                 key={path}

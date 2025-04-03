@@ -2,28 +2,28 @@ import { useData } from '../hooks/useData';
 import { tokenHolders } from '../services/subgraph';
 import { useSettings } from '../context/settings';
 import { PublicKey } from '@solana/web3.js';
-import { getMintsRPC } from '../services/rpc';
+import { getMintsRPC, MINT_ADDRESSES } from '../services/rpc';
 import Decimal from 'decimal.js';
 
-const labels = {
+const labels: { [key: string]: string } = {
   '8vtsGdu4ErjK2skhV7FfPQwXdae6myWjgWJ8gRMnXi2K': 'wM Vault',
 };
 
-export const Holders = () => {
+export const Holders = ({ token }: { token: 'M' | 'wM' }) => {
   const { rpcUrl } = useSettings();
-  const { data: mintData } = useData('rpc', getMintsRPC);
-  const { data: holderData } = useData('subgraph', tokenHolders);
+  const { data: mintData } = useData('mints:rpc', getMintsRPC);
+  const { data: holderData } = useData(['holders:subgraph', token], (url) => tokenHolders(url, MINT_ADDRESSES[token]));
 
   // use total supply to calc percentage
   const toPercentage = (balance: number) => {
-    const supply = mintData?.M?.supply.toString();
+    const supply = mintData?.[token]?.supply.toString();
     if (!supply) return 1;
     return new Decimal(balance).div(new Decimal(supply).div(1e6)).toNumber();
   };
 
   return (
     <div>
-      <div className="text-2xl">$M Holders</div>
+      <div className="text-2xl">${token} Holders</div>
       <table className="w-full text-sm text-left rtl:text-right text-xs">
         <thead className="border-b border-gray-200">
           <tr>
@@ -42,12 +42,14 @@ export const Holders = () => {
                   }`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:underline"
+                  className={`hover:underline ${labels[holder.user.toBase58()] ? 'bg-gray-100 py-1 px-2' : ''}`}
                 >
-                  {formatAddress(holder.user)}
+                  {labels[holder.user.toBase58()] || formatAddress(holder.user)}
                 </a>
               </td>
-              <td className="px-2 py-4">M {formatAmount(holder.balance)}</td>
+              <td className="px-2 py-4">
+                {token} {formatAmount(holder.balance)}
+              </td>
               <td className="px-2 py-4">
                 <ProgressBar percentage={toPercentage(holder.balance)} />
               </td>

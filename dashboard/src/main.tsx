@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Holders } from './components/holders';
 import { HistoricalSupply } from './components/historical-supply';
 import './index.css';
+import { Bridges } from './components/bridges';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,9 +23,11 @@ createRoot(document.getElementById('root')!).render(
       <SettingsProvider>
         <Navbar />
         <StatsBar />
-        <div className="max-w-6xl mx-auto py-10 space-y-10">
+        <div className="max-w-6xl mx-auto py-10 space-y-16">
           <HistoricalSupply />
-          <Holders />
+          <Holders token="M" />
+          <Holders token="wM" />
+          <Bridges />
         </div>
       </SettingsProvider>
     </QueryClientProvider>
