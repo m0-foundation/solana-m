@@ -35,13 +35,16 @@ export const Navbar = () => {
             ))}
           </div>
         </div>
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="text-gray-300 hover:text-white hover:cursor-pointer"
-          aria-label="Settings"
-        >
-          <FiSettings className="w-5 h-5" />
-        </button>
+        <div className="flex items-center space-x-4">
+          <appkit-button size="sm" balance="hide" />
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="text-gray-300 hover:text-white hover:cursor-pointer"
+            aria-label="Settings"
+          >
+            <FiSettings className="w-5 h-5" />
+          </button>
+        </div>
       </div>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </nav>
