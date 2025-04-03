@@ -5,6 +5,10 @@ import { PublicKey } from '@solana/web3.js';
 import { getMintsRPC } from '../services/rpc';
 import Decimal from 'decimal.js';
 
+const labels = {
+  '8vtsGdu4ErjK2skhV7FfPQwXdae6myWjgWJ8gRMnXi2K': 'wM Vault',
+};
+
 export const Holders = () => {
   const { rpcUrl } = useSettings();
   const { data: mintData } = useData('rpc', getMintsRPC);
