@@ -328,6 +328,32 @@ async function main() {
     });
 
   program
+    .command('update-rate-limits')
+    .description('Set the rate limit for inbound/outbound transfers')
+    .action(async () => {
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const { ctx, ntt, signer, sender } = NttManager(connection, owner, mint.publicKey);
+
+      // outbound
+      const updateTxns = ntt.setOutboundLimit(RATE_LIMITS_24.outbound, sender);
+      const sigs = await signSendWait(ctx, updateTxns, signer);
+      console.log('Updated outbound limit:', sigs[0].txid);
+
+      const chains = (
+        process.env.NETWORK === 'mainnet'
+          ? ['Ethereum', 'Arbitrum', 'Optimism']
+          : ['Sepolia', 'ArbitrumSepolia', 'OptimismSepolia']
+      ) as Chain[];
+
+      // inbound
+      for (let chain of chains) {
+        const updateTxns = ntt.setInboundLimit(chain, RATE_LIMITS_24.inbound, sender);
+        const sigs = await signSendWait(ctx, updateTxns, signer);
+        console.log(`Updated inbound limit for ${chain}: ${sigs[0].txid}`);
+      }
+    });
+
+  program
     .command('add-registrar-earner')
     .description('Add earner that is in the earner merkle tree')
     .argument('<earner>', 'The earner to add')
