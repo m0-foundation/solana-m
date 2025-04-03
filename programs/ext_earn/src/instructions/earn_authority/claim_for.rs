@@ -16,6 +16,7 @@ use crate::{
     utils::token::mint_tokens,
 };
 
+#[event_cpi]
 #[derive(Accounts)]
 pub struct ClaimFor<'info> {
     pub earn_authority: Signer<'info>,
@@ -157,7 +158,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.token_2022,         // token program
     )?;
 
-    emit!(RewardsClaim {
+    emit_cpi!(RewardsClaim {
         token_account: ctx.accounts.earner_account.user_token_account,
         recipient_token_account: ctx.accounts.user_token_account.key(),
         amount: rewards,

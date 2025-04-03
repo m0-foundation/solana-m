@@ -19,7 +19,7 @@ mainnet = []
 devnet = []
 
 [dependencies]
-anchor-lang = { workspace = true, features = ["init-if-needed"] }
+anchor-lang = { workspace = true, features = ["init-if-needed", "event-cpi"] }
 anchor-spl.workspace = true
 spl-token-2022.workspace = true
 cfg-if.workspace = true

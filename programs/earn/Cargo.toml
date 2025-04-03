@@ -25,6 +25,7 @@ devnet = []
 anchor-lang = { workspace = true, features = [
     "anchor-debug",
     "init-if-needed",
+    "event-cpi"
 ] }
 anchor-spl.workspace = true
 spl-token-2022.workspace = true
