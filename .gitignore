@@ -11,3 +11,4 @@ devnet-keypair.json
 *.log
 substreams/subgraph/build
 dist
+services/**/*.js
