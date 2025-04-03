@@ -32,18 +32,11 @@ export class EvmCaller {
     return this.getList('managers');
   }
 
-  async getCurrentIndexAndTime(): Promise<{ currentIndex: BN, currentTime: BN }> {
-    const contract = this._getMTokenContract();
-    const currentTime = await this.client.getBlock().then((block) => new BN(block.timestamp.toString()));
-    const currentIndex = new BN((await contract.read.currentIndex()).toString());
-    return { currentIndex, currentTime };
-  }
-  
   async getCurrentIndex(): Promise<BN> {
     const contract = this._getMTokenContract();
     return new BN((await contract.read.currentIndex()).toString());
   }
-  
+
   private async getList(list: 'earners' | 'managers'): Promise<PublicKey[]> {
     const contract = this._getMerkleContract();
     const earners = await contract.read.getList([REGISTRAR_LISTS[list]]);

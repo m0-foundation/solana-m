@@ -55,8 +55,42 @@ describe('SDK unit tests', () => {
   const [tokenAuth] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], earn.programId);
 
   // use local EVM testnet (anvil)
-  const testClient = createTestClient({ mode: 'anvil', transport: http('http://localhost:8545') });
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
+
+  // change the timestamp and latest index on EVM to have deterministic results in the tests
+  const testClient = createTestClient({ mode: 'anvil', transport: http('http://localhost:8545') });
+
+  const setIndex = async (index: BN, timestamp: BN) => {
+    // Slot 0 on the M Token stores three values:
+    // 1. latestIndex (16 bytes)
+    // 2. latestRate (4 bytes)
+    // 3. latestUpdateTimeStamp (5 bytes)
+
+    const slot: `0x${string}` = '0x' + new BN(0).toString('hex').padStart(64, '0') as `0x${string}`;
+
+    // Get the current value of the slot
+    const currentValue = await evmClient.getStorageAt({
+      address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+      slot
+    }) ?? slot; // fallback to 0 value if not found, we use the slot variable here for convenience since it is that value 
+
+    const latestRate = currentValue.slice(32, 40);
+
+    // Construct the new value and set it
+    const newIndex = index.toString('hex').padStart(32, '0');
+    const newTimestamp = timestamp.toString('hex').padStart(24, '0');
+
+    const newValue = ('0x' + newTimestamp + latestRate + newIndex) as `0x${string}`;
+
+    testClient.setStorageAt(
+      {
+        address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+        index: slot,
+        value: newValue,
+      }
+    );
+  };
+
 
   beforeAll(async () => {
     const mintATAs = [];
@@ -451,45 +485,77 @@ describe('SDK unit tests', () => {
     });
 
     describe('getPendingYield', () => {
+      beforeAll(async () => {
+        // Set a later index on the EVM contract so that there is some pending yield
+        await setIndex(new BN(1_020_100_000_000), new BN((await evmClient.getBlock()).timestamp.toString()));
+      })
+
       test('earn program', async () => {
         const earnerATA = spl.getAssociatedTokenAddressSync(
           mints[0].publicKey,
           earnerA.publicKey,
-          true,
+          false,
           spl.TOKEN_2022_PROGRAM_ID,
         );
 
         const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EARN_PROGRAM);
         const pending = await earner.getPendingYield();
-        console.log(pending.toString());
         
+        // Earner's weighted balance over the period is 5,000,000 M
+        // The index is increased by 1% since their last claim
+        // Therefore, the pending yield should be 50,000 M
+        expect(pending.toString()).toEqual('50000000000'.toString());
       });
 
-      // test('ext earn program - no manager fee', async () => {
-      //   const earnerATA = spl.getAssociatedTokenAddressSync(
-      //     mints[1].publicKey,
-      //     earnerC.publicKey,
-      //     true,
-      //     spl.TOKEN_2022_PROGRAM_ID,
-      //   )
+      test('ext earn program - with manager fee', async () => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earnerB.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        )
 
-      //   const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
-      //   const pending = await earner.getPendingYield();
-      //   console.log(pending.toString());
-      // });
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
+        const pending = await earner.getPendingYield();
+        
+        // Earners's weighted balance over the period is 2,000,000
+        // The index increased by 2.01% since their last claim
+        // The total pending yield is 40,200 M
+        // The earn manager takes a 15 basis point fee
+        // Therefore, the earner's pending yield should be 40,200 * (1 - 0.0015) = 40,139.7 M
+        expect(pending.toString()).toEqual('40139700000'.toString());
+      });
+      
+      test('ext earn program - no manager fee', async () => {
+        // Set the earn manager to 0% fee
+        const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
 
-      // test('ext earn program - with manager fee', async () => {
-      //   const earnerATA = spl.getAssociatedTokenAddressSync(
-      //     mints[1].publicKey,
-      //     earnerC.publicKey,
-      //     true,
-      //     spl.TOKEN_2022_PROGRAM_ID,
-      //   )
+        const dummyATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earnerA.publicKey,
+          true,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
 
-      //   const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
-      //   const pending = await earner.getPendingYield();
-      //   console.log(pending.toString());
-      // });
+        const ix = await manager.buildConfigureInstruction(0, dummyATA);
+        await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
+
+        // Get the pending yield for the earner and compare with the expected value
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earnerB.publicKey,
+          false,
+          spl.TOKEN_2022_PROGRAM_ID,
+        )
+
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
+        const pending = await earner.getPendingYield();
+        
+        // Earner's weighted balance over the period is 2,000,000 M
+        // The index increased by 2.01% since their last claim
+        // The total pending yield is 40,200 M
+        expect(pending.toString()).toEqual('40200000000'.toString());
+      });
     });
   });
 });

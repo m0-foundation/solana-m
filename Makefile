@@ -8,9 +8,8 @@ test-yield-bot:
 	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts 
 
 test-sdk:
-	@anvil -f https://gateway.tenderly.co/public/sepolia -b 1 > /dev/null 2>&1 & \
-	sleep 2 && \
-	anchor localnet --skip-build > /dev/null 2>&1 & \
+	@anchor localnet --skip-build > /dev/null 2>&1 & \
+	anvil -f https://gateway.tenderly.co/public/sepolia > /dev/null 2>&1 & \
 	sleep 2 && \
 	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
 	kill -9 $$(lsof -ti:8899) & kill -9 $$(lsof -ti:8545)

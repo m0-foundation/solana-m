@@ -76,7 +76,6 @@ export class Earner {
 
     const evmCaller = new EvmCaller(this.evmClient);
 
-    // const { currentIndex, currentTime } = await evmCaller.getCurrentIndexAndTime();
     const currentIndex = await evmCaller.getCurrentIndex();
 
     const earnerWeightedBalance = await this.graph.getTimeWeightedBalance(
@@ -85,13 +84,7 @@ export class Earner {
       currentTime,
     );
 
-    console.log('earnerWeightedBalance', earnerWeightedBalance.toString());
-    console.log('currentIndex', currentIndex.toString());
-    console.log('lastClaimIndex', this.data.lastClaimIndex.toString());
-
     let pendingYield = this.data.lastClaimIndex >= currentIndex ? new BN(0) : earnerWeightedBalance.mul(currentIndex.sub(this.data.lastClaimIndex)).div(this.data.lastClaimIndex);
-
-    console.log('pendingYield', pendingYield.toString());
 
     // Check if the earner has an earn manager
     // If so, check if the earn manager has a fee
