@@ -27,10 +27,10 @@ export async function indexCLI() {
     .description('Push the latest index from Ethereum to Solana')
     .option('-s, --solana [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
     .option('-e, --ethereum [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
-    .option('-k, --private-key [KEY]', 'Ethereum private key')
+    .option('-k, --private-key <KEY>', 'Ethereum private key')
     .option('-t, --threshold [SECONDS]', 'Staleness threshold in seconds', '86400')
-    .option('-f, --force', 'Force push the index even if it is not stale')
-    .option('--dry-run', 'Do not send transactions')
+    .option('-f, --force', 'Force push the index even if it is not stale', false)
+    .option('--dry-run', 'Do not send transactions', false)
     .action(async ({solanaRpc, evmRpc, evmPrivateKey, threshold, force, dryRun}) => {
         const options: ParsedOptions = {
             solanaClient: new Connection(solanaRpc),
@@ -79,10 +79,10 @@ async function isIndexStale(options: ParsedOptions) {
     const currentTimestamp = BigInt(Date.now() / 1000); // current timestamp in seconds
 
     if (options.dryRun) {
-        logger.info('Last update timestamp: ', lastUpdateTimestamp.toString());
-        logger.info('Current timestamp: ', currentTimestamp.toString());
-        logger.info('Threshold: ', options.threshold.toString());
-        logger.info('Is index stale: ', currentTimestamp - lastUpdateTimestamp > options.threshold);
+        logger.info('Last update timestamp', { lastUpdateTimestamp: lastUpdateTimestamp.toString() });
+        logger.info('Current timestamp', { currentTimestamp: currentTimestamp.toString() });
+        logger.info('Threshold', { options: options.threshold.toString() });
+        logger.info('Is index stale', { stale: currentTimestamp - lastUpdateTimestamp > options.threshold });
     }
 
     return currentTimestamp - lastUpdateTimestamp > options.threshold;
@@ -175,9 +175,9 @@ function configureLogger() {
   }
 
   return winston.createLogger({
-    level: 'info',
+    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
     format,
-    defaultMeta: { name: 'yield-bot' },
+    defaultMeta: { name: 'index-bot' },
     transports: [new winston.transports.Console()],
   });
 }
