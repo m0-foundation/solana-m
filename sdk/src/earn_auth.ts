@@ -122,7 +122,6 @@ class EarnAuthority {
     }
 
     // PDAs
-    const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
     const [earnerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earner'), earner.data.userTokenAccount.toBuffer()],
       this.programID,
@@ -138,7 +137,7 @@ class EarnAuthority {
 
       const earnManagerTokenAccount = manager.data.feeTokenAccount;
       const earnManagerAccount = PublicKey.findProgramAddressSync(
-        [Buffer.from('earn-manager'), earner.data.earnManager!.toBytes()],
+        [Buffer.from('earn_manager'), earner.data.earnManager!.toBytes()],
         this.programID,
       )[0];
 
@@ -168,6 +167,8 @@ class EarnAuthority {
         })
         .instruction();
     } else {
+      const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
+
       return (this.program as Program<Earn>).methods
         .claimFor(new BN(weightedBalance.toString()))
         .accounts({

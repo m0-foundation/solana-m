@@ -11,7 +11,7 @@ import {
 } from '@solana/web3.js';
 import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
-import { PublicClient, createPublicClient, http } from '../../sdk/src';
+import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
 import winston from 'winston';
 
@@ -24,6 +24,7 @@ interface ParsedOptions {
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
+  programID: PublicKey;
 }
 
 // entrypoint for the yield bot command
@@ -39,7 +40,8 @@ export async function yieldCLI() {
     .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
     .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
-    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda }) => {
+    .option('-w, --wrappedM [bool]', 'Claim yield for wM', false)
+    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, wrappedM }) => {
       let signer: Keypair;
       try {
         signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
@@ -48,6 +50,7 @@ export async function yieldCLI() {
       }
 
       const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
+      const programID = wrappedM ? EXT_PROGRAM_ID : PROGRAM_ID;
 
       const options: ParsedOptions = {
         signer,
@@ -55,10 +58,18 @@ export async function yieldCLI() {
         evmClient,
         dryRun,
         skipCycle,
+        programID,
       };
 
       if (squadsPda) {
         options.squadsPda = new PublicKey(squadsPda);
+      }
+
+      logger.defaultMeta = { ...logger.defaultMeta, mint: wrappedM ? 'wM' : 'M' };
+
+      if (wrappedM) {
+        await distributeYield(options);
+        return;
       }
 
       await removeEarners(options);
@@ -70,7 +81,7 @@ export async function yieldCLI() {
 }
 
 async function distributeYield(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.programID);
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
@@ -109,16 +120,18 @@ async function distributeYield(opt: ParsedOptions) {
   });
 
   // complete cycle on last claim transaction
-  const ix = await auth.buildCompleteClaimCycleInstruction();
-  if (!ix) {
+  const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
+  if (!completeClaimIx) {
     return;
   }
-
-  filteredIxs.push(ix);
 
   // send all the claims
   const signatures = await buildAndSendTransaction(opt, filteredIxs, 10, 'yield claim');
   logger.info('yield distributed', { signatures });
+
+  // wait for claim transactions to be confirmed before completing cycle
+  const sigs = await buildAndSendTransaction(opt, [completeClaimIx], 10, 'complete claim cycle');
+  logger.info('cycle complete', { signature: sigs[0] });
 }
 
 async function addEarners(opt: ParsedOptions) {
