@@ -14,6 +14,7 @@ import EarnAuthority from '../../sdk/src/earn_auth';
 import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
 import winston, { Logger } from 'winston';
+import BN from 'bn.js';
 
 const logger = configureLogger();
 
@@ -24,6 +25,7 @@ interface ParsedOptions {
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
+  claimThreshold: BN;
   programID: PublicKey;
 }
 
@@ -40,8 +42,9 @@ export async function yieldCLI() {
     .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
     .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
+    .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
     .option('-w, --wrappedM [bool]', 'Claim yield for wM', false)
-    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, wrappedM }) => {
+    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, wrappedM, claimThreshold }) => {
       let signer: Keypair;
       try {
         signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
@@ -59,6 +62,7 @@ export async function yieldCLI() {
         dryRun,
         skipCycle,
         programID,
+        claimThreshold: new BN(claimThreshold),
       };
 
       if (squadsPda) {
@@ -111,7 +115,7 @@ async function distributeYield(opt: ParsedOptions) {
     if (ix) claimIxs.push(ix);
   }
 
-  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
+  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs, 10, opt.claimThreshold);
 
   logger.info(`distributing ${opt.programID === PROGRAM_ID ? 'M' : 'wM'} yield`, {
     amount: distributed.toNumber(),

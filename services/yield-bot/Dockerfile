@@ -35,4 +35,4 @@ ENV NODE_ENV=production
 ENV BUILD_TIME=$now
 
 # Use the environment variable in the command
-CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --keypair \"$BOT_KEYPAIR\" --rpc \"$SVM_RPC\" --wrappedM \"$WRAPPED_M\""]
+CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --keypair \"$BOT_KEYPAIR\" --rpc \"$SVM_RPC\" --wrappedM \"$WRAPPED_M\" --claimThreshold \"$CLAIM_THRESHOLD\""]
