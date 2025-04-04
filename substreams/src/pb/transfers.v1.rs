@@ -69,7 +69,7 @@ pub struct IndexUpdate {
     #[prost(uint64, tag="2")]
     pub ts: u64,
     #[prost(uint64, tag="3")]
-    pub supply: u64,
+    pub token_supply: u64,
     #[prost(uint64, tag="4")]
     pub max_yield: u64,
 }

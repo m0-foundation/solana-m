@@ -49,6 +49,7 @@ type IndexUpdate @entity(immutable: true) {
   index: BigInt!
   ts: BigInt!
   signature: Bytes!
+  token_supply: BigInt!
 }
 
 type BridgeEvent @entity(immutable: true) {

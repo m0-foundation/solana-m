@@ -32,6 +32,7 @@ export function handleTriggers(bytes: Uint8Array): void {
         update.index = BigInt.fromI64(ix.indexUpdate!.index);
         update.ts = BigInt.fromI64(input.blockTime);
         update.signature = b58(txn.signature);
+        update.token_supply = BigInt.fromI64(ix.indexUpdate!.tokenSupply);
 
         update.save();
       }

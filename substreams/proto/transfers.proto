@@ -38,7 +38,7 @@ message Instruction {
 message IndexUpdate {
   uint64 index = 1;
   uint64 ts = 2;
-  uint64 supply = 3;
+  uint64 token_supply = 3;
   uint64 max_yield = 4;
 }
 
