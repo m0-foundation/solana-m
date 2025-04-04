@@ -140,14 +140,16 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
                     inbox_item.transfer.recipient =
                         Pubkey::try_from(ntt.to).map_err(|_| NTTError::InvalidRecipientAddress)?;
 
-                    // emit event for tracking
-                    emit!(BridgeEvent {
-                        amount: inbox_item.transfer.amount as i64,
-                        token_supply: accs.mint.supply + amount as u64,
-                        to: inbox_item.transfer.recipient.to_bytes(),
-                        from: message.sender,
-                        wormhole_chain_id: transceiver_message.from_chain.id,
-                    });
+                    // emit event for tracking (only on first call)
+                    if accs.inbox_item.transfer.amount == 0 {
+                        emit!(BridgeEvent {
+                            amount: inbox_item.transfer.amount as i64,
+                            token_supply: accs.mint.supply + amount as u64,
+                            to: inbox_item.transfer.recipient.to_bytes(),
+                            from: message.sender,
+                            wormhole_chain_id: transceiver_message.from_chain.id,
+                        });
+                    }
                 }
 
                 // payloads from L2s might have an index update
