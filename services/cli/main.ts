@@ -458,19 +458,8 @@ async function main() {
       const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL) });
       const manager = await EarnManager.fromManagerAddress(connection, evmClient, owner.publicKey);
 
-      const earnerATA = await getOrCreateAssociatedTokenAccount(
-        connection,
-        owner,
-        EXT_MINT,
-        earner,
-        true,
-        undefined,
-        undefined,
-        TOKEN_2022_PROGRAM_ID,
-      );
-
-      const ix = await manager.buildAddEarnerInstruction(earner, earnerATA.address);
-      const sig = await sendAndConfirmTransaction(connection, new Transaction().add(ix), [owner]);
+      const ixs = await manager.buildAddEarnerInstruction(earner);
+      const sig = await sendAndConfirmTransaction(connection, new Transaction().add(...ixs), [owner]);
 
       console.log(`Earner added: ${earner.toBase58()} (${sig})`);
     });

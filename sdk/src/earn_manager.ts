@@ -68,10 +68,27 @@ export class EarnManager {
       .instruction();
   }
 
-  async buildAddEarnerInstruction(user: PublicKey, userTokenAccount?: PublicKey): Promise<TransactionInstruction> {
+  async buildAddEarnerInstruction(user: PublicKey, userTokenAccount?: PublicKey): Promise<TransactionInstruction[]> {
+    const ixs: TransactionInstruction[] = [];
+
     // derive ata if token account not provided
     if (!userTokenAccount) {
       userTokenAccount = spl.getAssociatedTokenAddressSync(EXT_MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
+
+      // check if ata exists
+      try {
+        spl.getAccount(this.connection, userTokenAccount, this.connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
+      } catch {
+        ixs.push(
+          spl.createAssociatedTokenAccountInstruction(
+            this.manager,
+            userTokenAccount,
+            user,
+            EXT_MINT,
+            spl.TOKEN_2022_PROGRAM_ID,
+          ),
+        );
+      }
     }
 
     // PDAs
@@ -84,16 +101,20 @@ export class EarnManager {
       EXT_PROGRAM_ID,
     );
 
-    return await this.program.methods
-      .addEarner(user)
-      .accounts({
-        signer: this.manager,
-        globalAccount: EXT_GLOBAL_ACCOUNT,
-        earnManagerAccount,
-        userTokenAccount,
-        earnerAccount,
-      })
-      .instruction();
+    ixs.push(
+      await this.program.methods
+        .addEarner(user)
+        .accounts({
+          signer: this.manager,
+          globalAccount: EXT_GLOBAL_ACCOUNT,
+          earnManagerAccount,
+          userTokenAccount,
+          earnerAccount,
+        })
+        .instruction(),
+    );
+
+    return ixs;
   }
 
   async getEarners(): Promise<Earner[]> {

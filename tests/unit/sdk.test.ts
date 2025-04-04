@@ -444,8 +444,8 @@ describe('SDK unit tests', () => {
         spl.TOKEN_2022_PROGRAM_ID,
       );
 
-      const ix = await manager.buildAddEarnerInstruction(earnerC.publicKey, earnerATA);
-      await sendAndConfirmTransaction(connection, new Transaction().add(ix), [signer]);
+      const ixs = await manager.buildAddEarnerInstruction(earnerC.publicKey, earnerATA);
+      await sendAndConfirmTransaction(connection, new Transaction().add(...ixs), [signer]);
 
       const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA);
       expect(earner.data.earnManager?.toBase58()).toEqual(manager.manager.toBase58());
