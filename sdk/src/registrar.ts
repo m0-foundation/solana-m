@@ -72,9 +72,14 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const earner of programEarners) {
-      if (earners.includes(earner.data.user)) {
+      if (earners.find((e) => e.equals(earner.data.user))) {
         continue;
       }
+
+      console.log('removing earner', {
+        user: earner.data.user.toBase58(),
+        pubkey: earner.pubkey.toBase58(),
+      });
 
       // build proof
       const tree = new MerkleTree(earners);

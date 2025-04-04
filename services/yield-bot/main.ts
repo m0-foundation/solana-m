@@ -43,8 +43,8 @@ export async function yieldCLI() {
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
     .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
     .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
-    .option('-w, --wrappedM [bool]', 'Claim yield for wM', false)
-    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, wrappedM, claimThreshold }) => {
+    .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
+    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, programID, claimThreshold }) => {
       let signer: Keypair;
       try {
         signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
@@ -53,7 +53,6 @@ export async function yieldCLI() {
       }
 
       const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
-      const programID = wrappedM ? EXT_PROGRAM_ID : PROGRAM_ID;
 
       const options: ParsedOptions = {
         signer,
@@ -61,7 +60,7 @@ export async function yieldCLI() {
         evmClient,
         dryRun,
         skipCycle,
-        programID,
+        programID: new PublicKey(programID),
         claimThreshold: new BN(claimThreshold),
       };
 
@@ -69,9 +68,12 @@ export async function yieldCLI() {
         options.squadsPda = new PublicKey(squadsPda);
       }
 
-      logger.defaultMeta = { ...logger.defaultMeta, mint: wrappedM ? 'wM' : 'M' };
+      logger.defaultMeta = {
+        ...logger.defaultMeta,
+        mint: options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
+      };
 
-      if (wrappedM) {
+      if (options.programID.equals(EXT_PROGRAM_ID)) {
         await distributeYield(options);
         return;
       }
