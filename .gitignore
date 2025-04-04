@@ -12,3 +12,4 @@ devnet-keypair.json
 substreams/subgraph/build
 dist
 services/**/*.js
+.env.*

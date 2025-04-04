@@ -113,7 +113,7 @@ async function distributeYield(opt: ParsedOptions) {
 
   const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
 
-  logger.info('distributing M yield', {
+  logger.info(`distributing ${opt.programID === PROGRAM_ID ? 'M' : 'wM'} yield`, {
     amount: distributed.toNumber(),
     claims: filteredIxs.length,
     belowThreshold: claimIxs.length - filteredIxs.length,
@@ -373,14 +373,26 @@ function configureLogger() {
 }
 
 function catchConsoleLogs() {
-  console.log = (message?: any, ...optionalParams: any[]) =>
-    logger.info(message ?? 'console log', {
-      params: optionalParams.map((p) => p.toString()),
-    });
-  console.error = (message?: any, ...optionalParams: any[]) =>
-    logger.error(message ?? 'console error', {
-      params: optionalParams.map((p) => p.toString()),
-    });
+  // catch console logs and send them to winston logger
+  const parser = (lgr: winston.LeveledLogMethod) => {
+    return (message?: any, ...optionalParams: any[]) => {
+      // intercepted log is just key value pairs
+      if (optionalParams.length === 1 && typeof optionalParams[0] === 'object') {
+        if (Object.values(optionalParams[0]).every((v) => typeof v === 'string')) {
+          lgr(message ?? 'console error', optionalParams[0]);
+          return;
+        }
+      }
+      // unknown log parameters
+      lgr(message ?? 'console error', {
+        paramsStr: optionalParams.map((p) => p.toString()),
+      });
+    };
+  };
+
+  console.info = parser(logger.info);
+  console.warn = parser(logger.warning);
+  console.error = parser(logger.error);
 }
 
 // do not run the cli if this is being imported by jest

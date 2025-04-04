@@ -8,7 +8,7 @@ import {
 } from '@solana/web3.js';
 import { PublicClient } from 'viem';
 
-import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
+import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
 import { EarnManager } from './earn_manager';
@@ -76,7 +76,6 @@ class EarnAuthority {
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
     if (this.programID !== PROGRAM_ID) {
-      console.error('Invalid program');
       return null;
     }
 
@@ -102,12 +101,12 @@ class EarnAuthority {
 
     // earner was created after last index update
     if (earner.data.lastClaimTimestamp > this.global.timestamp) {
-      console.error('Earner created after last index update');
+      console.warn('Earner created after last index update');
       return null;
     }
 
     if (earner.data.lastClaimIndex == this.global.index) {
-      console.error('Earner already claimed');
+      console.warn('Earner already claimed');
       return null;
     }
 
@@ -223,6 +222,10 @@ class EarnAuthority {
     // validate rewards is not higher than max claimable rewards
     if (this.programID === PROGRAM_ID) {
       if (totalRewards.gt(this.global.maxYield!)) {
+        console.error('Claim amount exceeds max claimable rewards', {
+          totalRewards: totalRewards.toString(),
+          maxYield: this.global.maxYield!.toString(),
+        });
         throw new Error('Claim amount exceeds max claimable rewards');
       }
     } else {
@@ -236,7 +239,7 @@ class EarnAuthority {
 
       // vault balance
       const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
-        this.global.mint,
+        MINT,
         PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID)[0],
         true,
         spl.TOKEN_2022_PROGRAM_ID,
@@ -250,6 +253,11 @@ class EarnAuthority {
       const collateral = new BN(tokenAccountInfo.amount.toString());
 
       if (new BN(mint.supply.toString()).add(totalRewards).gt(collateral)) {
+        console.error('Claim amount exceeds max claimable rewards', {
+          mintSupply: mint.supply.toString(),
+          totalRewards: totalRewards.toString(),
+          collateral: collateral.toString(),
+        });
         throw new Error('Claim amount exceeds max claimable rewards');
       }
     }
