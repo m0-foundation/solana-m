@@ -1,6 +1,6 @@
 # syntax=docker.io/docker/dockerfile:1.7-labs
 
-FROM node:lts-alpine AS build
+FROM node:22 AS build
 
 WORKDIR /app
 
