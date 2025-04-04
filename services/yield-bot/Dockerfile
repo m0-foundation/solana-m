@@ -29,8 +29,10 @@ COPY --from=builder /app/services/yield-bot ./services/yield-bot
 COPY --from=builder /app/sdk ./sdk
 COPY --from=builder /app/node_modules ./node_modules
 
-# Set production environment
+# Set production environment and add build time
+ARG now
 ENV NODE_ENV=production
+ENV BUILD_TIME=$now
 
 # Use the environment variable in the command
 CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --keypair \"$BOT_KEYPAIR\" --rpc \"$SVM_RPC\" --wrappedM \"$WRAPPED_M\""]

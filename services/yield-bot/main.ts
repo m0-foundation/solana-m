@@ -367,7 +367,7 @@ function configureLogger() {
   return winston.createLogger({
     level: 'info',
     format,
-    defaultMeta: { name: 'yield-bot' },
+    defaultMeta: { name: 'yield-bot', imageBuild: process.env.BUILD_TIME },
     transports: [new winston.transports.Console()],
   });
 }

@@ -82,7 +82,7 @@ upgrade-portal-devnet: build-devnet
 #
 deploy-yield-bot:
 	railway environment development
-	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile .
+	docker build --build-arg now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:yield-bot
 	railway redeploy --service "yield bot - M" --yes
 	railway redeploy --service "yield bot - wM" --yes
