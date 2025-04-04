@@ -12,7 +12,7 @@ import { createAppKit } from '@reown/appkit/react';
 import { SolanaAdapter } from '@reown/appkit-adapter-solana/react';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { mainnet, arbitrum, sepolia, solana, optimism, solanaDevnet } from '@reown/appkit/networks';
-
+import { Wrap } from './components/wrap';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -74,7 +74,7 @@ createRoot(document.getElementById('root')!).render(
                 </div>
               }
             />
-            <Route path="/wrap" element={<div>Not yet implemented</div>} />
+            <Route path="/wrap" element={<Wrap />} />
             <Route path="/bridge" element={<div>Not yet implemented</div>} />
           </Routes>
         </BrowserRouter>
