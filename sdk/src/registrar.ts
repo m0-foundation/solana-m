@@ -96,9 +96,7 @@ export class Registrar {
   }
 
   async getRegistrarEarners(): Promise<Earner[]> {
-    const accounts = await getProgram(this.connection).account.earner.all([
-      { memcmp: { offset: 89, bytes: '2' } }, // no manager
-    ]);
+    const accounts = await getProgram(this.connection).account.earner.all();
     return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account));
   }
 }
