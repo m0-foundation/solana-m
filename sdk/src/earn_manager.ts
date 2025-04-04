@@ -77,7 +77,7 @@ export class EarnManager {
 
       // check if ata exists
       try {
-        spl.getAccount(this.connection, userTokenAccount, this.connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
+        await spl.getAccount(this.connection, userTokenAccount, this.connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
       } catch {
         ixs.push(
           spl.createAssociatedTokenAccountInstruction(
