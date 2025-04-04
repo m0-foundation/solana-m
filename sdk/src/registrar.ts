@@ -28,10 +28,12 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const user of earners) {
-      const existingEarners = await Earner.fromUserAddress(this.connection, this.evmClient, user);
+      const existingEarners = await Earner.fromUserAddress(this.connection, this.evmClient, user, PROGRAM_ID);
       if (existingEarners.length > 0) {
         continue;
       }
+
+      console.log('adding earner', { user: user.toBase58() });
 
       // derive token account for user
       const userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
