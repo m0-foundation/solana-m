@@ -39,7 +39,7 @@ class EarnAuthority {
     this.connection = connection;
     this.evmClient = evmClient;
     this.programID = program;
-    this.program = program === PROGRAM_ID ? getProgram(connection) : getExtProgram(connection);
+    this.program = program.equals(PROGRAM_ID) ? getProgram(connection) : getExtProgram(connection);
     this.global = global;
     this.mintAuth = mintAuth;
   }
@@ -48,7 +48,7 @@ class EarnAuthority {
     const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], program);
 
     let global: GlobalAccountData;
-    if (program === PROGRAM_ID) {
+    if (program.equals(PROGRAM_ID)) {
       global = await getProgram(connection).account.global.fetch(globalAccount);
     } else {
       const extGlobal = await getExtProgram(connection).account.extGlobal.fetch(globalAccount);
@@ -75,7 +75,7 @@ class EarnAuthority {
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
-    if (this.programID !== PROGRAM_ID) {
+    if (!this.programID.equals(PROGRAM_ID)) {
       return null;
     }
 
@@ -126,7 +126,7 @@ class EarnAuthority {
       this.programID,
     );
 
-    if (this.programID === EXT_PROGRAM_ID) {
+    if (this.programID.equals(EXT_PROGRAM_ID)) {
       // get manager (manager fee token account)
       let manager = this.managerCache.get(earner.data.earnManager!);
       if (!manager) {
@@ -220,7 +220,7 @@ class EarnAuthority {
     }
 
     // validate rewards is not higher than max claimable rewards
-    if (this.programID === PROGRAM_ID) {
+    if (this.programID.equals(PROGRAM_ID)) {
       if (totalRewards.gt(this.global.maxYield!)) {
         console.error('Claim amount exceeds max claimable rewards', {
           totalRewards: totalRewards.toString(),

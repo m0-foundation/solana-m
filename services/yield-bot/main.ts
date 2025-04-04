@@ -119,7 +119,7 @@ async function distributeYield(opt: ParsedOptions) {
 
   const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs, 10, opt.claimThreshold);
 
-  logger.info(`distributing ${opt.programID === PROGRAM_ID ? 'M' : 'wM'} yield`, {
+  logger.info(`distributing ${opt.programID.equals(PROGRAM_ID) ? 'M' : 'wM'} yield`, {
     amount: distributed.toNumber(),
     claims: filteredIxs.length,
     belowThreshold: claimIxs.length - filteredIxs.length,
