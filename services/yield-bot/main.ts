@@ -13,7 +13,7 @@ import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
-import winston from 'winston';
+import winston, { Logger } from 'winston';
 
 const logger = configureLogger();
 
@@ -374,25 +374,25 @@ function configureLogger() {
 
 function catchConsoleLogs() {
   // catch console logs and send them to winston logger
-  const parser = (lgr: winston.LeveledLogMethod) => {
+  const parser = (lgr: (message: string, ...meta: any[]) => Logger) => {
     return (message?: any, ...optionalParams: any[]) => {
       // intercepted log is just key value pairs
       if (optionalParams.length === 1 && typeof optionalParams[0] === 'object') {
         if (Object.values(optionalParams[0]).every((v) => typeof v === 'string')) {
-          lgr(message ?? 'console error', optionalParams[0]);
+          lgr(message ?? 'console log', optionalParams[0]);
           return;
         }
       }
       // unknown log parameters
-      lgr(message ?? 'console error', {
+      lgr(message ?? 'console log', {
         paramsStr: optionalParams.map((p) => p.toString()),
       });
     };
   };
 
-  console.info = parser(logger.info);
-  console.warn = parser(logger.warning);
-  console.error = parser(logger.error);
+  console.info = parser((message: string, ...meta: any[]) => logger.info(message, ...meta));
+  console.warn = parser((message: string, ...meta: any[]) => logger.warn(message, ...meta));
+  console.error = parser((message: string, ...meta: any[]) => logger.error(message, ...meta));
 }
 
 // do not run the cli if this is being imported by jest
