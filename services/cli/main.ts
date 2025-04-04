@@ -59,8 +59,8 @@ const PROGRAMS = {
 };
 
 const RATE_LIMITS_24 = {
-  inbound: 100_000_000n,
-  outbound: 100_000_000n,
+  inbound: 100000000_000000n, // $ 100MM
+  outbound: 100000000_000000n, // $ 100MM
 };
 
 async function main() {
@@ -328,6 +328,32 @@ async function main() {
       }
 
       console.log('Transceiver and peers registered');
+    });
+
+  program
+    .command('update-rate-limits')
+    .description('Set the rate limit for inbound/outbound transfers')
+    .action(async () => {
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const { ctx, ntt, signer, sender } = NttManager(connection, owner, mint.publicKey);
+
+      // outbound
+      const updateTxns = ntt.setOutboundLimit(RATE_LIMITS_24.outbound, sender);
+      const sigs = await signSendWait(ctx, updateTxns, signer);
+      console.log('Updated outbound limit:', sigs[0].txid);
+
+      const chains = (
+        process.env.NETWORK === 'mainnet'
+          ? ['Ethereum', 'Arbitrum', 'Optimism']
+          : ['Sepolia', 'ArbitrumSepolia', 'OptimismSepolia']
+      ) as Chain[];
+
+      // inbound
+      for (let chain of chains) {
+        const updateTxns = ntt.setInboundLimit(chain, RATE_LIMITS_24.inbound, sender);
+        const sigs = await signSendWait(ctx, updateTxns, signer);
+        console.log(`Updated inbound limit for ${chain}: ${sigs[0].txid}`);
+      }
     });
 
   program

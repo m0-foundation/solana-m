@@ -70,6 +70,7 @@ export function handleTriggers(bytes: Uint8Array): void {
         bridge.to = Bytes.fromUint8Array(ix.bridgeEvent!.to);
         bridge.from = Bytes.fromUint8Array(ix.bridgeEvent!.from);
         bridge.chain = ix.bridgeEvent!.chain;
+        bridge.token_supply = BigInt.fromI64(ix.bridgeEvent!.tokenSupply);
 
         // Bridge Stats
         let bridgeStats = BridgeStats.load(Bytes.fromUTF8('bridge-stats'));
