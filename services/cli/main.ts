@@ -19,6 +19,7 @@ import {
   ExtensionType,
   getAssociatedTokenAddressSync,
   getMintLen,
+  getOrCreateAssociatedTokenAccount,
   LENGTH_SIZE,
   TOKEN_2022_PROGRAM_ID,
   TYPE_SIZE,
@@ -30,7 +31,7 @@ import {
   TokenMetadata,
 } from '@solana/spl-token-metadata';
 import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
-import { createPublicClient, http } from '../../sdk/src';
+import { createPublicClient, EXT_GLOBAL_ACCOUNT, EXT_MINT, http } from '../../sdk/src';
 
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
@@ -42,6 +43,7 @@ import { anchorProvider, keysFromEnv, NttManager } from './utils';
 import { MerkleTree } from '../../sdk/src/merkle';
 import { EvmCaller } from '../../sdk/src/evm_caller';
 import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
+import { EarnManager } from '../../sdk/src/earn_manager';
 const EARN_IDL = require('../../target/idl/earn.json');
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
@@ -405,6 +407,70 @@ async function main() {
         })
         .signers([])
         .rpc();
+
+      console.log(`Earner added: ${earner.toBase58()} (${sig})`);
+    });
+
+  program
+    .command('add-earn-manager')
+    .description('Add earn manager to the wM earn program')
+    .action(async () => {
+      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
+      const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, PROGRAMS.extEarn, anchorProvider(connection, owner));
+
+      const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+        [Buffer.from('earn_manager'), owner.publicKey.toBuffer()],
+        PROGRAMS.extEarn,
+      );
+
+      const managerATA = await getOrCreateAssociatedTokenAccount(
+        connection,
+        owner,
+        EXT_MINT,
+        earnManagerAccount,
+        true,
+        undefined,
+        undefined,
+        TOKEN_2022_PROGRAM_ID,
+      );
+
+      const sig = await extEarn.methods
+        .addEarnManager(owner.publicKey, new BN(15))
+        .accounts({
+          admin: owner.publicKey,
+          globalAccount: EXT_GLOBAL_ACCOUNT,
+          earnManagerAccount,
+          feeTokenAccount: managerATA.address,
+        })
+        .rpc({ skipPreflight: true });
+
+      console.log(`Earn manager added: ${earnManagerAccount.toBase58()} (${sig})`);
+    });
+
+  program
+    .command('add-earner')
+    .description('Add earner to the wM earn program')
+    .argument('<earner>', 'The earner to add')
+    .action(async (earnerAddress: string) => {
+      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
+      const earner = new PublicKey(earnerAddress);
+
+      const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL) });
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, owner.publicKey);
+
+      const earnerATA = await getOrCreateAssociatedTokenAccount(
+        connection,
+        owner,
+        EXT_MINT,
+        earner,
+        true,
+        undefined,
+        undefined,
+        TOKEN_2022_PROGRAM_ID,
+      );
+
+      const ix = await manager.buildAddEarnerInstruction(earner, earnerATA.address);
+      const sig = await sendAndConfirmTransaction(connection, new Transaction().add(ix), [owner]);
 
       console.log(`Earner added: ${earner.toBase58()} (${sig})`);
     });
