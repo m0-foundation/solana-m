@@ -3,14 +3,14 @@
   "name": "ext_earn",
   "constants": [
     {
-      "name": "EARNER_SEED",
-      "type": "bytes",
-      "value": "[101, 97, 114, 110, 101, 114]"
-    },
-    {
       "name": "EARN_MANAGER_SEED",
       "type": "bytes",
       "value": "[101, 97, 114, 110, 95, 109, 97, 110, 97, 103, 101, 114]"
+    },
+    {
+      "name": "EARNER_SEED",
+      "type": "bytes",
+      "value": "[101, 97, 114, 110, 101, 114]"
     },
     {
       "name": "EXT_GLOBAL_SEED",
@@ -18,14 +18,14 @@
       "value": "[103, 108, 111, 98, 97, 108]"
     },
     {
-      "name": "MINT_AUTHORITY_SEED",
-      "type": "bytes",
-      "value": "[109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
-    },
-    {
       "name": "M_VAULT_SEED",
       "type": "bytes",
       "value": "[109, 95, 118, 97, 117, 108, 116]"
+    },
+    {
+      "name": "MINT_AUTHORITY_SEED",
+      "type": "bytes",
+      "value": "[109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     }
   ],
   "instructions": [
@@ -554,71 +554,6 @@
   ],
   "accounts": [
     {
-      "name": "Global",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "admin",
-            "type": "publicKey"
-          },
-          {
-            "name": "earnAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "portalAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "mint",
-            "type": "publicKey"
-          },
-          {
-            "name": "index",
-            "type": "u64"
-          },
-          {
-            "name": "timestamp",
-            "type": "u64"
-          },
-          {
-            "name": "claimCooldown",
-            "type": "u64"
-          },
-          {
-            "name": "maxSupply",
-            "type": "u64"
-          },
-          {
-            "name": "maxYield",
-            "type": "u64"
-          },
-          {
-            "name": "distributed",
-            "type": "u64"
-          },
-          {
-            "name": "claimComplete",
-            "type": "bool"
-          },
-          {
-            "name": "earnerMerkleRoot",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
       "name": "EarnManager",
       "type": {
         "kind": "struct",
@@ -745,41 +680,6 @@
         {
           "name": "ts",
           "type": "u64",
-          "index": false
-        }
-      ]
-    },
-    {
-      "name": "RewardsClaim",
-      "fields": [
-        {
-          "name": "tokenAccount",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "ts",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "index",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "fee",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "recipientTokenAccount",
-          "type": "publicKey",
           "index": false
         }
       ]
