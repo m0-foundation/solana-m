@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { useAccount } from '../hooks/useAccount';
+import { wrap } from '../services/rpc';
+import { type Provider } from '@reown/appkit-adapter-solana/react';
+import { useAppKitProvider } from '@reown/appkit/react';
+import { useSettings } from '../context/settings';
+import Decimal from 'decimal.js';
 
 enum TabType {
   WRAP = 'wrap',
@@ -7,8 +12,9 @@ enum TabType {
 }
 
 export const Wrap = () => {
-  const { isConnected, address, solanaBalances, evmBalances } = useAccount();
-  console.log('EVM', evmBalances.M?.toString(), evmBalances.wM?.toString());
+  const { isConnected, address, solanaBalances } = useAccount();
+  const { walletProvider } = useAppKitProvider<Provider>('solana');
+  const { rpcUrl } = useSettings();
 
   const [activeTab, setActiveTab] = useState<TabType>(TabType.WRAP);
   const [amount, setAmount] = useState<string>('');
@@ -38,8 +44,15 @@ export const Wrap = () => {
   };
 
   const handleWrapUnwrap = async () => {
-    const amountValue = parseFloat(amount) || 0;
-    console.log(`${isWrapping ? 'Wrapping' : 'Unwrapping'} ${amountValue} SOL`);
+    const amountValue = new Decimal(amount).mul(1e6).floor();
+    console.log(`${isWrapping ? 'Wrapping' : 'Unwrapping'} ${amountValue}`);
+
+    try {
+      const sig = await wrap(walletProvider, rpcUrl, amountValue);
+      console.log('sig: ', sig);
+    } catch (error) {
+      console.error('Error during wrap', error);
+    }
   };
 
   // check for valid values
@@ -54,6 +67,7 @@ export const Wrap = () => {
             <button
               className={`px-2 pt-1 hover:cursor-pointer ${activeTab === tab ? 'bg-blue-200 text-blue-600' : ''}`}
               onClick={() => handleTabChange(tab)}
+              key={tab}
             >
               {tab === TabType.WRAP ? 'Wrap' : 'Unwrap'}
             </button>
@@ -95,7 +109,7 @@ export const Wrap = () => {
         <button
           onClick={handleWrapUnwrap}
           disabled={invalidWalletConnect || !isValidAmount}
-          className={`w-full py-3 ${
+          className={`w-full py-3 hover:cursor-pointer ${
             !isValidAmount ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
