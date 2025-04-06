@@ -1,4 +1,12 @@
-import { ComputeBudgetProgram, Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+import {
+  ComputeBudgetProgram,
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+  VersionedTransaction,
+} from '@solana/web3.js';
 import {
   createAssociatedTokenAccountInstruction,
   getAccount,
@@ -7,15 +15,20 @@ import {
   TOKEN_2022_PROGRAM_ID,
   unpackMint,
 } from '@solana/spl-token';
-import { EXT_EARN_PROGRAM_ID, M_MINT, wM_MINT } from './consts';
+import { EXT_EARN_PROGRAM_ID, M_MINT, PORTAL, wM_MINT } from './consts';
 import { type Provider } from '@reown/appkit-adapter-solana/react';
 import Decimal from 'decimal.js';
 import { getU64Encoder } from '@solana/codecs';
+import { UniversalAddress, Wormhole } from '@wormhole-foundation/sdk';
+import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
+import { SolanaPlatform } from '@wormhole-foundation/sdk-solana';
 
 export const MINT_ADDRESSES: Record<string, PublicKey> = {
   M: M_MINT,
   wM: wM_MINT,
 };
+
+const NETWORK: 'devnet' | 'mainnet' = import.meta.env.VITE_NETWORK;
 
 export const getMintsRPC = async (rpcURL: string): Promise<Record<string, Mint>> => {
   const data: Record<string, Mint> = {};
@@ -160,3 +173,67 @@ export const wrapOrUnwrap = async (
 
   return sig;
 };
+
+export const bidgeFromSolana = async (
+  walletProvider: Provider,
+  rpcURL: string,
+  amount: Decimal,
+  recipient: `0x${string}`,
+  chain = 'Sepolia',
+) => {
+  const connection = new Connection(rpcURL);
+  const ntt = NttManager(connection, M_MINT);
+
+  if (!walletProvider.publicKey) {
+    throw new Error('Wallet not connected');
+  }
+
+  const sender = Wormhole.parseAddress('Solana', walletProvider.publicKey.toBase58());
+
+  const outboxItem = Keypair.generate();
+  const xferTxs = ntt.transfer(
+    sender,
+    BigInt(amount.toString()),
+    {
+      address: new UniversalAddress(recipient, 'hex'),
+      chain: chain as any,
+    },
+    { queue: false, automatic: true, gasDropoff: 0n },
+    outboxItem,
+  );
+
+  let sig = '';
+  for await (const tx of xferTxs) {
+    const t = tx.transaction.transaction as VersionedTransaction;
+    sig = await walletProvider.signAndSendTransaction(t);
+    await connection.confirmTransaction(sig, 'confirmed');
+  }
+
+  return sig;
+};
+
+export function NttManager(connection: Connection, mint: PublicKey) {
+  const wormholeNetwork = NETWORK === 'devnet' ? 'Testnet' : 'Mainnet';
+  const wh = new Wormhole(wormholeNetwork, [SolanaPlatform]);
+  const ctx = wh.getChain('Solana');
+
+  const ntt = new SolanaNtt(
+    wormholeNetwork,
+    'Solana',
+    connection,
+    {
+      ...ctx.config.contracts,
+      ntt: {
+        token: mint.toBase58(),
+        manager: PORTAL.toBase58(),
+        transceiver: {
+          wormhole: PORTAL.toBase58(),
+        },
+        quoter: 'Nqd6XqA8LbsCuG8MLWWuP865NV6jR1MbXeKxD4HLKDJ',
+      },
+    },
+    '3.0.0',
+  );
+
+  return ntt;
+}

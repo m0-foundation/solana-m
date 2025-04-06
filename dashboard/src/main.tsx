@@ -11,9 +11,20 @@ import { Bridges } from './components/bridges';
 import { createAppKit } from '@reown/appkit/react';
 import { SolanaAdapter } from '@reown/appkit-adapter-solana/react';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { mainnet, arbitrum, sepolia, solana, optimism, solanaDevnet } from '@reown/appkit/networks';
+import {
+  mainnet,
+  arbitrum,
+  sepolia,
+  solana,
+  optimism,
+  solanaDevnet,
+  arbitrumSepolia,
+  optimismSepolia,
+  AppKitNetwork,
+} from '@reown/appkit/networks';
 import { Wrap } from './components/wrap';
 import './index.css';
+import { Bridge } from './components/bridge';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,10 +34,17 @@ const queryClient = new QueryClient({
   },
 });
 
+const SVM_NETWORKS: AppKitNetwork[] = [import.meta.env.VITE_NETWORK === 'devnet' ? solanaDevnet : solana];
+
+const EVM_NETWORKS: AppKitNetwork[] =
+  import.meta.env.VITE_NETWORK === 'devnet'
+    ? [sepolia, arbitrumSepolia, optimismSepolia]
+    : [mainnet, arbitrum, optimism];
+
 export const wagmiAdapter = new WagmiAdapter({
   ssr: false,
   projectId: '96a8a899ba083d0ebfcf99d9ebf50049',
-  networks: [mainnet, arbitrum, sepolia, optimism],
+  networks: EVM_NETWORKS,
 });
 
 const solanaWeb3JsAdapter = new SolanaAdapter();
@@ -40,7 +58,7 @@ const metadata = {
 
 createAppKit({
   adapters: [wagmiAdapter, solanaWeb3JsAdapter],
-  networks: [mainnet, arbitrum, optimism, sepolia, solana, solanaDevnet],
+  networks: [...EVM_NETWORKS, ...SVM_NETWORKS] as [AppKitNetwork, ...AppKitNetwork[]],
   metadata: metadata,
   projectId: '96a8a899ba083d0ebfcf99d9ebf50049',
   features: {
@@ -75,7 +93,7 @@ createRoot(document.getElementById('root')!).render(
               }
             />
             <Route path="/wrap" element={<Wrap />} />
-            <Route path="/bridge" element={<div>Not yet implemented</div>} />
+            <Route path="/bridge" element={<Bridge />} />
           </Routes>
         </BrowserRouter>
       </SettingsProvider>
