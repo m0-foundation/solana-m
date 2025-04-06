@@ -5,6 +5,7 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
+  TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
 import {
@@ -205,8 +206,40 @@ export const bidgeFromSolana = async (
   let sig = '';
   for await (const tx of xferTxs) {
     const t = tx.transaction.transaction as VersionedTransaction;
-    sig = await walletProvider.signAndSendTransaction(t);
-    await connection.confirmTransaction(sig, 'confirmed');
+
+    // decompile to add compute budget ix
+    const ixs = TransactionMessage.decompile(t.message, {
+      addressLookupTableAccounts: [ntt.addressLookupTable!],
+    }).instructions;
+    ixs.push(
+      ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: 500_000,
+      }),
+    );
+
+    let newTx = new VersionedTransaction(
+      new TransactionMessage({
+        payerKey: walletProvider.publicKey,
+        recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+        instructions: [...ixs],
+      }).compileToV0Message([await ntt.getAddressLookupTable()]),
+    );
+
+    // sign
+    newTx = await walletProvider.signTransaction(newTx);
+    newTx.sign([outboxItem]);
+
+    sig = await connection.sendTransaction(newTx);
+    const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
+
+    await connection.confirmTransaction(
+      {
+        blockhash: blockhash,
+        lastValidBlockHeight: lastValidBlockHeight,
+        signature: sig,
+      },
+      'confirmed',
+    );
   }
 
   return sig;

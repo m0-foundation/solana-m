@@ -26,6 +26,13 @@ import { Wrap } from './components/wrap';
 import './index.css';
 import { Bridge } from './components/bridge';
 
+console.table(
+  Object.entries(import.meta.env).reduce((acc, [key, value]) => {
+    acc[key] = value ?? '';
+    return acc;
+  }, {} as Record<string, string>),
+);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

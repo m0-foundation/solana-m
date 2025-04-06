@@ -8,7 +8,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import { bidgeFromSolana } from '../services/rpc';
 
 export const Bridge = () => {
-  const { isConnected, address, solanaBalances } = useAccount();
+  const { isConnected, solanaBalances } = useAccount();
   const { walletProvider } = useAppKitProvider<Provider>('solana');
   const { rpcUrl } = useSettings();
 
@@ -42,11 +42,14 @@ export const Bridge = () => {
       );
       const txUrl = `https://wormholescan.io/#/tx/${sig}?network=Testnet`;
 
+      // give an extra second for the transaction to be confirmed
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       toast.success(
         <div>
           <div>Bridge successful!</div>
           <a href={txUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-            View on Solscan
+            View on WormholeScan
           </a>
         </div>,
       );
