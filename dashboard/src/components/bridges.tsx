@@ -3,7 +3,7 @@ import { bridgeEvents } from '../services/subgraph';
 import { useSettings } from '../context/settings';
 import bs58 from 'bs58';
 
-const chainIcons: { [key: string]: string } = {
+export const chainIcons: { [key: string]: string } = {
   Ethereum: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png',
   Sepolia: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png',
   Optimism: 'https://s2.coinmarketcap.com/static/img/coins/64x64/11840.png',
