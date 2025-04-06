@@ -24,6 +24,7 @@ export const Navbar = () => {
               { path: '/', label: 'Home' },
               { path: '/wrap', label: 'Wrap' },
               { path: '/bridge', label: 'Bridge' },
+              { path: '/links', label: 'Links' },
             ].map(({ path, label }) => (
               <NavLink
                 key={path}

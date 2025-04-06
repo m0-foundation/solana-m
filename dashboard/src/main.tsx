@@ -25,6 +25,7 @@ import {
 import { Wrap } from './components/wrap';
 import './index.css';
 import { Bridge } from './components/bridge';
+import { Links } from './components/links';
 
 console.table(
   Object.entries(import.meta.env).reduce((acc, [key, value]) => {
@@ -101,6 +102,7 @@ createRoot(document.getElementById('root')!).render(
             />
             <Route path="/wrap" element={<Wrap />} />
             <Route path="/bridge" element={<Bridge />} />
+            <Route path="/links" element={<Links />} />
           </Routes>
         </BrowserRouter>
       </SettingsProvider>

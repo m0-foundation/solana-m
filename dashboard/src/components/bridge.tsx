@@ -96,6 +96,7 @@ export const Bridge = () => {
   const { rpcUrl } = useSettings();
 
   const [amount, setAmount] = useState<string>('');
+  const [recipientAddress, setRecipientAddress] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [inputChain, setInputChain] = useState<Chain>(chains[0]);
   const [outputChain, setOutputChain] = useState<Chain>(chains[1]);
@@ -110,6 +111,10 @@ export const Bridge = () => {
     }
   };
 
+  const handleRecipientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRecipientAddress(e.target.value.trim());
+  };
+
   const handleMaxClick = () => {
     setAmount(solanaBalances.M?.toString() ?? '0');
   };
@@ -119,12 +124,7 @@ export const Bridge = () => {
 
     try {
       setIsLoading(true);
-      const sig = await bidgeFromSolana(
-        walletProvider,
-        rpcUrl,
-        amountValue,
-        '0x12b1A4226ba7D9Ad492779c924b0fC00BDCb6217', // TODO user input
-      );
+      const sig = await bidgeFromSolana(walletProvider, rpcUrl, amountValue, recipientAddress as `0x${string}`);
       const txUrl = `https://wormholescan.io/#/tx/${sig}?network=Testnet`;
 
       // give an extra second for the transaction to be confirmed
@@ -149,6 +149,7 @@ export const Bridge = () => {
 
   // check for valid values
   const isValidAmount = amount !== '' && parseFloat(amount) > 0;
+  const isValidRecipient = recipientAddress.trim() !== '' && recipientAddress.startsWith('0x');
 
   return (
     <div className="flex justify-center mt-20">
@@ -191,11 +192,26 @@ export const Bridge = () => {
           </div>
         </div>
 
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-2 text-gray-400 text-xs">
+            <label>Recipient Address</label>
+          </div>
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={recipientAddress}
+              onChange={handleRecipientChange}
+              placeholder="0x..."
+              className="w-full bg-off-blue py-3 px-4 focus:outline-none"
+            />
+          </div>
+        </div>
+
         <button
           onClick={handleBridge}
-          disabled={!isConnected || !isValidAmount || isLoading}
+          disabled={!isConnected || !isValidAmount || !isValidRecipient || isLoading}
           className={`w-full py-3 hover:cursor-pointer ${
-            !isValidAmount || isLoading
+            !isValidAmount || !isValidRecipient || isLoading
               ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
