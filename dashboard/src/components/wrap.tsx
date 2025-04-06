@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useAccount } from '../hooks/useAccount';
-import { wrap } from '../services/rpc';
+import { wrapOrUnwrap } from '../services/rpc';
 import { type Provider } from '@reown/appkit-adapter-solana/react';
 import { useAppKitProvider } from '@reown/appkit/react';
 import { useSettings } from '../context/settings';
 import Decimal from 'decimal.js';
+import { toast, ToastContainer } from 'react-toastify';
 
 enum TabType {
   WRAP = 'wrap',
@@ -18,6 +19,7 @@ export const Wrap = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>(TabType.WRAP);
   const [amount, setAmount] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const isWrapping = activeTab === TabType.WRAP;
 
   const handleTabChange = (tab: TabType) => {
@@ -45,13 +47,29 @@ export const Wrap = () => {
 
   const handleWrapUnwrap = async () => {
     const amountValue = new Decimal(amount).mul(1e6).floor();
-    console.log(`${isWrapping ? 'Wrapping' : 'Unwrapping'} ${amountValue}`);
 
     try {
-      const sig = await wrap(walletProvider, rpcUrl, amountValue);
-      console.log('sig: ', sig);
+      setIsLoading(true);
+      const sig = await wrapOrUnwrap(activeTab, walletProvider, rpcUrl, amountValue);
+      const txUrl = `https://solscan.io/tx/${sig}?cluster=devnet`;
+
+      // give an extra second for the transaction to be confirmed
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      toast.success(
+        <div>
+          <div>Transaction successful!</div>
+          <a href={txUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+            View on Solscan
+          </a>
+        </div>,
+      );
     } catch (error) {
-      console.error('Error during wrap', error);
+      console.error('Error:', error);
+
+      toast.error(<div>Transaction failed: {error instanceof Error ? error.message : 'Unknown error'}</div>);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -108,18 +126,31 @@ export const Wrap = () => {
 
         <button
           onClick={handleWrapUnwrap}
-          disabled={invalidWalletConnect || !isValidAmount}
+          disabled={invalidWalletConnect || !isValidAmount || isLoading}
           className={`w-full py-3 hover:cursor-pointer ${
-            !isValidAmount ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+            !isValidAmount || isLoading
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
-          {invalidWalletConnect ? 'Connect Solana Wallet' : isWrapping ? 'Wrap M' : 'Unwrap wM'}
+          {invalidWalletConnect ? (
+            'Connect Solana Wallet'
+          ) : isLoading ? (
+            <div className="flex items-center justify-center animate-pulse transition-opacity duration-1000">
+              <span className="loader mr-2"></span>Processing...
+            </div>
+          ) : isWrapping ? (
+            'Wrap M'
+          ) : (
+            'Unwrap wM'
+          )}
         </button>
 
         <div className="mt-5 text-xs text-gray-400 text-center">
           {isWrapping ? 'Wrapping converts M to wM for use with DeFi protocols' : 'Unwrapping converts wM back to M'}
         </div>
       </div>
+      <ToastContainer position="bottom-right" autoClose={5000} />
     </div>
   );
 };

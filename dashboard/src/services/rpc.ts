@@ -36,7 +36,12 @@ export const getMintsRPC = async (rpcURL: string): Promise<Record<string, Mint>>
   return data;
 };
 
-export const wrap = async (walletProvider: Provider, rpcURL: string, amount: Decimal) => {
+export const wrapOrUnwrap = async (
+  action: 'wrap' | 'unwrap',
+  walletProvider: Provider,
+  rpcURL: string,
+  amount: Decimal,
+) => {
   const connection = new Connection(rpcURL);
   const ixs: TransactionInstruction[] = [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 250_000 })];
 
@@ -57,79 +62,90 @@ export const wrap = async (walletProvider: Provider, rpcURL: string, amount: Dec
     TOKEN_2022_PROGRAM_ID,
   );
 
-  // check if wM token account exists
-  try {
-    await getAccount(connection, userwMTokenAccount, 'processed', TOKEN_2022_PROGRAM_ID);
-  } catch {
-    ixs.push(
-      createAssociatedTokenAccountInstruction(
-        walletProvider.publicKey,
-        userwMTokenAccount,
-        walletProvider.publicKey,
-        wM_MINT,
-        TOKEN_2022_PROGRAM_ID,
-      ),
-    );
+  // check if token account exists
+  for (const tokenAccount of [userTokenAccount, userwMTokenAccount]) {
+    try {
+      await getAccount(connection, tokenAccount, 'processed', TOKEN_2022_PROGRAM_ID);
+    } catch {
+      // add create ix
+      ixs.push(
+        createAssociatedTokenAccountInstruction(
+          walletProvider.publicKey,
+          userwMTokenAccount,
+          walletProvider.publicKey,
+          wM_MINT,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+      );
+    }
   }
 
   const mVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], EXT_EARN_PROGRAM_ID)[0];
   const vaultTokenAccount = getAssociatedTokenAddressSync(M_MINT, mVault, true, TOKEN_2022_PROGRAM_ID);
 
+  const keys = [
+    {
+      pubkey: walletProvider.publicKey,
+      isSigner: true,
+      isWritable: true,
+    },
+    {
+      pubkey: M_MINT,
+      isSigner: false,
+      isWritable: false,
+    },
+    {
+      pubkey: wM_MINT,
+      isSigner: false,
+      isWritable: true,
+    },
+    {
+      pubkey: PublicKey.findProgramAddressSync([Buffer.from('global')], EXT_EARN_PROGRAM_ID)[0],
+      isSigner: false,
+      isWritable: false,
+    },
+    {
+      pubkey: mVault,
+      isSigner: false,
+      isWritable: false,
+    },
+  ];
+
+  if (action === 'wrap') {
+    keys.push({
+      pubkey: PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], EXT_EARN_PROGRAM_ID)[0],
+      isSigner: false,
+      isWritable: false,
+    });
+  }
+
+  keys.push(
+    {
+      pubkey: userTokenAccount,
+      isSigner: false,
+      isWritable: true,
+    },
+    {
+      pubkey: vaultTokenAccount,
+      isSigner: false,
+      isWritable: true,
+    },
+    {
+      pubkey: userwMTokenAccount,
+      isSigner: false,
+      isWritable: true,
+    },
+    {
+      pubkey: TOKEN_2022_PROGRAM_ID,
+      isSigner: false,
+      isWritable: false,
+    },
+  );
+
   const ix = new TransactionInstruction({
-    keys: [
-      {
-        pubkey: walletProvider.publicKey,
-        isSigner: true,
-        isWritable: true,
-      },
-      {
-        pubkey: M_MINT,
-        isSigner: false,
-        isWritable: false,
-      },
-      {
-        pubkey: wM_MINT,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: PublicKey.findProgramAddressSync([Buffer.from('global')], EXT_EARN_PROGRAM_ID)[0],
-        isSigner: false,
-        isWritable: false,
-      },
-      {
-        pubkey: mVault,
-        isSigner: false,
-        isWritable: false,
-      },
-      {
-        pubkey: PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], EXT_EARN_PROGRAM_ID)[0],
-        isSigner: false,
-        isWritable: false,
-      },
-      {
-        pubkey: userTokenAccount,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: vaultTokenAccount,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: userwMTokenAccount,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: TOKEN_2022_PROGRAM_ID,
-        isSigner: false,
-        isWritable: false,
-      },
-    ],
+    keys,
     data: Buffer.concat([
-      Buffer.from('b2280abde481ba8c', 'hex'),
+      Buffer.from(action === 'wrap' ? 'b2280abde481ba8c' : '7eafc60ed445322c', 'hex'),
       Buffer.from(getU64Encoder().encode(BigInt(amount.toString()))),
     ]),
     programId: EXT_EARN_PROGRAM_ID,
