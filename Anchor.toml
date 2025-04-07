@@ -8,7 +8,7 @@ skip-lint = false
 earn = "MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"
 ext_earn = "wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko"
 portal = "mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"
-yield_to_admin = "2h2DMfS8iDZm4FoE2VadHmgde4cxfSB8MbYbXfwwpzcb"
+no_earn = "2h2DMfS8iDZm4FoE2VadHmgde4cxfSB8MbYbXfwwpzcb"
 
 [registry]
 url = "https://api.apr.dev"
