@@ -48,6 +48,7 @@ import { MerkleTree } from '../../sdk/src/merkle';
 import { EvmCaller } from '../../sdk/src/evm_caller';
 import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
 import { EarnManager } from '../../sdk/src/earn_manager';
+import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 const EARN_IDL = require('../../target/idl/earn.json');
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
@@ -188,28 +189,29 @@ async function main() {
     });
 
   program.command('update-mint-icon').action(async () => {
-    const [payer, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
+    const [mint] = keysFromEnv(['M_MINT_KEYPAIR']);
+    const owner = new PublicKey(process.env.SQUADS_VAULT!);
 
     const ix = createUpdateFieldInstruction({
       programId: TOKEN_2022_PROGRAM_ID,
       metadata: mint.publicKey,
-      updateAuthority: payer.publicKey,
+      updateAuthority: owner,
       field: Field.Uri,
       value: 'https://media.m0.org/logos/svg/M_Symbol_512.svg',
     });
 
     const blockhash = await connection.getLatestBlockhash();
     const messageV0 = new TransactionMessage({
-      payerKey: payer.publicKey,
+      payerKey: owner,
       recentBlockhash: blockhash.blockhash,
       instructions: [ix],
     }).compileToV0Message();
 
-    const transaction = new VersionedTransaction(messageV0);
-    transaction.sign([payer]);
-
-    const sig = await connection.sendTransaction(transaction);
-    console.log(`Mint icon updated: ${sig}`);
+    const transaction = Buffer.from(new VersionedTransaction(messageV0).serialize());
+    console.log('Transaction', {
+      base64: transaction.toString('base64'),
+      base58: bs58.encode(transaction),
+    });
   });
 
   program
