@@ -112,3 +112,4 @@ deploy-dashboard:
 	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:dashboard . && \
 	rm .env.production
 	docker push ghcr.io/m0-foundation/solana-m:dashboard
+	railway redeploy --service dashboard --yes
