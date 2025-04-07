@@ -1,11 +1,11 @@
 import { Command } from 'commander';
 import { Connection } from '@solana/web3.js';
-import { createWalletClient, getContract, http, WalletClient } from 'viem';
+import { createWalletClient, getContract, http, WalletClient, Hex, stringToHex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import winston from 'winston';
+import winston, { configure } from 'winston';
 import { GLOBAL_ACCOUNT } from '../../sdk/src';
 
-const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
+export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
 const logger = configureLogger();
 
@@ -25,19 +25,22 @@ export async function indexCLI() {
   program
     .command('push')
     .description('Push the latest index from Ethereum to Solana')
-    .option('-s, --solana [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
-    .option('-e, --ethereum [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
-    .option('-k, --private-key <KEY>', 'Ethereum private key')
+    .option('-s, --solanaRpc [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
+    .option('-e, --ethRpc [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
+    .option('-k, --ethPrivateKey <KEY>', 'Ethereum private key')
     .option('-t, --threshold [SECONDS]', 'Staleness threshold in seconds', '86400')
     .option('-f, --force', 'Force push the index even if it is not stale', false)
-    .option('--dry-run', 'Do not send transactions', false)
-    .action(async ({ solanaRpc, evmRpc, evmPrivateKey, threshold, force, dryRun }) => {
+    .option('--dryRun', 'Do not send transactions', false)
+    .action(async ({ solanaRpc, ethRpc, ethPrivateKey, threshold, force, dryRun }) => {
+      const solanaClient = new Connection(solanaRpc);
+      const evmClient = createWalletClient({
+        transport: http(ethRpc),
+        account: privateKeyToAccount(ethPrivateKey as Hex),
+      });
+
       const options: ParsedOptions = {
-        solanaClient: new Connection(solanaRpc),
-        evmClient: createWalletClient({
-          transport: http(evmRpc),
-          account: privateKeyToAccount(evmPrivateKey),
-        }),
+        solanaClient,
+        evmClient,
         threshold: BigInt(threshold),
         force,
         dryRun,
@@ -45,6 +48,8 @@ export async function indexCLI() {
 
       await pushIndex(options);
     });
+
+  await program.parseAsync(process.argv);
 }
 
 async function pushIndex(options: ParsedOptions) {
@@ -75,8 +80,8 @@ async function isIndexStale(options: ParsedOptions) {
     throw new Error('Global account not found');
   }
 
-  const lastUpdateTimestamp = globalAccount.data.readBigUInt64BE(32 * 3 + 8); // timestamp is after 3 pubkeys and the index
-  const currentTimestamp = BigInt(Date.now() / 1000); // current timestamp in seconds
+  const lastUpdateTimestamp = globalAccount.data.readBigUInt64LE(8 + 32 * 3 + 8); // timestamp is after discriminator, 3 pubkeys, and the index
+  const currentTimestamp = BigInt(Math.floor(Date.now() / 1000)); // current timestamp in seconds
 
   if (options.dryRun) {
     logger.debug('Checking index staleness', {
@@ -133,11 +138,10 @@ async function sendIndexUpdate(options: ParsedOptions) {
   });
 
   // Get bridge price quote
-  // TODO verify the bytes input to this is correct.
-  // bytes(1) was taken from the scripts in the m-portal repo
+  // an empty bytes string of length 1 was taken from the scripts in the m-portal repo
   const [, quote] = await portal.read.quoteDeliveryPrice([
     1,
-    ('0x' + Buffer.from([1]).toString('hex')) as `0x${string}`,
+    ('0x' + Buffer.from([0]).toString('hex')) as `0x${string}`,
   ]);
 
   // Send index update transaction
