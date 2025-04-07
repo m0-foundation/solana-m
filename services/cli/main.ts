@@ -549,11 +549,11 @@ async function main() {
           throw new Error('LUT is full');
         }
 
-        existingAddesses = state;
+        existingAddresses = state;
       }
 
       // Dedupe missing addresses
-      const toAdd = addressesForTable.filter((address) => !existingAddesses.find((a) => a.equals(address)));
+      const toAdd = addressesForTable.filter((address) => !existingAddresses.find((a) => a.equals(address)));
       if (toAdd.length === 0) {
         console.log('No addresses to add');
         return;

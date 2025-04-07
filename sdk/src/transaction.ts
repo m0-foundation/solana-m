@@ -6,7 +6,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { EARN_ADDERSS_TABLE } from '.';
+import { EARN_ADDRESS_TABLE } from '.';
 
 export const buildTransaction = async (
   connection: Connection,
@@ -15,7 +15,7 @@ export const buildTransaction = async (
   priorityFee: number,
 ) => {
   // fetch address table
-  const lookupTableAccount = (await connection.getAddressLookupTable(EARN_ADDERSS_TABLE)).value;
+  const lookupTableAccount = (await connection.getAddressLookupTable(EARN_ADDRESS_TABLE)).value;
   const tables = lookupTableAccount ? [lookupTableAccount] : [];
 
   // build transaction
