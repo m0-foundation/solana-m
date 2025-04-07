@@ -28,6 +28,7 @@ import {
 import {
   createInitializeInstruction,
   createUpdateFieldInstruction,
+  Field,
   pack,
   TokenMetadata,
 } from '@solana/spl-token-metadata';
@@ -107,7 +108,7 @@ async function main() {
     .command('create-multisig')
     .description('Create multisig for the mint authority')
     .action(async () => {
-      const [owner, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
+      const [owner, multisig] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
 
       // token authorities for both programs
       const [tokenAuthPortal] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.portal);
@@ -131,7 +132,7 @@ async function main() {
     .description('Create a new Token2022 mint for the M token')
     .option('-o, --owner [pubkey]', 'Authority on the mint')
     .action(async ({ owner }) => {
-      const [payer, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
+      const [payer, mint, multisig] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
 
       let authority = payer.publicKey;
       if (owner) {
@@ -147,7 +148,7 @@ async function main() {
         null, // no freeze authority
         'M by M^0',
         'M',
-        'https://media.m0.org/logos/svg/M_Symbol_512.svg',
+        'https://gistcdn.githack.com/SC4RECOIN/a729afb77aa15a4aa6b1b46c3afa1b52/raw/209da531ed46c1aaef0b1d3d7b67b3a5cec257f3/M_Symbol_512.svg',
         PROGRAMS.mToken,
       );
       console.log(`M Mint created: ${mint.publicKey.toBase58()}`);
@@ -159,7 +160,7 @@ async function main() {
     .option('-o, --owner [pubkey]', 'Authority on the mint')
     .argument('freeze authority', 'The freeze authority for the mint (pubkey)')
     .action(async (freezeAuth: string, { owner }) => {
-      const [payer, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']);
+      const [payer, mint] = keysFromEnv(['PAYER_KEYPAIR', 'WM_MINT_KEYPAIR']);
 
       let authority = payer.publicKey;
       if (owner) {
@@ -178,17 +179,42 @@ async function main() {
         freezeAuthority,
         'WrappedM by M^0',
         'wM',
-        'https://media.m0.org/logos/svg/wM_Symbol_512.svg',
+        'https://gistcdn.githack.com/SC4RECOIN/d383d31baee720e8481edae4620eb047/raw/00cd11302f663bf5fe086d5b71b81d1fb0fb31ac/wM_Symbol_512.svg',
         PROGRAMS.wmToken,
       );
       console.log(`wM Mint created: ${mint.publicKey.toBase58()}`);
     });
 
+  program.command('update-mint-icon').action(async () => {
+    const [payer, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
+
+    const ix = createUpdateFieldInstruction({
+      programId: TOKEN_2022_PROGRAM_ID,
+      metadata: mint.publicKey,
+      updateAuthority: payer.publicKey,
+      field: Field.Uri,
+      value: 'https://media.m0.org/logos/svg/M_Symbol_512.svg',
+    });
+
+    const blockhash = await connection.getLatestBlockhash();
+    const messageV0 = new TransactionMessage({
+      payerKey: payer.publicKey,
+      recentBlockhash: blockhash.blockhash,
+      instructions: [ix],
+    }).compileToV0Message();
+
+    const transaction = new VersionedTransaction(messageV0);
+    transaction.sign([payer]);
+
+    const sig = await connection.sendTransaction(transaction);
+    console.log(`Mint icon updated: ${sig}`);
+  });
+
   program
     .command('initialize-portal')
     .description('Initialize the portal program')
     .action(async () => {
-      const [owner, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'MULTISIG_KEYPAIR']);
+      const [owner, mint, multisig] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR', 'MULTISIG_KEYPAIR']);
 
       const { ctx, ntt, sender, signer } = NttManager(connection, owner, mint.publicKey);
 
@@ -208,7 +234,7 @@ async function main() {
     .description('Initialize the earn program')
     .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
     .action(async ({ squadsEarnAuth }) => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
       const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
@@ -242,7 +268,7 @@ async function main() {
     .description('Initialize the extension earn program')
     .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
     .action(async ({ squadsEarnAuth }) => {
-      const [owner, mMint, wmMint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
+      const [owner, mMint, wmMint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
 
       const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, PROGRAMS.extEarn, anchorProvider(connection, owner));
       const [earnGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
@@ -276,7 +302,7 @@ async function main() {
     .command('set-evm-addresses')
     .description('Set the EVM addresses to the destination tokens')
     .action(async () => {
-      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
+      const [owner] = keysFromEnv(['PAYER_KEYPAIR']);
 
       const tx = new Transaction().add(
         createSetEvmAddresses(PROGRAMS.portal, owner.publicKey, PROGRAMS.mToken, PROGRAMS.wmToken),
@@ -293,7 +319,7 @@ async function main() {
     .command('update-lut')
     .description('Initialize or update the LUT for the portal program')
     .action(async () => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const { ctx, ntt, signer } = NttManager(connection, owner, mint.publicKey);
 
@@ -306,7 +332,7 @@ async function main() {
     .command('register-peers')
     .description('Initialize or update the LUT for the portal program')
     .action(async () => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const { ctx, ntt, signer, sender } = NttManager(connection, owner, mint.publicKey);
 
@@ -351,7 +377,7 @@ async function main() {
     .command('update-rate-limits')
     .description('Set the rate limit for inbound/outbound transfers')
     .action(async () => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
       const { ctx, ntt, signer, sender } = NttManager(connection, owner, mint.publicKey);
 
       // outbound
@@ -378,7 +404,7 @@ async function main() {
     .description('Add earner that is in the earner merkle tree')
     .argument('<earner>', 'The earner to add')
     .action(async (earnerAddress: string) => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
       const earner = new PublicKey(earnerAddress);
 
       // assumes ata is being used as the token account
@@ -430,7 +456,7 @@ async function main() {
     .command('add-earn-manager')
     .description('Add earn manager to the wM earn program')
     .action(async () => {
-      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
+      const [owner] = keysFromEnv(['PAYER_KEYPAIR']);
       const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, PROGRAMS.extEarn, anchorProvider(connection, owner));
 
       const [earnManagerAccount] = PublicKey.findProgramAddressSync(
@@ -467,7 +493,7 @@ async function main() {
     .description('Add earner to the wM earn program')
     .argument('<earner>', 'The earner to add')
     .action(async (earnerAddress: string) => {
-      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
+      const [owner] = keysFromEnv(['PAYER_KEYPAIR']);
       const earner = new PublicKey(earnerAddress);
 
       const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL) });
@@ -484,7 +510,7 @@ async function main() {
     .description('Set the earn authority on the program')
     .argument('<earn-auth>', 'Earn authority pubkey')
     .action(async (earnAuthAddress: string) => {
-      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
+      const [owner] = keysFromEnv(['PAYER_KEYPAIR']);
       const earnAuth = new PublicKey(earnAuthAddress);
 
       const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
