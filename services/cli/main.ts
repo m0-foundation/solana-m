@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import {
+  ComputeBudgetProgram,
   Connection,
   Keypair,
   PublicKey,
@@ -27,6 +28,7 @@ import {
 } from '@solana/spl-token';
 import {
   createInitializeInstruction,
+  createUpdateAuthorityInstruction,
   createUpdateFieldInstruction,
   Field,
   pack,
@@ -564,6 +566,7 @@ async function createToken2022Mint(
   const lamports = await connection.getMinimumBalanceForRentExemption(mintLen + metadataExtension + metadataLen);
 
   const instructions = [
+    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 250_000 }),
     SystemProgram.createAccount({
       fromPubkey: payer.publicKey,
       newAccountPubkey: mint.publicKey,
@@ -595,9 +598,9 @@ async function createToken2022Mint(
     createInitializeInstruction({
       programId: TOKEN_2022_PROGRAM_ID,
       metadata: mint.publicKey,
-      updateAuthority: owner,
+      updateAuthority: payer.publicKey,
       mint: mint.publicKey,
-      mintAuthority: owner,
+      mintAuthority: payer.publicKey,
       name: metaData.name,
       symbol: metaData.symbol,
       uri: metaData.uri,
@@ -605,9 +608,16 @@ async function createToken2022Mint(
     createUpdateFieldInstruction({
       programId: TOKEN_2022_PROGRAM_ID,
       metadata: mint.publicKey,
-      updateAuthority: owner,
+      updateAuthority: payer.publicKey,
       field: metaData.additionalMetadata[0][0],
       value: metaData.additionalMetadata[0][1],
+    }),
+    // transfer metadata and mint authorities
+    createUpdateAuthorityInstruction({
+      programId: TOKEN_2022_PROGRAM_ID,
+      metadata: mint.publicKey,
+      oldAuthority: payer.publicKey,
+      newAuthority: owner,
     }),
     createSetAuthorityInstruction(
       mint.publicKey,
