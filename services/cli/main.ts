@@ -116,7 +116,7 @@ async function main() {
       await createMultisig(
         connection,
         owner,
-        [owner.publicKey, tokenAuthPortal, tokenAuthEarn],
+        [tokenAuthPortal, tokenAuthEarn],
         1,
         multisig,
         undefined,
@@ -129,12 +129,19 @@ async function main() {
   program
     .command('create-m-mint')
     .description('Create a new Token2022 mint for the M token')
-    .action(async () => {
-      const [owner, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
+    .option('-o, --owner [pubkey]', 'Authority on the mint')
+    .action(async ({ owner }) => {
+      const [payer, mint, multisig] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'M_MINT_MULTISIG_KEYPAIR']);
+
+      let authority = payer.publicKey;
+      if (owner) {
+        authority = new PublicKey(owner);
+      }
 
       await createToken2022Mint(
         connection,
-        owner,
+        payer,
+        authority,
         mint,
         multisig.publicKey,
         null, // no freeze authority
@@ -149,16 +156,23 @@ async function main() {
   program
     .command('create-wm-mint')
     .description('Create a new Token2022 mint for the Wrapped M token')
+    .option('-o, --owner [pubkey]', 'Authority on the mint')
     .argument('freeze authority', 'The freeze authority for the mint (pubkey)')
-    .action(async (freezeAuth: string) => {
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']);
+    .action(async (freezeAuth: string, { owner }) => {
+      const [payer, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']);
+
+      let authority = payer.publicKey;
+      if (owner) {
+        authority = new PublicKey(owner);
+      }
 
       const mintAuthority = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], PROGRAMS.extEarn)[0];
       const freezeAuthority = new PublicKey(freezeAuth);
 
       await createToken2022Mint(
         connection,
-        owner,
+        payer,
+        authority,
         mint,
         mintAuthority,
         freezeAuthority,
@@ -493,7 +507,8 @@ async function main() {
 
 async function createToken2022Mint(
   connection: Connection,
-  owner: Keypair,
+  payer: Keypair,
+  owner: PublicKey,
   mint: Keypair,
   mintAuthority: PublicKey,
   freezeAuthority: PublicKey | null,
@@ -503,7 +518,7 @@ async function createToken2022Mint(
   evmTokenAddress: string,
 ) {
   const metaData: TokenMetadata = {
-    updateAuthority: owner.publicKey,
+    updateAuthority: owner,
     mint: mint.publicKey,
     name: tokenName,
     symbol: tokenSymbol,
@@ -524,39 +539,39 @@ async function createToken2022Mint(
 
   const instructions = [
     SystemProgram.createAccount({
-      fromPubkey: owner.publicKey,
+      fromPubkey: payer.publicKey,
       newAccountPubkey: mint.publicKey,
       space: mintLen,
       lamports,
       programId: TOKEN_2022_PROGRAM_ID,
     }),
-    createInitializeMetadataPointerInstruction(mint.publicKey, owner.publicKey, mint.publicKey, TOKEN_2022_PROGRAM_ID),
+    createInitializeMetadataPointerInstruction(mint.publicKey, owner, mint.publicKey, TOKEN_2022_PROGRAM_ID),
     createInitializeTransferHookInstruction(
       mint.publicKey,
-      owner.publicKey, // authority
+      owner, // authority
       PublicKey.default, // no transfer hook
       TOKEN_2022_PROGRAM_ID,
     ),
-    createInitializeConfidentialTransferMintInstruction(mint.publicKey, owner.publicKey, false),
+    createInitializeConfidentialTransferMintInstruction(mint.publicKey, owner, false),
     createInitializeScaledUiAmountConfigInstruction(
       mint.publicKey,
-      owner.publicKey, // authority
+      owner, // authority
       1, // multiplier
       TOKEN_2022_PROGRAM_ID,
     ),
     createInitializeMintInstruction(
       mint.publicKey,
       6,
-      owner.publicKey,
+      payer.publicKey, // will transfer on last instruction
       freezeAuthority, // if null, there is no freeze authority
       TOKEN_2022_PROGRAM_ID,
     ),
     createInitializeInstruction({
       programId: TOKEN_2022_PROGRAM_ID,
       metadata: mint.publicKey,
-      updateAuthority: owner.publicKey,
+      updateAuthority: owner,
       mint: mint.publicKey,
-      mintAuthority: owner.publicKey,
+      mintAuthority: owner,
       name: metaData.name,
       symbol: metaData.symbol,
       uri: metaData.uri,
@@ -564,13 +579,13 @@ async function createToken2022Mint(
     createUpdateFieldInstruction({
       programId: TOKEN_2022_PROGRAM_ID,
       metadata: mint.publicKey,
-      updateAuthority: owner.publicKey,
+      updateAuthority: owner,
       field: metaData.additionalMetadata[0][0],
       value: metaData.additionalMetadata[0][1],
     }),
     createSetAuthorityInstruction(
       mint.publicKey,
-      owner.publicKey,
+      payer.publicKey,
       AuthorityType.MintTokens,
       mintAuthority,
       undefined,
@@ -580,13 +595,13 @@ async function createToken2022Mint(
 
   const blockhash = await connection.getLatestBlockhash();
   const messageV0 = new TransactionMessage({
-    payerKey: owner.publicKey,
+    payerKey: payer.publicKey,
     recentBlockhash: blockhash.blockhash,
     instructions,
   }).compileToV0Message();
 
   const transaction = new VersionedTransaction(messageV0);
-  transaction.sign([owner, mint]);
+  transaction.sign([payer, mint]);
 
   await connection.sendTransaction(transaction);
 }
