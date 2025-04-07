@@ -73,7 +73,7 @@ pub fn parse_log_for_events(log: &DataLog) -> Option<Update> {
         return Some(Update::IndexUpdate(v1::IndexUpdate {
             index: update.index,
             ts: update.ts,
-            supply: update.supply,
+            token_supply: update.supply,
             max_yield: update.max_yield,
         }));
     }
@@ -190,7 +190,7 @@ mod tests {
         if let Some(Update::IndexUpdate(update)) = result {
             assert_eq!(update.index, 1004505392840);
             assert_eq!(update.ts, 1743014303);
-            assert_eq!(update.supply, 1799999);
+            assert_eq!(update.token_supply, 1799999);
             assert_eq!(update.max_yield, 4643);
         } else {
             panic!("Expected IndexUpdate event");

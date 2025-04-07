@@ -633,6 +633,19 @@ export class IndexUpdate extends Entity {
   set signature(value: Bytes) {
     this.set("signature", Value.fromBytes(value));
   }
+
+  get token_supply(): BigInt {
+    let value = this.get("token_supply");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set token_supply(value: BigInt) {
+    this.set("token_supply", Value.fromBigInt(value));
+  }
 }
 
 export class BridgeEvent extends Entity {

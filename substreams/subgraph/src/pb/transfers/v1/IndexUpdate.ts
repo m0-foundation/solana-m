@@ -13,7 +13,7 @@ export class IndexUpdate {
     writer.uint64(message.ts);
 
     writer.uint32(24);
-    writer.uint64(message.supply);
+    writer.uint64(message.tokenSupply);
 
     writer.uint32(32);
     writer.uint64(message.maxYield);
@@ -35,7 +35,7 @@ export class IndexUpdate {
           break;
 
         case 3:
-          message.supply = reader.uint64();
+          message.tokenSupply = reader.uint64();
           break;
 
         case 4:
@@ -53,13 +53,18 @@ export class IndexUpdate {
 
   index: u64;
   ts: u64;
-  supply: u64;
+  tokenSupply: u64;
   maxYield: u64;
 
-  constructor(index: u64 = 0, ts: u64 = 0, supply: u64 = 0, maxYield: u64 = 0) {
+  constructor(
+    index: u64 = 0,
+    ts: u64 = 0,
+    tokenSupply: u64 = 0,
+    maxYield: u64 = 0
+  ) {
     this.index = index;
     this.ts = ts;
-    this.supply = supply;
+    this.tokenSupply = tokenSupply;
     this.maxYield = maxYield;
   }
 }
