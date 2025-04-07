@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import {
   AddressLookupTableProgram,
+  ComputeBudgetProgram,
   Connection,
   Keypair,
   PublicKey,
@@ -490,12 +491,12 @@ async function main() {
     });
 
   program
-    .command('update-lut')
+    .command('update-earn-lut')
     .description('Create or update the LUT for common addresses')
-    .option('-a, --address [pubkey]', 'Addess of table to update')
-    .action(async (address) => {
+    .option('-a, --address [pubkey]', 'Addess of table to update', 'HtKQ9sHyMhun73asZsARkGCc1fDz2dQH7QhGfFJcQo7S')
+    .action(async ({ address }) => {
       const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
-      const ixs: TransactionInstruction[] = [];
+      const ixs = [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 250_000 })];
 
       // Get or create LUT
       let tableAddress: PublicKey;
@@ -505,7 +506,7 @@ async function main() {
         const [lookupTableIx, lookupTableAddress] = AddressLookupTableProgram.createLookupTable({
           authority: owner.publicKey,
           payer: owner.publicKey,
-          recentSlot: await connection.getSlot(),
+          recentSlot: (await connection.getSlot({ commitment: 'finalized' })) - 10,
         });
 
         console.log(`Creating lookup table: ${lookupTableAddress.toBase58()}`);
@@ -538,16 +539,21 @@ async function main() {
       ];
 
       // Fetch current state of LUT
-      const state = (await connection.getAddressLookupTable(tableAddress)).value?.state.addresses;
-      if (!state) {
-        throw new Error(`Failed to fetch state for address lookup table ${tableAddress}`);
-      }
-      if (state.length === 256) {
-        throw new Error('LUT is full');
+      let existingAddesses: PublicKey[] = [];
+      if (address) {
+        const state = (await connection.getAddressLookupTable(tableAddress)).value?.state.addresses;
+        if (!state) {
+          throw new Error(`Failed to fetch state for address lookup table ${tableAddress}`);
+        }
+        if (state.length === 256) {
+          throw new Error('LUT is full');
+        }
+
+        existingAddesses = state;
       }
 
       // Dedupe missing addresses
-      const toAdd = addressesForTable.filter((address) => !state.find((a) => a.equals(address)));
+      const toAdd = addressesForTable.filter((address) => !existingAddesses.find((a) => a.equals(address)));
       if (toAdd.length === 0) {
         console.log('No addresses to add');
         return;
@@ -563,7 +569,7 @@ async function main() {
       );
 
       // Send transaction
-      const blockhash = await connection.getLatestBlockhash('confirmed');
+      const blockhash = await connection.getLatestBlockhash('finalized');
 
       const messageV0 = new TransactionMessage({
         payerKey: owner.publicKey,
