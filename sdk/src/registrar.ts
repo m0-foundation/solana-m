@@ -28,10 +28,12 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const user of earners) {
-      const existingEarners = await Earner.fromUserAddress(this.connection, this.evmClient, user);
+      const existingEarners = await Earner.fromUserAddress(this.connection, this.evmClient, user, PROGRAM_ID);
       if (existingEarners.length > 0) {
         continue;
       }
+
+      console.log('adding earner', { user: user.toBase58() });
 
       // derive token account for user
       const userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
@@ -72,9 +74,14 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const earner of programEarners) {
-      if (earners.includes(earner.data.user)) {
+      if (earners.find((e) => e.equals(earner.data.user))) {
         continue;
       }
+
+      console.log('removing earner', {
+        user: earner.data.user.toBase58(),
+        pubkey: earner.pubkey.toBase58(),
+      });
 
       // build proof
       const tree = new MerkleTree(earners);
@@ -96,9 +103,7 @@ export class Registrar {
   }
 
   async getRegistrarEarners(): Promise<Earner[]> {
-    const accounts = await getProgram(this.connection).account.earner.all([
-      { memcmp: { offset: 89, bytes: '2' } }, // no manager
-    ]);
+    const accounts = await getProgram(this.connection).account.earner.all();
     return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account));
   }
 }

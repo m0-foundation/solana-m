@@ -8,7 +8,7 @@ import {
 } from '@solana/web3.js';
 import { PublicClient } from 'viem';
 
-import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
+import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
 import { EarnManager } from './earn_manager';
@@ -39,7 +39,7 @@ class EarnAuthority {
     this.connection = connection;
     this.evmClient = evmClient;
     this.programID = program;
-    this.program = program === PROGRAM_ID ? getProgram(connection) : getExtProgram(connection);
+    this.program = program.equals(PROGRAM_ID) ? getProgram(connection) : getExtProgram(connection);
     this.global = global;
     this.mintAuth = mintAuth;
   }
@@ -48,7 +48,7 @@ class EarnAuthority {
     const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], program);
 
     let global: GlobalAccountData;
-    if (program === PROGRAM_ID) {
+    if (program.equals(PROGRAM_ID)) {
       global = await getProgram(connection).account.global.fetch(globalAccount);
     } else {
       const extGlobal = await getExtProgram(connection).account.extGlobal.fetch(globalAccount);
@@ -75,8 +75,7 @@ class EarnAuthority {
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
-    if (this.programID !== PROGRAM_ID) {
-      console.error('Invalid program');
+    if (!this.programID.equals(PROGRAM_ID)) {
       return null;
     }
 
@@ -102,12 +101,12 @@ class EarnAuthority {
 
     // earner was created after last index update
     if (earner.data.lastClaimTimestamp > this.global.timestamp) {
-      console.error('Earner created after last index update');
+      console.warn('Earner created after last index update');
       return null;
     }
 
     if (earner.data.lastClaimIndex == this.global.index) {
-      console.error('Earner already claimed');
+      console.warn('Earner already claimed');
       return null;
     }
 
@@ -122,13 +121,12 @@ class EarnAuthority {
     }
 
     // PDAs
-    const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
     const [earnerAccount] = PublicKey.findProgramAddressSync(
       [Buffer.from('earner'), earner.data.userTokenAccount.toBuffer()],
       this.programID,
     );
 
-    if (this.programID === EXT_PROGRAM_ID) {
+    if (this.programID.equals(EXT_PROGRAM_ID)) {
       // get manager (manager fee token account)
       let manager = this.managerCache.get(earner.data.earnManager!);
       if (!manager) {
@@ -138,7 +136,7 @@ class EarnAuthority {
 
       const earnManagerTokenAccount = manager.data.feeTokenAccount;
       const earnManagerAccount = PublicKey.findProgramAddressSync(
-        [Buffer.from('earn-manager'), earner.data.earnManager!.toBytes()],
+        [Buffer.from('earn_manager'), earner.data.earnManager!.toBytes()],
         this.programID,
       )[0];
 
@@ -168,6 +166,8 @@ class EarnAuthority {
         })
         .instruction();
     } else {
+      const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
+
       return (this.program as Program<Earn>).methods
         .claimFor(new BN(weightedBalance.toString()))
         .accounts({
@@ -220,8 +220,12 @@ class EarnAuthority {
     }
 
     // validate rewards is not higher than max claimable rewards
-    if (this.programID === PROGRAM_ID) {
+    if (this.programID.equals(PROGRAM_ID)) {
       if (totalRewards.gt(this.global.maxYield!)) {
+        console.error('Claim amount exceeds max claimable rewards', {
+          totalRewards: totalRewards.toString(),
+          maxYield: this.global.maxYield!.toString(),
+        });
         throw new Error('Claim amount exceeds max claimable rewards');
       }
     } else {
@@ -235,7 +239,7 @@ class EarnAuthority {
 
       // vault balance
       const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
-        this.global.mint,
+        MINT,
         PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID)[0],
         true,
         spl.TOKEN_2022_PROGRAM_ID,
@@ -249,6 +253,11 @@ class EarnAuthority {
       const collateral = new BN(tokenAccountInfo.amount.toString());
 
       if (new BN(mint.supply.toString()).add(totalRewards).gt(collateral)) {
+        console.error('Claim amount exceeds max claimable rewards', {
+          mintSupply: mint.supply.toString(),
+          totalRewards: totalRewards.toString(),
+          collateral: collateral.toString(),
+        });
         throw new Error('Claim amount exceeds max claimable rewards');
       }
     }

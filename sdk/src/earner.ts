@@ -2,7 +2,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { PublicClient } from 'viem';
 import BN from 'bn.js';
 
-import { EXT_PROGRAM_ID, PROGRAM_ID } from '.';
+import { EXT_PROGRAM_ID } from '.';
 import { Claim, Graph } from './graph';
 import { EarnerData } from './accounts';
 import { getExtProgram, getProgram } from './idl';
@@ -33,7 +33,7 @@ export class Earner {
   ): Promise<Earner> {
     const [earnerAccount] = PublicKey.findProgramAddressSync([Buffer.from('earner'), tokenAccount.toBytes()], program);
 
-    if (program === EXT_PROGRAM_ID) {
+    if (program.equals(EXT_PROGRAM_ID)) {
       const data = await getExtProgram(connection).account.earner.fetch(earnerAccount);
       return new Earner(connection, evmClient, earnerAccount, data);
     } else {
@@ -54,7 +54,7 @@ export class Earner {
   ): Promise<Earner[]> {
     const filter = [{ memcmp: { offset: 25, bytes: user.toBase58() } }];
 
-    if (program === EXT_PROGRAM_ID) {
+    if (program.equals(EXT_PROGRAM_ID)) {
       const accounts = await getExtProgram(connection).account.earner.all(filter);
       return accounts.map((a) => new Earner(connection, evmClient, a.publicKey, a.account));
     } else {

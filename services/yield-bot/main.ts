@@ -11,9 +11,10 @@ import {
 } from '@solana/web3.js';
 import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
-import { PublicClient, createPublicClient, http } from '../../sdk/src';
+import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
-import winston from 'winston';
+import winston, { Logger } from 'winston';
+import BN from 'bn.js';
 
 const logger = configureLogger();
 
@@ -24,6 +25,8 @@ interface ParsedOptions {
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
+  claimThreshold: BN;
+  programID: PublicKey;
 }
 
 // entrypoint for the yield bot command
@@ -39,7 +42,9 @@ export async function yieldCLI() {
     .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
     .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
-    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda }) => {
+    .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
+    .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
+    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, programID, claimThreshold }) => {
       let signer: Keypair;
       try {
         signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
@@ -55,10 +60,22 @@ export async function yieldCLI() {
         evmClient,
         dryRun,
         skipCycle,
+        programID: new PublicKey(programID),
+        claimThreshold: new BN(claimThreshold),
       };
 
       if (squadsPda) {
         options.squadsPda = new PublicKey(squadsPda);
+      }
+
+      logger.defaultMeta = {
+        ...logger.defaultMeta,
+        mint: options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
+      };
+
+      if (options.programID.equals(EXT_PROGRAM_ID)) {
+        await distributeYield(options);
+        return;
       }
 
       await removeEarners(options);
@@ -70,7 +87,7 @@ export async function yieldCLI() {
 }
 
 async function distributeYield(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.programID);
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
@@ -100,25 +117,27 @@ async function distributeYield(opt: ParsedOptions) {
     if (ix) claimIxs.push(ix);
   }
 
-  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs);
+  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs, 10, opt.claimThreshold);
 
-  logger.info('distributing M yield', {
+  logger.info(`distributing ${opt.programID.equals(PROGRAM_ID) ? 'M' : 'wM'} yield`, {
     amount: distributed.toNumber(),
     claims: filteredIxs.length,
     belowThreshold: claimIxs.length - filteredIxs.length,
   });
 
   // complete cycle on last claim transaction
-  const ix = await auth.buildCompleteClaimCycleInstruction();
-  if (!ix) {
+  const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
+  if (!completeClaimIx) {
     return;
   }
-
-  filteredIxs.push(ix);
 
   // send all the claims
   const signatures = await buildAndSendTransaction(opt, filteredIxs, 10, 'yield claim');
   logger.info('yield distributed', { signatures });
+
+  // wait for claim transactions to be confirmed before completing cycle
+  const sigs = await buildAndSendTransaction(opt, [completeClaimIx], 10, 'complete claim cycle');
+  logger.info('cycle complete', { signature: sigs[0] });
 }
 
 async function addEarners(opt: ParsedOptions) {
@@ -354,20 +373,32 @@ function configureLogger() {
   return winston.createLogger({
     level: 'info',
     format,
-    defaultMeta: { name: 'yield-bot' },
+    defaultMeta: { name: 'yield-bot', imageBuild: process.env.BUILD_TIME },
     transports: [new winston.transports.Console()],
   });
 }
 
 function catchConsoleLogs() {
-  console.log = (message?: any, ...optionalParams: any[]) =>
-    logger.info(message ?? 'console log', {
-      params: optionalParams.map((p) => p.toString()),
-    });
-  console.error = (message?: any, ...optionalParams: any[]) =>
-    logger.error(message ?? 'console error', {
-      params: optionalParams.map((p) => p.toString()),
-    });
+  // catch console logs and send them to winston logger
+  const parser = (lgr: (message: string, ...meta: any[]) => Logger) => {
+    return (message?: any, ...optionalParams: any[]) => {
+      // intercepted log is just key value pairs
+      if (optionalParams.length === 1 && typeof optionalParams[0] === 'object') {
+        if (Object.values(optionalParams[0]).every((v) => typeof v === 'string')) {
+          lgr(message ?? 'console log', optionalParams[0]);
+          return;
+        }
+      }
+      // unknown log parameters
+      lgr(message ?? 'console log', {
+        paramsStr: optionalParams.map((p) => p.toString()),
+      });
+    };
+  };
+
+  console.info = parser((message: string, ...meta: any[]) => logger.info(message, ...meta));
+  console.warn = parser((message: string, ...meta: any[]) => logger.warn(message, ...meta));
+  console.error = parser((message: string, ...meta: any[]) => logger.error(message, ...meta));
 }
 
 // do not run the cli if this is being imported by jest

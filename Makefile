@@ -1,4 +1,4 @@
-.PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet
+.PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet upgrade-ext-earn-devnet deploy-yield-bot
 
 
 #
@@ -32,7 +32,7 @@ test-local-validator:
 #
 yield-bot-devnet:
 	@yarn --silent ts-node services/yield-bot/main.ts distribute \
-	--rpc $(shell op read "op://Solana Dev/RPCs/helius-devnet") \
+	--rpc $(shell op read "op://Solana Dev/Helius/dev rpc") \
 	--keypair $(shell op read "op://Solana Dev/Solana Program Keys/devnet-authority") \
 	--dryRun
 
@@ -70,7 +70,7 @@ endef
 upgrade-earn-devnet: build-devnet
 	$(call upgrade_program,earn,$(EARN_PROGRAM_ID))
 
-upgrade-earn-devnet: build-devnet
+upgrade-ext-earn-devnet: build-devnet
 	$(call upgrade_program,ext_earn,$(EXT_EARN_PROGRAM_ID))
 
 upgrade-portal-devnet: build-devnet
@@ -82,6 +82,7 @@ upgrade-portal-devnet: build-devnet
 #
 deploy-yield-bot:
 	railway environment development
-	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile .
+	docker build --build-arg now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:yield-bot
-	railway redeploy --service solana-m --yes
+	railway redeploy --service "yield bot - M" --yes
+	railway redeploy --service "yield bot - wM" --yes

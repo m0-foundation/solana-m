@@ -7,8 +7,8 @@
     "op:devnet-authority": "op read --account mzerolabs.1password.com 'op://Solana Dev/Solana Program Keys/devnet-authority' > devnet-keypair.json",
     "test": "yarn run jest --preset ts-jest --verbose --testPathPattern='tests/unit/earn.test.ts|tests/unit/portal.test.ts|tests/unit/ext_earn.test.ts'",
     "build": "anchor build",
-    "cli:dev": "op run --account mzerolabs.1password.com --env-file='./dev.env' -- ts-node services/cli/main.ts",
-    "cli:test": "op run --account mzerolabs.1password.com --env-file='./dev.env' -- ts-node services/cli/test.ts"
+    "cli:dev": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/main.ts",
+    "cli:test": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/test.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
