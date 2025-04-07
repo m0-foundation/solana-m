@@ -91,7 +91,7 @@ createRoot(document.getElementById('root')!).render(
               element={
                 <div className="h-[93vh] overflow-y-scroll">
                   <StatsBar />
-                  <div className="max-w-6xl mx-auto py-10 space-y-16">
+                  <div className="max-w-6xl mx-auto py-10 space-y-16 px-2">
                     <HistoricalSupply />
                     <Holders token="M" />
                     <Holders token="wM" />

@@ -38,7 +38,8 @@ export const Links = () => {
                       rel="noopener noreferrer"
                       className="hover:underline"
                     >
-                      {program.address}
+                      <span className="hidden sm:block">{program.address}</span>
+                      <span className="sm:hidden">{formatString(program.address, 8)}</span>
                     </a>
                   </td>
                 </tr>

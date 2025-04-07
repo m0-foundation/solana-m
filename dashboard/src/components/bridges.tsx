@@ -50,7 +50,7 @@ export const Bridges = () => {
                     src={event.from.toString().startsWith('0x') ? chainIcons[event.chain] : chainIcons.Solana}
                     className="w-5 h-5 rounded-full"
                   />
-                  {formatString(event.from.toString())}
+                  <span className="hidden sm:inline">{formatString(event.from.toString())}</span>
                 </div>
               </td>
               <td className="px-2 py-2">
@@ -59,7 +59,7 @@ export const Bridges = () => {
                     src={event.to.toString().startsWith('0x') ? chainIcons[event.chain] : chainIcons.Solana}
                     className="w-5 h-5 rounded-full"
                   />
-                  {formatString(event.to.toString())}
+                  <span className="hidden sm:inline">{formatString(event.to.toString())}</span>
                 </div>
               </td>
               <td className="px-2 py-4">M {event.amount.abs().toFixed(2)}</td>

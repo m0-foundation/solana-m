@@ -8,7 +8,7 @@ export const Navbar = () => {
   let location = useLocation();
 
   return (
-    <nav className="bg-off-black py-2">
+    <nav className="bg-off-black py-2 px-2">
       <div className="max-w-6xl mx-auto flex justify-between">
         <div className="flex">
           <a href="/" className="flex mr-15 space-x-3">
@@ -17,7 +17,7 @@ export const Navbar = () => {
               alt="M0 Logo"
               className="py-3 pr-3 mb-1 border-r border-gray-700"
             />
-            <div className="text-white text-lg flex items-center">Solana Dashboard</div>
+            <div className="text-white text-lg hidden md:flex items-center">Solana Dashboard</div>
           </a>
           <div className="space-x-4 flex items-center">
             {[
@@ -36,7 +36,7 @@ export const Navbar = () => {
             ))}
           </div>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="hidden md:flex items-center space-x-4">
           <appkit-button size="sm" balance="hide" />
           <button
             onClick={() => setIsSettingsOpen(true)}
