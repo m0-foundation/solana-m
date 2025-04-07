@@ -1,10 +1,7 @@
 [workspace]
 members = [
-    "programs/earn",
-    "programs/ext_earn",
-    "programs/portal",
-    "substreams",
-    "programs/extensions/*",
+    "programs/*",
+    "substreams"
 ]
 resolver = "2"
 
