@@ -13,6 +13,7 @@ import {
   AuthorityType,
   createInitializeMetadataPointerInstruction,
   createInitializeMintInstruction,
+  createInitializeScaledUiAmountConfigInstruction,
   createInitializeTransferHookInstruction,
   createMultisig,
   createSetAuthorityInstruction,
@@ -517,6 +518,7 @@ async function createToken2022Mint(
     ExtensionType.TransferHook,
     ExtensionType.MetadataPointer,
     ExtensionType.ConfidentialTransferMint,
+    ExtensionType.ScaledUiAmountConfig,
   ]);
   const lamports = await connection.getMinimumBalanceForRentExemption(mintLen + metadataExtension + metadataLen);
 
@@ -536,6 +538,12 @@ async function createToken2022Mint(
       TOKEN_2022_PROGRAM_ID,
     ),
     createInitializeConfidentialTransferMintInstruction(mint.publicKey, owner.publicKey, false),
+    createInitializeScaledUiAmountConfigInstruction(
+      mint.publicKey,
+      owner.publicKey, // authority
+      1, // multiplier
+      TOKEN_2022_PROGRAM_ID,
+    ),
     createInitializeMintInstruction(
       mint.publicKey,
       6,
