@@ -73,6 +73,34 @@ export const claimStats = async (
   };
 };
 
+export const indexUpdates = async (graphqlUrl: string, limit = 10) => {
+  const query = gql`
+    query getIndexUpdates($limit: Int!) {
+      indexUpdates(first: $limit, orderBy: ts, orderDirection: desc) {
+        index
+        ts
+        signature
+      }
+    }
+  `;
+
+  interface Data {
+    indexUpdates: {
+      index: string;
+      ts: string;
+      signature: string;
+    }[];
+  }
+
+  const data = await request<Data>(graphqlUrl, query, { limit });
+
+  return data.indexUpdates.map((update) => ({
+    index: parseInt(update.index),
+    ts: parseInt(update.ts),
+    signature: Buffer.from(update.signature.slice(2), 'hex'),
+  }));
+};
+
 export const bridgeEvents = async (graphqlUrl: string, limit = 100) => {
   const query = gql`
     query getBridgeEvents($limit: Int!) {

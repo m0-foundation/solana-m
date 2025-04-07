@@ -26,6 +26,7 @@ import { Wrap } from './components/wrap';
 import './index.css';
 import { Bridge } from './components/bridge';
 import { Links } from './components/links';
+import { IndexUpdates } from './components/index-updates';
 
 console.table(
   Object.entries(import.meta.env).reduce((acc, [key, value]) => {
@@ -96,6 +97,7 @@ createRoot(document.getElementById('root')!).render(
                     <Holders token="M" />
                     <Holders token="wM" />
                     <Bridges />
+                    <IndexUpdates />
                   </div>
                 </div>
               }
