@@ -539,7 +539,7 @@ async function main() {
       ];
 
       // Fetch current state of LUT
-      let existingAddesses: PublicKey[] = [];
+      let existingAddresses: PublicKey[] = [];
       if (address) {
         const state = (await connection.getAddressLookupTable(tableAddress)).value?.state.addresses;
         if (!state) {
