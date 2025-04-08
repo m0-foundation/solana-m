@@ -392,7 +392,10 @@ describe('SDK unit tests', () => {
       expect(amount.toNumber()).toEqual(50000000000);
 
       const logWaiter = new Promise((resolve: (value: void) => void, reject) => {
-        setTimeout(reject, 5000);
+        const timeout = setTimeout(() => {
+          provider.connection.removeOnLogsListener(logsID);
+          reject('did not see rewards log');
+        }, 2000);
 
         // validate logs parser on SDK
         const logsID = provider.connection.onLogs(
@@ -401,6 +404,7 @@ describe('SDK unit tests', () => {
             const rewards = auth['_getRewardAmounts'](logs.logs);
             expect(rewards?.[0].user.toString()).toEqual('50000000000');
             provider.connection.removeOnLogsListener(logsID);
+            clearTimeout(timeout);
             resolve();
           },
           'processed',
