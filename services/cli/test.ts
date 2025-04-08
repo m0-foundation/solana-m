@@ -154,7 +154,6 @@ async function main() {
       const program = new Program<ExtEarn>(EXT_EARN_IDL, EXT_PROGRAM_ID, anchorProvider(connection, owner));
 
       for (let i = 0; i < 25; i++) {
-        console.log(`Distributing ${i + 1} of 25...`);
         const user = Keypair.generate();
         const ixs = [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 500_000 })];
 
@@ -217,7 +216,7 @@ async function main() {
 
         const tx = new Transaction().add(...ixs);
         const sig = await connection.sendTransaction(tx, [owner]);
-        console.log(`Distributed wM to ${user.publicKey}: ${sig}`);
+        console.log(`Distributed wM to ${user.publicKey}: ${sig}\t(${i + 1} of 25)`);
 
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
