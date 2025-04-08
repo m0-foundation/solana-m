@@ -50,6 +50,11 @@ MAX_SIGN_ATTEMPTS := 5
 build-devnet:
 	anchor build -- --features devnet --no-default-features
 
+define build-verified-devnet
+	@echo "Building verified $(1) program for devnet...\n"
+	solana-verify build --library-name $(1) -- --features devnet --no-default-features
+endef
+
 define upgrade_program
 	@solana-keygen new --no-bip39-passphrase --force -s --outfile=temp-buffer.json
 	@echo "\nWriting buffer for $(1) program..."
@@ -67,13 +72,16 @@ define upgrade_program
 	@rm temp-buffer.json
 endef
 
-upgrade-earn-devnet: build-devnet
+upgrade-earn-devnet: 
+	$(call build-verified-devnet,earn)
 	$(call upgrade_program,earn,$(EARN_PROGRAM_ID))
 
-upgrade-ext-earn-devnet: build-devnet
+upgrade-ext-earn-devnet:
+	$(call build-verified-devnet,ext_earn)
 	$(call upgrade_program,ext_earn,$(EXT_EARN_PROGRAM_ID))
 
-upgrade-portal-devnet: build-devnet
+upgrade-portal-devnet:
+	$(call build-verified-devnet,portal)
 	$(call upgrade_program,portal,$(PORTAL_PROGRAM_ID))
 
 
