@@ -1,10 +1,23 @@
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import {
+  ComputeBudgetProgram,
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
 import { signSendWait, UniversalAddress } from '@wormhole-foundation/sdk';
 import { Command } from 'commander';
 import * as multisig from '@sqds/multisig';
 import { anchorProvider, keysFromEnv, NttManager } from './utils';
 import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID } from '../../sdk/src';
-import { getOrCreateAssociatedTokenAccount, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
+import {
+  createAssociatedTokenAccountInstruction,
+  createTransferCheckedInstruction,
+  getAssociatedTokenAddressSync,
+  getOrCreateAssociatedTokenAccount,
+  TOKEN_2022_PROGRAM_ID,
+} from '@solana/spl-token';
 import BN from 'bn.js';
 import { Program } from '@coral-xyz/anchor';
 import { ExtEarn } from '../../target/types/ext_earn';
@@ -130,6 +143,84 @@ async function main() {
 
       await connection.confirmTransaction(signature);
       console.log(`Multisig created: ${createKey.publicKey} (${signature})`);
+    });
+
+  program
+    .command('distribute-tokens')
+    .description('distribute wM to random users')
+    .action(async () => {
+      const connection = new Connection(process.env.RPC_URL ?? '');
+      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']);
+      const program = new Program<ExtEarn>(EXT_EARN_IDL, EXT_PROGRAM_ID, anchorProvider(connection, owner));
+
+      for (let i = 0; i < 25; i++) {
+        console.log(`Distributing ${i + 1} of 25...`);
+        const user = Keypair.generate();
+        const ixs = [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 500_000 })];
+
+        const source = getAssociatedTokenAddressSync(mint.publicKey, owner.publicKey, false, TOKEN_2022_PROGRAM_ID);
+
+        const associatedToken = getAssociatedTokenAddressSync(
+          mint.publicKey,
+          user.publicKey,
+          false,
+          TOKEN_2022_PROGRAM_ID,
+        );
+
+        // create account
+        ixs.push(
+          createAssociatedTokenAccountInstruction(
+            owner.publicKey,
+            associatedToken,
+            user.publicKey,
+            mint.publicKey,
+            TOKEN_2022_PROGRAM_ID,
+          ),
+        );
+
+        // transfer wM to account
+        ixs.push(
+          createTransferCheckedInstruction(
+            source,
+            mint.publicKey,
+            associatedToken,
+            owner.publicKey,
+            Math.floor((Math.random() * (25 - 15) + 15) * 1e6),
+            6,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+          ),
+        );
+
+        const [earnManagerAccount] = PublicKey.findProgramAddressSync(
+          [Buffer.from('earn_manager'), owner.publicKey.toBytes()],
+          EXT_PROGRAM_ID,
+        );
+        const [earnerAccount] = PublicKey.findProgramAddressSync(
+          [Buffer.from('earner'), associatedToken.toBytes()],
+          EXT_PROGRAM_ID,
+        );
+
+        // register them as earners
+        ixs.push(
+          await program.methods
+            .addEarner(user.publicKey)
+            .accounts({
+              globalAccount: EXT_GLOBAL_ACCOUNT,
+              earnManagerAccount,
+              userTokenAccount: associatedToken,
+              earnerAccount,
+              signer: owner.publicKey,
+            })
+            .instruction(),
+        );
+
+        const tx = new Transaction().add(...ixs);
+        const sig = await connection.sendTransaction(tx, [owner]);
+        console.log(`Distributed wM to ${user.publicKey}: ${sig}`);
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
     });
 
   await program.parseAsync(process.argv);
