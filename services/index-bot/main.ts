@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import { Connection } from '@solana/web3.js';
-import { createWalletClient, getContract, http, WalletClient, Hex, stringToHex } from 'viem';
+import { createWalletClient, getContract, http, WalletClient, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import winston, { configure } from 'winston';
+import winston from 'winston';
 import { GLOBAL_ACCOUNT } from '../../sdk/src';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
@@ -188,7 +188,7 @@ function configureLogger() {
   return winston.createLogger({
     level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
     format,
-    defaultMeta: { name: 'index-bot' },
+    defaultMeta: { name: 'index-bot', imageBuild: process.env.BUILD_TIME },
     transports: [new winston.transports.Console()],
   });
 }
