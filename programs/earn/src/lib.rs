@@ -11,6 +11,18 @@ use anchor_lang::prelude::*;
 use instructions::*;
 use utils::merkle_proof::ProofElement;
 
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    // Required fields
+    name: "M Earn Program",
+    project_url: "https://m0.org/",
+    contacts: "email:security@m0.xyz",
+    policy: "https://github.com/m0-foundation/solana-m/blob/main/SECURITY.md",
+    // Optional Fields
+    preferred_languages: "en",
+    source_code: "https://github.com/m0-foundation/solana-m/tree/main/programs/earn"
+}
+
 declare_id!("MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c");
 
 #[program]
