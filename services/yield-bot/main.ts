@@ -194,7 +194,7 @@ async function syncIndex(opt: ParsedOptions) {
   const ix = await auth.buildIndexSyncInstruction();
   const signature = await buildAndSendTransaction(opt, [ix], 10, 'sync index');
 
-  console.log('updated index on ext earn', { ...logsFields, signature: signature[0] });
+  logger.info('updated index on ext earn', { ...logsFields, signature: signature[0] });
 }
 
 async function buildAndSendTransaction(
