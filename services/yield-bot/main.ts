@@ -173,8 +173,7 @@ async function removeEarners(opt: ParsedOptions) {
 }
 
 async function syncIndex(opt: ParsedOptions) {
-  console.log('syncing index');
-
+  logger.info('syncing index');
   const auth = await EarnAuthority.load(opt.connection, opt.evmClient, EXT_PROGRAM_ID);
   const extIndex = auth['global'].index;
 
