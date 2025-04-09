@@ -43,10 +43,7 @@ pub mod ext_earn {
 
     // Earn authority instructions
 
-    pub fn claim_for<'b: 'info, 'info>(
-        ctx: Context<'_, 'b, '_, 'info, ClaimFor<'info>>,
-        snapshot_balance: u64,
-    ) -> Result<()> {
+    pub fn claim_for(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         instructions::earn_authority::claim_for::handler(ctx, snapshot_balance)
     }
 

@@ -2,7 +2,7 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, Token2022, TokenAccount};
+use anchor_spl::token_interface::{mint_to, Mint, MintTo, Token2022, TokenAccount};
 
 // local dependencies
 use crate::{
@@ -86,10 +86,7 @@ pub struct ClaimFor<'info> {
     pub token_2022: Program<'info, Token2022>,
 }
 
-pub fn handler<'b: 'info, 'info>(
-    ctx: Context<'_, 'b, '_, 'info, ClaimFor<'info>>,
-    snapshot_balance: u64,
-) -> Result<()> {
+pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     // Validate that the earner account has not already claimed this cycle
     // Earner index should never be > global index, but we check to be safe against an error with index propagation
     if ctx.accounts.earner_account.last_claim_index >= ctx.accounts.global_account.index {
@@ -134,31 +131,36 @@ pub fn handler<'b: 'info, 'info>(
         // Check that earn manager token account is initialized and deserialize it
         // If so, proceed to calculating and sending fee
         // Otherwise, the fee is zero, regardless of the fee_bps
-        match InterfaceAccount::<'info, TokenAccount>::try_from(
-            &ctx.accounts.earn_manager_token_account,
-        ) {
-            Ok(earn_manager_token_account) => {
-                // Fees are rounded down in favor of the user
-                let fee =
-                    (rewards * ctx.accounts.earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
+        if ctx.accounts.earn_manager_token_account.owner == &Token2022::id()
+            && ctx.accounts.earn_manager_token_account.lamports() > 0
+        {
+            // Fees are rounded down in favor of the user
+            let fee = (rewards * ctx.accounts.earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
 
-                if fee > 0 {
-                    mint_tokens(
-                        &earn_manager_token_account,      // to
-                        fee,                              // amount
-                        &ctx.accounts.ext_mint,           // mint
-                        &ctx.accounts.ext_mint_authority, // mint authority
-                        mint_authority_seeds,             // mint authority seeds
-                        &ctx.accounts.token_2022,         // token program
-                    )?;
+            if fee > 0 {
+                // mint tokens to the earn manager token account
+                // we don't use the helper function due to lifetime issues
+                let mint_options = MintTo {
+                    mint: ctx.accounts.ext_mint.to_account_info(),
+                    to: ctx.accounts.earn_manager_token_account.clone(),
+                    authority: ctx.accounts.ext_mint_authority.clone(),
+                };
 
-                    // Return the fee to reduce the rewards by
-                    fee
-                } else {
-                    0u64
-                }
+                let cpi_context = CpiContext::new_with_signer(
+                    ctx.accounts.token_2022.to_account_info(),
+                    mint_options,
+                    mint_authority_seeds,
+                );
+
+                mint_to(cpi_context, fee)?;
+
+                // Return the fee to reduce the rewards by
+                fee
+            } else {
+                0u64
             }
-            Err(_) => 0u64,
+        } else {
+            0u64
         }
     } else {
         0u64
