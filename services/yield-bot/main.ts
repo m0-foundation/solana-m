@@ -15,6 +15,7 @@ import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } fr
 import { instructions } from '@sqds/multisig';
 import winston, { Logger } from 'winston';
 import BN from 'bn.js';
+import { getProgram } from '../../sdk/src/idl';
 
 const logger = configureLogger();
 
@@ -74,6 +75,7 @@ export async function yieldCLI() {
       };
 
       if (options.programID.equals(EXT_PROGRAM_ID)) {
+        await syncIndex(options);
         await distributeYield(options);
         return;
       }
@@ -170,6 +172,32 @@ async function removeEarners(opt: ParsedOptions) {
   logger.info('removed earners', { signature, earners: instructions.length });
 }
 
+async function syncIndex(opt: ParsedOptions) {
+  console.log('syncing index');
+
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, EXT_PROGRAM_ID);
+  const extIndex = auth['global'].index;
+
+  // fetch the current index on the earn program
+  const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
+  const index = (await getProgram(opt.connection).account.global.fetch(globalAccount)).index;
+
+  const logsFields = {
+    extIndex: extIndex.toString(),
+    index: index.toString(),
+  };
+
+  if (extIndex.eq(index)) {
+    logger.info('index already synced', logsFields);
+    return;
+  }
+
+  const ix = await auth.buildIndexSyncInstruction();
+  const signature = await buildAndSendTransaction(opt, [ix], 10, 'sync index');
+
+  console.log('updated index on ext earn', { ...logsFields, signature: signature[0] });
+}
+
 async function buildAndSendTransaction(
   opt: ParsedOptions,
   ixs: TransactionInstruction[],
@@ -222,11 +250,14 @@ async function buildAndSendTransaction(
   // confirm all transactions
   await Promise.all(
     returnData.map((signature) =>
-      opt.connection.confirmTransaction({
-        blockhash: blockhash,
-        lastValidBlockHeight: lastValidBlockHeight,
-        signature,
-      }),
+      opt.connection.confirmTransaction(
+        {
+          blockhash: blockhash,
+          lastValidBlockHeight: lastValidBlockHeight,
+          signature,
+        },
+        'confirmed',
+      ),
     ),
   );
 

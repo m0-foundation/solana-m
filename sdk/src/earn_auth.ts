@@ -265,6 +265,21 @@ class EarnAuthority {
     return [filtererdTxns, totalRewards];
   }
 
+  buildIndexSyncInstruction(): Promise<TransactionInstruction> {
+    if (this.programID.equals(PROGRAM_ID)) {
+      throw new Error('Index sync not supported for program');
+    }
+
+    return (this.program as Program<ExtEarn>).methods
+      .sync()
+      .accounts({
+        earnAuthority: this.global.earnAuthority,
+        globalAccount: EXT_GLOBAL_ACCOUNT,
+        mEarnGlobalAccount: GLOBAL_ACCOUNT,
+      })
+      .instruction();
+  }
+
   private _getRewardAmounts(logs: string[]): BN[] {
     const rewards: bigint[] = [];
 
