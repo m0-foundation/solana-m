@@ -1,11 +1,4 @@
-import {
-  Connection,
-  TransactionInstruction,
-  PublicKey,
-  Transaction,
-  VersionedTransaction,
-  ComputeBudgetProgram,
-} from '@solana/web3.js';
+import { Connection, TransactionInstruction, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { PublicClient } from 'viem';
 
 import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
@@ -19,8 +12,10 @@ import { getExtProgram, getProgram } from './idl';
 import { Earn } from './idl/earn';
 import { ExtEarn } from './idl/ext_earn';
 import { buildTransaction } from './transaction';
+import { MockLogger, Logger } from './logger';
 
 class EarnAuthority {
+  private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
   private program: Program<Earn> | Program<ExtEarn>;
@@ -36,7 +31,9 @@ class EarnAuthority {
     global: GlobalAccountData,
     mintAuth: PublicKey,
     program = PROGRAM_ID,
+    logger: Logger = new MockLogger(),
   ) {
+    this.logger = logger;
     this.connection = connection;
     this.evmClient = evmClient;
     this.programID = program;
@@ -45,7 +42,12 @@ class EarnAuthority {
     this.mintAuth = mintAuth;
   }
 
-  static async load(connection: Connection, evmClient: PublicClient, program = PROGRAM_ID): Promise<EarnAuthority> {
+  static async load(
+    connection: Connection,
+    evmClient: PublicClient,
+    program = PROGRAM_ID,
+    logger: Logger = new MockLogger(),
+  ): Promise<EarnAuthority> {
     const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], program);
 
     let global: GlobalAccountData;
@@ -59,7 +61,7 @@ class EarnAuthority {
     // get mint multisig
     const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
 
-    return new EarnAuthority(connection, evmClient, global, mint.mintAuthority!, program);
+    return new EarnAuthority(connection, evmClient, global, mint.mintAuthority!, program, logger);
   }
 
   async refresh(): Promise<void> {
@@ -81,7 +83,7 @@ class EarnAuthority {
     }
 
     if (this.global.claimComplete) {
-      console.error('No active claim cycle');
+      this.logger.error('No active claim cycle');
       return null;
     }
 
@@ -96,18 +98,21 @@ class EarnAuthority {
 
   async buildClaimInstruction(earner: Earner): Promise<TransactionInstruction | null> {
     if (this.global.claimComplete) {
-      console.error('No active claim cycle');
+      this.logger.error('No active claim cycle');
       return null;
     }
 
     // earner was created after last index update
     if (earner.data.lastClaimTimestamp > this.global.timestamp) {
-      console.warn('Earner created after last index update');
+      this.logger.warn('Earner created after last index update', {
+        lastClaimTs: earner.data.lastClaimTimestamp.toString(),
+        globalTs: this.global.timestamp.toString(),
+      });
       return null;
     }
 
     if (earner.data.lastClaimIndex == this.global.index) {
-      console.warn('Earner already claimed');
+      this.logger.warn('Earner already claimed');
       return null;
     }
 
@@ -201,8 +206,7 @@ class EarnAuthority {
       // simulate transaction
       const result = await this.connection.simulateTransaction(txn, { sigVerify: false });
       if (result.value.err) {
-        console.error({
-          message: 'Claim batch simulation failed',
+        this.logger.error('Claim batch simulation failed', {
           logs: result.value.logs,
           err: result.value.err.toString(),
           b64: Buffer.from(txn.serialize()).toString('base64'),
@@ -217,7 +221,7 @@ class EarnAuthority {
           totalRewards = totalRewards.add(reward.user).add(reward.fee);
           filtererdTxns.push(ixs[i * batchSize + index]);
 
-          console.log('Claim for earner', {
+          this.logger.info('Claim for earner', {
             tokenAccount: reward.tokenAccount.toString(),
             rewards: reward.user.toString(),
             fee: reward.fee.toString(),
@@ -229,7 +233,7 @@ class EarnAuthority {
     // validate rewards is not higher than max claimable rewards
     if (this.programID.equals(PROGRAM_ID)) {
       if (totalRewards.gt(this.global.maxYield!)) {
-        console.error('Claim amount exceeds max claimable rewards', {
+        this.logger.error('Claim amount exceeds max claimable rewards', {
           totalRewards: totalRewards.toString(),
           maxYield: this.global.maxYield!.toString(),
         });
@@ -260,7 +264,7 @@ class EarnAuthority {
       const collateral = new BN(tokenAccountInfo.amount.toString());
 
       if (new BN(mint.supply.toString()).add(totalRewards).gt(collateral)) {
-        console.error('Claim amount exceeds max claimable rewards', {
+        this.logger.error('Claim amount exceeds max claimable rewards', {
           mintSupply: mint.supply.toString(),
           totalRewards: totalRewards.toString(),
           collateral: collateral.toString(),

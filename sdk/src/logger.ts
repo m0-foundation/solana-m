@@ -1,18 +1,21 @@
 import winston from 'winston';
 
 export interface Logger {
+  debug: (message: string, ...meta: any[]) => void;
   info: (message: string, ...meta: any[]) => void;
   warn: (message: string, ...meta: any[]) => void;
   error: (message: string, ...meta: any[]) => void;
 }
 
-export class EmptyLogger implements Logger {
+export class MockLogger implements Logger {
+  debug(m: string, ...meta: any[]) {}
   info(m: string, ...meta: any[]) {}
   warn(m: string, ...meta: any[]) {}
   error(m: string, ...meta: any[]) {}
 }
 
 export class ConsoleLogger implements Logger {
+  debug = console.debug;
   info = console.log;
   warn = console.warn;
   error = console.error;
@@ -21,7 +24,7 @@ export class ConsoleLogger implements Logger {
 export class WinstonLogger implements Logger {
   private logger: winston.Logger;
 
-  constructor(name: string, level: 'info', defaultMeta: { [key: string]: string }, catchConsoleLogs = true) {
+  constructor(name: string, level = 'info', defaultMeta: { [key: string]: string } = {}, catchConsoleLogs = true) {
     let format: winston.Logform.Format;
 
     if (process.env.NODE_ENV !== 'production') {
@@ -43,29 +46,21 @@ export class WinstonLogger implements Logger {
       defaultMeta: { name, ...defaultMeta },
       transports: [new winston.transports.Console()],
     });
+
+    if (catchConsoleLogs) {
+      console.debug = this.debug;
+      console.info = this.info;
+      console.warn = this.warn;
+      console.error = this.error;
+    }
   }
 
-  info(m: string, ...meta: any[]) {
-    this.logger.info(m, ...meta);
-  }
-  warn(m: string, ...meta: any[]) {
-    this.logger.warn(m, ...meta);
-  }
-  error(m: string, ...meta: any[]) {
-    this.logger.error(m, ...meta);
-  }
+  debug = (m: string, ...meta: any[]) => this.logger.debug(m, ...meta);
+  info = (m: string, ...meta: any[]) => this.logger.info(m, ...meta);
+  warn = (m: string, ...meta: any[]) => this.logger.warn(m, ...meta);
+  error = (m: string, ...meta: any[]) => this.logger.error(m, ...meta);
 
-  catchConsoleLogs() {
-    const parser =
-      (lgr: (message: string, ...meta: any[]) => void) =>
-      (message?: any, ...optionalParams: any[]) => {
-        lgr(message ?? 'console log', {
-          params: optionalParams,
-        });
-      };
-
-    console.info = parser((message: string, ...meta: any[]) => this.info(message, ...meta));
-    console.warn = parser((message: string, ...meta: any[]) => this.warn(message, ...meta));
-    console.error = parser((message: string, ...meta: any[]) => this.error(message, ...meta));
+  addMetaField(key: string, value: string) {
+    this.logger.defaultMeta[key] = value;
   }
 }

@@ -9,14 +9,17 @@ import * as spl from '@solana/spl-token';
 import { Program } from '@coral-xyz/anchor';
 import { getProgram } from './idl';
 import { Earn } from './idl/earn';
+import { MockLogger, Logger } from './logger';
 
 export class Registrar {
+  private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
   private program: Program<Earn>;
 
-  constructor(connection: Connection, evmClient: PublicClient) {
+  constructor(connection: Connection, evmClient: PublicClient, logger: Logger = new MockLogger()) {
     this.connection = connection;
+    this.logger = logger;
     this.evmClient = evmClient;
     this.program = getProgram(connection);
   }
@@ -33,7 +36,7 @@ export class Registrar {
         continue;
       }
 
-      console.log('adding earner', { user: user.toBase58() });
+      this.logger.info('adding earner', { user: user.toBase58() });
 
       // derive token account for user
       const userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
@@ -78,7 +81,7 @@ export class Registrar {
         continue;
       }
 
-      console.log('removing earner', {
+      this.logger.info('removing earner', {
         user: earner.data.user.toBase58(),
         pubkey: earner.pubkey.toBase58(),
       });

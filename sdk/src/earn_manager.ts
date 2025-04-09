@@ -16,6 +16,7 @@ export class EarnManager {
   private program: Program<ExtEarn>;
 
   manager: PublicKey;
+  pubkey: PublicKey;
   data: EarnManagerData;
 
   constructor(
@@ -29,6 +30,7 @@ export class EarnManager {
     this.program = getExtProgram(connection);
     this.evmClient = evmClient;
     this.manager = manager;
+    this.pubkey = pubkey;
     this.data = data;
   }
 

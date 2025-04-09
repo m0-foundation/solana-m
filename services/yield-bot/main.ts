@@ -13,11 +13,11 @@ import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
-import winston, { Logger } from 'winston';
 import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
+import { WinstonLogger } from '../../sdk/src/logger';
 
-const logger = configureLogger();
+const logger = new WinstonLogger('yield-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
 
 interface ParsedOptions {
   signer: Keypair;
@@ -32,7 +32,6 @@ interface ParsedOptions {
 
 // entrypoint for the yield bot command
 export async function yieldCLI() {
-  catchConsoleLogs();
   const program = new Command();
 
   program
@@ -69,10 +68,7 @@ export async function yieldCLI() {
         options.squadsPda = new PublicKey(squadsPda);
       }
 
-      logger.defaultMeta = {
-        ...logger.defaultMeta,
-        mint: options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
-      };
+      logger.addMetaField('mint', options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M');
 
       if (options.programID.equals(EXT_PROGRAM_ID)) {
         await syncIndex(options);
@@ -89,7 +85,7 @@ export async function yieldCLI() {
 }
 
 async function distributeYield(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.programID);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.programID, logger);
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
@@ -143,7 +139,7 @@ async function distributeYield(opt: ParsedOptions) {
 
 async function addEarners(opt: ParsedOptions) {
   console.log('adding earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient);
+  const registrar = new Registrar(opt.connection, opt.evmClient, logger);
 
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
 
@@ -158,7 +154,7 @@ async function addEarners(opt: ParsedOptions) {
 
 async function removeEarners(opt: ParsedOptions) {
   console.log('removing earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient);
+  const registrar = new Registrar(opt.connection, opt.evmClient, logger);
 
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
 
@@ -173,7 +169,7 @@ async function removeEarners(opt: ParsedOptions) {
 
 async function syncIndex(opt: ParsedOptions) {
   logger.info('syncing index');
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, EXT_PROGRAM_ID);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, EXT_PROGRAM_ID, logger);
   const extIndex = auth['global'].index;
 
   // fetch the current index on the earn program
@@ -209,8 +205,7 @@ async function buildAndSendTransaction(
   for (const txn of await buildTransactions(opt, ixs, priorityFee, batchSize, memo)) {
     const result = await opt.connection.simulateTransaction(txn, { sigVerify: false });
     if (result.value.err) {
-      logger.error({
-        message: 'Transaction simulation failed',
+      logger.error('Transaction simulation failed', {
         logs: result.value.logs,
         err: result.value.err,
         b64: Buffer.from(txn.serialize()).toString('base64'),
@@ -381,53 +376,6 @@ async function proposeSquadsTransaction(
   tx.sign([opt.signer]);
 
   return tx;
-}
-
-function configureLogger() {
-  let format: winston.Logform.Format;
-
-  if (process.env.NODE_ENV !== 'production') {
-    format = winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      winston.format.colorize(),
-      winston.format.simple(),
-    );
-  } else {
-    format = winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-      winston.format.json(),
-    );
-  }
-
-  return winston.createLogger({
-    level: 'info',
-    format,
-    defaultMeta: { name: 'yield-bot', imageBuild: process.env.BUILD_TIME },
-    transports: [new winston.transports.Console()],
-  });
-}
-
-function catchConsoleLogs() {
-  // catch console logs and send them to winston logger
-  const parser = (lgr: (message: string, ...meta: any[]) => Logger) => {
-    return (message?: any, ...optionalParams: any[]) => {
-      // intercepted log is just key value pairs
-      if (optionalParams.length === 1 && typeof optionalParams[0] === 'object') {
-        if (Object.values(optionalParams[0]).every((v) => typeof v === 'string')) {
-          lgr(message ?? 'console log', optionalParams[0]);
-          return;
-        }
-      }
-      // unknown log parameters
-      lgr(message ?? 'console log', {
-        paramsStr: optionalParams.map((p) => p.toString()),
-      });
-    };
-  };
-
-  console.info = parser((message: string, ...meta: any[]) => logger.info(message, ...meta));
-  console.warn = parser((message: string, ...meta: any[]) => logger.warn(message, ...meta));
-  console.error = parser((message: string, ...meta: any[]) => logger.error(message, ...meta));
 }
 
 // do not run the cli if this is being imported by jest
