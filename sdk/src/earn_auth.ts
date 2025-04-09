@@ -266,7 +266,7 @@ class EarnAuthority {
     return [filtererdTxns, totalRewards];
   }
 
-  buildIndexSyncInstruction(): Promise<TransactionInstruction> {
+  async buildIndexSyncInstruction(): Promise<TransactionInstruction> {
     if (this.programID.equals(PROGRAM_ID)) {
       throw new Error('Index sync not supported for program');
     }
