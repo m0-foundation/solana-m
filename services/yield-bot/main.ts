@@ -114,7 +114,6 @@ async function distributeYield(opt: ParsedOptions) {
   // build claim instructions
   let claimIxs: TransactionInstruction[] = [];
   for (const earner of earners) {
-    logger.info('claiming yield for user', { earner: earner.pubkey.toBase58() });
     const ix = await auth.buildClaimInstruction(earner);
     if (ix) claimIxs.push(ix);
   }

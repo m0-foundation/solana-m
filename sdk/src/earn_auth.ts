@@ -216,6 +216,12 @@ class EarnAuthority {
         if (reward.user > claimSizeThreshold) {
           totalRewards = totalRewards.add(reward.user).add(reward.fee);
           filtererdTxns.push(ixs[i * batchSize + index]);
+
+          console.log('Claim for earner', {
+            tokenAccount: reward.tokenAccount.toString(),
+            rewards: reward.user.toString(),
+            fee: reward.fee.toString(),
+          });
         }
       }
     }
@@ -281,8 +287,8 @@ class EarnAuthority {
       .instruction();
   }
 
-  private _getRewardAmounts(logs: string[]): { user: BN; fee: BN }[] {
-    const rewards: { user: BN; fee: BN }[] = [];
+  private _getRewardAmounts(logs: string[]) {
+    const rewards: { tokenAccount: PublicKey; user: BN; fee: BN }[] = [];
 
     for (const log of logs) {
       // log prefix with RewardsClaim event discriminator
@@ -291,6 +297,7 @@ class EarnAuthority {
 
         // events identical between Earn and ExtEarn
         rewards.push({
+          tokenAccount: new PublicKey(data.subarray(8, 40)),
           user: new BN(data.readBigUInt64LE(72).toString()),
           fee: new BN(data.readBigUInt64LE(96).toString()),
         });
