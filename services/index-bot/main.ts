@@ -163,7 +163,9 @@ async function sendIndexUpdate(options: ParsedOptions) {
       value: quote,
     });
 
-    logger.info('Transaction sent: ', tx);
+    logger.info('Transaction sent', {
+      tx: tx,
+    });
   }
 
   return params;
