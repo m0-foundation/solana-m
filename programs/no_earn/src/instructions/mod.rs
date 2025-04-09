@@ -1,7 +1,7 @@
-// ext_earn/instructions/mod.rs
+// no_earn/instructions/mod.rs
 
 pub mod admin;
-pub mod open;
+pub mod wrap_authority;
 
 pub use admin::*;
-pub use open::*;
+pub use wrap_authority::*;

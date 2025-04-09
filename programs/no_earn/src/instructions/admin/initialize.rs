@@ -37,13 +37,14 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<Initialize>) -> Result<()> {
+pub fn handler(ctx: Context<Initialize>, wrap_authority: Pubkey) -> Result<()> {
     let m_vault_bump = Pubkey::find_program_address(&[M_VAULT_SEED], ctx.program_id).1;
     let ext_mint_authority_bump =
         Pubkey::find_program_address(&[MINT_AUTHORITY_SEED], ctx.program_id).1;
 
     ctx.accounts.global_account.set_inner(ExtGlobal {
         admin: ctx.accounts.admin.key(),
+        wrap_authority,
         ext_mint: ctx.accounts.ext_mint.key(),
         m_mint: ctx.accounts.m_mint.key(),
         bump: ctx.bumps.global_account,

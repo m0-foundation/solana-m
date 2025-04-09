@@ -1,4 +1,4 @@
-// no_earn/instructions/open/mod.rs
+// no_earn/instructions/wrap_authority/mod.rs
 
 pub mod unwrap;
 pub mod wrap;

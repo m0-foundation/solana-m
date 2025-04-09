@@ -22,21 +22,28 @@ pub mod no_earn {
         instructions::admin::claim_excess::handler(ctx)
     }
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        instructions::admin::initialize::handler(ctx)
+    pub fn initialize(ctx: Context<Initialize>, wrap_authority: Pubkey) -> Result<()> {
+        instructions::admin::initialize::handler(ctx, wrap_authority)
     }
 
     pub fn set_m_mint(ctx: Context<SetMMint>) -> Result<()> {
         instructions::admin::set_m_mint::handler(ctx)
     }
-    // Open instructions
 
-    // TODO add the option for permissioned wraps and unwraps?
+    pub fn set_wrap_authority(
+        ctx: Context<SetWrapAuthority>,
+        wrap_authority: Pubkey,
+    ) -> Result<()> {
+        instructions::admin::set_wrap_authority::handler(ctx, wrap_authority)
+    }
+
+    // Wrap authority instructions
+
     pub fn wrap(ctx: Context<Wrap>, amount: u64) -> Result<()> {
-        instructions::open::wrap::handler(ctx, amount)
+        instructions::wrap_authority::wrap::handler(ctx, amount)
     }
 
     pub fn unwrap(ctx: Context<Unwrap>, amount: u64) -> Result<()> {
-        instructions::open::unwrap::handler(ctx, amount)
+        instructions::wrap_authority::unwrap::handler(ctx, amount)
     }
 }
