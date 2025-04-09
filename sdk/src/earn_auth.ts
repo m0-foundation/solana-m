@@ -18,6 +18,7 @@ import { BN, Program } from '@coral-xyz/anchor';
 import { getExtProgram, getProgram } from './idl';
 import { Earn } from './idl/earn';
 import { ExtEarn } from './idl/ext_earn';
+import { buildTransaction } from './transaction';
 
 class EarnAuthority {
   private connection: Connection;
@@ -304,19 +305,14 @@ class EarnAuthority {
     priorityFee = 250_000,
     batchSize = 10,
   ): Promise<VersionedTransaction[]> {
-    const { blockhash } = await this.connection.getLatestBlockhash();
     const feePayer = new PublicKey(this.global.earnAuthority);
-    const computeBudgetIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee });
 
     // split instructions into batches
     const transactions: VersionedTransaction[] = [];
 
     for (let i = 0; i < ixs.length; i += batchSize) {
       const batchIxs = ixs.slice(i, i + batchSize);
-      const tx = new Transaction().add(computeBudgetIx, ...batchIxs);
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = feePayer;
-      transactions.push(new VersionedTransaction(tx.compileMessage()));
+      transactions.push(await buildTransaction(this.connection, batchIxs, feePayer, priorityFee));
     }
 
     return transactions;
