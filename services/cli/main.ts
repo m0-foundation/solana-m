@@ -79,6 +79,12 @@ async function main() {
       const [earnTokenAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAMS.earn);
       const [mVaultPda] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], PROGRAMS.extEarn);
       const [mintAuthPda] = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], PROGRAMS.extEarn);
+      const [portalEmitter] = PublicKey.findProgramAddressSync([Buffer.from('emitter')], PROGRAMS.portal);
+      const nttQuoter = new PublicKey('Nqd6XqA8LbsCuG8MLWWuP865NV6jR1MbXeKxD4HLKDJ');
+      const [quoterRegisteredNtt] = PublicKey.findProgramAddressSync(
+        [Buffer.from('registered_ntt'), PROGRAMS.portal.toBytes()],
+        nttQuoter,
+      );
 
       const addresses = {
         'Portal Program': PROGRAMS.portal,
@@ -91,6 +97,9 @@ async function main() {
         'wM Mint': wmMint.publicKey,
         'ExtEarn M Vault': mVaultPda,
         'ExtEarn Mint Authority': mintAuthPda,
+        'Transceiver Emitter': portalEmitter,
+        'Portal Quoter': nttQuoter,
+        'Quoter Registered Ntt': quoterRegisteredNtt,
       };
 
       const tableData = Object.entries(addresses).map(([name, pubkey]) => ({
