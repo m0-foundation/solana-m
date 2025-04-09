@@ -77,7 +77,10 @@ pub struct ClaimFor<'info> {
     /// CHECK: we validate this manually in the handler so we can skip it
     /// if the token account has been closed or is not initialized
     /// This prevents DoSing earner yield by closing this account
-    #[account(mut)]
+    #[account(
+        mut,
+        address = earn_manager_account.fee_token_account @ ExtError::InvalidAccount,
+    )]
     pub earn_manager_token_account: AccountInfo<'info>,
 
     pub token_2022: Program<'info, Token2022>,
@@ -91,15 +94,6 @@ pub fn handler<'b: 'info, 'info>(
     // Earner index should never be > global index, but we check to be safe against an error with index propagation
     if ctx.accounts.earner_account.last_claim_index >= ctx.accounts.global_account.index {
         return err!(ExtError::AlreadyClaimed);
-    }
-
-    // Validate the earn manager token account
-    // Check that the account is the correct one (matches stored value)
-    // If not, revert since it is initialized and expected to be provided correctly
-    if ctx.accounts.earn_manager_token_account.key()
-        != ctx.accounts.earn_manager_account.fee_token_account
-    {
-        return err!(ExtError::InvalidAccount);
     }
 
     // Calculate the amount of tokens to send to the user
