@@ -48,40 +48,54 @@ export async function yieldCLI() {
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
     .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
     .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
+    .option('-i, --stepInterval [number]', 'Wait interval for steps', '5000')
     .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
-    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, programID, claimThreshold, graphKey }) => {
-      let signer: Keypair;
-      try {
-        signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
-      } catch {
-        signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
-      }
-
-      const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
-
-      const options: ParsedOptions = {
-        signer,
-        connection: new Connection(rpc, 'processed'),
-        evmClient,
-        graphKey,
+    .action(
+      async ({
+        keypair,
+        rpc,
+        evmRPC,
         dryRun,
         skipCycle,
-        programID: new PublicKey(programID),
-        claimThreshold: new BN(claimThreshold),
-      };
+        squadsPda,
+        programID,
+        claimThreshold,
+        graphKey,
+        stepInterval,
+      }) => {
+        let signer: Keypair;
+        try {
+          signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
+        } catch {
+          signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
+        }
 
-      if (squadsPda) {
-        options.squadsPda = new PublicKey(squadsPda);
-      }
+        const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
 
-      logger.addMetaField('mint', options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M');
+        const options: ParsedOptions = {
+          signer,
+          connection: new Connection(rpc, 'processed'),
+          evmClient,
+          graphKey,
+          dryRun,
+          skipCycle,
+          programID: new PublicKey(programID),
+          claimThreshold: new BN(claimThreshold),
+        };
 
-      const steps = options.programID.equals(PROGRAM_ID)
-        ? [removeEarners, distributeYield, addEarners]
-        : [syncIndex, distributeYield];
+        if (squadsPda) {
+          options.squadsPda = new PublicKey(squadsPda);
+        }
 
-      await executeSteps(options, steps, 5000);
-    });
+        logger.addMetaField('mint', options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M');
+
+        const steps = options.programID.equals(PROGRAM_ID)
+          ? [removeEarners, distributeYield, addEarners]
+          : [syncIndex, distributeYield];
+
+        await executeSteps(options, steps, parseInt(stepInterval));
+      },
+    );
 
   await program.parseAsync(process.argv);
 }

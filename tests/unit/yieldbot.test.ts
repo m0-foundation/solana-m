@@ -4,6 +4,7 @@ import { yieldCLI } from '../../services/yield-bot/main';
 
 const SVM_RPC = 'https://api.devnet.solana.com';
 const EVM_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
+const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
 
 describe('Yield bot tests', () => {
   const earner = Keypair.generate();
@@ -19,6 +20,7 @@ describe('Yield bot tests', () => {
     process.argv.push('-e', EVM_RPC);
     process.argv.push('-r', SVM_RPC);
     process.argv.push('--dryRun');
+    process.argv.push('--stepInterval', '10');
 
     await yieldCLI();
   }, 15_000);
@@ -30,7 +32,7 @@ describe('Yield bot tests', () => {
 function mockRequestData(earner: PublicKey) {
   nock.disableNetConnect();
 
-  nock('https://api.studio.thegraph.com')
+  nock(GRAPH_URL)
     .post('/query/106645/m-token-transactions/version/latest', () => true)
     .reply(200, {
       data: {
@@ -132,6 +134,24 @@ function mockRequestData(earner: PublicKey) {
       (body: any) =>
         body.method === 'getProgramAccounts' && body.params?.[1].filters?.[0].memcmp.bytes === 'gZH8R1wytJi', // earners
       [],
+    ],
+    [
+      (body: any) =>
+        body.method === 'getAccountInfo' && body.params?.[0] === 'HtKQ9sHyMhun73asZsARkGCc1fDz2dQH7QhGfFJcQo7S', // LUT
+      {
+        context,
+        value: {
+          data: [
+            'AQAAAP//////////VXFAFgAAAAAMAbPce1wTXGKGGjMlYml282w+cbkUAoVQV4nvBkkivE/2AAALhuwYHNTFyYTpBisT8rLee59bXmjoQ0kjHWYUzfP5nwVgy8JwqLBOVRq04BrlmUIX0OY4HKRi8JolMXaC9I71DeySnBZXEloIIAJ5WiBZjwW1t2W6LbYN7IpjBUKP07QLhr5mv860wdfpJ7zE0BS+Dyhjq534X9phCFG2Tb0K5QuGvma8H5i0fSCjvmFaSQWoJbgmhk4qD0yUhGfTPucJC34eZiS+vG4hFz1Yy0QYUeJ26UkM9sMfYLc+qGYK1oyEjcy6QIu31s1lF6hkb3IdT4FVx4WdL0sgfT7v5zngWpqi4sY9y+ewdvC16uOIBwi7WXZH30fakiTG4FNjJA/8ddA8vGAccUPgJiB4PC0x7ujFGJfwgNoXvkSutuMphJCRbFwrTFg8mDGNUSqtumxL0huHMZWbAy/okO5kCvQO1ORoMAbaMvJBTyQcLMmsnaDkH0FwZa+QwkrYCQghj/MV5M+hiSOLvpOsmcPpyvde1SVkqv95W0dZv5VRXaA/5S+z3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9rPce1wTXGKGGjMlYml282w+cbkUAoVQV4nvBkkivE/2s9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/az3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9gbd9uHudY/eGEJdvORszdq2GvxNg7kNJ/69+SjYoYv8',
+            'base64',
+          ],
+          executable: false,
+          lamports: 5066880,
+          owner: 'AddressLookupTab1e1111111111111111111111111',
+          rentEpoch: 18446744073709551615,
+          space: 600,
+        },
+      },
     ],
   ];
 
