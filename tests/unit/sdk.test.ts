@@ -26,6 +26,7 @@ const EARN_IDL = require('../../sdk/src/idl/earn.json');
 const EXT_EARN_IDL = require('../../sdk/src/idl/ext_earn.json');
 
 const GRAPH_KEY = '';
+const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
 
 describe('SDK unit tests', () => {
   const signer = loadKeypair('tests/keys/user.json');
@@ -592,8 +593,8 @@ describe('SDK unit tests', () => {
  * Mock subgraph and rpc data for testing
  */
 function mockSubgraph() {
-  nock('https://api.studio.thegraph.com')
-    .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getTokenAccounts')
+  nock(GRAPH_URL)
+    .post('', (body) => body.operationName === 'getTokenAccounts')
     .reply(200, {
       data: {
         tokenAccounts: [
@@ -617,9 +618,9 @@ function mockSubgraph() {
     })
     .persist();
 
-  nock('https://api.studio.thegraph.com')
+  nock(GRAPH_URL)
     .post(
-      '/query/106645/m-token-transactions/version/latest',
+      '',
       (body) =>
         body.operationName === 'getBalanceUpdates' &&
         body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
@@ -634,9 +635,9 @@ function mockSubgraph() {
     })
     .persist();
 
-  nock('https://api.studio.thegraph.com')
+  nock(GRAPH_URL)
     .post(
-      '/query/106645/m-token-transactions/version/latest',
+      '',
       (body) =>
         body.operationName === 'getBalanceUpdates' &&
         body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
@@ -656,9 +657,9 @@ function mockSubgraph() {
     })
     .persist();
 
-  nock('https://api.studio.thegraph.com')
+  nock(GRAPH_URL)
     .post(
-      '/query/106645/m-token-transactions/version/latest',
+      '',
       (body) =>
         body.operationName === 'getClaimsForTokenAccount' &&
         body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
@@ -686,9 +687,9 @@ function mockSubgraph() {
       },
     });
 
-  nock('https://api.studio.thegraph.com')
+  nock(GRAPH_URL)
     .post(
-      '/query/106645/m-token-transactions/version/latest',
+      '',
       (body) =>
         body.operationName === 'getClaimsForTokenAccount' &&
         body.variables.tokenAccountId !== '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
