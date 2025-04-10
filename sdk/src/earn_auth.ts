@@ -69,7 +69,14 @@ class EarnAuthority {
   }
 
   async refresh(): Promise<void> {
-    Object.assign(this, await EarnAuthority.load(this.connection, this.evmClient, this.graph['key']));
+    const updated = await EarnAuthority.load(
+      this.connection,
+      this.evmClient,
+      this.graph.key,
+      this.programID,
+      this.logger,
+    );
+    Object.assign(this, updated);
   }
 
   public get admin() {
@@ -78,7 +85,7 @@ class EarnAuthority {
 
   async getAllEarners(): Promise<Earner[]> {
     const accounts = await this.program.account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graph.key, a.publicKey, a.account));
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
@@ -141,7 +148,12 @@ class EarnAuthority {
       // get manager (manager fee token account)
       let manager = this.managerCache.get(earner.data.earnManager!);
       if (!manager) {
-        manager = await EarnManager.fromManagerAddress(this.connection, this.evmClient, earner.data.earnManager!);
+        manager = await EarnManager.fromManagerAddress(
+          this.connection,
+          this.evmClient,
+          this.graph.key,
+          earner.data.earnManager!,
+        );
         this.managerCache.set(earner.data.earnManager!, manager);
       }
 

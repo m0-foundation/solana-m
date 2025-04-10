@@ -9,10 +9,12 @@ import { Program } from '@coral-xyz/anchor';
 import { getExtProgram } from './idl';
 import { EarnManagerData } from './accounts';
 import { ExtEarn } from './idl/ext_earn';
+import { Graph } from './graph';
 
 export class EarnManager {
   private connection: Connection;
   private evmClient: PublicClient;
+  private graph: Graph;
   private program: Program<ExtEarn>;
 
   manager: PublicKey;
@@ -22,6 +24,7 @@ export class EarnManager {
   constructor(
     connection: Connection,
     evmClient: PublicClient,
+    graphKey: string,
     manager: PublicKey,
     pubkey: PublicKey,
     data: EarnManagerData,
@@ -29,6 +32,7 @@ export class EarnManager {
     this.connection = connection;
     this.program = getExtProgram(connection);
     this.evmClient = evmClient;
+    this.graph = new Graph(graphKey);
     this.manager = manager;
     this.pubkey = pubkey;
     this.data = data;
@@ -37,6 +41,7 @@ export class EarnManager {
   static async fromManagerAddress(
     connection: Connection,
     evmClient: PublicClient,
+    graphKey: string,
     manager: PublicKey,
   ): Promise<EarnManager> {
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
@@ -46,11 +51,12 @@ export class EarnManager {
 
     const data = await getExtProgram(connection).account.earnManager.fetch(earnManagerAccount);
 
-    return new EarnManager(connection, evmClient, manager, earnManagerAccount, data);
+    return new EarnManager(connection, evmClient, graphKey, manager, earnManagerAccount, data);
   }
 
   async refresh() {
-    Object.assign(this, await EarnManager.fromManagerAddress(this.connection, this.evmClient, this.manager));
+    const updated = await EarnManager.fromManagerAddress(this.connection, this.evmClient, this.graph.key, this.manager);
+    Object.assign(this, updated);
   }
 
   async buildConfigureInstruction(feeBPS: number, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
@@ -121,6 +127,6 @@ export class EarnManager {
 
   async getEarners(): Promise<Earner[]> {
     const accounts = await getExtProgram(this.connection).account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graph.key, a.publicKey, a.account));
   }
 }

@@ -20,7 +20,7 @@ export class Graph {
 
   private baseURL = 'https://gateway.thegraph.com';
   private subgraphId = 'Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
-  private key: string;
+  key: string;
 
   constructor(apiKey: string) {
     this.key = apiKey;

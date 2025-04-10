@@ -172,7 +172,7 @@ async function distributeYield(opt: ParsedOptions) {
 
 async function addEarners(opt: ParsedOptions) {
   console.log('adding earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient, logger);
+  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
 
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
 
@@ -187,7 +187,7 @@ async function addEarners(opt: ParsedOptions) {
 
 async function removeEarners(opt: ParsedOptions) {
   console.log('removing earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient, logger);
+  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
 
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
 
