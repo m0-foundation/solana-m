@@ -8,6 +8,7 @@
     "test": "yarn run jest --preset ts-jest --verbose --testPathPattern='tests/unit/earn.test.ts|tests/unit/portal.test.ts|tests/unit/ext_earn.test.ts'",
     "build": "anchor build",
     "cli:dev": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/main.ts",
+    "cli:prod": "op run --account mzerolabs.1password.com --env-file='./.env.prod' -- ts-node services/cli/main.ts",
     "cli:test": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/test.ts"
   },
   "dependencies": {
