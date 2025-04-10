@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { gql, request } from 'graphql-request';
+import { gql, GraphQLClient } from 'graphql-request';
 
 type TokenAccount = {
   pubkey: PublicKey;
@@ -16,10 +16,17 @@ export type Claim = {
 };
 
 export class Graph {
-  private url: string;
+  private client: GraphQLClient;
 
-  constructor(url?: string) {
-    this.url = url ?? 'https://api.studio.thegraph.com/query/106645/m-token-transactions/version/latest';
+  private baseURL = 'https://gateway.thegraph.com';
+  private subgraphId = 'Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
+  private key: string;
+
+  constructor(apiKey: string) {
+    this.key = apiKey;
+    this.client = new GraphQLClient(`${this.baseURL}/api/subgraphs/id/${this.subgraphId}`, {
+      headers: { Authorization: `Bearer ${this.key}` },
+    });
   }
 
   async getTokenAccounts(limit = 100, skip = 0): Promise<TokenAccount[]> {
@@ -43,7 +50,7 @@ export class Graph {
       }[];
     }
 
-    const data = await request<Data>(this.url, query, { limit, skip });
+    const data = await this.client.request<Data>(query, { limit, skip });
     return data.tokenAccounts.map(({ pubkey, balance, claims }) => ({
       pubkey: new PublicKey(Buffer.from(pubkey.slice(2), 'hex')),
       balance: BigInt(balance),
@@ -75,7 +82,7 @@ export class Graph {
     }
 
     const tokenAccountId = '0x' + tokenAccount.toBuffer().toString('hex');
-    const data = await request<Data>(this.url, query, { tokenAccountId });
+    const data = await this.client.request<Data>(query, { tokenAccountId });
 
     return (data.claims ?? []).map((claim) => ({
       amount: BigInt(claim.amount),
@@ -111,7 +118,7 @@ export class Graph {
 
     // fetch data from the subgraph
     const tokenAccountId = '0x' + tokenAccount.toBuffer().toString('hex');
-    const data = await request<Data>(this.url, query, {
+    const data = await this.client.request<Data>(query, {
       tokenAccountId,
       lowerTS: lowerTS.toString(),
       upperTS: upperTS.toString(),

@@ -12,14 +12,12 @@ import { EarnManager } from './earn_manager';
 export class Earner {
   private connection: Connection;
   private evmClient: PublicClient;
-  private graph: Graph;
 
   pubkey: PublicKey;
   data: EarnerData;
 
   constructor(connection: Connection, evmClient: PublicClient, pubkey: PublicKey, data: EarnerData) {
     this.connection = connection;
-    this.graph = new Graph();
     this.evmClient = evmClient;
     this.pubkey = pubkey;
     this.data = data;
@@ -70,16 +68,16 @@ export class Earner {
     }
   }
 
-  async getHistoricalClaims(): Promise<Claim[]> {
-    return await this.graph.getHistoricalClaims(this.data.userTokenAccount);
+  async getHistoricalClaims(graphKey: string): Promise<Claim[]> {
+    return await new Graph(graphKey).getHistoricalClaims(this.data.userTokenAccount);
   }
 
-  async getClaimedYield(): Promise<BN> {
-    const claims = await this.getHistoricalClaims();
+  async getClaimedYield(graphKey: string): Promise<BN> {
+    const claims = await this.getHistoricalClaims(graphKey);
     return claims.reduce((acc, claim) => acc.add(new BN(claim.amount.toString())), new BN(0));
   }
 
-  async getPendingYield(): Promise<BN> {
+  async getPendingYield(graphKey: string): Promise<BN> {
     // Pending yield is calculated by:
     // - Fetching the current timestamp
     // - Fetching the current index (from ETH mainnet)
@@ -92,7 +90,7 @@ export class Earner {
 
     const currentIndex = await evmCaller.getCurrentIndex();
 
-    const earnerWeightedBalance = await this.graph.getTimeWeightedBalance(
+    const earnerWeightedBalance = await new Graph(graphKey).getTimeWeightedBalance(
       this.data.userTokenAccount,
       this.data.lastClaimTimestamp,
       currentTime,

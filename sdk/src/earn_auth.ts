@@ -18,6 +18,7 @@ class EarnAuthority {
   private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
+  private graph: Graph;
   private program: Program<Earn> | Program<ExtEarn>;
   private global: GlobalAccountData;
   private managerCache: Map<PublicKey, EarnManager> = new Map();
@@ -28,6 +29,7 @@ class EarnAuthority {
   private constructor(
     connection: Connection,
     evmClient: PublicClient,
+    graphKey: string,
     global: GlobalAccountData,
     mintAuth: PublicKey,
     program = PROGRAM_ID,
@@ -36,6 +38,7 @@ class EarnAuthority {
     this.logger = logger;
     this.connection = connection;
     this.evmClient = evmClient;
+    this.graph = new Graph(graphKey);
     this.programID = program;
     this.program = program.equals(PROGRAM_ID) ? getProgram(connection) : getExtProgram(connection);
     this.global = global;
@@ -45,6 +48,7 @@ class EarnAuthority {
   static async load(
     connection: Connection,
     evmClient: PublicClient,
+    graphKey: string,
     program = PROGRAM_ID,
     logger: Logger = new MockLogger(),
   ): Promise<EarnAuthority> {
@@ -61,11 +65,11 @@ class EarnAuthority {
     // get mint multisig
     const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
 
-    return new EarnAuthority(connection, evmClient, global, mint.mintAuthority!, program, logger);
+    return new EarnAuthority(connection, evmClient, graphKey, global, mint.mintAuthority!, program, logger);
   }
 
   async refresh(): Promise<void> {
-    Object.assign(this, await EarnAuthority.load(this.connection, this.evmClient));
+    Object.assign(this, await EarnAuthority.load(this.connection, this.evmClient, this.graph['key']));
   }
 
   public get admin() {
@@ -107,6 +111,7 @@ class EarnAuthority {
       this.logger.warn('Earner created after last index update', {
         lastClaimTs: earner.data.lastClaimTimestamp.toString(),
         globalTs: this.global.timestamp.toString(),
+        deltaHours: earner.data.lastClaimTimestamp.sub(this.global.timestamp).toNumber() / 3600,
       });
       return null;
     }
@@ -116,7 +121,7 @@ class EarnAuthority {
       return null;
     }
 
-    const weightedBalance = await new Graph().getTimeWeightedBalance(
+    const weightedBalance = await this.graph.getTimeWeightedBalance(
       earner.data.userTokenAccount,
       earner.data.lastClaimTimestamp,
       this.global.timestamp,

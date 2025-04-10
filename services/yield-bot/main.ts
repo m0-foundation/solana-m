@@ -16,13 +16,16 @@ import { instructions } from '@sqds/multisig';
 import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
+import { RateLimiter } from 'limiter';
 
 const logger = new WinstonLogger('yield-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+const limiter = new RateLimiter({ tokensPerInterval: 2, interval: 1000 });
 
 interface ParsedOptions {
   signer: Keypair;
   connection: Connection;
   evmClient: PublicClient;
+  graphKey: string;
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
@@ -39,12 +42,13 @@ export async function yieldCLI() {
     .option('-k, --keypair <base64>', 'Signer keypair (base64)')
     .option('-r, --rpc [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
     .option('-e, --evmRPC [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
+    .option('-g, --graphKey <key>', 'API key for the subgraph')
     .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
     .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
     .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
     .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
-    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, programID, claimThreshold }) => {
+    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, programID, claimThreshold, graphKey }) => {
       let signer: Keypair;
       try {
         signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
@@ -56,8 +60,9 @@ export async function yieldCLI() {
 
       const options: ParsedOptions = {
         signer,
-        connection: new Connection(rpc),
+        connection: new Connection(rpc, 'processed'),
         evmClient,
+        graphKey,
         dryRun,
         skipCycle,
         programID: new PublicKey(programID),
@@ -71,21 +76,31 @@ export async function yieldCLI() {
       logger.addMetaField('mint', options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M');
 
       if (options.programID.equals(EXT_PROGRAM_ID)) {
-        await syncIndex(options);
-        await distributeYield(options);
+        await executeSteps(options, [syncIndex, distributeYield], 5000);
         return;
       }
 
-      await removeEarners(options);
-      await distributeYield(options);
-      await addEarners(options);
+      await executeSteps(options, [removeEarners, distributeYield, addEarners], 5000);
     });
 
   await program.parseAsync(process.argv);
 }
 
+async function executeSteps(
+  opt: ParsedOptions,
+  steps: ((options: ParsedOptions) => Promise<void>)[],
+  waitInterval: number,
+) {
+  for (const step of steps) {
+    await step(opt);
+
+    // wait interval to ensure transactions from previous steps have landed
+    await new Promise((resolve) => setTimeout(resolve, waitInterval));
+  }
+}
+
 async function distributeYield(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.programID, logger);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphKey, opt.programID, logger);
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
@@ -110,6 +125,9 @@ async function distributeYield(opt: ParsedOptions) {
   // build claim instructions
   let claimIxs: TransactionInstruction[] = [];
   for (const earner of earners) {
+    // throttle requests
+    await limiter.removeTokens(1);
+
     const ix = await auth.buildClaimInstruction(earner);
     if (ix) claimIxs.push(ix);
   }
@@ -169,7 +187,7 @@ async function removeEarners(opt: ParsedOptions) {
 
 async function syncIndex(opt: ParsedOptions) {
   logger.info('syncing index');
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, EXT_PROGRAM_ID, logger);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphKey, EXT_PROGRAM_ID, logger);
   const extIndex = auth['global'].index;
 
   // fetch the current index on the earn program
