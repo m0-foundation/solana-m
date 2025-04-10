@@ -7,6 +7,9 @@
 test-yield-bot:
 	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts 
 
+test-index-bot:
+	yarn jest --preset ts-jest tests/unit/indexbot.test.ts
+
 test-sdk:
 	@anchor localnet --skip-build > /dev/null 2>&1 & \
 	anvil -f https://gateway.tenderly.co/public/sepolia > /dev/null 2>&1 & \
@@ -50,6 +53,11 @@ MAX_SIGN_ATTEMPTS := 5
 build-devnet:
 	anchor build -- --features devnet --no-default-features
 
+define build-verified-devnet
+	@echo "Building verified $(1) program for devnet...\n"
+	solana-verify build --library-name $(1) -- --features devnet --no-default-features
+endef
+
 define upgrade_program
 	@solana-keygen new --no-bip39-passphrase --force -s --outfile=temp-buffer.json
 	@echo "\nWriting buffer for $(1) program..."
@@ -67,13 +75,16 @@ define upgrade_program
 	@rm temp-buffer.json
 endef
 
-upgrade-earn-devnet: build-devnet
+upgrade-earn-devnet: 
+	$(call build-verified-devnet,earn)
 	$(call upgrade_program,earn,$(EARN_PROGRAM_ID))
 
-upgrade-ext-earn-devnet: build-devnet
+upgrade-ext-earn-devnet:
+	$(call build-verified-devnet,ext_earn)
 	$(call upgrade_program,ext_earn,$(EXT_EARN_PROGRAM_ID))
 
-upgrade-portal-devnet: build-devnet
+upgrade-portal-devnet:
+	$(call build-verified-devnet,portal)
 	$(call upgrade_program,portal,$(PORTAL_PROGRAM_ID))
 
 
@@ -82,7 +93,13 @@ upgrade-portal-devnet: build-devnet
 #
 deploy-yield-bot:
 	railway environment development
-	docker build --build-arg now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile .
+	docker build --build-arg now="$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:yield-bot
 	railway redeploy --service "yield bot - M" --yes
 	railway redeploy --service "yield bot - wM" --yes
+
+deploy-index-bot:
+	railway environment development
+	docker build --build-arg now="$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:index-bot -f services/index-bot/Dockerfile .
+	docker push ghcr.io/m0-foundation/solana-m:index-bot
+	railway redeploy --service "index bot" --yes

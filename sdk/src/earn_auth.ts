@@ -18,6 +18,7 @@ import { BN, Program } from '@coral-xyz/anchor';
 import { getExtProgram, getProgram } from './idl';
 import { Earn } from './idl/earn';
 import { ExtEarn } from './idl/ext_earn';
+import { buildTransaction } from './transaction';
 
 class EarnAuthority {
   private connection: Connection;
@@ -212,8 +213,8 @@ class EarnAuthority {
       // add up rewards
       const batchRewards = this._getRewardAmounts(result.value.logs!);
       for (const [index, reward] of batchRewards.entries()) {
-        if (reward > claimSizeThreshold) {
-          totalRewards = totalRewards.add(reward);
+        if (reward.user > claimSizeThreshold) {
+          totalRewards = totalRewards.add(reward.user).add(reward.fee);
           filtererdTxns.push(ixs[i * batchSize + index]);
         }
       }
@@ -265,25 +266,23 @@ class EarnAuthority {
     return [filtererdTxns, totalRewards];
   }
 
-  private _getRewardAmounts(logs: string[]): BN[] {
-    const rewards: bigint[] = [];
+  private _getRewardAmounts(logs: string[]): { user: BN; fee: BN }[] {
+    const rewards: { user: BN; fee: BN }[] = [];
 
     for (const log of logs) {
       // log prefix with RewardsClaim event discriminator
       if (log.startsWith('Program data: VKjUbMsK')) {
         const data = Buffer.from(log.split('Program data: ')[1], 'base64');
 
-        // read rewards and fee amounts
-        rewards.push(data.readBigUInt64LE(40));
-
-        // ext program has a fee amount
-        if (data.length >= 72) {
-          rewards.push(data.readBigUInt64LE(64));
-        }
+        // events identical between Earn and ExtEarn
+        rewards.push({
+          user: new BN(data.readBigUInt64LE(72).toString()),
+          fee: new BN(data.readBigUInt64LE(96).toString()),
+        });
       }
     }
 
-    return rewards.map((r) => new BN(r.toString()));
+    return rewards;
   }
 
   private async _buildTransactions(
@@ -291,19 +290,14 @@ class EarnAuthority {
     priorityFee = 250_000,
     batchSize = 10,
   ): Promise<VersionedTransaction[]> {
-    const { blockhash } = await this.connection.getLatestBlockhash();
     const feePayer = new PublicKey(this.global.earnAuthority);
-    const computeBudgetIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee });
 
     // split instructions into batches
     const transactions: VersionedTransaction[] = [];
 
     for (let i = 0; i < ixs.length; i += batchSize) {
       const batchIxs = ixs.slice(i, i + batchSize);
-      const tx = new Transaction().add(computeBudgetIx, ...batchIxs);
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = feePayer;
-      transactions.push(new VersionedTransaction(tx.compileMessage()));
+      transactions.push(await buildTransaction(this.connection, batchIxs, feePayer, priorityFee));
     }
 
     return transactions;

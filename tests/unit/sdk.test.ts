@@ -1,7 +1,9 @@
 import { AnchorProvider, BN, Program, Wallet } from '@coral-xyz/anchor';
 import {
   Connection,
+  Context,
   Keypair,
+  Logs,
   PublicKey,
   sendAndConfirmTransaction,
   SystemProgram,
@@ -389,11 +391,33 @@ describe('SDK unit tests', () => {
       expect(ixs).toHaveLength(1);
       expect(amount.toNumber()).toEqual(50000000000);
 
+      const logWaiter = new Promise((resolve: (value: void) => void, reject) => {
+        const timeout = setTimeout(() => {
+          provider.connection.removeOnLogsListener(logsID);
+          reject('did not see rewards log');
+        }, 2000);
+
+        // validate logs parser on SDK
+        const logsID = provider.connection.onLogs(
+          new PublicKey('3ojLwYogY9x64HvxACRZ4awjGonUYBTGefFp56mkfxVs'),
+          (logs: Logs, _: Context) => {
+            const rewards = auth['_getRewardAmounts'](logs.logs);
+            expect(rewards?.[0].user.toString()).toEqual('50000000000');
+            provider.connection.removeOnLogsListener(logsID);
+            clearTimeout(timeout);
+            resolve();
+          },
+          'processed',
+        );
+      });
+
       // send transactions
       await sendAndConfirmTransaction(connection, new Transaction().add(...claimIxs), [signer]);
 
       await auth.refresh();
       expect(auth['global'].distributed!.toNumber()).toBe(50000000000);
+
+      await logWaiter;
     });
 
     test('post claim cycle validation', async () => {
