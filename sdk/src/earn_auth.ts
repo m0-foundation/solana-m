@@ -154,7 +154,7 @@ class EarnAuthority {
       // vault PDAs
       const [mVaultAccount] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID);
       const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
-        this.global.mint,
+        MINT,
         mVaultAccount,
         true,
         spl.TOKEN_2022_PROGRAM_ID,
@@ -318,8 +318,8 @@ class EarnAuthority {
 
   private async _buildTransactions(
     ixs: TransactionInstruction[],
-    priorityFee = 250_000,
     batchSize = 10,
+    priorityFee = 250_000,
   ): Promise<VersionedTransaction[]> {
     const feePayer = new PublicKey(this.global.earnAuthority);
 

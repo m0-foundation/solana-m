@@ -17,9 +17,10 @@ import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
+import { buildTransaction } from '../../sdk/src/transaction';
 
 const logger = new WinstonLogger('yield-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
-const limiter = new RateLimiter({ tokensPerInterval: 2, interval: 1000 });
+const limiter = new RateLimiter({ tokensPerInterval: 4, interval: 1000 });
 
 interface ParsedOptions {
   signer: Keypair;
@@ -75,12 +76,11 @@ export async function yieldCLI() {
 
       logger.addMetaField('mint', options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M');
 
-      if (options.programID.equals(EXT_PROGRAM_ID)) {
-        await executeSteps(options, [syncIndex, distributeYield], 5000);
-        return;
-      }
+      const steps = options.programID.equals(PROGRAM_ID)
+        ? [removeEarners, distributeYield, addEarners]
+        : [syncIndex, distributeYield];
 
-      await executeSteps(options, [removeEarners, distributeYield, addEarners], 5000);
+      await executeSteps(options, steps, 5000);
     });
 
   await program.parseAsync(process.argv);
@@ -132,7 +132,8 @@ async function distributeYield(opt: ParsedOptions) {
     if (ix) claimIxs.push(ix);
   }
 
-  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs, 10, opt.claimThreshold);
+  const batchSize = 8;
+  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs, batchSize, opt.claimThreshold);
 
   logger.info(`distributing ${opt.programID.equals(PROGRAM_ID) ? 'M' : 'wM'} yield`, {
     amount: distributed.toNumber(),
@@ -147,11 +148,11 @@ async function distributeYield(opt: ParsedOptions) {
   }
 
   // send all the claims
-  const signatures = await buildAndSendTransaction(opt, filteredIxs, 10, 'yield claim');
+  const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
   logger.info('yield distributed', { signatures });
 
   // wait for claim transactions to be confirmed before completing cycle
-  const sigs = await buildAndSendTransaction(opt, [completeClaimIx], 10, 'complete claim cycle');
+  const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
   logger.info('cycle complete', { signature: sigs[0] });
 }
 
@@ -293,18 +294,12 @@ async function buildTransactions(
 
     // build propose transaction for squads vault
     if (opt.squadsPda) {
-      const squadsTxn = await proposeSquadsTransaction(opt, [computeBudgetIx, ...batchIxs], memo);
+      const squadsTxn = await proposeSquadsTransaction(opt, [computeBudgetIx, ...batchIxs], priorityFee, memo);
       transactions.push(squadsTxn);
       continue;
     }
 
-    const tx = new VersionedTransaction(
-      new TransactionMessage({
-        payerKey: opt.signer.publicKey,
-        recentBlockhash: blockhash,
-        instructions: [computeBudgetIx, ...batchIxs],
-      }).compileToV0Message(),
-    );
+    const tx = await buildTransaction(opt.connection, batchIxs, opt.signer.publicKey, priorityFee);
 
     tx.sign([opt.signer]);
     transactions.push(tx);
@@ -344,6 +339,7 @@ async function getPriorityFee(): Promise<number> {
 async function proposeSquadsTransaction(
   opt: ParsedOptions,
   ixs: TransactionInstruction[],
+  priorityFee = 250_000,
   memo?: string,
 ): Promise<VersionedTransaction> {
   const [vaultPda] = multisig.getVaultPda({
@@ -390,7 +386,7 @@ async function proposeSquadsTransaction(
     instructions: [ix1, ix2],
   }).compileToV0Message();
 
-  const tx = new VersionedTransaction(message);
+  const tx = await buildTransaction(opt.connection, [ix1, ix2], opt.signer.publicKey, priorityFee);
   tx.sign([opt.signer]);
 
   return tx;
