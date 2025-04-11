@@ -28,15 +28,15 @@ describe('Yield calculation tests', () => {
   connection.getProgramAccounts = getProgramAccountsFn(connection) as any;
 
   // Global Account
-  const setGlobalAccount = (index: bigint, ts: bigint) => {
+  const setGlobalAccount = (cfg: { index: bigint; ts: bigint }) => {
     let data = Buffer.from(
       'p+joschscn+z3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9rPce1wTXGKGGjMlYml282w+cbkUAoVQV4nvBkkivE/2C4a+Zr/OtMHX6Se8xNAUvg8oY6ud+F/aYQhRtk29CuWi1F1V6gAAAGcE+WcAAAAALAEAAAAAAADIQyqyAAAAAKYQEAAAAAAAAAAAAAAAAAAAworvSLaa9zZOKqEFGwy9QYBPHRQ7fiNje3tQRsh7nZ2Ejcy6QIu31s1lF6hkb3IdT4FVx4WdL0sgfT7v5zngWv4=',
       'base64',
     );
 
     // modify fields
-    data.writeBigUInt64LE(index, 104);
-    data.writeBigUInt64LE(ts, 112);
+    data.writeBigUInt64LE(cfg.index, 104);
+    data.writeBigUInt64LE(cfg.ts, 112);
 
     // admin and earn auth
     data = Buffer.concat([
@@ -55,15 +55,15 @@ describe('Yield calculation tests', () => {
   };
 
   // Earner Account
-  const setEarnerAccount = (lastClaimIndex: bigint, lastClaimTs: bigint) => {
+  const setEarnerAccount = (cfg: { lastClaimIndex: bigint; lastClaimTs: bigint }) => {
     const data = Buffer.from(
       '7H4zYC7hZ8+dP+dS6gAAAACU+GcAAAAA/1RZLpCj0IEtK6ZxLixCiIow0yZuY2CEYQkUMthQ74N5sHTq5RmAUD4wwoHg/7Y8xTN4Aa0/+wBNl5B7wbnLnps=',
       'base64',
     );
 
     // modify fields
-    data.writeBigUInt64LE(lastClaimIndex, 8);
-    data.writeBigUInt64LE(lastClaimTs, 16);
+    data.writeBigUInt64LE(cfg.lastClaimIndex, 8);
+    data.writeBigUInt64LE(cfg.lastClaimTs, 16);
 
     svm.setAccount(new PublicKey('HL9tuoLSJiPfDqUGtT9QpNo2RmNGPFDmGhEj1cVEfoBG'), {
       executable: false,
@@ -107,8 +107,8 @@ describe('Yield calculation tests', () => {
   });
 
   test('calculations', async () => {
-    setGlobalAccount(BigInt(1005454559906), BigInt(1644372839));
-    setEarnerAccount(BigInt(1004454559906), BigInt(1444372839));
+    setGlobalAccount({ index: 1005454559906n, ts: 1644372839n });
+    setEarnerAccount({ lastClaimIndex: 1004454559906n, lastClaimTs: 1444372839n });
 
     const auth = await EarnAuthority.load(connection, evmClient);
     const earner = (await auth.getAllEarners())[0];
@@ -123,8 +123,9 @@ describe('Yield calculation tests', () => {
 
     // simulate and parse logs for rewards amount
     const result = svm.simulateTransaction(tx) as SimulatedTransactionInfo;
-    const rewards = auth['_getRewardAmounts'](result.meta().logs())[0];
-    console.log('Amounts:', rewards.user.toString(), rewards.fee.toString());
+    const rewards = auth['_getRewardAmounts'](result.meta().logs())[0].user;
+
+    expect(rewards.toString()).toEqual('99556');
   });
 });
 
