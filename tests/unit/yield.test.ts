@@ -191,7 +191,12 @@ describe('Yield calculation tests', () => {
           const rewards = auth['_getRewardAmounts'](result.logs())[0].user;
 
           totalRewards = totalRewards.add(rewards);
-          balanceUpdates.push({ ts: update.ts, amount: BigInt(rewards.toString()) });
+
+          // insert balance update in correct position
+          let insertIndex = 0;
+          while (insertIndex < balanceUpdates.length && balanceUpdates[insertIndex].ts <= update.ts) insertIndex++;
+          balanceUpdates.splice(insertIndex, 0, { ts: update.ts, amount: BigInt(rewards.toString()) });
+
           svm.expireBlockhash();
         }
 
