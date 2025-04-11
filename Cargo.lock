@@ -1046,6 +1046,7 @@ dependencies = [
  "anchor-spl",
  "cfg-if",
  "solana-program",
+ "solana-security-txt",
  "spl-token-2022 3.0.2",
 ]
 
@@ -1156,6 +1157,7 @@ dependencies = [
  "anchor-spl",
  "cfg-if",
  "earn",
+ "solana-security-txt",
  "spl-token-2022 3.0.2",
 ]
 
@@ -2169,6 +2171,7 @@ dependencies = [
  "ntt-messages",
  "solana-address-lookup-table-program",
  "solana-program",
+ "solana-security-txt",
  "spl-token-2022 3.0.2",
  "wormhole-anchor-sdk",
  "wormhole-io",
