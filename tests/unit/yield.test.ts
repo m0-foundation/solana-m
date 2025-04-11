@@ -1,24 +1,18 @@
 import {
-  AddressLookupTableAccount,
-  BlockhashWithExpiryBlockHeight,
-  Commitment,
   Connection,
-  GetAccountInfoConfig,
-  GetLatestBlockhashConfig,
   GetProgramAccountsConfig,
   GetProgramAccountsResponse,
   PublicKey,
-  RpcResponseAndContext,
   Transaction,
 } from '@solana/web3.js';
 import { fromWorkspace, LiteSVMProvider } from 'anchor-litesvm';
 import { createPublicClient, http, MINT, PROGRAM_ID, TOKEN_2022_ID } from '../../sdk/src';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import nock from 'nock';
-import { LiteSVM, SimulatedTransactionInfo } from 'litesvm';
+import { SimulatedTransactionInfo } from 'litesvm';
+import BN from 'bn.js';
 
 describe('Yield calculation tests', () => {
-  mockSubgraph();
   const svm = fromWorkspace('').withSplPrograms().withBuiltins().withBlockhashCheck(false);
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
   const provider = new LiteSVMProvider(svm);
@@ -106,54 +100,123 @@ describe('Yield calculation tests', () => {
     ),
   });
 
-  test('calculations', async () => {
-    setGlobalAccount({ index: 1005454559906n, ts: 1644372839n });
-    setEarnerAccount({ lastClaimIndex: 1004454559906n, lastClaimTs: 1444372839n });
+  describe('calculations', () => {
+    // create index updates
+    const indexUpdates: { ts: bigint; index: bigint }[] = [];
+    for (let i = 1; i < 20; i++) {
+      indexUpdates.push({
+        ts: BigInt(i) * 10n,
+        index: BigInt(Math.floor(1.05 ** i * 100000)),
+      });
+    }
 
-    const auth = await EarnAuthority.load(connection, evmClient);
-    const earner = (await auth.getAllEarners())[0];
+    // starting values and balance updates for test
+    const testConfig = {
+      indexUpdates,
+      balanceUpdates: [
+        { ts: 20n, amount: 250n },
+        { ts: 50n, amount: 250n },
+        { ts: 80n, amount: 250n },
+        { ts: 90n, amount: 250n },
+      ],
+      startingBalance: 100n,
+      expectedReward: 1000n,
+    };
 
-    const ix = await auth.buildClaimInstruction(earner);
+    // each test is an array of indexes where claims are made
+    const tests = [
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+      [0, 1, 2, 3],
+      [0, 1, 2],
+      [0, 1],
+      [0],
+      [19],
+      [19, 18],
+      [19, 18, 17],
+      [19, 18, 17, 16],
+      [0, 2, 4, 6, 8, 10, 12, 14, 16, 18],
+      [1, 3, 5, 7, 9, 11, 13, 15, 17, 19],
+      [1, 3, 5, 15],
+      [1, 4, 6, 15, 19],
+      [7, 11, 14],
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19],
+      [0, 19],
+      [0, 15, 19],
+    ];
 
-    // build transaction
-    const tx = new Transaction().add(ix!);
-    tx.feePayer = provider.wallet.publicKey;
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(provider.wallet.payer);
+    for (const [i, testCase] of tests.entries()) {
+      test(`test case ${i + 1}`, async () => {
+        const startValues = testConfig.indexUpdates[0];
+        const indexUpdates = testConfig.indexUpdates.slice(1);
 
-    // simulate and parse logs for rewards amount
-    const result = svm.simulateTransaction(tx) as SimulatedTransactionInfo;
-    const rewards = auth['_getRewardAmounts'](result.meta().logs())[0].user;
+        // starting values for the test
+        setGlobalAccount({ index: startValues.index, ts: startValues.ts });
+        setEarnerAccount({ lastClaimIndex: startValues.index, lastClaimTs: startValues.ts });
 
-    expect(rewards.toString()).toEqual('99556');
+        // set balance updates on mocked subgraph
+        mockSubgraph(testConfig.startingBalance, testConfig.balanceUpdates);
+
+        // sum of total rewards issued to earner
+        let totalRewards = new BN(0);
+
+        // go through all index updates
+        for (const update of indexUpdates) {
+          // sync update
+          setGlobalAccount({ index: update.index, ts: update.ts });
+
+          // skip claim on this index update
+          if (!testCase.includes(i)) {
+            continue;
+          }
+
+          // build claim for earner
+          const auth = await EarnAuthority.load(connection, evmClient);
+          const earner = (await auth.getAllEarners())[0];
+          const ix = await auth.buildClaimInstruction(earner);
+
+          // build transaction
+          const tx = new Transaction().add(ix!);
+          tx.feePayer = provider.wallet.publicKey;
+          tx.recentBlockhash = svm.latestBlockhash();
+          tx.sign(provider.wallet.payer);
+
+          // simulate and parse logs for rewards amount
+          const result = svm.simulateTransaction(tx) as SimulatedTransactionInfo;
+          const rewards = auth['_getRewardAmounts'](result.meta().logs())[0].user;
+
+          totalRewards = totalRewards.add(rewards);
+        }
+
+        // validate total rewards distributed
+        expect(totalRewards.toString()).toEqual(testConfig.expectedReward.toString());
+      });
+    }
   });
 });
 
-function mockSubgraph() {
+function mockSubgraph(
+  startingBalance: bigint,
+  balanceUpdates: {
+    ts: bigint;
+    amount: bigint;
+  }[],
+) {
+  // work backwards to get final balance
+  let balance = startingBalance;
+  for (const update of balanceUpdates) {
+    balance += update.amount;
+  }
+
   nock('https://api.studio.thegraph.com')
     .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getBalanceUpdates')
     .reply(200, {
       data: {
         tokenAccount: {
-          balance: '100000000',
-          transfers: [
-            {
-              amount: '-1000000',
-              ts: '1000',
-            },
-            {
-              amount: '3000000',
-              ts: '750',
-            },
-            {
-              amount: '-1500000',
-              ts: '500',
-            },
-            {
-              amount: '-10000',
-              ts: '250',
-            },
-          ],
+          balance: balance.toString(),
+          transfers: balanceUpdates.map((update) => ({
+            amount: update.amount.toString(),
+            ts: update.ts.toString(),
+          })),
         },
       },
     })
@@ -161,7 +224,7 @@ function mockSubgraph() {
 }
 
 function getProgramAccountsFn(connection: Connection) {
-  return async (programId: PublicKey, config: GetProgramAccountsConfig): Promise<GetProgramAccountsResponse> => {
+  return async (pID: PublicKey, config: GetProgramAccountsConfig): Promise<GetProgramAccountsResponse> => {
     // earners
     if ((config as any)?.filters?.[0].memcmp?.bytes === 'gZH8R1wytJi') {
       return [
