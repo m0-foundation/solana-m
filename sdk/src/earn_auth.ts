@@ -101,12 +101,12 @@ class EarnAuthority {
     }
 
     // earner was created after last index update
-    if (earner.data.lastClaimTimestamp > this.global.timestamp) {
+    if (earner.data.lastClaimTimestamp.gt(this.global.timestamp)) {
       console.warn('Earner created after last index update');
       return null;
     }
 
-    if (earner.data.lastClaimIndex == this.global.index) {
+    if (earner.data.lastClaimIndex.gte(this.global.index)) {
       console.warn('Earner already claimed');
       return null;
     }

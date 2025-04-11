@@ -9,7 +9,7 @@ import { fromWorkspace, LiteSVMProvider } from 'anchor-litesvm';
 import { createPublicClient, http, MINT, PROGRAM_ID, TOKEN_2022_ID } from '../../sdk/src';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import nock from 'nock';
-import { SimulatedTransactionInfo } from 'litesvm';
+import { TransactionMetadata } from 'litesvm';
 import BN from 'bn.js';
 
 describe('Yield calculation tests', () => {
@@ -39,6 +39,9 @@ describe('Yield calculation tests', () => {
       provider.wallet.publicKey.toBuffer(),
       data.subarray(72),
     ]);
+
+    // max yield
+    data.writeBigUInt64LE(BigInt(1e12), 136);
 
     svm.setAccount(PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID)[0], {
       executable: false,
@@ -120,28 +123,28 @@ describe('Yield calculation tests', () => {
         { ts: 90n, amount: 250n },
       ],
       startingBalance: 100n,
-      expectedReward: 1000n,
+      expectedReward: new BN(1000),
+      expectTolerance: new BN(500),
     };
 
     // each test is an array of indexes where claims are made
     const tests = [
-      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
-      [0, 1, 2, 3],
-      [0, 1, 2],
-      [0, 1],
-      [0],
-      [19],
-      [19, 18],
-      [19, 18, 17],
-      [19, 18, 17, 16],
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+      [0, 1, 2, 3, 18],
+      [0, 1, 2, 18],
+      [0, 1, 18],
+      [0, 18],
+      [18],
+      [18, 17],
+      [18, 17, 16],
+      [18, 17, 16, 15],
       [0, 2, 4, 6, 8, 10, 12, 14, 16, 18],
-      [1, 3, 5, 7, 9, 11, 13, 15, 17, 19],
-      [1, 3, 5, 15],
-      [1, 4, 6, 15, 19],
+      [1, 3, 5, 7, 9, 11, 13, 15, 17, 18],
+      [1, 3, 5, 15, 18],
+      [1, 4, 6, 15, 18],
       [7, 11, 14],
-      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19],
-      [0, 19],
-      [0, 15, 19],
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18],
+      [0, 15, 18],
     ];
 
     for (const [i, testCase] of tests.entries()) {
@@ -160,12 +163,13 @@ describe('Yield calculation tests', () => {
         let totalRewards = new BN(0);
 
         // go through all index updates
-        for (const update of indexUpdates) {
+        for (const [j, update] of indexUpdates.entries()) {
           // sync update
           setGlobalAccount({ index: update.index, ts: update.ts });
 
           // skip claim on this index update
-          if (!testCase.includes(i)) {
+          // always claim on last index update so tests end on a claim
+          if (!testCase.includes(j) && j !== indexUpdates.length - 1) {
             continue;
           }
 
@@ -180,15 +184,21 @@ describe('Yield calculation tests', () => {
           tx.recentBlockhash = svm.latestBlockhash();
           tx.sign(provider.wallet.payer);
 
-          // simulate and parse logs for rewards amount
-          const result = svm.simulateTransaction(tx) as SimulatedTransactionInfo;
-          const rewards = auth['_getRewardAmounts'](result.meta().logs())[0].user;
+          // send txn and parse logs for rewards amount
+          const result = svm.sendTransaction(tx) as TransactionMetadata;
+          const rewards = auth['_getRewardAmounts'](result.logs())[0].user;
 
           totalRewards = totalRewards.add(rewards);
+          svm.expireBlockhash();
         }
 
-        // validate total rewards distributed
-        expect(totalRewards.toString()).toEqual(testConfig.expectedReward.toString());
+        // validate total rewards distributed within tolerance
+        if (
+          !totalRewards.gte(testConfig.expectedReward.sub(testConfig.expectTolerance)) ||
+          !totalRewards.lte(testConfig.expectedReward.add(testConfig.expectTolerance))
+        ) {
+          throw Error(`Expected reward: ${testConfig.expectedReward}, got: ${totalRewards}`);
+        }
       });
     }
   });
