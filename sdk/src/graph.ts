@@ -177,7 +177,7 @@ export class Graph {
   }
 
   async getIndexUpdates(lowerIndex: BN, upperIndex: BN): Promise<{ index: BN; ts: BN }[]> {
-    if (lowerIndex > upperIndex) {
+    if (lowerIndex.gt(upperIndex)) {
       throw new Error(`Invalid index range: ${lowerIndex} - ${upperIndex}`);
     }
 
