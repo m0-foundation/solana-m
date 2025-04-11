@@ -10,6 +10,9 @@ test-yield-bot:
 test-index-bot:
 	yarn jest --preset ts-jest tests/unit/indexbot.test.ts
 
+test-yield:
+	yarn jest --preset ts-jest tests/unit/yield.test.ts
+
 test-sdk:
 	@anchor localnet --skip-build > /dev/null 2>&1 & \
 	anvil -f https://gateway.tenderly.co/public/sepolia > /dev/null 2>&1 & \

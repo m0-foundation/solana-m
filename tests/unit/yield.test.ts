@@ -106,10 +106,11 @@ describe('Yield calculation tests', () => {
   describe('calculations', () => {
     // create index updates
     const indexUpdates: { ts: bigint; index: bigint }[] = [];
-    for (let i = 1; i < 20; i++) {
+    for (let i = 0; i < 4; i++) {
+      const ts = BigInt(i) * 10n;
       indexUpdates.push({
-        ts: BigInt(i) * 10n,
-        index: BigInt(Math.floor(1.05 ** i * 100000)),
+        ts,
+        index: BigInt(Math.floor(Math.exp(0.0001 * Number(ts)) * 1e12)),
       });
     }
 
@@ -117,14 +118,14 @@ describe('Yield calculation tests', () => {
     const testConfig = {
       indexUpdates,
       balanceUpdates: [
-        { ts: 20n, amount: 250n },
-        { ts: 50n, amount: 250n },
-        { ts: 80n, amount: 250n },
-        { ts: 90n, amount: 250n },
+        { ts: 25n, amount: 250000000n },
+        { ts: 55n, amount: -250000000n },
+        { ts: 85n, amount: 250000000n },
+        { ts: 95n, amount: 250000000n },
       ],
-      startingBalance: 100n,
-      expectedReward: new BN(1000),
-      expectedTolerance: new BN(500),
+      startingBalance: 1000000000n,
+      expectedReward: new BN(2879439),
+      expectedTolerance: new BN(2),
     };
 
     // each test is an array of indexes where claims are made
@@ -135,9 +136,9 @@ describe('Yield calculation tests', () => {
       [0, 1, 18],
       [0, 18],
       [18],
-      [18, 17],
-      [18, 17, 16],
-      [18, 17, 16, 15],
+      [17, 18],
+      [16, 17, 18],
+      [15, 16, 17, 18],
       [0, 2, 4, 6, 8, 10, 12, 14, 16, 18],
       [1, 3, 5, 7, 9, 11, 13, 15, 17, 18],
       [1, 3, 5, 15, 18],
@@ -156,11 +157,13 @@ describe('Yield calculation tests', () => {
         setGlobalAccount({ index: startValues.index, ts: startValues.ts });
         setEarnerAccount({ lastClaimIndex: startValues.index, lastClaimTs: startValues.ts });
 
-        // set balance updates on mocked subgraph
-        mockSubgraph(testConfig.startingBalance, testConfig.balanceUpdates);
+        // cache balance updates so we can update them on each iteration where there is a claim
+        const balanceUpdates = testConfig.balanceUpdates.slice(0);
 
         // sum of total rewards issued to earner
         let totalRewards = new BN(0);
+
+        let lastClaim = 0;
 
         // go through all index updates
         for (const [j, update] of indexUpdates.entries()) {
@@ -173,11 +176,22 @@ describe('Yield calculation tests', () => {
             continue;
           }
 
+          const lastClaimTs = testConfig.indexUpdates[lastClaim].ts;
+
+          // set balance updates on mocked subgraph for this iteration
+          const startingBalance = balanceUpdates
+            .filter((b) => b.ts <= lastClaimTs)
+            .reduce((a, b) => a + b.amount, testConfig.startingBalance);
+          const filteredUpdates = balanceUpdates.filter((b) => b.ts > lastClaimTs && b.ts < update.ts);
+          mockSubgraphBalances(startingBalance, filteredUpdates);
+
+          // set index updates on mocked subgraph
+          mockSubgraphIndexUpdates(testConfig.indexUpdates.slice(lastClaim, j + 2));
+
           // build claim for earner
           const auth = await EarnAuthority.load(connection, evmClient);
           const earner = (await auth.getAllEarners())[0];
           const ix = await auth.buildClaimInstruction(earner);
-
           // build transaction
           const tx = new Transaction().add(ix!);
           tx.feePayer = provider.wallet.publicKey;
@@ -189,8 +203,29 @@ describe('Yield calculation tests', () => {
           const rewards = auth['_getRewardAmounts'](result.logs())[0].user;
 
           totalRewards = totalRewards.add(rewards);
+
+          // Update the index of the last claim in the overall index updates list
+          // to mock the response properly
+          lastClaim = j + 1;
+
+          // Push a balance update with the reward amount to compound in the next iterations
+          balanceUpdates.push({
+            ts: update.ts,
+            amount: BigInt(rewards.toString()),
+          });
+          balanceUpdates.sort((a, b) => (a.ts > b.ts ? 1 : -1));
+
+          // console.log(
+          //   `Case: ${i} | Update: ${j + 1} | Index ${update.index} | Earner LCI: ${
+          //     earner.data.lastClaimIndex
+          //   } | Claimed: ${rewards.toString()} | Total: ${totalRewards.toString()}`,
+          // );
           svm.expireBlockhash();
+
+          nock.cleanAll();
         }
+
+        // console.log(`Case: ${i} | Total rewards: ${totalRewards.toString()}`);
 
         // validate total rewards distributed within tolerance
         if (
@@ -204,7 +239,7 @@ describe('Yield calculation tests', () => {
   });
 });
 
-function mockSubgraph(
+function mockSubgraphBalances(
   startingBalance: bigint,
   balanceUpdates: {
     ts: bigint;
@@ -219,15 +254,44 @@ function mockSubgraph(
 
   nock('https://api.studio.thegraph.com')
     .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getBalanceUpdates')
+    .reply(200, (_: any, requestBody: { variables: { lowerTS: string; upperTS: string } }) => {
+      const lowerTS = BigInt(requestBody.variables.lowerTS);
+      const upperTS = BigInt(requestBody.variables.upperTS);
+
+      return {
+        data: {
+          tokenAccount: {
+            balance: balanceUpdates
+              .filter((u) => u.ts < lowerTS)
+              .reduce((a, b) => a + b.amount, startingBalance)
+              .toString(),
+            transfers: balanceUpdates
+              .filter((u) => u.ts >= lowerTS && u.ts < upperTS)
+              .map((update) => ({
+                amount: update.amount.toString(),
+                ts: update.ts.toString(),
+              })),
+          },
+        },
+      };
+    })
+    .persist();
+}
+
+function mockSubgraphIndexUpdates(
+  indexUpdates: {
+    index: bigint;
+    ts: bigint;
+  }[],
+) {
+  nock('https://api.studio.thegraph.com')
+    .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getIndexUpdates')
     .reply(200, {
       data: {
-        tokenAccount: {
-          balance: balance.toString(),
-          transfers: balanceUpdates.map((update) => ({
-            amount: update.amount.toString(),
-            ts: update.ts.toString(),
-          })),
-        },
+        indexUpdates: indexUpdates.map((update) => ({
+          index: update.index.toString(),
+          ts: update.ts.toString(),
+        })),
       },
     })
     .persist();
