@@ -13,7 +13,7 @@ import { TransactionMetadata } from 'litesvm';
 import BN from 'bn.js';
 
 describe('Yield calculation tests', () => {
-  const svm = fromWorkspace('').withSplPrograms().withBuiltins().withBlockhashCheck(false);
+  const svm = fromWorkspace('').withSplPrograms();
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
   const provider = new LiteSVMProvider(svm);
   const connection = provider.connection;
@@ -124,7 +124,7 @@ describe('Yield calculation tests', () => {
       ],
       startingBalance: 100n,
       expectedReward: new BN(1000),
-      expectTolerance: new BN(500),
+      expectedTolerance: new BN(500),
     };
 
     // each test is an array of indexes where claims are made
@@ -194,8 +194,8 @@ describe('Yield calculation tests', () => {
 
         // validate total rewards distributed within tolerance
         if (
-          !totalRewards.gte(testConfig.expectedReward.sub(testConfig.expectTolerance)) ||
-          !totalRewards.lte(testConfig.expectedReward.add(testConfig.expectTolerance))
+          !totalRewards.gte(testConfig.expectedReward.sub(testConfig.expectedTolerance)) ||
+          !totalRewards.lte(testConfig.expectedReward.add(testConfig.expectedTolerance))
         ) {
           throw Error(`Expected reward: ${testConfig.expectedReward}, got: ${totalRewards}`);
         }
