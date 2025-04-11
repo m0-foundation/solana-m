@@ -102,7 +102,7 @@ export class Earner {
     // iterate through the steps and calculate the pending yield for the earner
     let pendingYield: BN = new BN(0);
 
-    for (let i = 1; i <= steps.length; i++) {
+    for (let i = 1; i < steps.length; i++) {
       const twb = await this.graph.getTimeWeightedBalance(this.data.userTokenAccount, steps[i - 1].ts, steps[i].ts);
 
       // iterative calculation

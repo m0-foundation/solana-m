@@ -134,11 +134,11 @@ class EarnAuthority {
     // iterate through the steps and calculate the pending yield for the earner
     let claimYield: BN = new BN(0);
 
-    for (let i = 1; i <= steps.length; i++) {
+    for (let i = 1; i < steps.length; i++) {
       const twb = await this.graph.getTimeWeightedBalance(earner.data.userTokenAccount, steps[i - 1].ts, steps[i].ts);
 
       // iterative calculation
-      // y_n = (y_(n-1) + twb) * (I_n / I_(n-1) - twb
+      // y_n = (y_(n-1) + twb) * I_n / I_(n-1) - twb
       claimYield = claimYield
         .add(twb)
         .mul(steps[i].index)
