@@ -156,14 +156,16 @@ describe('Yield calculation tests', () => {
         setGlobalAccount({ index: startValues.index, ts: startValues.ts });
         setEarnerAccount({ lastClaimIndex: startValues.index, lastClaimTs: startValues.ts });
 
-        // set balance updates on mocked subgraph
-        mockSubgraph(testConfig.startingBalance, testConfig.balanceUpdates);
+        const balanceUpdates = testConfig.balanceUpdates;
 
         // sum of total rewards issued to earner
         let totalRewards = new BN(0);
 
         // go through all index updates
         for (const [j, update] of indexUpdates.entries()) {
+          // set balance updates on mocked subgraph
+          mockSubgraph(testConfig.startingBalance, balanceUpdates);
+
           // sync update
           setGlobalAccount({ index: update.index, ts: update.ts });
 
@@ -189,6 +191,7 @@ describe('Yield calculation tests', () => {
           const rewards = auth['_getRewardAmounts'](result.logs())[0].user;
 
           totalRewards = totalRewards.add(rewards);
+          balanceUpdates.push({ ts: update.ts, amount: BigInt(rewards.toString()) });
           svm.expireBlockhash();
         }
 
