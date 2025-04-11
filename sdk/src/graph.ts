@@ -99,7 +99,7 @@ export class Graph {
   }
 
   async getTimeWeightedBalance(tokenAccount: PublicKey, lowerTS: BN, upperTS: BN): Promise<BN> {
-    if (lowerTS > upperTS) {
+    if (lowerTS.gt(upperTS)) {
       throw new Error(`Invalid time range: ${lowerTS} - ${upperTS}`);
     }
 
