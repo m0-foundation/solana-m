@@ -102,16 +102,22 @@ export class Earner {
     // iterate through the steps and calculate the pending yield for the earner
     let pendingYield: BN = new BN(0);
 
+    let last = steps[0];
     for (let i = 1; i < steps.length; i++) {
-      const twb = await this.graph.getTimeWeightedBalance(this.data.userTokenAccount, steps[i - 1].ts, steps[i].ts);
+      let current = steps[i];
+
+      // Check that indices and timestamps are only increasing
+      if (current.index.lt(last.index) || current.ts.lt(last.ts)) {
+        throw new Error('Invalid index or timestamp');
+      }
+
+      const twb = await this.graph.getTimeWeightedBalance(this.data.userTokenAccount, last.ts, current.ts);
 
       // iterative calculation
       // y_n = (y_(n-1) + twb) * (I_n / I_(n-1) - twb
-      pendingYield = pendingYield
-        .add(twb)
-        .mul(steps[i].index)
-        .div(steps[i - 1].index)
-        .sub(twb);
+      pendingYield = pendingYield.add(twb).mul(current.index).div(last.index).sub(twb);
+
+      last = current;
     }
 
     // Check if the earner has an earn manager
