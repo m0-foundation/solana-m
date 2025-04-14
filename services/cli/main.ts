@@ -49,6 +49,7 @@ import { MerkleTree } from '../../sdk/src/merkle';
 import { EvmCaller } from '../../sdk/src/evm_caller';
 import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
 import { EarnManager } from '../../sdk/src/earn_manager';
+import { getExtProgram, getProgram } from '../../sdk/src/idl';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 const EARN_IDL = require('../../target/idl/earn.json');
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
@@ -575,6 +576,9 @@ async function main() {
       const [global] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
       const [extGlobal] = PublicKey.findProgramAddressSync([Buffer.from('global')], EXT_PROGRAM_ID);
 
+      const globalAccount = await getProgram(connection).account.global.fetch(global);
+      const extGlobalAccount = await getExtProgram(connection).account.extGlobal.fetch(extGlobal);
+
       const addressesForTable = [
         PROGRAMS.portal,
         PROGRAMS.earn,
@@ -588,6 +592,11 @@ async function main() {
         mintAuthPda,
         global,
         extGlobal,
+        globalAccount.earnAuthority,
+        globalAccount.admin,
+        extGlobalAccount.earnAuthority,
+        extGlobalAccount.admin,
+        TOKEN_2022_PROGRAM_ID,
       ];
 
       // Fetch current state of LUT
@@ -632,7 +641,7 @@ async function main() {
       const transaction = new VersionedTransaction(messageV0);
       transaction.sign([owner]);
       const txid = await connection.sendTransaction(transaction);
-      console.log('Transaction sent:', txid);
+      console.log(`Transaction sent ${txid}\t${toAdd.length} addresses added`);
 
       // Confirm
       const confirmation = await connection.confirmTransaction(

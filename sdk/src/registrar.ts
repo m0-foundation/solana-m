@@ -9,15 +9,21 @@ import * as spl from '@solana/spl-token';
 import { Program } from '@coral-xyz/anchor';
 import { getProgram } from './idl';
 import { Earn } from './idl/earn';
+import { MockLogger, Logger } from './logger';
+import { Graph } from './graph';
 
 export class Registrar {
+  private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
+  private graph: Graph;
   private program: Program<Earn>;
 
-  constructor(connection: Connection, evmClient: PublicClient) {
+  constructor(connection: Connection, evmClient: PublicClient, graphKey: string, logger: Logger = new MockLogger()) {
     this.connection = connection;
+    this.logger = logger;
     this.evmClient = evmClient;
+    this.graph = new Graph(graphKey);
     this.program = getProgram(connection);
   }
 
@@ -28,12 +34,18 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const user of earners) {
-      const existingEarners = await Earner.fromUserAddress(this.connection, this.evmClient, user, PROGRAM_ID);
+      const existingEarners = await Earner.fromUserAddress(
+        this.connection,
+        this.evmClient,
+        this.graph.key,
+        user,
+        PROGRAM_ID,
+      );
       if (existingEarners.length > 0) {
         continue;
       }
 
-      console.log('adding earner', { user: user.toBase58() });
+      this.logger.info('adding earner', { user: user.toBase58() });
 
       // derive token account for user
       const userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
@@ -78,7 +90,7 @@ export class Registrar {
         continue;
       }
 
-      console.log('removing earner', {
+      this.logger.info('removing earner', {
         user: earner.data.user.toBase58(),
         pubkey: earner.pubkey.toBase58(),
       });
@@ -104,6 +116,6 @@ export class Registrar {
 
   async getRegistrarEarners(): Promise<Earner[]> {
     const accounts = await getProgram(this.connection).account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graph.key, a.publicKey, a.account));
   }
 }

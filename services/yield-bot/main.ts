@@ -13,16 +13,20 @@ import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
-import winston, { Logger } from 'winston';
-import LokiTransport from 'winston-loki';
 import BN from 'bn.js';
+import { getProgram } from '../../sdk/src/idl';
+import { WinstonLogger } from '../../sdk/src/logger';
+import { RateLimiter } from 'limiter';
+import { buildTransaction } from '../../sdk/src/transaction';
 
-const logger = configureLogger();
+const logger = new WinstonLogger('yield-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+const limiter = new RateLimiter({ tokensPerInterval: 4, interval: 1000 });
 
 interface ParsedOptions {
   signer: Keypair;
   connection: Connection;
   evmClient: PublicClient;
+  graphKey: string;
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
@@ -32,7 +36,6 @@ interface ParsedOptions {
 
 // entrypoint for the yield bot command
 export async function yieldCLI() {
-  catchConsoleLogs();
   const program = new Command();
 
   program
@@ -40,55 +43,78 @@ export async function yieldCLI() {
     .option('-k, --keypair <base64>', 'Signer keypair (base64)')
     .option('-r, --rpc [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
     .option('-e, --evmRPC [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
+    .option('-g, --graphKey <key>', 'API key for the subgraph')
     .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
     .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
     .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
+    .option('-i, --stepInterval [number]', 'Wait interval for steps', '5000')
     .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
-    .action(async ({ keypair, rpc, evmRPC, dryRun, skipCycle, squadsPda, programID, claimThreshold }) => {
-      let signer: Keypair;
-      try {
-        signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
-      } catch {
-        signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
-      }
-
-      const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
-
-      const options: ParsedOptions = {
-        signer,
-        connection: new Connection(rpc),
-        evmClient,
+    .action(
+      async ({
+        keypair,
+        rpc,
+        evmRPC,
         dryRun,
         skipCycle,
-        programID: new PublicKey(programID),
-        claimThreshold: new BN(claimThreshold),
-      };
+        squadsPda,
+        programID,
+        claimThreshold,
+        graphKey,
+        stepInterval,
+      }) => {
+        let signer: Keypair;
+        try {
+          signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
+        } catch {
+          signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
+        }
 
-      if (squadsPda) {
-        options.squadsPda = new PublicKey(squadsPda);
-      }
+        const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
 
-      logger.defaultMeta = {
-        ...logger.defaultMeta,
-        mint: options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
-      };
+        const options: ParsedOptions = {
+          signer,
+          connection: new Connection(rpc, 'processed'),
+          evmClient,
+          graphKey,
+          dryRun,
+          skipCycle,
+          programID: new PublicKey(programID),
+          claimThreshold: new BN(claimThreshold),
+        };
 
-      if (options.programID.equals(EXT_PROGRAM_ID)) {
-        await distributeYield(options);
-        return;
-      }
+        if (squadsPda) {
+          options.squadsPda = new PublicKey(squadsPda);
+        }
 
-      await removeEarners(options);
-      await distributeYield(options);
-      await addEarners(options);
-    });
+        logger.addMetaField('mint', options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M');
+
+        const steps = options.programID.equals(PROGRAM_ID)
+          ? [removeEarners, distributeYield, addEarners]
+          : [syncIndex, distributeYield];
+
+        await executeSteps(options, steps, parseInt(stepInterval));
+      },
+    );
 
   await program.parseAsync(process.argv);
 }
 
+async function executeSteps(
+  opt: ParsedOptions,
+  steps: ((options: ParsedOptions) => Promise<void>)[],
+  waitInterval: number,
+) {
+  for (const step of steps) {
+    await step(opt);
+
+    // wait interval to ensure transactions from previous steps have landed
+    await new Promise((resolve) => setTimeout(resolve, waitInterval));
+  }
+}
+
 async function distributeYield(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.programID);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphKey, opt.programID, logger);
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
@@ -113,12 +139,15 @@ async function distributeYield(opt: ParsedOptions) {
   // build claim instructions
   let claimIxs: TransactionInstruction[] = [];
   for (const earner of earners) {
-    logger.info('claiming yield for user', { earner: earner.pubkey.toBase58() });
+    // throttle requests
+    await limiter.removeTokens(1);
+
     const ix = await auth.buildClaimInstruction(earner);
     if (ix) claimIxs.push(ix);
   }
 
-  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs, 10, opt.claimThreshold);
+  const batchSize = 8;
+  const [filteredIxs, distributed] = await auth.simulateAndValidateClaimIxs(claimIxs, batchSize, opt.claimThreshold);
 
   logger.info(`distributing ${opt.programID.equals(PROGRAM_ID) ? 'M' : 'wM'} yield`, {
     amount: distributed.toNumber(),
@@ -133,17 +162,17 @@ async function distributeYield(opt: ParsedOptions) {
   }
 
   // send all the claims
-  const signatures = await buildAndSendTransaction(opt, filteredIxs, 10, 'yield claim');
+  const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
   logger.info('yield distributed', { signatures });
 
   // wait for claim transactions to be confirmed before completing cycle
-  const sigs = await buildAndSendTransaction(opt, [completeClaimIx], 10, 'complete claim cycle');
+  const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
   logger.info('cycle complete', { signature: sigs[0] });
 }
 
 async function addEarners(opt: ParsedOptions) {
   console.log('adding earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient);
+  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
 
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
 
@@ -158,7 +187,7 @@ async function addEarners(opt: ParsedOptions) {
 
 async function removeEarners(opt: ParsedOptions) {
   console.log('removing earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient);
+  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
 
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
 
@@ -169,6 +198,31 @@ async function removeEarners(opt: ParsedOptions) {
 
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'removing earners');
   logger.info('removed earners', { signature, earners: instructions.length });
+}
+
+async function syncIndex(opt: ParsedOptions) {
+  logger.info('syncing index');
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphKey, EXT_PROGRAM_ID, logger);
+  const extIndex = auth['global'].index;
+
+  // fetch the current index on the earn program
+  const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
+  const index = (await getProgram(opt.connection).account.global.fetch(globalAccount)).index;
+
+  const logsFields = {
+    extIndex: extIndex.toString(),
+    index: index.toString(),
+  };
+
+  if (extIndex.eq(index)) {
+    logger.info('index already synced', logsFields);
+    return;
+  }
+
+  const ix = await auth.buildIndexSyncInstruction();
+  const signature = await buildAndSendTransaction(opt, [ix], 10, 'sync index');
+
+  logger.info('updated index on ext earn', { ...logsFields, signature: signature[0] });
 }
 
 async function buildAndSendTransaction(
@@ -184,8 +238,7 @@ async function buildAndSendTransaction(
   for (const txn of await buildTransactions(opt, ixs, priorityFee, batchSize, memo)) {
     const result = await opt.connection.simulateTransaction(txn, { sigVerify: false });
     if (result.value.err) {
-      logger.error({
-        message: 'Transaction simulation failed',
+      logger.error('Transaction simulation failed', {
         logs: result.value.logs,
         err: result.value.err,
         b64: Buffer.from(txn.serialize()).toString('base64'),
@@ -223,11 +276,14 @@ async function buildAndSendTransaction(
   // confirm all transactions
   await Promise.all(
     returnData.map((signature) =>
-      opt.connection.confirmTransaction({
-        blockhash: blockhash,
-        lastValidBlockHeight: lastValidBlockHeight,
-        signature,
-      }),
+      opt.connection.confirmTransaction(
+        {
+          blockhash: blockhash,
+          lastValidBlockHeight: lastValidBlockHeight,
+          signature,
+        },
+        'confirmed',
+      ),
     ),
   );
 
@@ -252,18 +308,12 @@ async function buildTransactions(
 
     // build propose transaction for squads vault
     if (opt.squadsPda) {
-      const squadsTxn = await proposeSquadsTransaction(opt, [computeBudgetIx, ...batchIxs], memo);
+      const squadsTxn = await proposeSquadsTransaction(opt, [computeBudgetIx, ...batchIxs], priorityFee, memo);
       transactions.push(squadsTxn);
       continue;
     }
 
-    const tx = new VersionedTransaction(
-      new TransactionMessage({
-        payerKey: opt.signer.publicKey,
-        recentBlockhash: blockhash,
-        instructions: [computeBudgetIx, ...batchIxs],
-      }).compileToV0Message(),
-    );
+    const tx = await buildTransaction(opt.connection, batchIxs, opt.signer.publicKey, priorityFee);
 
     tx.sign([opt.signer]);
     transactions.push(tx);
@@ -303,6 +353,7 @@ async function getPriorityFee(): Promise<number> {
 async function proposeSquadsTransaction(
   opt: ParsedOptions,
   ixs: TransactionInstruction[],
+  priorityFee = 250_000,
   memo?: string,
 ): Promise<VersionedTransaction> {
   const [vaultPda] = multisig.getVaultPda({
@@ -349,67 +400,10 @@ async function proposeSquadsTransaction(
     instructions: [ix1, ix2],
   }).compileToV0Message();
 
-  const tx = new VersionedTransaction(message);
+  const tx = await buildTransaction(opt.connection, [ix1, ix2], opt.signer.publicKey, priorityFee);
   tx.sign([opt.signer]);
 
   return tx;
-}
-
-function configureLogger() {
-  let format: winston.Logform.Format;
-  let transports: winston.transport[] = [new winston.transports.Console()];
-
-  if (process.env.NODE_ENV !== 'production') {
-    format = winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      winston.format.colorize(),
-      winston.format.simple(),
-    );
-  } else {
-    format = winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-      winston.format.json(),
-    );
-    transports.push(
-      new LokiTransport({
-        host: process.env.LOKI_URL ?? '',
-        json: true,
-        useWinstonMetaAsLabels: true,
-        ignoredMeta: ['imageBuild'],
-        format,
-      }),
-    );
-  }
-
-  return winston.createLogger({
-    level: 'info',
-    format,
-    defaultMeta: { name: 'yield-bot', imageBuild: process.env.BUILD_TIME },
-    transports,
-  });
-}
-
-function catchConsoleLogs() {
-  // catch console logs and send them to winston logger
-  const parser = (lgr: (message: string, ...meta: any[]) => Logger) => {
-    return (message?: any, ...optionalParams: any[]) => {
-      // intercepted log is just key value pairs
-      if (optionalParams.length === 1 && typeof optionalParams[0] === 'object') {
-        if (Object.values(optionalParams[0]).every((v) => typeof v === 'string')) {
-          lgr(message ?? 'console log', optionalParams[0]);
-          return;
-        }
-      }
-      // unknown log parameters
-      lgr(message ?? 'console log', {
-        paramsStr: optionalParams.map((p) => p.toString()),
-      });
-    };
-  };
-
-  console.info = parser((message: string, ...meta: any[]) => logger.info(message, ...meta));
-  console.warn = parser((message: string, ...meta: any[]) => logger.warn(message, ...meta));
-  console.error = parser((message: string, ...meta: any[]) => logger.error(message, ...meta));
 }
 
 // do not run the cli if this is being imported by jest

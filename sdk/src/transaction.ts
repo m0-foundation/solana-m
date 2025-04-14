@@ -36,7 +36,7 @@ export const buildTransaction = async (
   // add compute budget ixs
   message.instructions.unshift(
     ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
-    ComputeBudgetProgram.setComputeUnitLimit({ units: (simulation.value.unitsConsumed ?? 200_000) * 1.1 }),
+    ComputeBudgetProgram.setComputeUnitLimit({ units: Math.floor((simulation.value.unitsConsumed ?? 200_000) * 1.1) }),
   );
 
   // return versioned transaction with lookup table and compute budget ixs

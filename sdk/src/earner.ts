@@ -17,10 +17,10 @@ export class Earner {
   pubkey: PublicKey;
   data: EarnerData;
 
-  constructor(connection: Connection, evmClient: PublicClient, pubkey: PublicKey, data: EarnerData) {
+  constructor(connection: Connection, evmClient: PublicClient, graphKey: string, pubkey: PublicKey, data: EarnerData) {
     this.connection = connection;
-    this.graph = new Graph();
     this.evmClient = evmClient;
+    this.graph = new Graph(graphKey);
     this.pubkey = pubkey;
     this.data = data;
   }
@@ -28,6 +28,7 @@ export class Earner {
   static async fromTokenAccount(
     connection: Connection,
     evmClient: PublicClient,
+    graphKey: string,
     tokenAccount: PublicKey,
     program = EXT_PROGRAM_ID,
   ): Promise<Earner> {
@@ -35,10 +36,10 @@ export class Earner {
 
     if (program.equals(EXT_PROGRAM_ID)) {
       const data = await getExtProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, earnerAccount, data);
+      return new Earner(connection, evmClient, graphKey, earnerAccount, data);
     } else {
       const data = await getProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, earnerAccount, {
+      return new Earner(connection, evmClient, graphKey, earnerAccount, {
         ...data,
         earnManager: null,
         recipientTokenAccount: null,
@@ -49,6 +50,7 @@ export class Earner {
   static async fromUserAddress(
     connection: Connection,
     evmClient: PublicClient,
+    graphKey: string,
     user: PublicKey,
     program = EXT_PROGRAM_ID,
   ): Promise<Earner[]> {
@@ -56,12 +58,12 @@ export class Earner {
 
     if (program.equals(EXT_PROGRAM_ID)) {
       const accounts = await getExtProgram(connection).account.earner.all(filter);
-      return accounts.map((a) => new Earner(connection, evmClient, a.publicKey, a.account));
+      return accounts.map((a) => new Earner(connection, evmClient, graphKey, a.publicKey, a.account));
     } else {
       const accounts = await getProgram(connection).account.earner.all(filter);
       return accounts.map(
         (a) =>
-          new Earner(connection, evmClient, a.publicKey, {
+          new Earner(connection, evmClient, graphKey, a.publicKey, {
             ...a.account,
             earnManager: null,
             recipientTokenAccount: null,
@@ -107,7 +109,12 @@ export class Earner {
     // If so, check if the earn manager has a fee
     // If so, calculate the fee and subtract it from the pending yield
     if (this.data.earnManager) {
-      const earnManager = await EarnManager.fromManagerAddress(this.connection, this.evmClient, this.data.earnManager);
+      const earnManager = await EarnManager.fromManagerAddress(
+        this.connection,
+        this.evmClient,
+        this.graph.key,
+        this.data.earnManager,
+      );
 
       if (earnManager.data.feeBps > new BN(0)) {
         const fee = pendingYield.mul(earnManager.data.feeBps).div(new BN(10000));
