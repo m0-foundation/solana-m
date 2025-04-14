@@ -34,6 +34,8 @@ pub fn handler(
     new_index: u64,
     earner_merkle_root: [u8; 32],
 ) -> Result<()> {
+    let global = &mut ctx.accounts.global_account;
+
     // Cache the current supply of the M token
     let current_supply = ctx.accounts.mint.supply;
 
@@ -42,9 +44,9 @@ pub fn handler(
     // We don't necessarily need the second check if we know updates only come
     // from mainnet. However, it provides some protection against staleness
     // in the event non-zero roots are sent from another chain.
-    if new_index >= ctx.accounts.global_account.index {
+    if new_index >= global.index {
         if earner_merkle_root != [0u8; 32] {
-            ctx.accounts.global_account.earner_merkle_root = earner_merkle_root;
+            global.earner_merkle_root = earner_merkle_root;
         }
     }
 
@@ -56,15 +58,11 @@ pub fn handler(
     // In this case, we only check if the max observed supply for the next cycle needs to be updated
     // and return early.
     let current_timestamp: u64 = Clock::get()?.unix_timestamp.try_into().unwrap();
-    let cooldown_target =
-        ctx.accounts.global_account.timestamp + ctx.accounts.global_account.claim_cooldown;
+    let cooldown_target = global.timestamp + global.claim_cooldown;
 
-    if !ctx.accounts.global_account.claim_complete
-        || current_timestamp < cooldown_target
-        || new_index <= ctx.accounts.global_account.index
-    {
-        if current_supply > ctx.accounts.global_account.max_supply {
-            ctx.accounts.global_account.max_supply = current_supply;
+    if !global.claim_complete || current_timestamp < cooldown_target || new_index <= global.index {
+        if current_supply > global.max_supply {
+            global.max_supply = current_supply;
         }
 
         return Ok(());
@@ -74,42 +72,40 @@ pub fn handler(
 
     // Calculate the new max yield using the max supply (which has been updated on each call to this function
     // We cast to a u128 for the multiplcation to avoid potential overflows
-    let mut period_max: u64 = (ctx.accounts.global_account.max_supply as u128)
+    let mut period_max: u64 = (global.max_supply as u128)
         .checked_mul(new_index.into())
         .unwrap()
-        .checked_div(ctx.accounts.global_account.index.into())
+        .checked_div(global.index.into())
         .unwrap()
         .try_into()
         .unwrap();
 
-    period_max -= ctx.accounts.global_account.max_supply; // can't underflow because new_index > ctx.accounts.global.index
+    period_max -= global.max_supply; // can't underflow because new_index > ctx.accounts.global.index
 
     // Update the global state
-    ctx.accounts.global_account.index = new_index;
-    ctx.accounts.global_account.timestamp = current_timestamp;
-    ctx.accounts.global_account.max_supply = current_supply; // we set this to the current supply regardless of whether it is larger since we are starting a new cycle
+    global.index = new_index;
+    global.timestamp = current_timestamp;
+    global.max_supply = current_supply; // we set this to the current supply regardless of whether it is larger since we are starting a new cycle
 
     // Some max yield can be leftover from the previous period if yield was not claimed for some users.
     // To get the max yield for the next claim cycle, we take the difference between the current max yield
     // and what was distributed to get the leftover amount. Then, we add the new potential max yield to be
     // sent out.
-    ctx.accounts.global_account.max_yield = ctx
-        .accounts
-        .global_account
+    global.max_yield = global
         .max_yield
-        .checked_sub(ctx.accounts.global_account.distributed)
+        .checked_sub(global.distributed)
         .unwrap() // can probably remove the checked sub since distributed can't be greater than max yield
         .checked_add(period_max)
         .unwrap();
 
-    ctx.accounts.global_account.distributed = 0;
-    ctx.accounts.global_account.claim_complete = false;
+    global.distributed = 0;
+    global.claim_complete = false;
 
     emit!(IndexUpdate {
         index: new_index,
         ts: current_timestamp,
         supply: current_supply,
-        max_yield: ctx.accounts.global_account.max_yield,
+        max_yield: global.max_yield,
     });
 
     Ok(())
