@@ -1293,7 +1293,7 @@ describe("ExtEarn unit tests", () => {
                         .accounts({ ...accounts })
                         .signers([nonAdmin])
                         .rpc(),
-                    "ConstraintTokenTokenProgram"
+                    "ConstraintAddress"
                 );
             });
 
@@ -1317,7 +1317,7 @@ describe("ExtEarn unit tests", () => {
                         .accounts({ ...accounts })
                         .signers([nonAdmin])
                         .rpc(),
-                    "ConstraintTokenTokenProgram"
+                    "ConstraintMintTokenProgram"
                 );
             });
 
