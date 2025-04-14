@@ -193,7 +193,7 @@ export class Graph {
     interface Data {
       indexUpdates: { index: string; ts: string }[];
     }
-    const data = await request<Data>(this.url, query, {
+    const data = await this.client.request<Data>(query, {
       lowerIndex: lowerIndex.toString(),
       upperIndex: upperIndex.toString(),
     });

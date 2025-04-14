@@ -636,6 +636,15 @@ function mockSubgraph() {
     .persist();
 
   nock(GRAPH_URL)
+    .post('', (body) => body.operationName === 'getIndexUpdates')
+    .reply(200, {
+      data: {
+        indexUpdates: [],
+      },
+    })
+    .persist();
+
+  nock(GRAPH_URL)
     .post(
       '',
       (body) =>
