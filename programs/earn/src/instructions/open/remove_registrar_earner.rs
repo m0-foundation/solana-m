@@ -24,6 +24,7 @@ pub struct RemoveRegistrarEarner<'info> {
     #[account(
         mut,
         close = signer,
+        has_one = user_token_account,
         seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
