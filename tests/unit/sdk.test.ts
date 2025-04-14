@@ -637,19 +637,34 @@ function mockSubgraph() {
 
   nock(GRAPH_URL)
     .post('', (body) => body.operationName === 'getIndexUpdates')
-    .reply(200, {
-      data: {
-        indexUpdates: [
-          {
-            index: '1000000000000',
-            ts: '0',
-          },
-          {
-            index: '1010000000000',
-            ts: '1',
-          },
-        ],
-      },
+    .reply(200, (_: any, requestBody: { variables: { lowerIndex: string; upperIndex: string } }) => {
+      const now = BigInt(Math.floor(Date.now() / 1000));
+      const day = BigInt('86400');
+
+      const indexUpdates = [
+        {
+          index: '1000000000000',
+          ts: (now - day * BigInt(3)).toString(),
+        },
+        {
+          index: '1010000000000',
+          ts: (now - day * BigInt(2)).toString(),
+        },
+        {
+          index: '1020100000000',
+          ts: (now - day).toString(),
+        },
+      ];
+
+      return {
+        data: {
+          indexUpdates: indexUpdates.filter(
+            (v) =>
+              BigInt(v.index) >= BigInt(requestBody.variables.lowerIndex) &&
+              BigInt(v.index) <= BigInt(requestBody.variables.upperIndex),
+          ),
+        },
+      };
     })
     .persist();
 

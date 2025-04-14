@@ -12,6 +12,8 @@ import nock from 'nock';
 import { TransactionMetadata } from 'litesvm';
 import BN from 'bn.js';
 
+const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
+
 describe('Yield calculation tests', () => {
   const svm = fromWorkspace('').withSplPrograms();
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
@@ -189,7 +191,7 @@ describe('Yield calculation tests', () => {
           mockSubgraphIndexUpdates(testConfig.indexUpdates.slice(lastClaim, j + 2));
 
           // build claim for earner
-          const auth = await EarnAuthority.load(connection, evmClient);
+          const auth = await EarnAuthority.load(connection, evmClient, '');
           const earner = (await auth.getAllEarners())[0];
           const ix = await auth.buildClaimInstruction(earner);
           // build transaction
@@ -252,8 +254,8 @@ function mockSubgraphBalances(
     balance += update.amount;
   }
 
-  nock('https://api.studio.thegraph.com')
-    .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getBalanceUpdates')
+  nock(GRAPH_URL)
+    .post('', (body) => body.operationName === 'getBalanceUpdates')
     .reply(200, (_: any, requestBody: { variables: { lowerTS: string; upperTS: string } }) => {
       const lowerTS = BigInt(requestBody.variables.lowerTS);
       const upperTS = BigInt(requestBody.variables.upperTS);
@@ -284,8 +286,8 @@ function mockSubgraphIndexUpdates(
     ts: bigint;
   }[],
 ) {
-  nock('https://api.studio.thegraph.com')
-    .post('/query/106645/m-token-transactions/version/latest', (body) => body.operationName === 'getIndexUpdates')
+  nock(GRAPH_URL)
+    .post('', (body) => body.operationName === 'getIndexUpdates')
     .reply(200, {
       data: {
         indexUpdates: indexUpdates.map((update) => ({
