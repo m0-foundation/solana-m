@@ -19,7 +19,8 @@
         "graphql-request": "6.1.0",
         "js-sha256": "^0.11.0",
         "sha3": "^2.1.4",
-        "viem": "^2.23.14"
+        "viem": "^2.23.14",
+        "winston": "^3.17.0"
     },
     "devDependencies": {
         "@types/bn.js": "^5.1.6",

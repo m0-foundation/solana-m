@@ -37,6 +37,8 @@ yield-bot-devnet:
 	@yarn --silent ts-node services/yield-bot/main.ts distribute \
 	--rpc $(shell op read "op://Solana Dev/Helius/dev rpc") \
 	--keypair $(shell op read "op://Solana Dev/Solana Program Keys/devnet-authority") \
+	--graphKey $(shell op read "op://Solana Dev/The Graph/credential") \
+	--programID wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko \
 	--dryRun
 
 
