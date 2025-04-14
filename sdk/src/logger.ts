@@ -22,7 +22,7 @@ export class ConsoleLogger implements Logger {
 }
 
 export class WinstonLogger implements Logger {
-  private logger: winston.Logger;
+  logger: winston.Logger;
 
   constructor(name: string, level = 'info', defaultMeta: { [key: string]: string } = {}, catchConsoleLogs = true) {
     let format: winston.Logform.Format;
@@ -53,6 +53,11 @@ export class WinstonLogger implements Logger {
       console.warn = this.warn;
       console.error = this.error;
     }
+  }
+
+  withTransport(...transports: winston.transport[]): WinstonLogger {
+    this.logger.transports.push(...transports);
+    return this;
   }
 
   debug = (m: string, ...meta: any[]) => this.logger.debug(m, ...meta);

@@ -16,10 +16,23 @@ import { instructions } from '@sqds/multisig';
 import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
+import LokiTransport from 'winston-loki';
 import { RateLimiter } from 'limiter';
 import { buildTransaction } from '../../sdk/src/transaction';
 
 const logger = new WinstonLogger('yield-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+
+if (process.env.NODE_ENV === 'production')
+  logger.withTransport(
+    new LokiTransport({
+      host: process.env.LOKI_URL ?? '',
+      json: true,
+      useWinstonMetaAsLabels: true,
+      ignoredMeta: ['imageBuild'],
+      format: logger.logger.format,
+    }),
+  );
+
 const limiter = new RateLimiter({ tokensPerInterval: 4, interval: 1000 });
 
 interface ParsedOptions {

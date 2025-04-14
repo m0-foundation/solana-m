@@ -2,13 +2,24 @@ import { Command } from 'commander';
 import { Connection } from '@solana/web3.js';
 import { createWalletClient, getContract, http, WalletClient, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import winston from 'winston';
 import LokiTransport from 'winston-loki';
 import { GLOBAL_ACCOUNT } from '../../sdk/src';
+import { WinstonLogger } from '../../sdk/src/logger';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
-const logger = configureLogger();
+const logger = new WinstonLogger('index-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+
+if (process.env.NODE_ENV === 'production')
+  logger.withTransport(
+    new LokiTransport({
+      host: process.env.LOKI_URL ?? '',
+      json: true,
+      useWinstonMetaAsLabels: true,
+      ignoredMeta: ['imageBuild'],
+      format: logger.logger.format,
+    }),
+  );
 
 interface ParsedOptions {
   solanaClient: Connection;
@@ -20,7 +31,6 @@ interface ParsedOptions {
 
 // entrypoint for the index bot command
 export async function indexCLI() {
-  catchConsoleLogs();
   const program = new Command();
 
   program
@@ -170,51 +180,6 @@ async function sendIndexUpdate(options: ParsedOptions) {
   }
 
   return params;
-}
-
-function configureLogger() {
-  let format: winston.Logform.Format;
-  let transports: winston.transport[] = [new winston.transports.Console()];
-
-  if (process.env.NODE_ENV !== 'production') {
-    format = winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      winston.format.colorize(),
-      winston.format.simple(),
-    );
-  } else {
-    format = winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-      winston.format.json(),
-    );
-    transports.push(
-      new LokiTransport({
-        host: process.env.LOKI_URL ?? '',
-        json: true,
-        useWinstonMetaAsLabels: true,
-        ignoredMeta: ['imageBuild'],
-        format,
-      }),
-    );
-  }
-
-  return winston.createLogger({
-    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-    format,
-    defaultMeta: { name: 'index-bot', imageBuild: process.env.BUILD_TIME },
-    transports,
-  });
-}
-
-function catchConsoleLogs() {
-  console.log = (message?: any, ...optionalParams: any[]) =>
-    logger.info(message ?? 'console log', {
-      params: optionalParams.map((p) => p.toString()),
-    });
-  console.error = (message?: any, ...optionalParams: any[]) =>
-    logger.error(message ?? 'console error', {
-      params: optionalParams.map((p) => p.toString()),
-    });
 }
 
 // do not run the cli if this is being imported by jest
