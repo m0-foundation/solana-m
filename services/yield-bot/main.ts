@@ -33,7 +33,7 @@ if (process.env.NODE_ENV === 'production')
     }),
   );
 
-const limiter = new RateLimiter({ tokensPerInterval: 4, interval: 1000 });
+const limiter = new RateLimiter({ tokensPerInterval: 2, interval: 1000 });
 
 interface ParsedOptions {
   signer: Keypair;
