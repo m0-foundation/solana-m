@@ -30,7 +30,6 @@ pub struct RemoveRegistrarEarner<'info> {
     )]
     pub earner_account: Account<'info, Earner>,
 
-    #[account(address = earner_account.user_token_account)]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 }
 
