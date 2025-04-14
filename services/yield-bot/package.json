@@ -10,6 +10,7 @@
     "commander": "^13.1.0",
     "limiter": "^3.0.0",
     "typescript": "^5",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "winston-loki": "^6.1.3"
   }
 }
