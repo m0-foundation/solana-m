@@ -5,20 +5,22 @@
 # Test commands
 #
 test-yield-bot:
-	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts 
+	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts; exit $$?
 
 test-index-bot:
-	yarn jest --preset ts-jest tests/unit/indexbot.test.ts
+	yarn jest --preset ts-jest tests/unit/indexbot.test.ts; exit $$?
 
 test-yield:
-	yarn jest --preset ts-jest tests/unit/yield.test.ts
+	yarn jest --preset ts-jest tests/unit/yield.test.ts; exit $$?
 
 test-sdk:
 	@anchor localnet --skip-build > /dev/null 2>&1 & \
 	anvil -f https://gateway.tenderly.co/public/sepolia > /dev/null 2>&1 & \
 	sleep 2 && \
-	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
-	kill -9 $$(lsof -ti:8899) & kill -9 $$(lsof -ti:8545)
+	yarn jest --preset ts-jest tests/unit/sdk.test.ts; \
+	e=$$?; \
+	kill -9 $$(lsof -ti:8899) & kill -9 $$(lsof -ti:8545); \
+	exit $$e
 
 test-local-validator:
 	solana-test-validator --deactivate-feature EenyoWx9UMXYKpR8mW5Jmfmy2fRjzUtM7NduYMY8bx33 -r \
@@ -29,8 +31,10 @@ test-local-validator:
 	pid=$$! && \
 	sleep 5 && \
 	solana airdrop 25 TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM -ul && \
-	anchor test --skip-local-validator ; \
-	kill $$pid
+	anchor test --skip-local-validator; \
+	e=$$?; \
+	kill $$pid \ 
+	exit $$e
 
 
 #
