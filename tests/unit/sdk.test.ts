@@ -639,7 +639,16 @@ function mockSubgraph() {
     .post('', (body) => body.operationName === 'getIndexUpdates')
     .reply(200, {
       data: {
-        indexUpdates: [],
+        indexUpdates: [
+          {
+            index: '1000000000000',
+            ts: '0',
+          },
+          {
+            index: '1010000000000',
+            ts: '1',
+          },
+        ],
       },
     })
     .persist();
@@ -680,6 +689,7 @@ function mockSubgraph() {
             amount: '5000000',
             ts: '100',
             signature: '0x',
+            index: '1000000000000',
             recipient_token_account: {
               pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
             },
@@ -688,6 +698,7 @@ function mockSubgraph() {
             amount: '4000000',
             ts: '200',
             signature: '0x',
+            index: '1010000000000',
             recipient_token_account: {
               pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
             },
@@ -710,6 +721,7 @@ function mockSubgraph() {
             amount: '5000000',
             ts: '100',
             signature: '0x',
+            index: '1000000000000',
             recipient_token_account: {
               pubkey: '0xd088f35850618fd9c71c18b2c8ebcdff4dfc192bb22b64826fac4dc0136b5685',
             },
