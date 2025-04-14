@@ -7,10 +7,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 // local dependencies
 use crate::{
     errors::EarnError,
-    state::{
-        Earner, Global, EARNER_SEED, GLOBAL_SEED,
-        TOKEN_AUTHORITY_SEED,
-    },
+    state::{Earner, Global, EARNER_SEED, GLOBAL_SEED, TOKEN_AUTHORITY_SEED},
     utils::token::mint_tokens,
 };
 
@@ -116,6 +113,8 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         token_authority_seeds,                 // signer seeds
         &ctx.accounts.token_program,           // token program
     )?;
+
+    ctx.accounts.mint.reload()?;
 
     // Check the current supply of M against the max supply in the global account
     // If it is greater, update the max supply
