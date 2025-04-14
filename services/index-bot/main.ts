@@ -8,18 +8,8 @@ import { WinstonLogger } from '../../sdk/src/logger';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
-const logger = new WinstonLogger('index-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
-
-if (process.env.NODE_ENV === 'production')
-  logger.withTransport(
-    new LokiTransport({
-      host: process.env.LOKI_URL ?? '',
-      json: true,
-      useWinstonMetaAsLabels: true,
-      ignoredMeta: ['imageBuild'],
-      format: logger.logger.format,
-    }),
-  );
+const logger = new WinstonLogger('index-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+if (process.env.LOKI_URL) logger.withLokiTransport(process.env.LOKI_URL);
 
 interface ParsedOptions {
   solanaClient: Connection;
@@ -186,6 +176,8 @@ async function sendIndexUpdate(options: ParsedOptions) {
 if (!process.argv[1].endsWith('jest')) {
   indexCLI().catch((error) => {
     logger.error('index bot failed', { error: error.toString() });
-    process.exit(0);
+    logger.flush().then(() => {
+      process.exit(0);
+    });
   });
 }

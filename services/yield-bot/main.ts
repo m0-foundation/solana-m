@@ -16,22 +16,11 @@ import { instructions } from '@sqds/multisig';
 import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
-import LokiTransport from 'winston-loki';
 import { RateLimiter } from 'limiter';
 import { buildTransaction } from '../../sdk/src/transaction';
 
-const logger = new WinstonLogger('yield-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
-
-if (process.env.NODE_ENV === 'production')
-  logger.withTransport(
-    new LokiTransport({
-      host: process.env.LOKI_URL ?? '',
-      json: true,
-      useWinstonMetaAsLabels: true,
-      ignoredMeta: ['imageBuild'],
-      format: logger.logger.format,
-    }),
-  );
+const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+if (process.env.LOKI_URL) logger.withLokiTransport(process.env.LOKI_URL);
 
 const limiter = new RateLimiter({ tokensPerInterval: 2, interval: 1000 });
 
@@ -184,7 +173,7 @@ async function distributeYield(opt: ParsedOptions) {
 }
 
 async function addEarners(opt: ParsedOptions) {
-  console.log('adding earners');
+  logger.info('adding earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
 
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
@@ -199,7 +188,7 @@ async function addEarners(opt: ParsedOptions) {
 }
 
 async function removeEarners(opt: ParsedOptions) {
-  console.log('removing earners');
+  logger.info('removing earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
 
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
@@ -385,8 +374,6 @@ async function proposeSquadsTransaction(
   const currentTransactionIndex = Number(multisigInfo.transactionIndex);
   const newTransactionIndex = BigInt(currentTransactionIndex + 1);
 
-  const blockhash = (await opt.connection.getLatestBlockhash()).blockhash;
-
   // create transaction
   const ix1 = instructions.vaultTransactionCreate({
     multisigPda: opt.squadsPda!,
@@ -407,12 +394,6 @@ async function proposeSquadsTransaction(
     transactionIndex: newTransactionIndex,
   });
 
-  const message = new TransactionMessage({
-    payerKey: opt.signer.publicKey,
-    recentBlockhash: blockhash,
-    instructions: [ix1, ix2],
-  }).compileToV0Message();
-
   const tx = await buildTransaction(opt.connection, [ix1, ix2], opt.signer.publicKey, priorityFee);
   tx.sign([opt.signer]);
 
@@ -423,6 +404,8 @@ async function proposeSquadsTransaction(
 if (!process.argv[1].endsWith('jest')) {
   yieldCLI().catch((error) => {
     logger.error('yield bot failed', { error: error.toString() });
-    process.exit(0);
+    logger.flush().then(() => {
+      process.exit(0);
+    });
   });
 }

@@ -1,4 +1,5 @@
 import winston from 'winston';
+import LokiTransport from 'winston-loki';
 
 export interface Logger {
   debug: (message: string, ...meta: any[]) => void;
@@ -23,11 +24,14 @@ export class ConsoleLogger implements Logger {
 
 export class WinstonLogger implements Logger {
   logger: winston.Logger;
+  private lokiTransport?: LokiTransport;
 
-  constructor(name: string, level = 'info', defaultMeta: { [key: string]: string } = {}, catchConsoleLogs = true) {
+  constructor(name: string, defaultMeta: { [key: string]: string } = {}, catchConsoleLogs = true) {
     let format: winston.Logform.Format;
+    let level = 'info';
 
     if (process.env.NODE_ENV !== 'production') {
+      level = 'debug';
       format = winston.format.combine(
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.colorize(),
@@ -55,8 +59,21 @@ export class WinstonLogger implements Logger {
     }
   }
 
-  withTransport(...transports: winston.transport[]): WinstonLogger {
-    this.logger.transports.push(...transports);
+  withLokiTransport(host: string): WinstonLogger {
+    this.lokiTransport = new LokiTransport({
+      host,
+      json: true,
+      useWinstonMetaAsLabels: true,
+      ignoredMeta: ['imageBuild'],
+      format: this.logger.format,
+      batching: true,
+      timeout: 15_000,
+      onConnectionError: (error) => {
+        this.logger.error('Loki connection error:', { error: `${error}` });
+      },
+    });
+    this.logger.add(this.lokiTransport);
+    this.logger.debug('Loki transport added', { host });
     return this;
   }
 
@@ -67,5 +84,9 @@ export class WinstonLogger implements Logger {
 
   addMetaField(key: string, value: string) {
     this.logger.defaultMeta[key] = value;
+  }
+
+  async flush() {
+    await this.lokiTransport?.flush();
   }
 }

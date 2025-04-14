@@ -13,6 +13,7 @@ import { Earn } from './idl/earn';
 import { ExtEarn } from './idl/ext_earn';
 import { buildTransaction } from './transaction';
 import { MockLogger, Logger } from './logger';
+import { RateLimiter } from 'limiter';
 
 class EarnAuthority {
   private logger: Logger;
@@ -211,7 +212,10 @@ class EarnAuthority {
     ixs: TransactionInstruction[],
     batchSize = 10,
     claimSizeThreshold = new BN(100000), // $0.10
+    rps = 3, // rpc requests per second
   ): Promise<[TransactionInstruction[], BN]> {
+    const limiter = new RateLimiter({ tokensPerInterval: rps, interval: 1000 });
+
     if (this.global.claimComplete) {
       throw new Error('No active claim cycle');
     }
@@ -220,6 +224,9 @@ class EarnAuthority {
     const filtererdTxns: TransactionInstruction[] = [];
 
     for (const [i, txn] of (await this._buildTransactions(ixs, batchSize)).entries()) {
+      // throttle requests
+      await limiter.removeTokens(1);
+
       // simulate transaction
       const result = await this.connection.simulateTransaction(txn, { sigVerify: false });
       if (result.value.err) {
