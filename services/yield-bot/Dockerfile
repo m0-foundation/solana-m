@@ -33,6 +33,7 @@ COPY --from=builder /app/node_modules ./node_modules
 ARG now
 ENV NODE_ENV=production
 ENV BUILD_TIME=$now
+ENV LOKI_URL=$LOKI_URL
 
 # Use the environment variable in the command
 CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --keypair \"$BOT_KEYPAIR\" --rpc \"$SVM_RPC\" --programID \"$PROGRAM_ID\" --claimThreshold \"$CLAIM_THRESHOLD\""]

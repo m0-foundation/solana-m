@@ -3,6 +3,7 @@ import { Connection } from '@solana/web3.js';
 import { createWalletClient, getContract, http, WalletClient, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import winston from 'winston';
+import LokiTransport from 'winston-loki';
 import { GLOBAL_ACCOUNT } from '../../sdk/src';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
@@ -171,6 +172,7 @@ async function sendIndexUpdate(options: ParsedOptions) {
 
 function configureLogger() {
   let format: winston.Logform.Format;
+  let transports: winston.transport[] = [new winston.transports.Console()];
 
   if (process.env.NODE_ENV !== 'production') {
     format = winston.format.combine(
@@ -183,13 +185,22 @@ function configureLogger() {
       winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
       winston.format.json(),
     );
+    transports.push(
+      new LokiTransport({
+        host: process.env.LOKI_URL ?? '',
+        json: true,
+        useWinstonMetaAsLabels: true,
+        ignoredMeta: ['imageBuild'],
+        format,
+      }),
+    );
   }
 
   return winston.createLogger({
     level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
     format,
     defaultMeta: { name: 'index-bot', imageBuild: process.env.BUILD_TIME },
-    transports: [new winston.transports.Console()],
+    transports,
   });
 }
 

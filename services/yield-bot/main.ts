@@ -14,6 +14,7 @@ import EarnAuthority from '../../sdk/src/earn_auth';
 import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
 import winston, { Logger } from 'winston';
+import LokiTransport from 'winston-loki';
 import BN from 'bn.js';
 
 const logger = configureLogger();
@@ -356,6 +357,7 @@ async function proposeSquadsTransaction(
 
 function configureLogger() {
   let format: winston.Logform.Format;
+  let transports: winston.transport[] = [new winston.transports.Console()];
 
   if (process.env.NODE_ENV !== 'production') {
     format = winston.format.combine(
@@ -368,13 +370,22 @@ function configureLogger() {
       winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
       winston.format.json(),
     );
+    transports.push(
+      new LokiTransport({
+        host: process.env.LOKI_URL ?? '',
+        json: true,
+        useWinstonMetaAsLabels: true,
+        ignoredMeta: ['imageBuild'],
+        format,
+      }),
+    );
   }
 
   return winston.createLogger({
     level: 'info',
     format,
     defaultMeta: { name: 'yield-bot', imageBuild: process.env.BUILD_TIME },
-    transports: [new winston.transports.Console()],
+    transports,
   });
 }
 
