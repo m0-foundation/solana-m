@@ -175,7 +175,7 @@ async function sendIndexUpdate(options: ParsedOptions) {
 // do not run the cli if this is being imported by jest
 if (!process.argv[1].endsWith('jest')) {
   indexCLI().catch((error) => {
-    logger.error('index bot failed', { error: error.toString() });
+    logger.error(error);
     logger.flush().then(() => {
       process.exit(0);
     });

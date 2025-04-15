@@ -403,7 +403,7 @@ async function proposeSquadsTransaction(
 // do not run the cli if this is being imported by jest
 if (!process.argv[1].endsWith('jest')) {
   yieldCLI().catch((error) => {
-    logger.error('yield bot failed', { error: error.toString() });
+    logger.error(error);
     logger.flush().then(() => {
       process.exit(0);
     });

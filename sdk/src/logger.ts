@@ -5,14 +5,17 @@ export interface Logger {
   debug: (message: string, ...meta: any[]) => void;
   info: (message: string, ...meta: any[]) => void;
   warn: (message: string, ...meta: any[]) => void;
-  error: (message: string, ...meta: any[]) => void;
+  error: {
+    (message: string, ...meta: any[]): void;
+    (message: Error): void;
+  };
 }
 
 export class MockLogger implements Logger {
   debug(m: string, ...meta: any[]) {}
   info(m: string, ...meta: any[]) {}
   warn(m: string, ...meta: any[]) {}
-  error(m: string, ...meta: any[]) {}
+  error(m: string | Error, ...meta: any[]): void {}
 }
 
 export class ConsoleLogger implements Logger {
@@ -33,12 +36,14 @@ export class WinstonLogger implements Logger {
     if (process.env.NODE_ENV !== 'production') {
       level = 'debug';
       format = winston.format.combine(
+        winston.format.errors({ stack: true }),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.colorize(),
         winston.format.simple(),
       );
     } else {
       format = winston.format.combine(
+        winston.format.errors({ stack: true }),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
         winston.format.json(),
       );
@@ -80,7 +85,10 @@ export class WinstonLogger implements Logger {
   debug = (m: string, ...meta: any[]) => this.logger.debug(m, ...meta);
   info = (m: string, ...meta: any[]) => this.logger.info(m, ...meta);
   warn = (m: string, ...meta: any[]) => this.logger.warn(m, ...meta);
-  error = (m: string, ...meta: any[]) => this.logger.error(m, ...meta);
+  error = (message: string | Error, ...meta: any[]): void => {
+    if (message instanceof Error) this.logger.error(message);
+    else this.logger.error(message, ...meta);
+  };
 
   addMetaField(key: string, value: string) {
     this.logger.defaultMeta[key] = value;

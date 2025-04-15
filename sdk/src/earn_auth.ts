@@ -245,7 +245,7 @@ class EarnAuthority {
           totalRewards = totalRewards.add(reward.user).add(reward.fee);
           filtererdTxns.push(ixs[i * batchSize + index]);
 
-          this.logger.info('Claim for earner', {
+          this.logger.debug('Claim for earner', {
             tokenAccount: reward.tokenAccount.toString(),
             rewards: reward.user.toString(),
             fee: reward.fee.toString(),
@@ -257,7 +257,8 @@ class EarnAuthority {
     // validate rewards is not higher than max claimable rewards
     if (this.programID.equals(PROGRAM_ID)) {
       if (totalRewards.gt(this.global.maxYield!)) {
-        this.logger.error('Claim amount exceeds max claimable rewards', {
+        this.logger.error('Error simulating claims', {
+          error: 'Claim amount exceeds max claimable rewards',
           totalRewards: totalRewards.toString(),
           maxYield: this.global.maxYield!.toString(),
         });
@@ -288,7 +289,8 @@ class EarnAuthority {
       const collateral = new BN(tokenAccountInfo.amount.toString());
 
       if (new BN(mint.supply.toString()).add(totalRewards).gt(collateral)) {
-        this.logger.error('Claim amount exceeds max claimable rewards', {
+        this.logger.error('Error simulating claims', {
+          error: 'Claim amount exceeds max claimable rewards',
           mintSupply: mint.supply.toString(),
           totalRewards: totalRewards.toString(),
           collateral: collateral.toString(),
