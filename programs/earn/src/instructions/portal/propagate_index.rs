@@ -97,7 +97,7 @@ pub fn handler(
         .try_into()
         .unwrap();
 
-    period_max -= ctx.accounts.global_account.max_supply; // can't underflow because new_index > ctx.accounts.global.index
+    period_max = period_max - ctx.accounts.global_account.max_supply - leftover; // can't underflow because new_index > ctx.accounts.global.index
 
     // Update the global state
     ctx.accounts.global_account.index = new_index;
