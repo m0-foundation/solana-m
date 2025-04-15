@@ -8,6 +8,7 @@ WORKDIR /app
 COPY tsconfig.json ./
 COPY --exclude=node_modules ./services/yield-bot ./services/yield-bot
 COPY --exclude=node_modules ./sdk ./sdk
+COPY ./services/shared ./services/shared
 
 # Install dependencies and build
 RUN yarn init -y && \

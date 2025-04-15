@@ -4,7 +4,7 @@ import { createWalletClient, getContract, http, WalletClient, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { GLOBAL_ACCOUNT } from '../../sdk/src';
 import { WinstonLogger } from '../../sdk/src/logger';
-import { sendSlackMessage, SlackMessage } from '../yield-bot/slack';
+import { sendSlackMessage, SlackMessage } from '../shared/slack';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 

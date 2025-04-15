@@ -18,7 +18,7 @@ import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
 import { buildTransaction } from '../../sdk/src/transaction';
-import { sendSlackMessage, SlackMessage } from './slack';
+import { sendSlackMessage, SlackMessage } from '../shared/slack';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
@@ -183,13 +183,15 @@ async function distributeYield(opt: ParsedOptions) {
   }
 
   // send all the claims
-  const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
-  logger.info('yield distributed', { signatures });
+  if (filteredIxs.length > 0) {
+    const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
+    logger.info('yield distributed', { signatures });
 
-  for (const sig of signatures) {
-    slackMessage.messages.push(
-      `Claims: https://solscan.io/tx/${sig}${opt.connection.rpcEndpoint.includes('devnet') ? '?cluster=devnet' : ''}`,
-    );
+    for (const sig of signatures) {
+      slackMessage.messages.push(
+        `Claims: https://solscan.io/tx/${sig}${opt.connection.rpcEndpoint.includes('devnet') ? '?cluster=devnet' : ''}`,
+      );
+    }
   }
 
   // wait for claim transactions to be confirmed before completing cycle
