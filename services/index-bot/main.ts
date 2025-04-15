@@ -9,7 +9,7 @@ import { sendSlackMessage, SlackMessage } from '../shared/slack';
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
 // logger used by bot and passed to SDK
-const logger = new WinstonLogger('index-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+const logger = new WinstonLogger('index-bot', { imageBuild: process.env.BUILD_TIME ?? '', mint: 'M' }, true);
 if (process.env.LOKI_URL) logger.withLokiTransport(process.env.LOKI_URL);
 
 // meta info from job will be posted to slack

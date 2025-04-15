@@ -29,6 +29,7 @@ COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/services/yield-bot ./services/yield-bot
 COPY --from=builder /app/sdk ./sdk
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/shared /app/services/shared
 
 # Set production environment and add build time
 ARG now
