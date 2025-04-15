@@ -428,7 +428,7 @@ const warp = (seconds: BN, increment: boolean) => {
 };
 
 // instruction convenience functions
-const prepInitialize = (signer: Keypair) => {
+const prepInitialize = (signer: Keypair, mint: PublicKey) => {
   // Get the global PDA
   const globalAccount = getGlobalAccount();
 
@@ -436,6 +436,7 @@ const prepInitialize = (signer: Keypair) => {
   accounts = {};
   accounts.admin = signer.publicKey;
   accounts.globalAccount = globalAccount;
+  accounts.mint = mint;
   accounts.systemProgram = SystemProgram.programId;
 
   return { globalAccount };
@@ -448,11 +449,11 @@ const initialize = async (
   claimCooldown: BN
 ) => {
   // Setup the instruction
-  const { globalAccount } = prepInitialize(admin);
+  const { globalAccount } = prepInitialize(admin, mint);
 
   // Send the transaction
   await earn.methods
-    .initialize(mint, earnAuthority, initialIndex, claimCooldown)
+    .initialize(earnAuthority, initialIndex, claimCooldown)
     .accounts({ ...accounts })
     .signers([admin])
     .rpc();
@@ -672,12 +673,11 @@ describe("Earn unit tests", () => {
     // the global account is created and configured correctly
     test("Admin can initialize earn program", async () => {
       // Setup the instruction call
-      const { globalAccount } = prepInitialize(admin);
+      const { globalAccount } = prepInitialize(admin, mint.publicKey);
 
       // Create and send the transaction
       await earn.methods
         .initialize(
-          mint.publicKey,
           earnAuthority.publicKey,
           initialIndex,
           claimCooldown
