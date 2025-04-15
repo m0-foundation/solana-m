@@ -18,11 +18,17 @@ import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
 import { buildTransaction } from '../../sdk/src/transaction';
+import { sendSlackMessage, SlackMessage } from './slack';
 
+// logger used by bot and passed to SDK
 const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
 if (process.env.LOKI_URL) logger.withLokiTransport(process.env.LOKI_URL);
 
+// rate limit claims
 const limiter = new RateLimiter({ tokensPerInterval: 2, interval: 1000 });
+
+// meta info from job will be posted to slack
+let slackMessage: SlackMessage;
 
 interface ParsedOptions {
   signer: Keypair;
@@ -34,6 +40,7 @@ interface ParsedOptions {
   squadsPda?: PublicKey;
   claimThreshold: BN;
   programID: PublicKey;
+  mint: 'M' | 'wM';
 }
 
 // entrypoint for the yield bot command
@@ -83,13 +90,21 @@ export async function yieldCLI() {
           skipCycle,
           programID: new PublicKey(programID),
           claimThreshold: new BN(claimThreshold),
+          mint: new PublicKey(programID).equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
         };
 
         if (squadsPda) {
           options.squadsPda = new PublicKey(squadsPda);
         }
 
-        logger.addMetaField('mint', options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M');
+        logger.addMetaField('mint', options.mint);
+
+        slackMessage = {
+          messages: [],
+          mint: options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
+          service: 'yield-bot',
+          level: 'info',
+        };
 
         const steps = options.programID.equals(PROGRAM_ID)
           ? [removeEarners, distributeYield, addEarners]
@@ -157,6 +172,9 @@ async function distributeYield(opt: ParsedOptions) {
     belowThreshold: claimIxs.length - filteredIxs.length,
   });
 
+  const amountDec = distributed.toNumber() / 1e6;
+  slackMessage.messages.push(`Distributed ${amountDec.toFixed(2)} ${opt.mint} to ${filteredIxs.length} earners`);
+
   // complete cycle on last claim transaction
   const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
   if (!completeClaimIx) {
@@ -166,6 +184,12 @@ async function distributeYield(opt: ParsedOptions) {
   // send all the claims
   const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
   logger.info('yield distributed', { signatures });
+
+  for (const sig of signatures) {
+    slackMessage.messages.push(
+      `Claims: https://solscan.io/tx/${sig}${opt.connection.rpcEndpoint.includes('devnet') ? '?cluster=devnet' : ''}`,
+    );
+  }
 
   // wait for claim transactions to be confirmed before completing cycle
   const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
@@ -185,6 +209,7 @@ async function addEarners(opt: ParsedOptions) {
 
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'adding earners');
   logger.info('added earners', { signature, earners: instructions.length });
+  slackMessage.messages.push(`Added ${instructions.length} earners`);
 }
 
 async function removeEarners(opt: ParsedOptions) {
@@ -200,6 +225,7 @@ async function removeEarners(opt: ParsedOptions) {
 
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'removing earners');
   logger.info('removed earners', { signature, earners: instructions.length });
+  slackMessage.messages.push(`Removed ${instructions.length} earners`);
 }
 
 async function syncIndex(opt: ParsedOptions) {
@@ -225,6 +251,7 @@ async function syncIndex(opt: ParsedOptions) {
   const signature = await buildAndSendTransaction(opt, [ix], 10, 'sync index');
 
   logger.info('updated index on ext earn', { ...logsFields, signature: signature[0] });
+  slackMessage.messages.push(`Synced index: ${signature[0]}`);
 }
 
 async function buildAndSendTransaction(
@@ -402,10 +429,19 @@ async function proposeSquadsTransaction(
 
 // do not run the cli if this is being imported by jest
 if (!process.argv[1].endsWith('jest')) {
-  yieldCLI().catch((error) => {
-    logger.error(error);
-    logger.flush().then(() => {
-      process.exit(0);
+  yieldCLI()
+    .catch((error) => {
+      logger.error(error);
+
+      slackMessage.messages.push(`${error}`);
+      slackMessage.level = 'error';
+    })
+    .finally(() => {
+      logger.flush().then(() => {
+        if (slackMessage.messages.length === 0) {
+          logger.info('No actions taken');
+        }
+        sendSlackMessage(slackMessage).then(() => process.exit(0));
+      });
     });
-  });
 }
