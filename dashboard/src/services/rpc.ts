@@ -20,9 +20,14 @@ import { EXT_EARN_PROGRAM_ID, M_MINT, PORTAL, wM_MINT } from './consts';
 import { type Provider } from '@reown/appkit-adapter-solana/react';
 import Decimal from 'decimal.js';
 import { getU64Encoder } from '@solana/codecs';
-import { UniversalAddress, Wormhole } from '@wormhole-foundation/sdk';
+import { signSendWait, UniversalAddress, Wormhole } from '@wormhole-foundation/sdk';
 import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
+import { EvmNtt } from '@wormhole-foundation/sdk-evm-ntt';
 import { SolanaPlatform } from '@wormhole-foundation/sdk-solana';
+import { EvmPlatform } from '@wormhole-foundation/sdk-evm';
+import { SendTransactionMutate } from 'wagmi/query';
+import { Config } from 'wagmi';
+import { JsonRpcProvider } from 'ethers';
 
 export const MINT_ADDRESSES: Record<string, PublicKey> = {
   M: M_MINT,
@@ -172,8 +177,8 @@ export const wrapOrUnwrap = async (action: 'wrap' | 'unwrap', walletProvider: Pr
 export const bidgeFromSolana = async (
   walletProvider: Provider,
   amount: Decimal,
-  recipient: `0x${string}`,
-  chain = 'Sepolia',
+  recipient: string,
+  toChain: string,
 ) => {
   const ntt = NttManager(connection, M_MINT);
 
@@ -189,7 +194,7 @@ export const bidgeFromSolana = async (
     BigInt(amount.toString()),
     {
       address: new UniversalAddress(recipient, 'hex'),
-      chain: chain as any,
+      chain: toChain as any,
     },
     { queue: false, automatic: true, gasDropoff: 0n },
     outboxItem,
@@ -232,6 +237,66 @@ export const bidgeFromSolana = async (
       },
       'confirmed',
     );
+  }
+
+  return sig;
+};
+
+export const bidgeFromEvm = async (
+  sendTransaction: SendTransactionMutate<Config>,
+  address: string | undefined,
+  amount: Decimal,
+  recipient: string,
+  fromChain: string,
+) => {
+  if (!address) {
+    throw new Error('Wallet not connected');
+  }
+
+  const ntt = new EvmNtt('Testnet', 'Sepolia', new JsonRpcProvider(import.meta.env.VITE_EVM_RPC_URL), {});
+  const sender = Wormhole.parseAddress(fromChain as any, address);
+
+  const xferTxs = ntt.transfer(
+    sender.address,
+    BigInt(amount.toString()),
+    {
+      address: new UniversalAddress(recipient, 'base58'),
+      chain: 'Solana',
+    },
+    {
+      queue: false,
+      automatic: true,
+      gasDropoff: 0n,
+    },
+  );
+
+  let sig: string = '';
+  for await (const tx of xferTxs) {
+    const { to, data, value } = tx.transaction;
+
+    if (!to || !data || !value) {
+      throw new Error('Missing transaction data');
+    }
+
+    console.log('params', { to: to, value, data });
+
+    sig = await new Promise((resolve, reject) => {
+      sendTransaction(
+        {
+          to: to as `0x${string}`,
+          value: BigInt(value.toString()),
+          data: data as `0x${string}`,
+        },
+        {
+          onSuccess: (data) => {
+            resolve(data);
+          },
+          onError: (error) => {
+            reject(error);
+          },
+        },
+      );
+    });
   }
 
   return sig;

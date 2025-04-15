@@ -26,6 +26,7 @@ import './index.css';
 import { Bridge } from './components/bridge';
 import { Links } from './components/links';
 import { IndexUpdates } from './components/index-updates';
+import { WagmiProvider } from 'wagmi';
 
 console.table(
   Object.entries(import.meta.env).reduce((acc, [key, value]) => {
@@ -81,30 +82,32 @@ createAppKit({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Navbar />
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <div className="h-[93vh] overflow-y-scroll">
-                <StatsBar />
-                <div className="max-w-6xl mx-auto py-10 space-y-16 px-2">
-                  <HistoricalSupply />
-                  <Holders token="M" />
-                  <Holders token="wM" />
-                  <Bridges />
-                  <IndexUpdates />
+    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Navbar />
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <div className="h-[93vh] overflow-y-scroll">
+                  <StatsBar />
+                  <div className="max-w-6xl mx-auto py-10 space-y-16 px-2">
+                    <HistoricalSupply />
+                    <Holders token="M" />
+                    <Holders token="wM" />
+                    <Bridges />
+                    <IndexUpdates />
+                  </div>
                 </div>
-              </div>
-            }
-          />
-          <Route path="/wrap" element={<Wrap />} />
-          <Route path="/bridge" element={<Bridge />} />
-          <Route path="/links" element={<Links />} />
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+              }
+            />
+            <Route path="/wrap" element={<Wrap />} />
+            <Route path="/bridge" element={<Bridge />} />
+            <Route path="/links" element={<Links />} />
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </WagmiProvider>
   </StrictMode>,
 );

@@ -32,6 +32,8 @@
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react-swc": "^3.8.0",
     "@wagmi/core": "^2.16.7",
+    "@wormhole-foundation/sdk-evm": "^1.14.1",
+    "@wormhole-foundation/sdk-evm-ntt": "^0.7.1",
     "@wormhole-foundation/sdk-solana": "^1.14.1",
     "@wormhole-foundation/sdk-solana-ntt": "^0.7.1",
     "decimal.js": "^10.5.0",
@@ -47,6 +49,7 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
     "vite": "^6.2.0",
-    "vite-plugin-node-polyfills": "^0.23.0"
+    "vite-plugin-node-polyfills": "^0.23.0",
+    "wagmi": "^2.14.16"
   }
 }
