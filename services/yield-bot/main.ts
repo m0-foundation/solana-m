@@ -101,7 +101,7 @@ export async function yieldCLI() {
 
         slackMessage = {
           messages: [],
-          mint: options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
+          mint: options.mint,
           service: 'yield-bot',
           level: 'info',
           devnet: rpc.includes('devnet'),

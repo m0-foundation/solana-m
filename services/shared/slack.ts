@@ -28,7 +28,7 @@ export async function sendSlackMessage(message: SlackMessage) {
       `https://solscan.io/account/${mint === 'M' ? PROGRAM_ID.toBase58() : EXT_PROGRAM_ID.toBase58()}${
         devnet ? '?cluster=devnet' : ''
       }`,
-    link: grafanaLinkBuilder(process.env.GRAFANA_URL ?? '', message.service, message.mint, ''),
+    link: grafanaLinkBuilder(message.service, message.mint, ''),
   };
 
   const response = await fetch(webhookUrl, {
@@ -43,7 +43,7 @@ export async function sendSlackMessage(message: SlackMessage) {
   }
 }
 
-function grafanaLinkBuilder(baseURL: string, service: 'yield-bot' | 'index-bot', mint: 'M' | 'wM', query?: string) {
+function grafanaLinkBuilder(service: 'yield-bot' | 'index-bot', mint: 'M' | 'wM', query?: string) {
   const q = query ? encodeURIComponent(query) : '';
-  return `${baseURL}/d/feizlsuzk2dc0e/search-logs?orgId=1&from=now-6h&to=now&timezone=browser&var-query0=&var-service=${service}&var-query0-2=&var-mint=${mint}&var-query0-3=&var-query=${q}`;
+  return `${process.env.GRAFANA_DASHBOARD_URL}?orgId=1&from=now-6h&to=now&timezone=browser&var-query0=&var-service=${service}&var-query0-2=&var-mint=${mint}&var-query0-3=&var-query=${q}`;
 }
