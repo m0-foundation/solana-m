@@ -1,7 +1,7 @@
-import { useData } from '../hooks/useData';
 import { bridgeEvents } from '../services/subgraph';
-import { useSettings } from '../context/settings';
 import bs58 from 'bs58';
+import { useQuery } from '@tanstack/react-query';
+import { NETWORK } from '../services/rpc';
 
 export const chainIcons: { [key: string]: string } = {
   Ethereum: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png',
@@ -14,8 +14,7 @@ export const chainIcons: { [key: string]: string } = {
 };
 
 export const Bridges = () => {
-  const { rpcUrl } = useSettings();
-  const { data } = useData('bridges:subgraph', (url) => bridgeEvents(url, 5));
+  const { data } = useQuery({ queryKey: ['bridges'], queryFn: () => bridgeEvents(5) });
 
   return (
     <div>
@@ -34,9 +33,7 @@ export const Bridges = () => {
             <tr key={event.ts} className="border-b border-gray-200">
               <td className="px-2 py-4">
                 <a
-                  href={`https://solscan.io/tx/${bs58.encode(event.signature)}${
-                    rpcUrl.includes('devnet') ? '?cluster=devnet' : ''
-                  }`}
+                  href={`https://solscan.io/tx/${bs58.encode(event.signature)}?cluster=${NETWORK}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:underline"

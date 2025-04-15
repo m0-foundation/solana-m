@@ -1,18 +1,19 @@
-import { useData } from '../hooks/useData';
 import { tokenHolders } from '../services/subgraph';
-import { useSettings } from '../context/settings';
 import { PublicKey } from '@solana/web3.js';
-import { getMintsRPC, MINT_ADDRESSES } from '../services/rpc';
+import { getMintsRPC, MINT_ADDRESSES, NETWORK } from '../services/rpc';
 import Decimal from 'decimal.js';
+import { useQuery } from '@tanstack/react-query';
 
 const labels: { [key: string]: string } = {
   '8vtsGdu4ErjK2skhV7FfPQwXdae6myWjgWJ8gRMnXi2K': 'wM Vault',
 };
 
 export const Holders = ({ token }: { token: 'M' | 'wM' }) => {
-  const { rpcUrl } = useSettings();
-  const { data: mintData } = useData('mints:rpc', getMintsRPC);
-  const { data: holderData } = useData(['holders:subgraph', token], (url) => tokenHolders(url, MINT_ADDRESSES[token]));
+  const { data: mintData } = useQuery({ queryKey: ['mints'], queryFn: getMintsRPC });
+  const { data: holderData } = useQuery({
+    queryKey: ['holders:subgraph', token],
+    queryFn: () => tokenHolders(MINT_ADDRESSES[token]),
+  });
 
   // use total supply to calc percentage
   const toPercentage = (balance: number) => {
@@ -37,9 +38,7 @@ export const Holders = ({ token }: { token: 'M' | 'wM' }) => {
             <tr key={holder.user.toString()} className="border-b border-gray-200">
               <td className="px-2 py-4">
                 <a
-                  href={`https://solscan.io/account/${holder.user.toBase58()}${
-                    rpcUrl.includes('devnet') ? '?cluster=devnet' : ''
-                  }`}
+                  href={`https://solscan.io/account/${holder.user.toBase58()}?cluster=${NETWORK}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`hover:underline ${labels[holder.user.toBase58()] ? 'bg-gray-100 py-1 px-2' : ''}`}

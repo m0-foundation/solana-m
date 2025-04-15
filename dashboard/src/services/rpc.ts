@@ -29,13 +29,13 @@ export const MINT_ADDRESSES: Record<string, PublicKey> = {
   wM: wM_MINT,
 };
 
-const NETWORK: 'devnet' | 'mainnet' = import.meta.env.VITE_NETWORK;
+export const NETWORK: 'devnet' | 'mainnet' = import.meta.env.VITE_NETWORK;
+const connection = new Connection(import.meta.env.VITE_RPC_URL);
 
-export const getMintsRPC = async (rpcURL: string): Promise<Record<string, Mint>> => {
+export const getMintsRPC = async (): Promise<Record<string, Mint>> => {
   const data: Record<string, Mint> = {};
 
   try {
-    const connection = new Connection(rpcURL);
     const accountInfos = await connection.getMultipleAccountsInfo(Object.values(MINT_ADDRESSES));
 
     for (const [index, accountInfo] of accountInfos.entries()) {
@@ -50,13 +50,7 @@ export const getMintsRPC = async (rpcURL: string): Promise<Record<string, Mint>>
   return data;
 };
 
-export const wrapOrUnwrap = async (
-  action: 'wrap' | 'unwrap',
-  walletProvider: Provider,
-  rpcURL: string,
-  amount: Decimal,
-) => {
-  const connection = new Connection(rpcURL);
+export const wrapOrUnwrap = async (action: 'wrap' | 'unwrap', walletProvider: Provider, amount: Decimal) => {
   const ixs: TransactionInstruction[] = [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 250_000 })];
 
   if (!walletProvider.publicKey) {
@@ -177,12 +171,10 @@ export const wrapOrUnwrap = async (
 
 export const bidgeFromSolana = async (
   walletProvider: Provider,
-  rpcURL: string,
   amount: Decimal,
   recipient: `0x${string}`,
   chain = 'Sepolia',
 ) => {
-  const connection = new Connection(rpcURL);
   const ntt = NttManager(connection, M_MINT);
 
   if (!walletProvider.publicKey) {

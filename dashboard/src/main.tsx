@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navbar } from './components/navbar';
 import { StatsBar } from './components/statsbar';
-import { SettingsProvider } from './context/settings';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Holders } from './components/holders';
 import { Route, BrowserRouter, Routes } from 'react-router-dom';
@@ -83,31 +82,29 @@ createAppKit({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <SettingsProvider>
-        <BrowserRouter>
-          <Navbar />
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <div className="h-[93vh] overflow-y-scroll">
-                  <StatsBar />
-                  <div className="max-w-6xl mx-auto py-10 space-y-16 px-2">
-                    <HistoricalSupply />
-                    <Holders token="M" />
-                    <Holders token="wM" />
-                    <Bridges />
-                    <IndexUpdates />
-                  </div>
+      <BrowserRouter>
+        <Navbar />
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <div className="h-[93vh] overflow-y-scroll">
+                <StatsBar />
+                <div className="max-w-6xl mx-auto py-10 space-y-16 px-2">
+                  <HistoricalSupply />
+                  <Holders token="M" />
+                  <Holders token="wM" />
+                  <Bridges />
+                  <IndexUpdates />
                 </div>
-              }
-            />
-            <Route path="/wrap" element={<Wrap />} />
-            <Route path="/bridge" element={<Bridge />} />
-            <Route path="/links" element={<Links />} />
-          </Routes>
-        </BrowserRouter>
-      </SettingsProvider>
+              </div>
+            }
+          />
+          <Route path="/wrap" element={<Wrap />} />
+          <Route path="/bridge" element={<Bridge />} />
+          <Route path="/links" element={<Links />} />
+        </Routes>
+      </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,
 );

@@ -1,13 +1,13 @@
 import { AreaChart, Area, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, XAxis } from 'recharts';
 import { bridgeEvents } from '../services/subgraph';
-import { useData } from '../hooks/useData';
 import { LoadingSkeleton } from './loading';
 import { getMintsRPC } from '../services/rpc';
 import Decimal from 'decimal.js';
+import { useQuery } from '@tanstack/react-query';
 
 export const HistoricalSupply = () => {
-  const { data: mintData } = useData('mints:rpc', getMintsRPC);
-  const { data, isLoading } = useData('bridges:subgraph', bridgeEvents);
+  const { data: mintData } = useQuery({ queryKey: ['mints'], queryFn: getMintsRPC });
+  const { data, isLoading } = useQuery({ queryKey: ['bridges'], queryFn: () => bridgeEvents() });
 
   if (isLoading) {
     return <LoadingSkeleton h={60} />;

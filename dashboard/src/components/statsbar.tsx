@@ -1,15 +1,16 @@
-import { useData } from '../hooks/useData';
 import { getMintsRPC } from '../services/rpc';
 import { claimStats } from '../services/subgraph';
 import { EARN_PROGRAM_ID } from '../services/consts';
 import { formatAmount } from '../services/utils';
 import { LoadingSkeleton } from './loading';
+import { useQuery } from '@tanstack/react-query';
 
 export const StatsBar = () => {
-  const { data: mintData, isLoading: mintLoading } = useData('mints:rpc', getMintsRPC);
-  const { data: claimData, isLoading: claimLoading } = useData('claimStats:subgraph', (url) =>
-    claimStats(url, EARN_PROGRAM_ID),
-  );
+  const { data: mintData, isLoading: mintLoading } = useQuery({ queryKey: ['mints'], queryFn: getMintsRPC });
+  const { data: claimData, isLoading: claimLoading } = useQuery({
+    queryKey: ['claimStats'],
+    queryFn: () => claimStats(EARN_PROGRAM_ID),
+  });
 
   return (
     <div className="bg-off-blue px-4 py-5">

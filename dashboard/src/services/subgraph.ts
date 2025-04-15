@@ -1,18 +1,13 @@
-import { gql, request } from 'graphql-request';
+import { gql, GraphQLClient } from 'graphql-request';
 import { PublicKey } from '@solana/web3.js';
 import Decimal from 'decimal.js';
 import { M_MINT } from './consts';
 
-const parseAddress = (address: string): PublicKey | `0x${string}` => {
-  const evmPrefix = '0x000000000000000000000000';
-  if (address.startsWith(evmPrefix)) {
-    return ('0x' + address.slice(evmPrefix.length)) as `0x${string}`;
-  }
-  return new PublicKey(Buffer.from(address.slice(2), 'hex'));
-};
+const client = new GraphQLClient(import.meta.env.VITE_SUBGRAPH_URL, {
+  headers: { Authorization: `Bearer ${import.meta.env.VITE_GRAPH_KEY}` },
+});
 
 export const tokenHolders = async (
-  graphqlUrl: string,
   mint = M_MINT,
   limit = 10,
   skip = 0,
@@ -34,7 +29,7 @@ export const tokenHolders = async (
   }
 
   const mintHex = '0x' + mint.toBuffer().toString('hex');
-  const data = await request<Data>(graphqlUrl, query, { limit, skip, mint: mintHex });
+  const data = await client.request<Data>(query, { limit, skip, mint: mintHex });
 
   return data.tokenHolders.map(({ user, balance }) => ({
     user: new PublicKey(Buffer.from(user.slice(2), 'hex')),
@@ -42,10 +37,7 @@ export const tokenHolders = async (
   }));
 };
 
-export const claimStats = async (
-  graphqlUrl: string,
-  programID: PublicKey,
-): Promise<{ numClaims: number; totalClaimed: Decimal }> => {
+export const claimStats = async (programID: PublicKey): Promise<{ numClaims: number; totalClaimed: Decimal }> => {
   const query = gql`
     query getClaimStats($id: Bytes!) {
       claimStats(id: $id) {
@@ -65,7 +57,7 @@ export const claimStats = async (
   }
 
   const id = '0x' + Buffer.concat([Buffer.from('claim-stats'), programID.toBuffer()]).toString('hex');
-  const data = await request<Data>(graphqlUrl, query, { id });
+  const data = await client.request<Data>(query, { id });
 
   return {
     numClaims: data.claimStats.num_claims,
@@ -73,7 +65,7 @@ export const claimStats = async (
   };
 };
 
-export const indexUpdates = async (graphqlUrl: string, limit = 10) => {
+export const indexUpdates = async (limit = 10) => {
   const query = gql`
     query getIndexUpdates($limit: Int!) {
       indexUpdates(first: $limit, orderBy: ts, orderDirection: desc) {
@@ -92,7 +84,7 @@ export const indexUpdates = async (graphqlUrl: string, limit = 10) => {
     }[];
   }
 
-  const data = await request<Data>(graphqlUrl, query, { limit });
+  const data = await client.request<Data>(query, { limit });
 
   return data.indexUpdates.map((update) => ({
     index: parseInt(update.index),
@@ -101,7 +93,7 @@ export const indexUpdates = async (graphqlUrl: string, limit = 10) => {
   }));
 };
 
-export const bridgeEvents = async (graphqlUrl: string, limit = 100) => {
+export const bridgeEvents = async (limit = 100) => {
   const query = gql`
     query getBridgeEvents($limit: Int!) {
       bridgeEvents(orderBy: ts, orderDirection: desc, first: $limit) {
@@ -138,7 +130,7 @@ export const bridgeEvents = async (graphqlUrl: string, limit = 100) => {
     };
   }
 
-  const data = await request<Data>(graphqlUrl, query, { limit });
+  const data = await client.request<Data>(query, { limit });
 
   return {
     events: data.bridgeEvents.map((event) => ({
@@ -157,3 +149,11 @@ export const bridgeEvents = async (graphqlUrl: string, limit = 100) => {
     },
   };
 };
+
+function parseAddress(address: string): PublicKey | `0x${string}` {
+  const evmPrefix = '0x000000000000000000000000';
+  if (address.startsWith(evmPrefix)) {
+    return ('0x' + address.slice(evmPrefix.length)) as `0x${string}`;
+  }
+  return new PublicKey(Buffer.from(address.slice(2), 'hex'));
+}

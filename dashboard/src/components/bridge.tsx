@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useAccount } from '../hooks/useAccount';
 import { type Provider } from '@reown/appkit-adapter-solana/react';
 import { useAppKitProvider } from '@reown/appkit/react';
-import { useSettings } from '../context/settings';
 import Decimal from 'decimal.js';
 import { toast, ToastContainer } from 'react-toastify';
 import { bidgeFromSolana } from '../services/rpc';
@@ -93,7 +92,6 @@ const ChainDropdown = ({
 export const Bridge = () => {
   const { isConnected, solanaBalances } = useAccount();
   const { walletProvider } = useAppKitProvider<Provider>('solana');
-  const { rpcUrl } = useSettings();
 
   const [amount, setAmount] = useState<string>('');
   const [recipientAddress, setRecipientAddress] = useState<string>('');
@@ -124,7 +122,7 @@ export const Bridge = () => {
 
     try {
       setIsLoading(true);
-      const sig = await bidgeFromSolana(walletProvider, rpcUrl, amountValue, recipientAddress as `0x${string}`);
+      const sig = await bidgeFromSolana(walletProvider, amountValue, recipientAddress as `0x${string}`);
       const txUrl = `https://wormholescan.io/#/tx/${sig}?network=Testnet`;
 
       // give an extra second for the transaction to be confirmed

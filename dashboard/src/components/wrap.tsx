@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useAccount } from '../hooks/useAccount';
-import { wrapOrUnwrap } from '../services/rpc';
+import { NETWORK, wrapOrUnwrap } from '../services/rpc';
 import { type Provider } from '@reown/appkit-adapter-solana/react';
 import { useAppKitProvider } from '@reown/appkit/react';
-import { useSettings } from '../context/settings';
 import Decimal from 'decimal.js';
 import { toast, ToastContainer } from 'react-toastify';
 
@@ -15,7 +14,6 @@ enum TabType {
 export const Wrap = () => {
   const { isConnected, address, solanaBalances } = useAccount();
   const { walletProvider } = useAppKitProvider<Provider>('solana');
-  const { rpcUrl } = useSettings();
 
   const [activeTab, setActiveTab] = useState<TabType>(TabType.WRAP);
   const [amount, setAmount] = useState<string>('');
@@ -50,8 +48,8 @@ export const Wrap = () => {
 
     try {
       setIsLoading(true);
-      const sig = await wrapOrUnwrap(activeTab, walletProvider, rpcUrl, amountValue);
-      const txUrl = `https://solscan.io/tx/${sig}?cluster=devnet`;
+      const sig = await wrapOrUnwrap(activeTab, walletProvider, amountValue);
+      const txUrl = `https://solscan.io/tx/${sig}?cluster=${NETWORK}`;
 
       // give an extra second for the transaction to be confirmed
       await new Promise((resolve) => setTimeout(resolve, 2000));

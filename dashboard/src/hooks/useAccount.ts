@@ -1,7 +1,6 @@
 import { useAppKitAccount } from '@reown/appkit/react';
 import { Connection, PublicKey } from '@solana/web3.js';
 import Decimal from 'decimal.js';
-import { useSettings } from '../context/settings';
 import { M_MINT, wM_MINT } from '../services/consts';
 import { getBalance } from '@wagmi/core';
 import { wagmiAdapter } from '../main';
@@ -13,7 +12,6 @@ interface TokenBalance {
 }
 
 export const useAccount = () => {
-  const { rpcUrl } = useSettings();
   const { isConnected, address, caipAddress } = useAppKitAccount();
 
   const isSolanaWallet = !!address && !address.startsWith('0x');
@@ -25,7 +23,7 @@ export const useAccount = () => {
       return {};
     }
 
-    const connection = new Connection(rpcUrl);
+    const connection = new Connection(import.meta.env.VITE_RPC_URL);
     const pubkey = new PublicKey(address);
 
     // Fetch all token accounts owned by this wallet
@@ -76,7 +74,7 @@ export const useAccount = () => {
     isLoading: isSolanaBalancesLoading,
     error: solanaBalancesError,
   } = useQuery({
-    queryKey: ['solanaBalances', address, rpcUrl],
+    queryKey: ['solanaBalances', address],
     queryFn: fetchSolanaBalances,
     enabled: isConnected && isSolanaWallet,
     refetchInterval: 30000, // Refetch every 30 seconds

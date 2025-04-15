@@ -1,11 +1,10 @@
-import { useSettings } from '../context/settings';
-import { useData } from '../hooks/useData';
+import { useQuery } from '@tanstack/react-query';
 import { indexUpdates } from '../services/subgraph';
 import bs58 from 'bs58';
+import { NETWORK } from '../services/rpc';
 
 export const IndexUpdates = () => {
-  const { rpcUrl } = useSettings();
-  const { data } = useData('indexUpdates:subgraph', indexUpdates);
+  const { data } = useQuery({ queryKey: ['indexUpdates'], queryFn: () => indexUpdates() });
 
   return (
     <div>
@@ -25,9 +24,7 @@ export const IndexUpdates = () => {
               <td className="px-2 py-4">{update.index}</td>
               <td className="px-2 py-4">
                 <a
-                  href={`https://solscan.io/tx/${bs58.encode(update.signature)}${
-                    rpcUrl.includes('devnet') ? '?cluster=devnet' : ''
-                  }`}
+                  href={`https://solscan.io/tx/${bs58.encode(update.signature)}?cluster=${NETWORK}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:underline"

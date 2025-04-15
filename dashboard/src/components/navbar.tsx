@@ -1,10 +1,6 @@
-import { useState } from 'react';
-import { SettingsModal } from './settings';
-import { FiSettings } from 'react-icons/fi';
 import { NavLink, useLocation } from 'react-router-dom';
 
 export const Navbar = () => {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   let location = useLocation();
 
   return (
@@ -38,16 +34,8 @@ export const Navbar = () => {
         </div>
         <div className="hidden md:flex items-center space-x-4">
           <appkit-button size="sm" balance="hide" />
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="text-gray-300 hover:text-white hover:cursor-pointer"
-            aria-label="Settings"
-          >
-            <FiSettings className="w-5 h-5" />
-          </button>
         </div>
       </div>
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </nav>
   );
 };

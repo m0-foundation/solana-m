@@ -1,4 +1,4 @@
-import { useSettings } from '../context/settings';
+import { NETWORK } from '../services/rpc';
 
 type LinkItem = {
   name: string;
@@ -17,8 +17,6 @@ const mintLinks: LinkItem[] = [
 ];
 
 export const Links = () => {
-  const { rpcUrl } = useSettings();
-
   return (
     <div className="pt-10 max-w-4xl mx-auto px-4 space-y-10">
       {Object.entries({ Programs: programLinks, Mints: mintLinks }).map(([title, items]) => (
@@ -31,9 +29,7 @@ export const Links = () => {
                   <td className="px-2 py-4">{program.name}</td>
                   <td className="px-2 py-4">
                     <a
-                      href={`https://solscan.io/account/${program.address}${
-                        rpcUrl.includes('devnet') ? '?cluster=devnet' : ''
-                      }`}
+                      href={`https://solscan.io/account/${program.address}?cluster=${NETWORK}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:underline"
