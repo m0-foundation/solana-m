@@ -32,7 +32,7 @@ async function main() {
     .argument('[number]', 'amount', '100000') // 0.1 M
     .action(async (amount) => {
       const connection = new Connection(process.env.RPC_URL ?? '');
-      const [sender, m, wM] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
+      const [sender, m, wM] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
       const program = new Program<ExtEarn>(EXT_EARN_IDL, EXT_PROGRAM_ID, anchorProvider(connection, sender));
 
       const mVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], EXT_PROGRAM_ID)[0];
@@ -87,7 +87,7 @@ async function main() {
     .argument('[number]', 'amount', '100000')
     .action(async (receiver, amount) => {
       const connection = new Connection(process.env.RPC_URL ?? '');
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
       const { ctx, ntt, sender, signer } = NttManager(connection, owner, mint.publicKey);
 
       const outboxItem = Keypair.generate();
@@ -111,7 +111,7 @@ async function main() {
     .description('create a squads multisig')
     .action(async () => {
       const connection = new Connection(process.env.RPC_URL ?? '');
-      const [owner, squadsProposer] = keysFromEnv(['OWNER_KEYPAIR', 'SQUADS_PROPOSER']);
+      const [owner, squadsProposer] = keysFromEnv(['PAYER_KEYPAIR', 'SQUADS_PROPOSER']);
       const createKey = Keypair.generate();
 
       const programConfigPda = multisig.getProgramConfigPda({})[0];
@@ -150,7 +150,7 @@ async function main() {
     .description('distribute wM to random users')
     .action(async () => {
       const connection = new Connection(process.env.RPC_URL ?? '');
-      const [owner, mint] = keysFromEnv(['OWNER_KEYPAIR', 'WM_MINT_KEYPAIR']);
+      const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'WM_MINT_KEYPAIR']);
       const program = new Program<ExtEarn>(EXT_EARN_IDL, EXT_PROGRAM_ID, anchorProvider(connection, owner));
 
       for (let i = 0; i < 25; i++) {
