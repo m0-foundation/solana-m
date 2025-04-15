@@ -37,7 +37,7 @@ export const tokenHolders = async (
   }));
 };
 
-export const claimStats = async (programID: PublicKey): Promise<{ numClaims: number; totalClaimed: Decimal }> => {
+export const claimStats = async (programID: PublicKey) => {
   const query = gql`
     query getClaimStats($id: Bytes!) {
       claimStats(id: $id) {
@@ -61,7 +61,7 @@ export const claimStats = async (programID: PublicKey): Promise<{ numClaims: num
 
   return {
     numClaims: data.claimStats.num_claims,
-    totalClaimed: new Decimal(data.claimStats.total_claimed).div(1e6),
+    totalClaimed: new Decimal(data.claimStats.total_claimed),
   };
 };
 
