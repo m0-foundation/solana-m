@@ -221,7 +221,7 @@ class EarnAuthority {
     }
 
     let totalRewards = new BN(0);
-    const filtererdTxns: TransactionInstruction[] = [];
+    const filteredTxns: TransactionInstruction[] = [];
 
     for (const [i, txn] of (await this._buildTransactions(ixs, batchSize)).entries()) {
       // throttle requests
@@ -243,7 +243,7 @@ class EarnAuthority {
       for (const [index, reward] of batchRewards.entries()) {
         if (reward.user > claimSizeThreshold) {
           totalRewards = totalRewards.add(reward.user).add(reward.fee);
-          filtererdTxns.push(ixs[i * batchSize + index]);
+          filteredTxns.push(ixs[i * batchSize + index]);
 
           this.logger.debug('Claim for earner', {
             tokenAccount: reward.tokenAccount.toString(),
@@ -299,7 +299,7 @@ class EarnAuthority {
       }
     }
 
-    return [filtererdTxns, totalRewards];
+    return [filteredTxns, totalRewards];
   }
 
   async buildIndexSyncInstruction(): Promise<TransactionInstruction> {

@@ -444,6 +444,5 @@ if (!process.argv[1].endsWith('jest')) {
       }
       await logger.flush();
       await sendSlackMessage(slackMessage);
-      process.exit(0);
     });
 }
