@@ -104,6 +104,7 @@ export async function yieldCLI() {
           mint: options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
           service: 'yield-bot',
           level: 'info',
+          devnet: rpc.includes('devnet'),
         };
 
         const steps = options.programID.equals(PROGRAM_ID)
@@ -432,16 +433,15 @@ if (!process.argv[1].endsWith('jest')) {
   yieldCLI()
     .catch((error) => {
       logger.error(error);
-
-      slackMessage.messages.push(`${error}`);
       slackMessage.level = 'error';
+      slackMessage.messages.push(`${error}`);
     })
-    .finally(() => {
-      logger.flush().then(() => {
-        if (slackMessage.messages.length === 0) {
-          logger.info('No actions taken');
-        }
-        sendSlackMessage(slackMessage).then(() => process.exit(0));
-      });
+    .finally(async () => {
+      if (slackMessage.messages.length === 0) {
+        slackMessage.messages.push('No actions taken');
+      }
+      await logger.flush();
+      await sendSlackMessage(slackMessage);
+      process.exit(0);
     });
 }

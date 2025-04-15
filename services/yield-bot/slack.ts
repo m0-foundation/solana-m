@@ -1,8 +1,12 @@
+import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
+
 export interface SlackMessage {
   messages: string[];
   mint: 'M' | 'wM';
   service: 'yield-bot' | 'index-bot';
   level: string;
+  devnet?: boolean;
+  explorer?: string;
 }
 
 export async function sendSlackMessage(message: SlackMessage) {
@@ -12,13 +16,18 @@ export async function sendSlackMessage(message: SlackMessage) {
     return;
   }
 
-  const { mint, messages, level, service } = message;
+  const { mint, messages, level, service, devnet, explorer } = message;
 
   const body = {
     mint,
     service,
     level,
-    message: messages.join('\n'),
+    message: messages.join('\n') + '\n',
+    explorer:
+      explorer ||
+      `https://solscan.io/account/${mint === 'M' ? PROGRAM_ID.toBase58() : EXT_PROGRAM_ID.toBase58()}${
+        devnet ? '?cluster=devnet' : ''
+      }`,
     link: grafanaLinkBuilder(process.env.GRAFANA_URL ?? '', message.service, message.mint, ''),
   };
 

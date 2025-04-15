@@ -34,6 +34,8 @@ ARG now
 ENV NODE_ENV=production
 ENV BUILD_TIME=$now
 ENV LOKI_URL=$LOKI_URL
+ENV SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
+ENV GRAFANA_URL=$GRAFANA_URL
 
 # Use the environment variable in the command
 CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/index-bot/main.ts push --solanaRpc \"$SVM_RPC\" --ethRpc \"$EVM_RPC\" --ethPrivateKey \"$EVM_KEY\" --threshold \"$THRESHOLD\" "]
