@@ -1,7 +1,6 @@
 // Extension Interface - common interface to interact with M0 extensions
 
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, Token2022, TokenAccount};
 
 // Expand with additional extension program IDs
 static IDS: [Pubkey; 1] = [ext_earn::ID];

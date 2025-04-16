@@ -66,6 +66,8 @@ pub enum NTTError {
     InvalidDestinationToken,
     #[msg("MissingRequiredAccount")]
     MissingRequiredAccount,
+    #[msg("InvalidExtension")]
+    InvalidExtension,
 }
 
 impl From<ScalingError> for NTTError {
