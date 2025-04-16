@@ -19,12 +19,13 @@ export class Graph {
   private client: GraphQLClient;
 
   private baseURL = 'https://gateway.thegraph.com';
-  private subgraphId = 'Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
+  graphId: string;
   key: string;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, graphId: string) {
+    this.graphId = graphId;
     this.key = apiKey;
-    this.client = new GraphQLClient(`${this.baseURL}/api/subgraphs/id/${this.subgraphId}`, {
+    this.client = new GraphQLClient(`${this.baseURL}/api/subgraphs/id/${graphId}`, {
       headers: { Authorization: `Bearer ${this.key}` },
     });
   }
