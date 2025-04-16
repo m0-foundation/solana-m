@@ -8,6 +8,7 @@ WORKDIR /app
 COPY tsconfig.json ./
 COPY --exclude=node_modules ./services/index-bot ./services/index-bot
 COPY --exclude=node_modules ./sdk ./sdk
+COPY ./services/shared ./services/shared
 
 # Install dependencies and build
 RUN yarn init -y && \
@@ -28,12 +29,15 @@ COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/services/index-bot ./services/index-bot
 COPY --from=builder /app/sdk ./sdk
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/shared /app/services/shared
 
 # Set production environment and add build time
 ARG now
 ENV NODE_ENV=production
 ENV BUILD_TIME=$now
 ENV LOKI_URL=$LOKI_URL
+ENV SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
+ENV GRAFANA_DASHBOARD_URL=$GRAFANA_DASHBOARD_URL
 
 # Use the environment variable in the command
 CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/index-bot/main.ts push --solanaRpc \"$SVM_RPC\" --ethRpc \"$EVM_RPC\" --ethPrivateKey \"$EVM_KEY\" --threshold \"$THRESHOLD\" "]
