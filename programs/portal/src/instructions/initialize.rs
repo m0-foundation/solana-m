@@ -137,6 +137,7 @@ pub fn initialize_multisig(ctx: Context<InitializeMultisig>, args: InitializeArg
         ],
         evm_token: [0; 32],
         evm_wrapped_token: [0; 32],
+        supported_extensions: vec![],
     });
 
     common.rate_limit.set_inner(OutboxRateLimit {

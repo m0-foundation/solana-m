@@ -1,5 +1,5 @@
 [workspace]
-members = ["programs/*"]
+members = [ "crates/anchor_m0","programs/*"]
 resolver = "2"
 
 [profile.release]

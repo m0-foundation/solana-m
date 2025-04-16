@@ -263,6 +263,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "anchor_m0"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "ext_earn",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1992,6 +2001,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "anchor_m0",
  "bitmaps 3.2.1",
  "cfg-if",
  "earn",

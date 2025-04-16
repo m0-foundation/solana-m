@@ -62,6 +62,10 @@ pub enum NTTError {
     InvalidMultisig,
     #[msg("InvalidRemainingAccount")]
     InvalidRemainingAccount,
+    #[msg("InvalidDestinationToken")]
+    InvalidDestinationToken,
+    #[msg("MissingRequiredAccount")]
+    MissingRequiredAccount,
 }
 
 impl From<ScalingError> for NTTError {

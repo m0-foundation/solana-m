@@ -33,3 +33,4 @@ bitmaps = "3.2.1"
 cfg-if.workspace = true
 solana-address-lookup-table-program.workspace = true
 earn = { path = "../earn", features = ["cpi"] }
+anchor_m0 = { path = "../../crates/anchor_m0" }
