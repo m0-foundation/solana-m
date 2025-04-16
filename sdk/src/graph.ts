@@ -17,16 +17,11 @@ export type Claim = {
 
 export class Graph {
   private client: GraphQLClient;
-
   private baseURL = 'https://gateway.thegraph.com';
-  graphId: string;
-  key: string;
 
   constructor(apiKey: string, graphId: string) {
-    this.graphId = graphId;
-    this.key = apiKey;
     this.client = new GraphQLClient(`${this.baseURL}/api/subgraphs/id/${graphId}`, {
-      headers: { Authorization: `Bearer ${this.key}` },
+      headers: { Authorization: `Bearer ${apiKey}` },
     });
   }
 
