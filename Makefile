@@ -115,17 +115,14 @@ DEVNET_TARGET_VERSION := v0.0.2
 MAINNET_TARGET_VERSION := v0.0.3
 
 define deploy-subgraph
-	@echo "building substream for $(1)" && \
-	cd substreams && \
+	@cd substreams && \
 	sed -i '' 's/initialBlock: [0-9]*/initialBlock: $(2)/' substreams.yaml && \
 	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' substreams.yaml && \
 	substreams build && \
-	echo "building subgraph" && \
 	cd subgraph && \
 	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' subgraph.yaml && \
 	npm run generate && npm run build && \
-	echo "deploying subgraph" && \
-	graph deploy $(3) --version-label v0.0.1 $(4)
+	graph deploy $(3) --version-label $(4)
 endef
 
 deploy-subgraph-mainnet:
