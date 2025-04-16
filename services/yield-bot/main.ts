@@ -16,24 +16,19 @@ import { instructions } from '@sqds/multisig';
 import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
-import LokiTransport from 'winston-loki';
 import { RateLimiter } from 'limiter';
 import { buildTransaction } from '../../sdk/src/transaction';
+import { sendSlackMessage, SlackMessage } from '../shared/slack';
 
-const logger = new WinstonLogger('yield-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+// logger used by bot and passed to SDK
+const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+if (process.env.LOKI_URL) logger.withLokiTransport(process.env.LOKI_URL);
 
-if (process.env.NODE_ENV === 'production')
-  logger.withTransport(
-    new LokiTransport({
-      host: process.env.LOKI_URL ?? '',
-      json: true,
-      useWinstonMetaAsLabels: true,
-      ignoredMeta: ['imageBuild'],
-      format: logger.logger.format,
-    }),
-  );
-
+// rate limit claims
 const limiter = new RateLimiter({ tokensPerInterval: 2, interval: 1000 });
+
+// meta info from job will be posted to slack
+let slackMessage: SlackMessage;
 
 interface ParsedOptions {
   signer: Keypair;
@@ -45,6 +40,7 @@ interface ParsedOptions {
   squadsPda?: PublicKey;
   claimThreshold: BN;
   programID: PublicKey;
+  mint: 'M' | 'wM';
 }
 
 // entrypoint for the yield bot command
@@ -94,13 +90,22 @@ export async function yieldCLI() {
           skipCycle,
           programID: new PublicKey(programID),
           claimThreshold: new BN(claimThreshold),
+          mint: new PublicKey(programID).equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
         };
 
         if (squadsPda) {
           options.squadsPda = new PublicKey(squadsPda);
         }
 
-        logger.addMetaField('mint', options.programID.equals(EXT_PROGRAM_ID) ? 'wM' : 'M');
+        logger.addMetaField('mint', options.mint);
+
+        slackMessage = {
+          messages: [],
+          mint: options.mint,
+          service: 'yield-bot',
+          level: 'info',
+          devnet: rpc.includes('devnet'),
+        };
 
         const steps = options.programID.equals(PROGRAM_ID)
           ? [removeEarners, distributeYield, addEarners]
@@ -168,23 +173,36 @@ async function distributeYield(opt: ParsedOptions) {
     belowThreshold: claimIxs.length - filteredIxs.length,
   });
 
-  // complete cycle on last claim transaction
-  const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
-  if (!completeClaimIx) {
-    return;
-  }
+  const amountDec = distributed.toNumber() / 1e6;
+  slackMessage.messages.push(`Distributed ${amountDec.toFixed(2)} ${opt.mint} to ${filteredIxs.length} earners`);
 
   // send all the claims
-  const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
-  logger.info('yield distributed', { signatures });
+  if (filteredIxs.length > 0) {
+    const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
+    logger.info('yield distributed', { signatures });
 
-  // wait for claim transactions to be confirmed before completing cycle
-  const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
-  logger.info('cycle complete', { signature: sigs[0] });
+    for (const sig of signatures) {
+      slackMessage.messages.push(
+        `Claims: https://solscan.io/tx/${sig}${opt.connection.rpcEndpoint.includes('devnet') ? '?cluster=devnet' : ''}`,
+      );
+    }
+  }
+
+  if (opt.programID.equals(PROGRAM_ID)) {
+    // complete cycle on last claim transaction
+    const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
+    if (!completeClaimIx) {
+      return;
+    }
+
+    // wait for claim transactions to be confirmed before completing cycle
+    const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
+    logger.info('cycle complete', { signature: sigs[0] });
+  }
 }
 
 async function addEarners(opt: ParsedOptions) {
-  console.log('adding earners');
+  logger.info('adding earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
 
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
@@ -196,10 +214,11 @@ async function addEarners(opt: ParsedOptions) {
 
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'adding earners');
   logger.info('added earners', { signature, earners: instructions.length });
+  slackMessage.messages.push(`Added ${instructions.length} earners`);
 }
 
 async function removeEarners(opt: ParsedOptions) {
-  console.log('removing earners');
+  logger.info('removing earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
 
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
@@ -211,6 +230,7 @@ async function removeEarners(opt: ParsedOptions) {
 
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'removing earners');
   logger.info('removed earners', { signature, earners: instructions.length });
+  slackMessage.messages.push(`Removed ${instructions.length} earners`);
 }
 
 async function syncIndex(opt: ParsedOptions) {
@@ -236,6 +256,7 @@ async function syncIndex(opt: ParsedOptions) {
   const signature = await buildAndSendTransaction(opt, [ix], 10, 'sync index');
 
   logger.info('updated index on ext earn', { ...logsFields, signature: signature[0] });
+  slackMessage.messages.push(`Synced index: ${signature[0]}`);
 }
 
 async function buildAndSendTransaction(
@@ -385,8 +406,6 @@ async function proposeSquadsTransaction(
   const currentTransactionIndex = Number(multisigInfo.transactionIndex);
   const newTransactionIndex = BigInt(currentTransactionIndex + 1);
 
-  const blockhash = (await opt.connection.getLatestBlockhash()).blockhash;
-
   // create transaction
   const ix1 = instructions.vaultTransactionCreate({
     multisigPda: opt.squadsPda!,
@@ -407,12 +426,6 @@ async function proposeSquadsTransaction(
     transactionIndex: newTransactionIndex,
   });
 
-  const message = new TransactionMessage({
-    payerKey: opt.signer.publicKey,
-    recentBlockhash: blockhash,
-    instructions: [ix1, ix2],
-  }).compileToV0Message();
-
   const tx = await buildTransaction(opt.connection, [ix1, ix2], opt.signer.publicKey, priorityFee);
   tx.sign([opt.signer]);
 
@@ -421,8 +434,17 @@ async function proposeSquadsTransaction(
 
 // do not run the cli if this is being imported by jest
 if (!process.argv[1].endsWith('jest')) {
-  yieldCLI().catch((error) => {
-    logger.error('yield bot failed', { error: error.toString() });
-    process.exit(0);
-  });
+  yieldCLI()
+    .catch((error) => {
+      logger.error(error);
+      slackMessage.level = 'error';
+      slackMessage.messages.push(`${error}`);
+    })
+    .finally(async () => {
+      if (slackMessage.messages.length === 0) {
+        slackMessage.messages.push('No actions taken');
+      }
+      await logger.flush();
+      await sendSlackMessage(slackMessage);
+    });
 }

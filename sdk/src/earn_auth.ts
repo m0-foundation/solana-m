@@ -13,6 +13,7 @@ import { Earn } from './idl/earn';
 import { ExtEarn } from './idl/ext_earn';
 import { buildTransaction } from './transaction';
 import { MockLogger, Logger } from './logger';
+import { RateLimiter } from 'limiter';
 
 class EarnAuthority {
   private logger: Logger;
@@ -113,16 +114,6 @@ class EarnAuthority {
       return null;
     }
 
-    // earner was created after last index update
-    if (earner.data.lastClaimTimestamp > this.global.timestamp) {
-      this.logger.warn('Earner created after last index update', {
-        lastClaimTs: earner.data.lastClaimTimestamp.toString(),
-        globalTs: this.global.timestamp.toString(),
-        deltaHours: earner.data.lastClaimTimestamp.sub(this.global.timestamp).toNumber() / 3600,
-      });
-      return null;
-    }
-
     if (earner.data.lastClaimIndex == this.global.index) {
       this.logger.warn('Earner already claimed');
       return null;
@@ -211,15 +202,21 @@ class EarnAuthority {
     ixs: TransactionInstruction[],
     batchSize = 10,
     claimSizeThreshold = new BN(100000), // $0.10
+    rps = 1, // batches per second
   ): Promise<[TransactionInstruction[], BN]> {
+    const limiter = new RateLimiter({ tokensPerInterval: rps, interval: 1000 });
+
     if (this.global.claimComplete) {
       throw new Error('No active claim cycle');
     }
 
     let totalRewards = new BN(0);
-    const filtererdTxns: TransactionInstruction[] = [];
+    const filteredTxns: TransactionInstruction[] = [];
 
     for (const [i, txn] of (await this._buildTransactions(ixs, batchSize)).entries()) {
+      // throttle requests
+      await limiter.removeTokens(1);
+
       // simulate transaction
       const result = await this.connection.simulateTransaction(txn, { sigVerify: false });
       if (result.value.err) {
@@ -236,9 +233,9 @@ class EarnAuthority {
       for (const [index, reward] of batchRewards.entries()) {
         if (reward.user > claimSizeThreshold) {
           totalRewards = totalRewards.add(reward.user).add(reward.fee);
-          filtererdTxns.push(ixs[i * batchSize + index]);
+          filteredTxns.push(ixs[i * batchSize + index]);
 
-          this.logger.info('Claim for earner', {
+          this.logger.debug('Claim for earner', {
             tokenAccount: reward.tokenAccount.toString(),
             rewards: reward.user.toString(),
             fee: reward.fee.toString(),
@@ -250,7 +247,8 @@ class EarnAuthority {
     // validate rewards is not higher than max claimable rewards
     if (this.programID.equals(PROGRAM_ID)) {
       if (totalRewards.gt(this.global.maxYield!)) {
-        this.logger.error('Claim amount exceeds max claimable rewards', {
+        this.logger.error('Error simulating claims', {
+          error: 'Claim amount exceeds max claimable rewards',
           totalRewards: totalRewards.toString(),
           maxYield: this.global.maxYield!.toString(),
         });
@@ -281,7 +279,8 @@ class EarnAuthority {
       const collateral = new BN(tokenAccountInfo.amount.toString());
 
       if (new BN(mint.supply.toString()).add(totalRewards).gt(collateral)) {
-        this.logger.error('Claim amount exceeds max claimable rewards', {
+        this.logger.error('Error simulating claims', {
+          error: 'Claim amount exceeds max claimable rewards',
           mintSupply: mint.supply.toString(),
           totalRewards: totalRewards.toString(),
           collateral: collateral.toString(),
@@ -290,7 +289,7 @@ class EarnAuthority {
       }
     }
 
-    return [filtererdTxns, totalRewards];
+    return [filteredTxns, totalRewards];
   }
 
   async buildIndexSyncInstruction(): Promise<TransactionInstruction> {
