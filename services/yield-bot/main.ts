@@ -176,12 +176,6 @@ async function distributeYield(opt: ParsedOptions) {
   const amountDec = distributed.toNumber() / 1e6;
   slackMessage.messages.push(`Distributed ${amountDec.toFixed(2)} ${opt.mint} to ${filteredIxs.length} earners`);
 
-  // complete cycle on last claim transaction
-  const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
-  if (!completeClaimIx) {
-    return;
-  }
-
   // send all the claims
   if (filteredIxs.length > 0) {
     const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
@@ -194,9 +188,17 @@ async function distributeYield(opt: ParsedOptions) {
     }
   }
 
-  // wait for claim transactions to be confirmed before completing cycle
-  const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
-  logger.info('cycle complete', { signature: sigs[0] });
+  if (opt.programID.equals(PROGRAM_ID)) {
+    // complete cycle on last claim transaction
+    const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
+    if (!completeClaimIx) {
+      return;
+    }
+
+    // wait for claim transactions to be confirmed before completing cycle
+    const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
+    logger.info('cycle complete', { signature: sigs[0] });
+  }
 }
 
 async function addEarners(opt: ParsedOptions) {

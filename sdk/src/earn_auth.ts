@@ -114,16 +114,6 @@ class EarnAuthority {
       return null;
     }
 
-    // earner was created after last index update
-    if (earner.data.lastClaimTimestamp > this.global.timestamp) {
-      this.logger.warn('Earner created after last index update', {
-        lastClaimTs: earner.data.lastClaimTimestamp.toString(),
-        globalTs: this.global.timestamp.toString(),
-        deltaHours: earner.data.lastClaimTimestamp.sub(this.global.timestamp).toNumber() / 3600,
-      });
-      return null;
-    }
-
     if (earner.data.lastClaimIndex == this.global.index) {
       this.logger.warn('Earner already claimed');
       return null;
@@ -212,7 +202,7 @@ class EarnAuthority {
     ixs: TransactionInstruction[],
     batchSize = 10,
     claimSizeThreshold = new BN(100000), // $0.10
-    rps = 3, // rpc requests per second
+    rps = 1, // batches per second
   ): Promise<[TransactionInstruction[], BN]> {
     const limiter = new RateLimiter({ tokensPerInterval: rps, interval: 1000 });
 
