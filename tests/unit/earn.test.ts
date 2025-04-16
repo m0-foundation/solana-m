@@ -1427,10 +1427,12 @@ describe("Earn unit tests", () => {
       await propagateIndex(newIndex);
 
       // Calculate expected rewards per token and max yield
-      const maxYield = initialSupply
+      const supplyPlusLeftover = initialSupply.add(startGlobalState.maxYield).sub(startGlobalState.distributed);
+
+      const maxYield = supplyPlusLeftover
         .mul(newIndex)
         .div(startIndex)
-        .sub(initialSupply)
+        .sub(supplyPlusLeftover)
         .add(startGlobalState.maxYield);
 
       // Check that a new cycle started with all updates
