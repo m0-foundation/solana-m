@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_m0::extension_interface::{wrap, ExtGlobal, ExtensionInterface, Wrap};
 use anchor_spl::{associated_token::get_associated_token_address_with_program_id, token_interface};
 use earn::cpi::accounts::PropagateIndex;
 use ntt_messages::mode::Mode;
@@ -27,7 +28,7 @@ pub struct ReleaseInbound<'info> {
         address = if inbox_item.transfer.amount > 0 {
             get_associated_token_address_with_program_id(
                 &inbox_item.transfer.recipient,
-                &mint.key(),
+                &inbox_item.transfer.token_mint,
                 &token_program.key(),
             )
         } else {
@@ -58,6 +59,30 @@ pub struct ReleaseInbound<'info> {
         address = config.custody
     )]
     pub custody: InterfaceAccount<'info, token_interface::TokenAccount>,
+
+    #[account(
+        mut,
+        address = inbox_item.transfer.token_mint,
+    )]
+    pub ext_mint: Option<InterfaceAccount<'info, token_interface::Mint>>,
+
+    pub ext_program: Option<Interface<'info, ExtensionInterface>>,
+
+    /// CHECK: the ext_program checks that this account is valid in the cpi
+    pub ext_global: Option<InterfaceAccount<'info, ExtGlobal>>,
+
+    /// CHECK: the ext_program checks that this account is valid in the cpi
+    pub ext_mint_authority: Option<AccountInfo<'info>>,
+
+    /// CHECK: the ext_program checks that this account is valid in the cpi
+    pub ext_vault: Option<AccountInfo<'info>>,
+
+    #[account(
+        mut,
+        associated_token::mint = ext_mint,
+        associated_token::authority = ext_vault,
+    )]
+    pub ext_vault_token_account: Option<InterfaceAccount<'info, token_interface::TokenAccount>>,
 }
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
@@ -120,23 +145,82 @@ pub fn release_inbound_mint_multisig<'info>(
             token_authority_sig,
         )?;
 
-        onchain::invoke_transfer_checked(
-            &ctx.accounts.common.token_program.key(),
-            ctx.accounts.common.custody.to_account_info(),
-            ctx.accounts.common.mint.to_account_info(),
-            ctx.accounts.common.recipient.to_account_info(),
-            ctx.accounts.common.token_authority.to_account_info(),
-            ctx.remaining_accounts,
-            inbox_item.transfer.amount,
-            ctx.accounts.common.mint.decimals,
-            token_authority_sig,
-        )?;
+        // If the target token is the base mint, we just transfer to the recipient
+        // Otherwise, we wrap the base token into the supported extension
+        if inbox_item.transfer.token_mint == ctx.accounts.common.mint.key() {
+            onchain::invoke_transfer_checked(
+                &ctx.accounts.common.token_program.key(),
+                ctx.accounts.common.custody.to_account_info(),
+                ctx.accounts.common.mint.to_account_info(),
+                ctx.accounts.common.recipient.to_account_info(),
+                ctx.accounts.common.token_authority.to_account_info(),
+                ctx.remaining_accounts,
+                inbox_item.transfer.amount,
+                ctx.accounts.common.mint.decimals,
+                token_authority_sig,
+            )?;
+        } else {
+            let ext_mint = ctx
+                .accounts
+                .common
+                .ext_mint
+                .as_ref()
+                .ok_or(NTTError::MissingRequiredAccount)?;
 
-        msg!(
-            "Transferred {} tokens to {}",
-            inbox_item.transfer.amount,
-            inbox_item.transfer.recipient
-        );
+            let ext_program = ctx
+                .accounts
+                .common
+                .ext_program
+                .as_ref()
+                .ok_or(NTTError::MissingRequiredAccount)?;
+
+            let ext_global = ctx
+                .accounts
+                .common
+                .ext_global
+                .as_ref()
+                .ok_or(NTTError::MissingRequiredAccount)?;
+
+            let ext_mint_authority = ctx
+                .accounts
+                .common
+                .ext_mint_authority
+                .as_ref()
+                .ok_or(NTTError::MissingRequiredAccount)?;
+
+            let ext_vault = ctx
+                .accounts
+                .common
+                .ext_vault
+                .as_ref()
+                .ok_or(NTTError::MissingRequiredAccount)?;
+
+            let ext_vault_token_account = ctx
+                .accounts
+                .common
+                .ext_vault_token_account
+                .as_ref()
+                .ok_or(NTTError::MissingRequiredAccount)?;
+
+            let ctx = CpiContext::new_with_signer(
+                ext_program.to_account_info(),
+                Wrap {
+                    signer: ctx.accounts.common.token_authority.to_account_info(),
+                    m_mint: ctx.accounts.common.mint.to_account_info(),
+                    ext_mint: ext_mint.to_account_info(),
+                    global_account: ext_global.to_account_info(),
+                    m_vault: ext_vault.clone(),
+                    ext_mint_authority: ext_mint_authority.to_account_info(),
+                    from_m_token_account: ctx.accounts.common.custody.to_account_info(),
+                    vault_m_token_account: ext_vault_token_account.to_account_info(),
+                    to_ext_token_account: ctx.accounts.common.recipient.to_account_info(),
+                    token_2022: ctx.accounts.common.token_program.to_account_info(),
+                },
+                token_authority_sig,
+            );
+
+            wrap(ctx, inbox_item.transfer.amount)?;
+        }
     }
 
     // Send update to the earn program
@@ -169,11 +253,7 @@ pub fn release_inbound_mint_multisig<'info>(
         );
 
         let root_updates = inbox_item.root_updates.clone().unwrap_or_default();
-        earn::cpi::propagate_index(
-            ctx,
-            inbox_item.index_update,
-            root_updates.earner_root,
-        )?;
+        earn::cpi::propagate_index(ctx, inbox_item.index_update, root_updates.earner_root)?;
 
         msg!(
             "Index update: {} | root update: {}",

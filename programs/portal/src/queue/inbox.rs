@@ -24,6 +24,7 @@ pub struct InboxItem {
 pub struct TokenTransfer {
     pub amount: u64,
     pub recipient: Pubkey,
+    pub token_mint: Pubkey,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, Default)]

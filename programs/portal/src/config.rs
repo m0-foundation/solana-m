@@ -60,6 +60,9 @@ pub struct Config {
     /// destination token addresses
     pub evm_token: [u8; 32],
     pub evm_wrapped_token: [u8; 32],
+    // source token addresses (i.e. extensions that unwrap to the mint)
+    #[max_len(10)]
+    pub supported_extensions: Vec<Pubkey>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]

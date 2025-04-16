@@ -1,0 +1,13 @@
+[package]
+name = "anchor_m0"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "anchor_m0"
+
+[dependencies]
+anchor-lang.workspace = true
+anchor-spl.workspace = true
+ext_earn = { version = "0.1.0", path = "../../programs/ext_earn", features = ["cpi"]}

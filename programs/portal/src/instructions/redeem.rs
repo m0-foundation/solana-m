@@ -144,6 +144,22 @@ pub fn redeem(ctx: Context<Redeem>, _args: RedeemArgs) -> Result<()> {
                 let payload = &ntt.additional_payload;
                 inbox_item.index_update = payload.index;
 
+                // all payloads should have a destination token address
+                let destination_token: Pubkey = Pubkey::try_from(payload.destination_token)
+                    .map_err(|_| NTTError::InvalidDestinationToken)?;
+
+                if destination_token == accs.config.mint
+                    || accs
+                        .config
+                        .supported_extensions
+                        .contains(&destination_token)
+                        && destination_token != Pubkey::default()
+                {
+                    inbox_item.transfer.token_mint = destination_token;
+                } else {
+                    return err!(NTTError::InvalidDestinationToken);
+                }
+
                 // payloads from mainnet might have merkle root updates
                 if payload.earner_root.is_some() {
                     inbox_item.root_updates = Some(RootUpdates {

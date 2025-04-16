@@ -14,6 +14,7 @@
 
 #![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
+use anchor_m0::extension_interface::{unwrap, ExtGlobal, ExtensionInterface, Unwrap};
 use anchor_spl::token_interface;
 use ntt_messages::{chain_id::ChainId, mode::Mode, trimmed_amount::TrimmedAmount};
 use spl_token_2022::onchain;
@@ -52,7 +53,11 @@ pub struct Transfer<'info> {
 
     #[account(
         mut,
-        token::mint = mint,
+        token::mint = if ext_mint.is_some() {
+            ext_mint.as_ref().unwrap()
+        } else {
+            &mint
+        },
     )]
     /// CHECK: the spl token program will check that the session_authority
     ///        account can spend these tokens.
@@ -80,6 +85,27 @@ pub struct Transfer<'info> {
     pub custody: InterfaceAccount<'info, token_interface::TokenAccount>,
 
     pub system_program: Program<'info, System>,
+
+    #[account(
+        constraint = config.supported_extensions.contains(&ext_mint.key()) @ NTTError::InvalidExtension,
+    )]
+    /// CHECK: the ext mint address is supported
+    pub ext_mint: Option<InterfaceAccount<'info, token_interface::Mint>>,
+
+    pub ext_program: Option<Interface<'info, ExtensionInterface>>,
+
+    pub ext_global: Option<InterfaceAccount<'info, ExtGlobal>>,
+
+    /// CHECK: the ext program checks that this account is valid in the cpi
+    pub ext_vault: Option<AccountInfo<'info>>,
+
+    #[account(
+        mut,
+        associated_token::mint = ext_mint,
+        associated_token::authority = ext_vault,
+    )]
+    /// CHECK: the ext program checks that this account is valid in the cpi
+    pub ext_vault_token_account: Option<InterfaceAccount<'info, token_interface::TokenAccount>>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -189,22 +215,74 @@ pub fn transfer_burn<'info>(
     // (mint to custody, *then* transfer to recipient).
 
     // Step 1: transfer to custody account
-    onchain::invoke_transfer_checked(
-        &accs.common.token_program.key(),
-        accs.common.from.to_account_info(),
-        accs.common.mint.to_account_info(),
-        accs.common.custody.to_account_info(),
-        accs.session_authority.to_account_info(),
-        ctx.remaining_accounts,
-        amount,
-        accs.common.mint.decimals,
-        &[&[
-            crate::SESSION_AUTHORITY_SEED,
-            accs.common.from.owner.as_ref(),
-            args.keccak256().as_ref(),
-            &[ctx.bumps.session_authority],
-        ]],
-    )?;
+    // If coming from an extension, we unwrap to custody account
+    // Otherwise, we transfer to custody account
+    let arg_hash = args.keccak256();
+    let session_seeds: &[&[&[u8]]] = &[&[
+        crate::SESSION_AUTHORITY_SEED,
+        accs.common.from.owner.as_ref(),
+        &arg_hash.as_ref(),
+        &[ctx.bumps.session_authority],
+    ]];
+
+    if accs.common.ext_mint.is_some() {
+        // Setup the unwrap instruction
+        let ext_mint = accs
+            .common
+            .ext_mint
+            .as_ref()
+            .ok_or(NTTError::MissingRequiredAccount)?;
+        let ext_program = accs
+            .common
+            .ext_program
+            .as_ref()
+            .ok_or(NTTError::MissingRequiredAccount)?;
+        let ext_global = accs
+            .common
+            .ext_global
+            .as_ref()
+            .ok_or(NTTError::MissingRequiredAccount)?;
+        let ext_vault = accs
+            .common
+            .ext_vault
+            .as_ref()
+            .ok_or(NTTError::MissingRequiredAccount)?;
+        let ext_vault_token_account = accs
+            .common
+            .ext_vault_token_account
+            .as_ref()
+            .ok_or(NTTError::MissingRequiredAccount)?;
+
+        let ctx = CpiContext::new_with_signer(
+            ext_program.to_account_info(),
+            Unwrap {
+                signer: accs.session_authority.to_account_info(),
+                m_mint: accs.common.mint.to_account_info(),
+                ext_mint: ext_mint.to_account_info(),
+                global_account: ext_global.to_account_info(),
+                m_vault: ext_vault.to_account_info(),
+                to_m_token_account: accs.common.custody.to_account_info(),
+                vault_m_token_account: ext_vault_token_account.to_account_info(),
+                from_ext_token_account: accs.common.from.to_account_info(),
+                token_2022: accs.common.token_program.to_account_info(),
+            },
+            session_seeds,
+        );
+
+        unwrap(ctx, amount)?;
+    } else {
+        onchain::invoke_transfer_checked(
+            &accs.common.token_program.key(),
+            accs.common.from.to_account_info(),
+            accs.common.mint.to_account_info(),
+            accs.common.custody.to_account_info(),
+            accs.session_authority.to_account_info(),
+            ctx.remaining_accounts,
+            amount,
+            accs.common.mint.decimals,
+            session_seeds,
+        )?;
+    }
 
     // Step 2: burn the tokens from the custody account
     token_interface::burn(
