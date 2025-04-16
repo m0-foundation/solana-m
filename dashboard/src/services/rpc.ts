@@ -20,11 +20,10 @@ import { EXT_EARN_PROGRAM_ID, M_MINT, PORTAL, wM_MINT } from './consts';
 import { type Provider } from '@reown/appkit-adapter-solana/react';
 import Decimal from 'decimal.js';
 import { getU64Encoder } from '@solana/codecs';
-import { signSendWait, UniversalAddress, Wormhole } from '@wormhole-foundation/sdk';
+import { UniversalAddress, Wormhole } from '@wormhole-foundation/sdk';
 import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
 import { EvmNtt } from '@wormhole-foundation/sdk-evm-ntt';
 import { SolanaPlatform } from '@wormhole-foundation/sdk-solana';
-import { EvmPlatform } from '@wormhole-foundation/sdk-evm';
 import { SendTransactionMutate } from 'wagmi/query';
 import { Config } from 'wagmi';
 import { JsonRpcProvider } from 'ethers';
@@ -253,7 +252,7 @@ export const bidgeFromEvm = async (
     throw new Error('Wallet not connected');
   }
 
-  const ntt = new EvmNtt('Testnet', 'Sepolia', new JsonRpcProvider(import.meta.env.VITE_EVM_RPC_URL), {});
+  const ntt = EvmNttManager();
   const sender = Wormhole.parseAddress(fromChain as any, address);
 
   const xferTxs = ntt.transfer(
@@ -273,18 +272,15 @@ export const bidgeFromEvm = async (
   let sig: string = '';
   for await (const tx of xferTxs) {
     const { to, data, value } = tx.transaction;
-
-    if (!to || !data || !value) {
+    if (!to || !data) {
       throw new Error('Missing transaction data');
     }
-
-    console.log('params', { to: to, value, data });
 
     sig = await new Promise((resolve, reject) => {
       sendTransaction(
         {
           to: to as `0x${string}`,
-          value: BigInt(value.toString()),
+          value: value ? BigInt(value.toString()) : undefined,
           data: data as `0x${string}`,
         },
         {
@@ -326,4 +322,21 @@ export function NttManager(connection: Connection, mint: PublicKey) {
   );
 
   return ntt;
+}
+
+function EvmNttManager() {
+  const wormholeNetwork = NETWORK === 'devnet' ? 'Testnet' : 'Mainnet';
+  const wh = new Wormhole(wormholeNetwork, [SolanaPlatform]);
+  const ctx = wh.getChain('Solana');
+
+  return new EvmNtt('Testnet', 'Sepolia', new JsonRpcProvider(import.meta.env.VITE_EVM_RPC_URL), {
+    ...ctx.config.contracts,
+    ntt: {
+      token: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+      manager: '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd',
+      transceiver: {
+        wormhole: '0x0763196A091575adF99e2306E5e90E0Be5154841',
+      },
+    },
+  });
 }

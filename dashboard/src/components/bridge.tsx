@@ -154,7 +154,7 @@ export const Bridge = () => {
         </div>,
       );
     } catch (error) {
-      console.error('Error:', error);
+      console.error(error);
 
       toast.error(<div>Transaction failed: {error instanceof Error ? error.message : 'Unknown error'}</div>);
     } finally {

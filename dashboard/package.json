@@ -32,7 +32,6 @@
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react-swc": "^3.8.0",
     "@wagmi/core": "^2.16.7",
-    "@wormhole-foundation/sdk-evm": "^1.14.1",
     "@wormhole-foundation/sdk-evm-ntt": "^0.7.1",
     "@wormhole-foundation/sdk-solana": "^1.14.1",
     "@wormhole-foundation/sdk-solana-ntt": "^0.7.1",
