@@ -1099,7 +1099,7 @@ const setRecipient = async (earner: Keypair, recipientTokenAccount: PublicKey | 
     return { earnerAccount };
 }
 
-const prepWrap = async (signer: Keypair, userMTokenAccount?: PublicKey, userExtTokenAccount?: PublicKey, vaultMTokenAccount?: PublicKey) => {
+const prepWrap = async (signer: Keypair, fromMTokenAccount?: PublicKey, toExtTokenAccount?: PublicKey, vaultMTokenAccount?: PublicKey) => {
     // Get the M vault pda
     const mVault = getMVault();
 
@@ -1111,21 +1111,21 @@ const prepWrap = async (signer: Keypair, userMTokenAccount?: PublicKey, userExtT
     accounts.globalAccount = getExtGlobalAccount();
     accounts.mVault = mVault;
     accounts.extMintAuthority = getExtMintAuthority();
-    accounts.userMTokenAccount = userMTokenAccount ?? await getATA(mMint.publicKey, signer.publicKey);
-    accounts.userExtTokenAccount = userExtTokenAccount ?? await getATA(extMint.publicKey, signer.publicKey);
+    accounts.fromMTokenAccount = fromMTokenAccount ?? await getATA(mMint.publicKey, signer.publicKey);
+    accounts.toExtTokenAccount = toExtTokenAccount ?? await getATA(extMint.publicKey, signer.publicKey);
     accounts.vaultMTokenAccount = vaultMTokenAccount ?? await getATA(mMint.publicKey, mVault);
     accounts.token2022 = TOKEN_2022_PROGRAM_ID;
 
     return {
         vaultMTokenAccount: accounts.vaultMTokenAccount,
-        userMTokenAccount: accounts.userMTokenAccount,
-        userExtTokenAccount: accounts.userExtTokenAccount
+        fromMTokenAccount: accounts.fromMTokenAccount,
+        toExtTokenAccount: accounts.toExtTokenAccount 
     };
 };
 
 const wrap = async (user: Keypair, amount: BN) => {
     // Setup the instruction
-    const { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount } = await prepWrap(user);
+    const { vaultMTokenAccount, fromMTokenAccount, toExtTokenAccount } = await prepWrap(user);
 
     // Send the instruction
     await extEarn.methods
@@ -1134,10 +1134,10 @@ const wrap = async (user: Keypair, amount: BN) => {
         .signers([user])
         .rpc();
 
-    return { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount };
+    return { vaultMTokenAccount, fromMTokenAccount, toExtTokenAccount };
 };
 
-const prepUnwrap = async (signer: Keypair, userMTokenAccount?: PublicKey, userExtTokenAccount?: PublicKey, vaultMTokenAccount?: PublicKey) => {
+const prepUnwrap = async (signer: Keypair, toMTokenAccount?: PublicKey, fromExtTokenAccount?: PublicKey, vaultMTokenAccount?: PublicKey) => {
     // Get m vault pda
     const mVault = getMVault();
 
@@ -1149,21 +1149,21 @@ const prepUnwrap = async (signer: Keypair, userMTokenAccount?: PublicKey, userEx
     accounts.globalAccount = getExtGlobalAccount();
     accounts.mVault = mVault;
     accounts.extMintAuthority = getExtMintAuthority();
-    accounts.userMTokenAccount = userMTokenAccount ?? await getATA(mMint.publicKey, signer.publicKey);
-    accounts.userExtTokenAccount = userExtTokenAccount ?? await getATA(extMint.publicKey, signer.publicKey);
+    accounts.toMTokenAccount = toMTokenAccount ?? await getATA(mMint.publicKey, signer.publicKey);
+    accounts.fromExtTokenAccount = fromExtTokenAccount ?? await getATA(extMint.publicKey, signer.publicKey);
     accounts.vaultMTokenAccount = vaultMTokenAccount ?? await getATA(mMint.publicKey, mVault);
     accounts.token2022 = TOKEN_2022_PROGRAM_ID;
 
     return {
         vaultMTokenAccount: accounts.vaultMTokenAccount,
-        userMTokenAccount: accounts.userMTokenAccount,
-        userExtTokenAccount: accounts.userExtTokenAccount
+        toMTokenAccount: accounts.toMTokenAccount,
+        fromExtTokenAccount: accounts.fromExtTokenAccount
     };
 };
 
 const unwrap = async (user: Keypair, amount: BN) => {
     // Setup the instruction
-    const { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount } = await prepUnwrap(user);
+    const { vaultMTokenAccount, toMTokenAccount, fromExtTokenAccount } = await prepUnwrap(user);
 
     // Send the instruction
     await extEarn.methods
@@ -1172,7 +1172,7 @@ const unwrap = async (user: Keypair, amount: BN) => {
         .signers([user])
         .rpc();
 
-    return { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount };
+    return { vaultMTokenAccount, toMTokenAccount, fromExtTokenAccount };
 };
 
 const prepRemoveOrphanedEarner = (
@@ -3607,13 +3607,13 @@ describe("ExtEarn unit tests", () => {
             //   [X] it reverts with an InvalidAccount error
             // [X] given the ext mint account does not match the one stored in the global account
             //   [X] it reverts with an InvalidAccount error
-            // [X] given the signer is not the authority on the user m token account
+            // [X] given the signer is not the authority on the from m token account
             //   [X] it reverts with a ConstraintTokenOwner error
             // [X] given the vault M token account is not the M Vaults ATA for the M token mint
             //   [X] it reverts with a ConstraintAssociated error
-            // [X] given the user m token account is for the wrong mint
+            // [X] given the from m token account is for the wrong mint
             //   [X] it reverts with a ConstraintTokenMint error
-            // [X] given the user ext token account is for the wrong mint
+            // [X] given the to ext token account is for the wrong mint
             //   [X] it reverts with a ConstraintTokenMint error
             // [X] given all the accounts are correct
             //   [X] given the user does not have enough M tokens
@@ -3667,7 +3667,7 @@ describe("ExtEarn unit tests", () => {
 
             // given the signer is not the authority on the user M token account
             // it reverts with a ConstraintTokenOwner error
-            test("Signer is not the authority on the user M token account - reverts", async () => {
+            test("Signer is not the authority on the from M token account - reverts", async () => {
                 // Get the ATA for another user 
                 const wrongATA = await getATA(mMint.publicKey, nonEarnerOne.publicKey);
 
@@ -3734,9 +3734,9 @@ describe("ExtEarn unit tests", () => {
                 );
             });
 
-            // given the user m token account is for the wrong mint
+            // given the from m token account is for the wrong mint
             // it reverts with a ConstraintTokenMint error
-            test("User M token account is for wrong mint - reverts", async () => {
+            test("From M token account is for wrong mint - reverts", async () => {
                 // Get the user's ATA for the ext mint and pass it as the user M token account
                 const wrongUserATA = await getATA(
                     extMint.publicKey,
@@ -3758,9 +3758,9 @@ describe("ExtEarn unit tests", () => {
                 );
             });
 
-            // given the user ext token account is for the wrong mint
+            // given the to ext token account is for the wrong mint
             // it reverts with a ConstraintTokenMint error
-            test("User Ext token account is for the wrong mint - reverts", async () => {
+            test("To Ext token account is for the wrong mint - reverts", async () => {
                 // Get the user's ATA for the m mint and pass it as the user ext token account
                 const wrongUserATA = await getATA(
                     mMint.publicKey,
@@ -3811,14 +3811,14 @@ describe("ExtEarn unit tests", () => {
                 // Setup the instruction
                 const {
                     vaultMTokenAccount,
-                    userMTokenAccount,
-                    userExtTokenAccount
+                    fromMTokenAccount,
+                    toExtTokenAccount
                 } = await prepWrap(earnerOne);
 
                 // Confirm initial balances
-                await expectTokenBalance(userMTokenAccount, mintAmount);
+                await expectTokenBalance(fromMTokenAccount, mintAmount);
                 await expectTokenBalance(vaultMTokenAccount, new BN(0));
-                await expectTokenBalance(userExtTokenAccount, new BN(0));
+                await expectTokenBalance(toExtTokenAccount, new BN(0));
 
                 const wrapAmount = new BN(randomInt(1, mintAmount.toNumber()));
 
@@ -3830,9 +3830,9 @@ describe("ExtEarn unit tests", () => {
                     .rpc();
 
                 // Confirm updated balances
-                await expectTokenBalance(userMTokenAccount, mintAmount.sub(wrapAmount));
+                await expectTokenBalance(fromMTokenAccount, mintAmount.sub(wrapAmount));
                 await expectTokenBalance(vaultMTokenAccount, wrapAmount);
-                await expectTokenBalance(userExtTokenAccount, wrapAmount);
+                await expectTokenBalance(toExtTokenAccount, wrapAmount);
             });
 
             // given all accounts are correct
@@ -3843,14 +3843,14 @@ describe("ExtEarn unit tests", () => {
                 // Setup the instruction
                 const {
                     vaultMTokenAccount,
-                    userMTokenAccount,
-                    userExtTokenAccount
+                    fromMTokenAccount,
+                    toExtTokenAccount
                 } = await prepWrap(nonEarnerOne);
 
                 // Confirm initial balances
-                await expectTokenBalance(userMTokenAccount, mintAmount);
+                await expectTokenBalance(fromMTokenAccount, mintAmount);
                 await expectTokenBalance(vaultMTokenAccount, new BN(0));
-                await expectTokenBalance(userExtTokenAccount, new BN(0));
+                await expectTokenBalance(toExtTokenAccount, new BN(0));
 
                 const wrapAmount = new BN(randomInt(1, mintAmount.toNumber()));
 
@@ -3862,9 +3862,9 @@ describe("ExtEarn unit tests", () => {
                     .rpc();
 
                 // Confirm updated balances
-                await expectTokenBalance(userMTokenAccount, mintAmount.sub(wrapAmount));
+                await expectTokenBalance(fromMTokenAccount, mintAmount.sub(wrapAmount));
                 await expectTokenBalance(vaultMTokenAccount, wrapAmount);
-                await expectTokenBalance(userExtTokenAccount, wrapAmount);
+                await expectTokenBalance(toExtTokenAccount, wrapAmount);
             });
         });
 
@@ -3882,13 +3882,13 @@ describe("ExtEarn unit tests", () => {
             //   [X] it reverts with an InvalidAccount error
             // [X] given the ext mint account does not match the one stored in the global account
             //   [X] it reverts with an InvalidAccount error
-            // [X] given the signer is not the authority on the user ext token account
+            // [X] given the signer is not the authority on the from ext token account
             //   [X] it reverts with a ConstraintTokenOwner error
             // [X] given the vault M token account is not the M Vaults ATA for the M token mint
             //   [X] it reverts with a ConstraintAssociated error
-            // [X] given the user m token account is for the wrong mint
+            // [X] given the to m token account is for the wrong mint
             //   [X] it reverts with a ConstraintTokenMint error
-            // [X] given the user ext token account is for the wrong mint
+            // [X] given the from ext token account is for the wrong mint
             //   [X] it reverts with a ConstraintTokenMint error
             // [X] given all the accounts are correct
             //   [X] given the user does not have enough ext tokens
@@ -3942,12 +3942,13 @@ describe("ExtEarn unit tests", () => {
 
             // given the signer is not the authority on the user M token account
             // it reverts with a ConstraintTokenOwner error
-            test("Signer is not the authority on the user M token account - reverts", async () => {
+            test("Signer is not the authority on the from Ext token account - reverts", async () => {
                 // Get the ATA for another user 
-                const wrongATA = await getATA(mMint.publicKey, nonEarnerOne.publicKey);
+                const mATA = await getATA(mMint.publicKey, earnerOne.publicKey);
+                const wrongExtATA = await getATA(extMint.publicKey, nonEarnerOne.publicKey);
 
                 // Setup the instruction with the wrong user M token account
-                await prepUnwrap(earnerOne, wrongATA);
+                await prepUnwrap(earnerOne, mATA, wrongExtATA);
 
                 // Attempt to send the transaction
                 // Expect revert with TokenOwner error
@@ -4011,7 +4012,7 @@ describe("ExtEarn unit tests", () => {
 
             // given the user m token account is for the wrong mint
             // it reverts with a ConstraintTokenMint error
-            test("User M token account is for wrong mint - reverts", async () => {
+            test("To M token account is for wrong mint - reverts", async () => {
                 // Get the user's ATA for the ext mint and pass it as the user M token account
                 const wrongUserATA = await getATA(
                     extMint.publicKey,
@@ -4035,7 +4036,7 @@ describe("ExtEarn unit tests", () => {
 
             // given the user ext token account is for the wrong mint
             // it reverts with a ConstraintTokenMint error
-            test("User Ext token account is for the wrong mint - reverts", async () => {
+            test("From Ext token account is for the wrong mint - reverts", async () => {
                 // Get the user's ATA for the m mint and pass it as the user ext token account
                 const wrongUserATA = await getATA(
                     mMint.publicKey,
@@ -4085,14 +4086,14 @@ describe("ExtEarn unit tests", () => {
                 // Setup the instruction
                 const {
                     vaultMTokenAccount,
-                    userMTokenAccount,
-                    userExtTokenAccount
+                    toMTokenAccount,
+                    fromExtTokenAccount
                 } = await prepUnwrap(earnerOne);
 
                 // Confirm initial balances
-                await expectTokenBalance(userMTokenAccount, mintAmount.sub(wrappedAmount));
+                await expectTokenBalance(toMTokenAccount, mintAmount.sub(wrappedAmount));
                 await expectTokenBalance(vaultMTokenAccount, wrappedAmount.add(wrappedAmount));
-                await expectTokenBalance(userExtTokenAccount, wrappedAmount);
+                await expectTokenBalance(fromExtTokenAccount, wrappedAmount);
 
                 const unwrapAmount = new BN(randomInt(1, wrappedAmount.toNumber()));
 
@@ -4104,9 +4105,9 @@ describe("ExtEarn unit tests", () => {
                     .rpc();
 
                 // Confirm updated balances
-                await expectTokenBalance(userMTokenAccount, mintAmount.sub(wrappedAmount).add(unwrapAmount));
+                await expectTokenBalance(toMTokenAccount, mintAmount.sub(wrappedAmount).add(unwrapAmount));
                 await expectTokenBalance(vaultMTokenAccount, wrappedAmount.add(wrappedAmount).sub(unwrapAmount));
-                await expectTokenBalance(userExtTokenAccount, wrappedAmount.sub(unwrapAmount));
+                await expectTokenBalance(fromExtTokenAccount, wrappedAmount.sub(unwrapAmount));
             });
 
             // given all accounts are correct
@@ -4117,14 +4118,14 @@ describe("ExtEarn unit tests", () => {
                 // Setup the instruction
                 const {
                     vaultMTokenAccount,
-                    userMTokenAccount,
-                    userExtTokenAccount
+                    toMTokenAccount,
+                    fromExtTokenAccount
                 } = await prepUnwrap(nonEarnerOne);
 
                 // Confirm initial balances
-                await expectTokenBalance(userMTokenAccount, mintAmount.sub(wrappedAmount));
+                await expectTokenBalance(toMTokenAccount, mintAmount.sub(wrappedAmount));
                 await expectTokenBalance(vaultMTokenAccount, wrappedAmount.add(wrappedAmount));
-                await expectTokenBalance(userExtTokenAccount, wrappedAmount);
+                await expectTokenBalance(fromExtTokenAccount, wrappedAmount);
 
                 const unwrapAmount = new BN(randomInt(1, wrappedAmount.toNumber()));
 
@@ -4136,9 +4137,9 @@ describe("ExtEarn unit tests", () => {
                     .rpc();
 
                 // Confirm updated balances
-                await expectTokenBalance(userMTokenAccount, mintAmount.sub(wrappedAmount).add(unwrapAmount));
+                await expectTokenBalance(toMTokenAccount, mintAmount.sub(wrappedAmount).add(unwrapAmount));
                 await expectTokenBalance(vaultMTokenAccount, wrappedAmount.add(wrappedAmount).sub(unwrapAmount));
-                await expectTokenBalance(userExtTokenAccount, wrappedAmount.sub(unwrapAmount));
+                await expectTokenBalance(fromExtTokenAccount, wrappedAmount.sub(unwrapAmount));
             });
         });
 
