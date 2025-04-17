@@ -123,48 +123,9 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &[ctx.accounts.global_account.ext_mint_authority_bump],
     ]];
 
-    // Calculate the earn manager fee if applicable and subtract from the earner's rewards
-    // If the earn manager is not active, then no fee is taken
-    let fee = if ctx.accounts.earn_manager_account.fee_bps > 0
-        && ctx.accounts.earn_manager_account.is_active
-    {
-        // Check that earn manager token account is initialized and deserialize it
-        // If so, proceed to calculating and sending fee
-        // Otherwise, the fee is zero, regardless of the fee_bps
-        if ctx.accounts.earn_manager_token_account.owner == &Token2022::id()
-            && ctx.accounts.earn_manager_token_account.lamports() > 0
-        {
-            // Fees are rounded down in favor of the user
-            let fee = (rewards * ctx.accounts.earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
-
-            if fee > 0 {
-                // mint tokens to the earn manager token account
-                // we don't use the helper function due to lifetime issues
-                let mint_options = MintTo {
-                    mint: ctx.accounts.ext_mint.to_account_info(),
-                    to: ctx.accounts.earn_manager_token_account.clone(),
-                    authority: ctx.accounts.ext_mint_authority.clone(),
-                };
-
-                let cpi_context = CpiContext::new_with_signer(
-                    ctx.accounts.token_2022.to_account_info(),
-                    mint_options,
-                    mint_authority_seeds,
-                );
-
-                mint_to(cpi_context, fee)?;
-
-                // Return the fee to reduce the rewards by
-                fee
-            } else {
-                0u64
-            }
-        } else {
-            0u64
-        }
-    } else {
-        0u64
-    };
+    // Calculate and send the earn manager fee if applicable
+    // Then, subtract from the earner's rewards
+    let fee = handle_fee(&ctx, rewards, mint_authority_seeds)?;
 
     rewards -= fee;
 
@@ -188,6 +149,53 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
     });
 
     Ok(())
+}
+
+fn handle_fee(
+    ctx: &Context<ClaimFor>,
+    rewards: u64,
+    mint_authority_seeds: &[&[&[u8]]],
+) -> Result<u64> {
+    // Calculate the earn manager fee if applicable and subtract from the earner's rewards
+    // If the earn manager doesn't charge a fee or is not active, then no fee is taken
+    if ctx.accounts.earn_manager_account.fee_bps == 0
+        || !ctx.accounts.earn_manager_account.is_active
+    {
+        return Ok(0);
+    }
+
+    // If the earn manager token account is not initialized, then no fee is taken
+    if ctx.accounts.earn_manager_token_account.owner != &Token2022::id()
+        || ctx.accounts.earn_manager_token_account.lamports() == 0
+    {
+        return Ok(0);
+    }
+
+    // Fees are rounded down in favor of the user
+    let fee = (rewards * ctx.accounts.earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
+
+    // Return early if the fee rounds to zero
+    if fee == 0 {
+        return Ok(0);
+    }
+
+    // mint tokens to the earn manager token account
+    // we don't use the helper function due to lifetime issues
+    let mint_options = MintTo {
+        mint: ctx.accounts.ext_mint.to_account_info(),
+        to: ctx.accounts.earn_manager_token_account.clone(),
+        authority: ctx.accounts.ext_mint_authority.clone(),
+    };
+
+    let cpi_context = CpiContext::new_with_signer(
+        ctx.accounts.token_2022.to_account_info(),
+        mint_options,
+        mint_authority_seeds,
+    );
+
+    mint_to(cpi_context, fee)?;
+
+    Ok(fee)
 }
 
 #[event]
