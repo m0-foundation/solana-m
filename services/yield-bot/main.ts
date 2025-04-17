@@ -123,11 +123,16 @@ export async function yieldCLI() {
 
 async function executeSteps(
   opt: ParsedOptions,
-  steps: ((options: ParsedOptions) => Promise<void>)[],
+  steps: ((options: ParsedOptions) => Promise<boolean>)[],
   waitInterval: number,
 ) {
   for (const step of steps) {
-    await step(opt);
+    const continueSteps = await step(opt);
+
+    if (!continueSteps) {
+      logger.info('stopping execution early');
+      return;
+    }
 
     // wait interval to ensure transactions from previous steps have landed
     await new Promise((resolve) => setTimeout(resolve, waitInterval));
@@ -139,19 +144,19 @@ async function distributeYield(opt: ParsedOptions) {
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
-    return;
+    return true;
   }
 
   if (opt.skipCycle) {
     logger.info('skipping cycle');
     const ix = await auth.buildCompleteClaimCycleInstruction();
     if (!ix) {
-      return;
+      return true;
     }
 
     const signature = await buildAndSendTransaction(opt, [ix]);
     logger.info('cycle complete', { signature });
-    return;
+    return true;
   }
 
   // get all earners on the earn program
@@ -195,13 +200,15 @@ async function distributeYield(opt: ParsedOptions) {
     // complete cycle on last claim transaction
     const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
     if (!completeClaimIx) {
-      return;
+      return true;
     }
 
     // wait for claim transactions to be confirmed before completing cycle
     const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
     logger.info('cycle complete', { signature: sigs[0] });
   }
+
+  return true;
 }
 
 async function addEarners(opt: ParsedOptions) {
@@ -212,12 +219,14 @@ async function addEarners(opt: ParsedOptions) {
 
   if (instructions.length === 0) {
     logger.info('no earners to add');
-    return;
+    return true;
   }
 
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'adding earners');
   logger.info('added earners', { signature, earners: instructions.length });
   slackMessage.messages.push(`Added ${instructions.length} earners`);
+
+  return true;
 }
 
 async function removeEarners(opt: ParsedOptions) {
@@ -228,12 +237,14 @@ async function removeEarners(opt: ParsedOptions) {
 
   if (instructions.length === 0) {
     logger.info('no earners to remove');
-    return;
+    return true;
   }
 
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'removing earners');
   logger.info('removed earners', { signature, earners: instructions.length });
   slackMessage.messages.push(`Removed ${instructions.length} earners`);
+
+  return true;
 }
 
 async function syncIndex(opt: ParsedOptions) {
@@ -252,7 +263,7 @@ async function syncIndex(opt: ParsedOptions) {
 
   if (extIndex.eq(index)) {
     logger.info('index already synced', logsFields);
-    return;
+    return false;
   }
 
   const ix = await auth.buildIndexSyncInstruction();
@@ -260,6 +271,8 @@ async function syncIndex(opt: ParsedOptions) {
 
   logger.info('updated index on ext earn', { ...logsFields, signature: signature[0] });
   slackMessage.messages.push(`Synced index: ${signature[0]}`);
+
+  return true;
 }
 
 async function buildAndSendTransaction(
