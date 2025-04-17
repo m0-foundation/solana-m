@@ -555,7 +555,7 @@ const warp = (seconds: BN, increment: boolean) => {
 };
 
 // instruction convenience functions for earn program
-const prepEarnInitialize = (signer: Keypair) => {
+const prepEarnInitialize = (signer: Keypair, mint: PublicKey) => {
     // Get the global PDA
     const globalAccount = getEarnGlobalAccount();
 
@@ -563,6 +563,7 @@ const prepEarnInitialize = (signer: Keypair) => {
     accounts = {};
     accounts.admin = signer.publicKey;
     accounts.globalAccount = globalAccount;
+    accounts.mint = mint;
     accounts.systemProgram = SystemProgram.programId;
 
     return { globalAccount };
@@ -575,11 +576,11 @@ const initializeEarn = async (
     claimCooldown: BN
 ) => {
     // Setup the instruction
-    const { globalAccount } = prepEarnInitialize(admin);
+    const { globalAccount } = prepEarnInitialize(admin, mint);
 
     // Send the transaction
     await earn.methods
-        .initialize(mint, earnAuthority, initialIndex, claimCooldown)
+        .initialize(earnAuthority, initialIndex, claimCooldown)
         .accounts({ ...accounts })
         .signers([admin])
         .rpc();
@@ -1293,7 +1294,7 @@ describe("ExtEarn unit tests", () => {
                         .accounts({ ...accounts })
                         .signers([nonAdmin])
                         .rpc(),
-                    "ConstraintMintTokenProgram"
+                    "ConstraintAddress"
                 );
             });
 

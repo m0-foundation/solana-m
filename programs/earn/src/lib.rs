@@ -21,18 +21,11 @@ pub mod earn {
 
     pub fn initialize(
         ctx: Context<Initialize>,
-        mint: Pubkey,
         earn_authority: Pubkey,
         initial_index: u64,
         claim_cooldown: u64,
     ) -> Result<()> {
-        instructions::admin::initialize::handler(
-            ctx,
-            mint,
-            earn_authority,
-            initial_index,
-            claim_cooldown,
-        )
+        instructions::admin::initialize::handler(ctx, earn_authority, initial_index, claim_cooldown)
     }
 
     pub fn set_earn_authority(
@@ -42,10 +35,7 @@ pub mod earn {
         instructions::admin::set_earn_authority::handler(ctx, new_earn_authority)
     }
 
-    pub fn set_claim_cooldown(
-        ctx: Context<SetClaimCooldown>,
-        claim_cooldown: u64,
-    ) -> Result<()> {
+    pub fn set_claim_cooldown(ctx: Context<SetClaimCooldown>, claim_cooldown: u64) -> Result<()> {
         instructions::admin::set_claim_cooldown::handler(ctx, claim_cooldown)
     }
 
@@ -56,11 +46,7 @@ pub mod earn {
         index: u64,
         earner_merkle_root: [u8; 32],
     ) -> Result<()> {
-        instructions::portal::propagate_index::handler(
-            ctx,
-            index,
-            earner_merkle_root,
-        )
+        instructions::portal::propagate_index::handler(ctx, index, earner_merkle_root)
     }
 
     // Earn authority instructions
