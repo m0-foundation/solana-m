@@ -42,8 +42,9 @@ pub mod earn {
         ctx: Context<PropagateIndex>,
         index: u64,
         earner_merkle_root: [u8; 32],
+        transfer_amount: u64,
     ) -> Result<()> {
-        instructions::portal::propagate_index::handler(ctx, index, earner_merkle_root)
+        instructions::portal::propagate_index::handler(ctx, index, earner_merkle_root, transfer_amount)
     }
 
     // Earn authority instructions

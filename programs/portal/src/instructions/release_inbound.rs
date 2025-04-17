@@ -173,6 +173,7 @@ pub fn release_inbound_mint_multisig<'info>(
             ctx,
             inbox_item.index_update,
             root_updates.earner_root,
+            inbox_item.transfer.amount // pass amount to be able to correctly calculate rewards
         )?;
 
         msg!(
