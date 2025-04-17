@@ -21,18 +21,11 @@ pub mod earn {
 
     pub fn initialize(
         ctx: Context<Initialize>,
-        mint: Pubkey,
         earn_authority: Pubkey,
         initial_index: u64,
         claim_cooldown: u64,
     ) -> Result<()> {
-        instructions::admin::initialize::handler(
-            ctx,
-            mint,
-            earn_authority,
-            initial_index,
-            claim_cooldown,
-        )
+        instructions::admin::initialize::handler(ctx, earn_authority, initial_index, claim_cooldown)
     }
 
     pub fn set_earn_authority(ctx: Context<AdminAction>, new_earn_authority: Pubkey) -> Result<()> {
