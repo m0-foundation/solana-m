@@ -1,9 +1,30 @@
 import { Logger } from '../../sdk/src/logger';
 
-export async function logBalance(rpc: string, address: string, logger: Logger, warnThreshold = 10_000_000) {
-  const raw = JSON.stringify({
+type BlockchainType = 'solana' | 'ethereum';
+
+const blockchainConfigs = {
+  solana: {
     method: 'getBalance',
-    params: [address],
+    getParams: (address: string) => [address],
+    parseBalance: (result: any) => BigInt(result?.value || 0),
+    decimalDivisor: 1e9,
+    defaultWarnThreshold: BigInt(10000000),
+  },
+  ethereum: {
+    method: 'eth_getBalance',
+    getParams: (address: string) => [address, 'latest'],
+    parseBalance: (result: any) => BigInt(result),
+    decimalDivisor: 1e18,
+    defaultWarnThreshold: BigInt(5000000000000000),
+  },
+};
+
+export async function logBlockchainBalance(blockchain: BlockchainType, rpc: string, address: string, logger: Logger) {
+  const config = blockchainConfigs[blockchain];
+
+  const raw = JSON.stringify({
+    method: config.method,
+    params: config.getParams(address),
     id: 1,
     jsonrpc: '2.0',
   });
@@ -16,40 +37,20 @@ export async function logBalance(rpc: string, address: string, logger: Logger, w
 
   const resp = await fetch(rpc, requestOptions);
   if (!resp.ok) {
-    logger.error('Failed to fetch Solana balance', { status: resp.status, statusText: resp.statusText });
+    logger.error(`Failed to fetch ${blockchain} balance`, {
+      status: resp.status,
+      statusText: resp.statusText,
+    });
     return;
   }
 
   const data = await resp.json();
-  const balance = data.result?.value || 0;
+  const balance = config.parseBalance(data.result);
 
-  const log = balance > warnThreshold ? logger.info : logger.error;
-  log('solana balance', { balance, balanceDecimal: balance / 1e9, address });
-}
-
-export async function logEvmBalance(rpc: string, address: string, logger: Logger, warnThreshold = 5000000000000000n) {
-  const raw = JSON.stringify({
-    method: 'eth_getBalance',
-    params: [address, 'latest'],
-    id: 1,
-    jsonrpc: '2.0',
+  const log = balance > config.defaultWarnThreshold ? logger.info : logger.error;
+  log(`${blockchain} wallet balance`, {
+    balance: balance.toString(),
+    balanceDecimal: Number(balance) / config.decimalDivisor,
+    address,
   });
-
-  var requestOptions = {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: raw,
-  };
-
-  const resp = await fetch(rpc, requestOptions);
-  if (!resp.ok) {
-    logger.error('Failed to fetch Ethereum balance', { status: resp.status, statusText: resp.statusText });
-    return;
-  }
-
-  const data = await resp.json();
-  const balance = BigInt(data.result);
-
-  const log = balance > warnThreshold ? logger.info : logger.error;
-  log('ethereum balance', { balance, balanceDecimal: Number(balance) / 1e18, address });
 }
