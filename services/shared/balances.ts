@@ -20,37 +20,41 @@ const blockchainConfigs = {
 };
 
 export async function logBlockchainBalance(blockchain: BlockchainType, rpc: string, address: string, logger: Logger) {
-  const config = blockchainConfigs[blockchain];
+  try {
+    const config = blockchainConfigs[blockchain];
 
-  const raw = JSON.stringify({
-    method: config.method,
-    params: config.getParams(address),
-    id: 1,
-    jsonrpc: '2.0',
-  });
-
-  const requestOptions = {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: raw,
-  };
-
-  const resp = await fetch(rpc, requestOptions);
-  if (!resp.ok) {
-    logger.error(`Failed to fetch ${blockchain} balance`, {
-      status: resp.status,
-      statusText: resp.statusText,
+    const raw = JSON.stringify({
+      method: config.method,
+      params: config.getParams(address),
+      id: 1,
+      jsonrpc: '2.0',
     });
-    return;
+
+    const requestOptions = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: raw,
+    };
+
+    const resp = await fetch(rpc, requestOptions);
+    if (!resp.ok) {
+      logger.error(`Failed to fetch ${blockchain} balance`, {
+        status: resp.status,
+        statusText: resp.statusText,
+      });
+      return;
+    }
+
+    const data = await resp.json();
+    const balance = config.parseBalance(data.result);
+
+    const log = balance > config.defaultWarnThreshold ? logger.info : logger.error;
+    log(`${blockchain} wallet balance`, {
+      balance: balance.toString(),
+      balanceDecimal: Number(balance) / config.decimalDivisor,
+      address,
+    });
+  } catch (error) {
+    logger.error(new Error(`Error fetching ${blockchain} balance: ${error}`));
   }
-
-  const data = await resp.json();
-  const balance = config.parseBalance(data.result);
-
-  const log = balance > config.defaultWarnThreshold ? logger.info : logger.error;
-  log(`${blockchain} wallet balance`, {
-    balance: balance.toString(),
-    balanceDecimal: Number(balance) / config.decimalDivisor,
-    address,
-  });
 }
