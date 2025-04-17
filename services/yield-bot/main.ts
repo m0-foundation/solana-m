@@ -19,6 +19,7 @@ import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
 import { buildTransaction } from '../../sdk/src/transaction';
 import { sendSlackMessage, SlackMessage } from '../shared/slack';
+import { logBlockchainBalance } from '../shared/balances';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
@@ -78,6 +79,8 @@ export async function yieldCLI() {
         } catch {
           signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
         }
+
+        await logBlockchainBalance('solana', rpc, signer.publicKey.toBase58(), logger);
 
         const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
 
