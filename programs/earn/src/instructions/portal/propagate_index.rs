@@ -72,7 +72,17 @@ pub fn handler(
 
     // Calculate the new max yield using the max supply (which has been updated on each call to this function
     // We cast to a u128 for the multiplcation to avoid potential overflows
+
+    // Some max yield can be leftover from the previous period if yield was not claimed for some users. We
+    // need to compound yield on the leftover amount for the next cycle.
+    // To get the max yield for the next claim cycle, we take the difference between the current max yield
+    // and what was distributed to get the leftover amount. Then, we add the new potential max yield to be
+    // sent out.
+    let leftover = global.max_yield.checked_sub(global.distributed).unwrap();
+
     let mut period_max: u64 = (global.max_supply as u128)
+        .checked_add(leftover as u128)
+        .unwrap()
         .checked_mul(new_index.into())
         .unwrap()
         .checked_div(global.index.into())
@@ -80,23 +90,15 @@ pub fn handler(
         .try_into()
         .unwrap();
 
-    period_max -= global.max_supply; // can't underflow because new_index > ctx.accounts.global.index
+    period_max = period_max - global.max_supply - leftover; // can't underflow because new_index > ctx.accounts.global.index
 
     // Update the global state
     global.index = new_index;
     global.timestamp = current_timestamp;
     global.max_supply = current_supply; // we set this to the current supply regardless of whether it is larger since we are starting a new cycle
 
-    // Some max yield can be leftover from the previous period if yield was not claimed for some users.
-    // To get the max yield for the next claim cycle, we take the difference between the current max yield
-    // and what was distributed to get the leftover amount. Then, we add the new potential max yield to be
-    // sent out.
-    global.max_yield = global
-        .max_yield
-        .checked_sub(global.distributed)
-        .unwrap() // can probably remove the checked sub since distributed can't be greater than max yield
-        .checked_add(period_max)
-        .unwrap();
+    // The new max yield is the leftover amount combined with the period max
+    global.max_yield = leftover.checked_add(period_max).unwrap();
 
     global.distributed = 0;
     global.claim_complete = false;
