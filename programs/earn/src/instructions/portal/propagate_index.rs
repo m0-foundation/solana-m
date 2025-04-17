@@ -78,12 +78,7 @@ pub fn handler(
     // To get the max yield for the next claim cycle, we take the difference between the current max yield
     // and what was distributed to get the leftover amount. Then, we add the new potential max yield to be
     // sent out.
-    let leftover = ctx
-        .accounts
-        .global_account
-        .max_yield
-        .checked_sub(global.distributed)
-        .unwrap();
+    let leftover = global.max_yield.checked_sub(global.distributed).unwrap();
 
     let mut period_max: u64 = (global.max_supply as u128)
         .checked_add(leftover as u128)
