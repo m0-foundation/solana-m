@@ -167,10 +167,7 @@ export const wrapOrUnwrap = async (action: 'wrap' | 'unwrap', walletProvider: Pr
   tx.feePayer = walletProvider.publicKey;
   tx.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
 
-  const sig = await walletProvider.signAndSendTransaction(tx);
-  await connection.confirmTransaction(sig, 'confirmed');
-
-  return sig;
+  return await walletProvider.sendTransaction(tx, connection);
 };
 
 export const bidgeFromSolana = async (
