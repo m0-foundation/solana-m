@@ -412,7 +412,7 @@ const createTokenAccount = async (mint: PublicKey, owner: PublicKey) => {
     return { tokenAccount: tokenAccount.publicKey };
 };
 
-const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: boolean = true) => {
+const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: boolean = true, decimals = 6) => {
     // Create and initialize mint account
 
     const tokenProgram = use2022 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
@@ -430,7 +430,7 @@ const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: bool
 
     const initializeMint = createInitializeMintInstruction(
         mint.publicKey,
-        6, // decimals
+        decimals, // decimals
         mintAuthority, // mint authority
         mintAuthority, // freeze authority
         tokenProgram
@@ -1319,6 +1319,30 @@ describe("ExtEarn unit tests", () => {
                         .signers([nonAdmin])
                         .rpc(),
                     "ConstraintMintTokenProgram"
+                );
+            });
+
+            // given the decimals on ext_mint do not match M
+            // it reverts with a MintDecimals error
+            test("ext_mint incorrect decimals - reverts", async () => {
+                // Create a mint owned by a different program
+                const badMint = new Keypair();
+                await createMint(badMint, nonAdmin.publicKey, true, 9);
+
+                // Setup the instruction call
+                prepExtInitialize(nonAdmin);
+
+                // Change the Ext Mint
+                accounts.extMint = badMint.publicKey;
+
+                // Attempt to send the transaction
+                await expectAnchorError(
+                    extEarn.methods
+                        .initialize(earnAuthority.publicKey)
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "ConstraintMintDecimals"
                 );
             });
 
