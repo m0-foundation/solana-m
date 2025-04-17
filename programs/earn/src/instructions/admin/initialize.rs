@@ -2,6 +2,7 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
+use anchor_spl::token_interface::{Mint, Token2022};
 
 // local dependencies
 use crate::{
@@ -25,12 +26,14 @@ pub struct Initialize<'info> {
     )]
     pub global_account: Account<'info, Global>,
 
+    #[account(mint::token_program = Token2022::id())]
+    pub mint: InterfaceAccount<'info, Mint>,
+
     pub system_program: Program<'info, System>,
 }
 
 pub fn handler(
     ctx: Context<Initialize>,
-    mint: Pubkey,
     earn_authority: Pubkey,
     initial_index: u64,
     claim_cooldown: u64,
@@ -52,7 +55,7 @@ pub fn handler(
         admin: ctx.accounts.admin.key(),
         earn_authority,
         portal_authority,
-        mint,
+        mint: ctx.accounts.mint.key(),
         index: initial_index,
         timestamp: 0, // Set this to 0 initially so we can call propagate immediately
         claim_cooldown,
