@@ -6,7 +6,8 @@ import {
   Transaction,
 } from '@solana/web3.js';
 import { fromWorkspace, LiteSVMProvider } from 'anchor-litesvm';
-import { createPublicClient, http, MINT, PROGRAM_ID, TOKEN_2022_ID } from '../../sdk/src';
+import { createPublicClient, http, MINT, PROGRAM_ID, TOKEN_2022_ID, DEVNET_GRAPH_ID } from '../../sdk/src';
+import { Graph } from '../../sdk/src/graph';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import nock from 'nock';
 import { TransactionMetadata } from 'litesvm';
@@ -17,6 +18,7 @@ const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPj
 describe('Yield calculation tests', () => {
   const svm = fromWorkspace('').withSplPrograms();
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
+  const graphClient = new Graph('', DEVNET_GRAPH_ID);
   const provider = new LiteSVMProvider(svm);
   const connection = provider.connection;
 
@@ -26,7 +28,7 @@ describe('Yield calculation tests', () => {
   // Global Account
   const setGlobalAccount = (cfg: { index: bigint; ts: bigint }) => {
     let data = Buffer.from(
-      'p+joschscn+z3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9rPce1wTXGKGGjMlYml282w+cbkUAoVQV4nvBkkivE/2C4a+Zr/OtMHX6Se8xNAUvg8oY6ud+F/aYQhRtk29CuWi1F1V6gAAAGcE+WcAAAAALAEAAAAAAADIQyqyAAAAAKYQEAAAAAAAAAAAAAAAAAAAworvSLaa9zZOKqEFGwy9QYBPHRQ7fiNje3tQRsh7nZ2Ejcy6QIu31s1lF6hkb3IdT4FVx4WdL0sgfT7v5zngWv4=',
+      'p+joschscn+z3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9rPce1wTXGKGGjMlYml282w+cbkUAoVQV4nvBkkivE/2C4a+ZtMrxaS1qx/r30jjOwbDtaFjsZwXMO14cF9+9oyi1F1V6gAAAGcE+WcAAAAALAEAAAAAAADIQyqyAAAAAKYQEAAAAAAAAAAAAAAAAAAAworvSLaa9zZOKqEFGwy9QYBPHRQ7fiNje3tQRsh7nZ2Ejcy6QIu31s1lF6hkb3IdT4FVx4WdL0sgfT7v5zngWv4=',
       'base64',
     );
 
@@ -56,7 +58,7 @@ describe('Yield calculation tests', () => {
   // Earner Account
   const setEarnerAccount = (cfg: { lastClaimIndex: bigint; lastClaimTs: bigint }) => {
     const data = Buffer.from(
-      '7H4zYC7hZ8+dP+dS6gAAAACU+GcAAAAA/1RZLpCj0IEtK6ZxLixCiIow0yZuY2CEYQkUMthQ74N5sHTq5RmAUD4wwoHg/7Y8xTN4Aa0/+wBNl5B7wbnLnps=',
+      '7H4zYC7hZ8+dP+dS6gAAAACU+GcAAAAA/1RZLpCj0IEtK6ZxLixCiIow0yZuY2CEYQkUMthQ74N5nHvdS4/LrFmS20fItLExNXj3arolk+rkdHaGjRH5iFU=',
       'base64',
     );
 
@@ -64,7 +66,7 @@ describe('Yield calculation tests', () => {
     data.writeBigUInt64LE(cfg.lastClaimIndex, 8);
     data.writeBigUInt64LE(cfg.lastClaimTs, 16);
 
-    svm.setAccount(new PublicKey('HL9tuoLSJiPfDqUGtT9QpNo2RmNGPFDmGhEj1cVEfoBG'), {
+    svm.setAccount(new PublicKey('HQ7haiD7PAG5cEA8QE3CzcVhG68HByJxdLP7Sbp9J2Yx'), {
       executable: false,
       owner: PROGRAM_ID,
       lamports: 1510320,
@@ -76,9 +78,9 @@ describe('Yield calculation tests', () => {
   svm.setAccount(MINT, {
     executable: false,
     owner: TOKEN_2022_ID,
-    lamports: 4851120,
+    lamports: 5407920,
     data: Buffer.from(
-      'AQAAAAt+HmYkvrxuIRc9WMtEGFHidulJDPbDH2C3PqhmCtaMyEMqsgAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARIAQACz3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9guGvma/zrTB1+knvMTQFL4PKGOrnfhf2mEIUbZNvQrlDgBAALPce1wTXGKGGjMlYml282w+cbkUAoVQV4nvBkkivE/2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAEEAs9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAMIAs9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/YLhr5mv860wdfpJ7zE0BS+Dyhjq534X9phCFG2Tb0K5QgAAABNIGJ5IE1eMAEAAABNNAAAAGh0dHBzOi8vZXRoZXJzY2FuLmlvL3Rva2VuL2ltYWdlcy9tMHRva2VuX25ld18zMi5wbmcBAAAAAwAAAGV2bSoAAAAweDg2NkEyQkY0RTU3MkNiY0YzN0Q1MDcxQTdhNTg1MDNCZmIzNmJlMWI=',
+      'AQAAAAt+HmYkvrxuIRc9WMtEGFHidulJDPbDH2C3PqhmCtaMAAAAAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARIAQAB890XGpUEUSnn/t/R/PsDdmSrTBEBeq/cFh0gz/mB43wuGvmbTK8Wktasf699I4zsGw7WhY7GcFzDteHBffvaMDgBAAHz3RcalQRRKef+39H8+wN2ZKtMEQF6r9wWHSDP+YHjfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAEEAfPdFxqVBFEp5/7f0fz7A3Zkq0wRAXqv3BYdIM/5geN8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATABEBfPdFxqVBFEp5/7f0fz7A3Zkq0wRAXqv3BYdIM/5geN8Lhr5m0yvFpLWrH+vfSOM7BsO1oWOxnBcw7XhwX372jAcAAABNIGJ5IE0wAQAAAE2EAAAAaHR0cHM6Ly9naXN0Y2RuLmdpdGhhY2suY29tL1NDNFJFQ09JTi9hNzI5YWZiNzdhYTE1YTRhYTZiMWI0NmMzYWZhMWI1Mi9yYXcvMjA5ZGE1MzFlZDQ2YzFhYWVmMGIxZDNkN2I2N2IzYTVjZWMyNTdmMy9NX1N5bWJvbF81MTIuc3ZnAQAAAAMAAABldm0qAAAAMHg4NjZBMkJGNEU1NzJDYmNGMzdENTA3MUE3YTU4NTAzQmZiMzZiZTFi',
       'base64',
     ),
   });
@@ -89,18 +91,18 @@ describe('Yield calculation tests', () => {
     owner: TOKEN_2022_ID,
     lamports: 4851120,
     data: Buffer.from(
-      'AQMBs9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/aEjcy6QIu31s1lF6hkb3IdT4FVx4WdL0sgfT7v5zngWpqi4sY9y+ewdvC16uOIBwi7WXZH30fakiTG4FNjJA/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==',
+      'AQIBhI3MukCLt9bNZReoZG9yHU+BVceFnS9LIH0+7+c54FqaouLGPcvnsHbwterjiAcIu1l2R99H2pIkxuBTYyQP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==',
       'base64',
     ),
   });
 
   // User Token Account
-  svm.setAccount(new PublicKey('CspA87dFGL6oEtPuz42KHQS2eAiiQzh239vei4Ki8FoG'), {
+  svm.setAccount(new PublicKey('BXr9Y8RarW8GhZ43Ma1vfUgm5haJVy9x2XSea9aCFSya'), {
     executable: false,
     owner: TOKEN_2022_ID,
     lamports: 2108880,
     data: Buffer.from(
-      'C4a+Zr/OtMHX6Se8xNAUvg8oY6ud+F/aYQhRtk29CuVUWS6Qo9CBLSumcS4sQoiKMNMmbmNghGEJFDLYUO+DecVPDwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAAPAAEAAA==',
+      'C4a+ZtMrxaS1qx/r30jjOwbDtaFjsZwXMO14cF9+9oxUWS6Qo9CBLSumcS4sQoiKMNMmbmNghGEJFDLYUO+DecVPDwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgcAAAAPAAEAAA==',
       'base64',
     ),
   });
@@ -191,14 +193,17 @@ describe('Yield calculation tests', () => {
           mockSubgraphIndexUpdates(testConfig.indexUpdates.slice(lastClaim, j + 2));
 
           // build claim for earner
-          const auth = await EarnAuthority.load(connection, evmClient, '');
+          const auth = await EarnAuthority.load(connection, evmClient, graphClient);
           const earner = (await auth.getAllEarners())[0];
+          console.log('earner', earner);
           const ix = await auth.buildClaimInstruction(earner);
+          console.log('ix', ix);
           // build transaction
           const tx = new Transaction().add(ix!);
           tx.feePayer = provider.wallet.publicKey;
           tx.recentBlockhash = svm.latestBlockhash();
           tx.sign(provider.wallet.payer);
+          console.log('tx', tx);
 
           // send txn and parse logs for rewards amount
           const result = svm.sendTransaction(tx) as TransactionMetadata;
@@ -305,8 +310,8 @@ function getProgramAccountsFn(connection: Connection) {
     if ((config as any)?.filters?.[0].memcmp?.bytes === 'gZH8R1wytJi') {
       return [
         {
-          account: (await connection.getAccountInfo(new PublicKey('HL9tuoLSJiPfDqUGtT9QpNo2RmNGPFDmGhEj1cVEfoBG')))!,
-          pubkey: new PublicKey('HL9tuoLSJiPfDqUGtT9QpNo2RmNGPFDmGhEj1cVEfoBG'),
+          account: (await connection.getAccountInfo(new PublicKey('HQ7haiD7PAG5cEA8QE3CzcVhG68HByJxdLP7Sbp9J2Yx')))!,
+          pubkey: new PublicKey('HQ7haiD7PAG5cEA8QE3CzcVhG68HByJxdLP7Sbp9J2Yx'),
         },
       ];
     }
