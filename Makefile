@@ -1,21 +1,26 @@
-.PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet upgrade-ext-earn-devnet deploy-yield-bot
+.PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet upgrade-ext-earn-devnet deploy-yield-bot deploy-subgraph-mainnet deploy-subgraph-devnet
 
 
 #
 # Test commands
 #
 test-yield-bot:
-	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts 
+	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts; exit $$?
 
 test-index-bot:
-	yarn jest --preset ts-jest tests/unit/indexbot.test.ts
+	yarn jest --preset ts-jest tests/unit/indexbot.test.ts; exit $$?
+
+test-yield:
+	yarn jest --preset ts-jest tests/unit/yield.test.ts; exit $$?
 
 test-sdk:
 	@anchor localnet --skip-build > /dev/null 2>&1 & \
 	anvil -f https://gateway.tenderly.co/public/sepolia > /dev/null 2>&1 & \
 	sleep 2 && \
-	yarn jest --preset ts-jest tests/unit/sdk.test.ts ; \
-	kill -9 $$(lsof -ti:8899) & kill -9 $$(lsof -ti:8545)
+	yarn jest --preset ts-jest tests/unit/sdk.test.ts; \
+	e=$$?; \
+	kill -9 $$(lsof -ti:8899) & kill -9 $$(lsof -ti:8545); \
+	exit $$e
 
 test-local-validator:
 	solana-test-validator --deactivate-feature EenyoWx9UMXYKpR8mW5Jmfmy2fRjzUtM7NduYMY8bx33 -r \
@@ -26,8 +31,10 @@ test-local-validator:
 	pid=$$! && \
 	sleep 5 && \
 	solana airdrop 25 TEstCHtKciMYKuaXJK2ShCoD7Ey32eGBvpce25CQMpM -ul && \
-	anchor test --skip-local-validator ; \
-	kill $$pid
+	anchor test --skip-local-validator; \
+	e=$$?; \
+	kill $$pid \ 
+	exit $$e
 
 
 #
@@ -113,3 +120,28 @@ deploy-dashboard:
 	rm .env.production
 	docker push ghcr.io/m0-foundation/solana-m:dashboard
 	railway redeploy --service dashboard --yes
+
+#
+# Subgraphs
+#
+DEVNET_STARTING_BLOCK := 364230817
+MAINNET_STARTING_BLOCK := 333860258
+DEVNET_TARGET_VERSION := v0.0.2 
+MAINNET_TARGET_VERSION := v0.0.3
+
+define deploy-subgraph
+	@cd substreams && \
+	sed -i '' 's/initialBlock: [0-9]*/initialBlock: $(2)/' substreams.yaml && \
+	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' substreams.yaml && \
+	substreams build && \
+	cd subgraph && \
+	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' subgraph.yaml && \
+	npm run generate && npm run build && \
+	graph deploy $(3) --version-label $(4)
+endef
+
+deploy-subgraph-mainnet:
+	$(call deploy-subgraph,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),solana-m,$(MAINNET_TARGET_VERSION))
+
+deploy-subgraph-devnet:
+	$(call deploy-subgraph,solana-devnet,$(DEVNET_STARTING_BLOCK),solana-m-devnet,$(DEVNET_TARGET_VERSION))

@@ -2,24 +2,19 @@ import { Command } from 'commander';
 import { Connection } from '@solana/web3.js';
 import { createWalletClient, getContract, http, WalletClient, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import LokiTransport from 'winston-loki';
 import { GLOBAL_ACCOUNT } from '../../sdk/src';
 import { WinstonLogger } from '../../sdk/src/logger';
+import { sendSlackMessage, SlackMessage } from '../shared/slack';
+import { logBlockchainBalance } from '../shared/balances';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
-const logger = new WinstonLogger('index-bot', 'info', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
+// logger used by bot and passed to SDK
+const logger = new WinstonLogger('index-bot', { imageBuild: process.env.BUILD_TIME ?? '', mint: 'M' }, true);
+if (process.env.LOKI_URL) logger.withLokiTransport(process.env.LOKI_URL);
 
-if (process.env.NODE_ENV === 'production')
-  logger.withTransport(
-    new LokiTransport({
-      host: process.env.LOKI_URL ?? '',
-      json: true,
-      useWinstonMetaAsLabels: true,
-      ignoredMeta: ['imageBuild'],
-      format: logger.logger.format,
-    }),
-  );
+// meta info from job will be posted to slack
+let slackMessage: SlackMessage;
 
 interface ParsedOptions {
   solanaClient: Connection;
@@ -49,12 +44,22 @@ export async function indexCLI() {
         account: privateKeyToAccount(ethPrivateKey as Hex),
       });
 
+      await logBlockchainBalance('ethereum', ethRpc, evmClient.account.address, logger);
+
       const options: ParsedOptions = {
         solanaClient,
         evmClient,
         threshold: BigInt(threshold),
         force,
         dryRun,
+      };
+
+      slackMessage = {
+        messages: [],
+        mint: 'M',
+        service: 'index-bot',
+        level: 'info',
+        devnet: solanaRpc.includes('devnet'),
       };
 
       await pushIndex(options);
@@ -67,6 +72,7 @@ async function pushIndex(options: ParsedOptions) {
   if (!options.force) {
     const isStale = await isIndexStale(options);
     if (!isStale) {
+      slackMessage.messages.push('Index is not stale, skipping push');
       logger.info('Index is not stale, skipping push');
       return;
     }
@@ -75,11 +81,13 @@ async function pushIndex(options: ParsedOptions) {
     logger.info('Force pushing index');
   }
 
-  await sendIndexUpdate(options);
+  const tx = await sendIndexUpdate(options);
 
   if (options.dryRun) {
     logger.info('Dry run complete, not sending transaction');
   } else {
+    slackMessage.messages.push('Index updated');
+    slackMessage.explorer = `https://wormholescan.io/#/tx/${tx}`;
     logger.info('Index pushed successfully');
   }
 }
@@ -177,15 +185,26 @@ async function sendIndexUpdate(options: ParsedOptions) {
     logger.info('Transaction sent', {
       tx: tx,
     });
+
+    return tx;
   }
 
-  return params;
+  return '';
 }
 
 // do not run the cli if this is being imported by jest
 if (!process.argv[1].endsWith('jest')) {
-  indexCLI().catch((error) => {
-    logger.error('index bot failed', { error: error.toString() });
-    process.exit(0);
-  });
+  indexCLI()
+    .catch((error) => {
+      logger.error(error);
+      slackMessage.level = 'error';
+      slackMessage.messages.push(`${error}`);
+    })
+    .finally(async () => {
+      if (slackMessage.messages.length === 0) {
+        slackMessage.messages.push('No actions taken');
+      }
+      await logger.flush();
+      await sendSlackMessage(slackMessage);
+    });
 }

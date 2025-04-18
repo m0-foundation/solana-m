@@ -14,7 +14,7 @@ import { Graph } from './graph';
 export class EarnManager {
   private connection: Connection;
   private evmClient: PublicClient;
-  private graph: Graph;
+  private graphClient: Graph;
   private program: Program<ExtEarn>;
 
   manager: PublicKey;
@@ -24,7 +24,7 @@ export class EarnManager {
   constructor(
     connection: Connection,
     evmClient: PublicClient,
-    graphKey: string,
+    graphClient: Graph,
     manager: PublicKey,
     pubkey: PublicKey,
     data: EarnManagerData,
@@ -32,7 +32,7 @@ export class EarnManager {
     this.connection = connection;
     this.program = getExtProgram(connection);
     this.evmClient = evmClient;
-    this.graph = new Graph(graphKey);
+    this.graphClient = graphClient;
     this.manager = manager;
     this.pubkey = pubkey;
     this.data = data;
@@ -41,7 +41,7 @@ export class EarnManager {
   static async fromManagerAddress(
     connection: Connection,
     evmClient: PublicClient,
-    graphKey: string,
+    graphClient: Graph,
     manager: PublicKey,
   ): Promise<EarnManager> {
     const [earnManagerAccount] = PublicKey.findProgramAddressSync(
@@ -51,11 +51,16 @@ export class EarnManager {
 
     const data = await getExtProgram(connection).account.earnManager.fetch(earnManagerAccount);
 
-    return new EarnManager(connection, evmClient, graphKey, manager, earnManagerAccount, data);
+    return new EarnManager(connection, evmClient, graphClient, manager, earnManagerAccount, data);
   }
 
   async refresh() {
-    const updated = await EarnManager.fromManagerAddress(this.connection, this.evmClient, this.graph.key, this.manager);
+    const updated = await EarnManager.fromManagerAddress(
+      this.connection,
+      this.evmClient,
+      this.graphClient,
+      this.manager,
+    );
     Object.assign(this, updated);
   }
 
@@ -127,6 +132,6 @@ export class EarnManager {
 
   async getEarners(): Promise<Earner[]> {
     const accounts = await getExtProgram(this.connection).account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graph.key, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graphClient, a.publicKey, a.account));
   }
 }

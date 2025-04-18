@@ -3,7 +3,7 @@ import { PublicClient } from 'viem';
 
 import { EvmCaller } from './evm_caller';
 import { Earner } from './earner';
-import { GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
+import { GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { MerkleTree } from './merkle';
 import * as spl from '@solana/spl-token';
 import { Program } from '@coral-xyz/anchor';
@@ -16,15 +16,24 @@ export class Registrar {
   private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
-  private graph: Graph;
+  private graphClient: Graph;
   private program: Program<Earn>;
+  private _mint: PublicKey | undefined;
 
-  constructor(connection: Connection, evmClient: PublicClient, graphKey: string, logger: Logger = new MockLogger()) {
+  constructor(connection: Connection, evmClient: PublicClient, graphClient: Graph, logger: Logger = new MockLogger()) {
     this.connection = connection;
     this.logger = logger;
     this.evmClient = evmClient;
-    this.graph = new Graph(graphKey);
+    this.graphClient = graphClient;
     this.program = getProgram(connection);
+  }
+
+  async getMint(): Promise<PublicKey> {
+    if (this._mint) {
+      return this._mint;
+    }
+    this._mint = (await this.program.account.global.fetch(GLOBAL_ACCOUNT)).mint;
+    return this._mint;
   }
 
   async buildMissingEarnersInstructions(signer: PublicKey): Promise<TransactionInstruction[]> {
@@ -37,7 +46,7 @@ export class Registrar {
       const existingEarners = await Earner.fromUserAddress(
         this.connection,
         this.evmClient,
-        this.graph.key,
+        this.graphClient,
         user,
         PROGRAM_ID,
       );
@@ -48,7 +57,12 @@ export class Registrar {
       this.logger.info('adding earner', { user: user.toBase58() });
 
       // derive token account for user
-      const userTokenAccount = spl.getAssociatedTokenAddressSync(MINT, user, true, spl.TOKEN_2022_PROGRAM_ID);
+      const userTokenAccount = spl.getAssociatedTokenAddressSync(
+        await this.getMint(),
+        user,
+        true,
+        spl.TOKEN_2022_PROGRAM_ID,
+      );
 
       // build proof
       const tree = new MerkleTree(earners);
@@ -116,6 +130,6 @@ export class Registrar {
 
   async getRegistrarEarners(): Promise<Earner[]> {
     const accounts = await getProgram(this.connection).account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graph.key, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graphClient, a.publicKey, a.account));
   }
 }

@@ -111,3 +111,16 @@ jobs:
       - name: Run index tests
         run: make test-index-bot
         shell: bash
+
+  yield-calc-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/setup
+
+      - name: Run yield calculation tests
+        run: make test-yield
+        shell: bash
