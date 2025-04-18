@@ -18,14 +18,8 @@ pub mod ext_earn {
 
     // Admin instructions
 
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        earn_authority: Pubkey,
-    ) -> Result<()> {
-        instructions::admin::initialize::handler(
-            ctx,
-            earn_authority,
-        )
+    pub fn initialize(ctx: Context<Initialize>, earn_authority: Pubkey) -> Result<()> {
+        instructions::admin::initialize::handler(ctx, earn_authority)
     }
 
     pub fn set_earn_authority(
@@ -59,10 +53,7 @@ pub mod ext_earn {
 
     // Earn manager instructions
 
-    pub fn add_earner(
-        ctx: Context<AddEarner>,
-        user: Pubkey,
-    ) -> Result<()> {
+    pub fn add_earner(ctx: Context<AddEarner>, user: Pubkey) -> Result<()> {
         instructions::earn_manager::add_earner::handler(ctx, user)
     }
 
@@ -72,7 +63,7 @@ pub mod ext_earn {
 
     pub fn configure_earn_manager(
         ctx: Context<ConfigureEarnManager>,
-        fee_bps: Option<u64>
+        fee_bps: Option<u64>,
     ) -> Result<()> {
         instructions::earn_manager::configure::handler(ctx, fee_bps)
     }
@@ -96,7 +87,7 @@ pub mod ext_earn {
     pub fn unwrap(ctx: Context<Unwrap>, amount: u64) -> Result<()> {
         instructions::open::unwrap::handler(ctx, amount)
     }
-    
+
     pub fn remove_orphaned_earner(ctx: Context<RemoveOrphanedEarner>) -> Result<()> {
         instructions::open::remove_orphaned_earner::handler(ctx)
     }
