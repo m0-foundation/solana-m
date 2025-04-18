@@ -91,8 +91,7 @@ export class Earner {
     // Pending yield is calculated by:
     // - Fetching the current timestamp
     // - Fetching the current index (from ETH mainnet)
-    // - Fetching the weighted balance of the earner from the last claim timestamp to the current timestamp
-    // - Calculating the pending yield as: ((current index - last claim index) / last claim index) * weighted balance
+    // - Using our usual yield calculation formula for yield claims, but adding another index update with the current index
 
     const currentTime = new BN(Math.floor(Date.now() / 1000));
 
@@ -100,16 +99,32 @@ export class Earner {
 
     const currentIndex = await evmCaller.getCurrentIndex();
 
-    const earnerWeightedBalance = await this.graphClient.getTimeWeightedBalance(
-      this.data.userTokenAccount,
-      this.data.lastClaimTimestamp,
-      currentTime,
-    );
+    // Get the index updates from the graph b/w the user's last claim index and current index
+    const steps = await this.graphClient.getIndexUpdates(this.data.lastClaimIndex, currentIndex);
 
-    let pendingYield =
-      this.data.lastClaimIndex >= currentIndex
-        ? new BN(0)
-        : earnerWeightedBalance.mul(currentIndex.sub(this.data.lastClaimIndex)).div(this.data.lastClaimIndex);
+    // The current index should not be in the index updates list so we add it manually
+    steps.push({ index: currentIndex, ts: currentTime });
+
+    // iterate through the steps and calculate the pending yield for the earner
+    let pendingYield: BN = new BN(0);
+
+    let last = steps[0];
+    for (let i = 1; i < steps.length; i++) {
+      let current = steps[i];
+
+      // Check that indices and timestamps are only increasing
+      if (current.index.lt(last.index) || current.ts.lt(last.ts)) {
+        throw new Error('Invalid index or timestamp');
+      }
+
+      const twb = await this.graphClient.getTimeWeightedBalance(this.data.userTokenAccount, last.ts, current.ts);
+
+      // iterative calculation
+      // y_n = (y_(n-1) + twb) * (I_n / I_(n-1) - twb
+      pendingYield = pendingYield.add(twb).mul(current.index).div(last.index).sub(twb);
+
+      last = current;
+    }
 
     // Check if the earner has an earn manager
     // If so, check if the earn manager has a fee

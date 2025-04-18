@@ -634,6 +634,39 @@ function mockSubgraph() {
     .persist();
 
   nock(GRAPH_URL)
+    .post('', (body) => body.operationName === 'getIndexUpdates')
+    .reply(200, (_: any, requestBody: { variables: { lowerIndex: string; upperIndex: string } }) => {
+      const now = BigInt(Math.floor(Date.now() / 1000));
+      const day = BigInt('86400');
+
+      const indexUpdates = [
+        {
+          index: '1000000000000',
+          ts: (now - day * BigInt(3)).toString(),
+        },
+        {
+          index: '1010000000000',
+          ts: (now - day * BigInt(2)).toString(),
+        },
+        {
+          index: '1020100000000',
+          ts: (now - day).toString(),
+        },
+      ];
+
+      return {
+        data: {
+          indexUpdates: indexUpdates.filter(
+            (v) =>
+              BigInt(v.index) >= BigInt(requestBody.variables.lowerIndex) &&
+              BigInt(v.index) <= BigInt(requestBody.variables.upperIndex),
+          ),
+        },
+      };
+    })
+    .persist();
+
+  nock(GRAPH_URL)
     .post(
       '',
       (body) =>
@@ -669,6 +702,7 @@ function mockSubgraph() {
             amount: '5000000',
             ts: '100',
             signature: '0x',
+            index: '1000000000000',
             recipient_token_account: {
               pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
             },
@@ -677,6 +711,7 @@ function mockSubgraph() {
             amount: '4000000',
             ts: '200',
             signature: '0x',
+            index: '1010000000000',
             recipient_token_account: {
               pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
             },
@@ -699,6 +734,7 @@ function mockSubgraph() {
             amount: '5000000',
             ts: '100',
             signature: '0x',
+            index: '1000000000000',
             recipient_token_account: {
               pubkey: '0xd088f35850618fd9c71c18b2c8ebcdff4dfc192bb22b64826fac4dc0136b5685',
             },

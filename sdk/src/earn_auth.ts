@@ -113,20 +113,41 @@ class EarnAuthority {
       return null;
     }
 
-    if (earner.data.lastClaimIndex == this.global.index) {
+    if (earner.data.lastClaimIndex.gte(this.global.index)) {
       this.logger.warn('Earner already claimed');
       return null;
     }
 
-    const weightedBalance = await this.graphClient.getTimeWeightedBalance(
-      earner.data.userTokenAccount,
-      earner.data.lastClaimTimestamp,
-      this.global.timestamp,
-    );
+    // get the index updates from the earner's last claim to the current index
+    const steps = await this.graphClient.getIndexUpdates(earner.data.lastClaimIndex, this.global.index);
 
-    if (weightedBalance.isZero()) {
-      return null;
+    // iterate through the steps and calculate the pending yield for the earner
+    let claimYield: BN = new BN(0);
+
+    let last = steps[0];
+    for (let i = 1; i < steps.length; i++) {
+      let current = steps[i];
+
+      // Check that indices and timestamps are only increasing
+      if (current.index.lt(last.index) || current.ts.lt(last.ts)) {
+        throw new Error('Invalid index or timestamp');
+      }
+
+      const twb = await this.graphClient.getTimeWeightedBalance(earner.data.userTokenAccount, last.ts, current.ts);
+
+      // iterative calculation
+      // y_n = (y_(n-1) + twb) * I_n / I_(n-1) - twb
+      claimYield = claimYield.add(twb).mul(current.index).div(last.index).sub(twb);
+
+      // update last
+      last = current;
     }
+
+    // calculate the claim "snapshot" balance from the claim yield and indices
+    // b* = y / ((I_n / I_l) - 1) = y * I_l / (I_n - I_l)
+    const claimBalance = claimYield
+      .mul(earner.data.lastClaimIndex)
+      .div(this.global.index.sub(earner.data.lastClaimIndex));
 
     // PDAs
     const [earnerAccount] = PublicKey.findProgramAddressSync(
@@ -163,7 +184,7 @@ class EarnAuthority {
       );
 
       return (this.program as Program<ExtEarn>).methods
-        .claimFor(new BN(weightedBalance.toString()))
+        .claimFor(claimBalance)
         .accounts({
           earnAuthority: this.global.earnAuthority,
           globalAccount: EXT_GLOBAL_ACCOUNT,
@@ -182,7 +203,7 @@ class EarnAuthority {
       const [tokenAuthorityAccount] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], PROGRAM_ID);
 
       return (this.program as Program<Earn>).methods
-        .claimFor(new BN(weightedBalance.toString()))
+        .claimFor(claimBalance)
         .accounts({
           earnAuthority: new PublicKey(this.global.earnAuthority),
           globalAccount: GLOBAL_ACCOUNT,
