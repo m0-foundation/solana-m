@@ -1,6 +1,5 @@
 import { Connection, TransactionInstruction, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { PublicClient } from 'viem';
-
 import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
@@ -19,7 +18,7 @@ class EarnAuthority {
   private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
-  private graph: Graph;
+  private graphClient: Graph;
   private program: Program<Earn> | Program<ExtEarn>;
   private global: GlobalAccountData;
   private managerCache: Map<PublicKey, EarnManager> = new Map();
@@ -30,7 +29,7 @@ class EarnAuthority {
   private constructor(
     connection: Connection,
     evmClient: PublicClient,
-    graphKey: string,
+    graphClient: Graph,
     global: GlobalAccountData,
     mintAuth: PublicKey,
     program = PROGRAM_ID,
@@ -39,7 +38,7 @@ class EarnAuthority {
     this.logger = logger;
     this.connection = connection;
     this.evmClient = evmClient;
-    this.graph = new Graph(graphKey);
+    this.graphClient = graphClient;
     this.programID = program;
     this.program = program.equals(PROGRAM_ID) ? getProgram(connection) : getExtProgram(connection);
     this.global = global;
@@ -49,7 +48,7 @@ class EarnAuthority {
   static async load(
     connection: Connection,
     evmClient: PublicClient,
-    graphKey: string,
+    graphClient: Graph,
     program = PROGRAM_ID,
     logger: Logger = new MockLogger(),
   ): Promise<EarnAuthority> {
@@ -66,14 +65,14 @@ class EarnAuthority {
     // get mint multisig
     const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
 
-    return new EarnAuthority(connection, evmClient, graphKey, global, mint.mintAuthority!, program, logger);
+    return new EarnAuthority(connection, evmClient, graphClient, global, mint.mintAuthority!, program, logger);
   }
 
   async refresh(): Promise<void> {
     const updated = await EarnAuthority.load(
       this.connection,
       this.evmClient,
-      this.graph.key,
+      this.graphClient,
       this.programID,
       this.logger,
     );
@@ -86,7 +85,7 @@ class EarnAuthority {
 
   async getAllEarners(): Promise<Earner[]> {
     const accounts = await this.program.account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graph.key, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graphClient, a.publicKey, a.account));
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
@@ -119,7 +118,7 @@ class EarnAuthority {
       return null;
     }
 
-    const weightedBalance = await this.graph.getTimeWeightedBalance(
+    const weightedBalance = await this.graphClient.getTimeWeightedBalance(
       earner.data.userTokenAccount,
       earner.data.lastClaimTimestamp,
       this.global.timestamp,
@@ -142,7 +141,7 @@ class EarnAuthority {
         manager = await EarnManager.fromManagerAddress(
           this.connection,
           this.evmClient,
-          this.graph.key,
+          this.graphClient,
           earner.data.earnManager!,
         );
         this.managerCache.set(earner.data.earnManager!, manager);

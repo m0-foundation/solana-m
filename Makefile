@@ -1,4 +1,4 @@
-.PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet upgrade-ext-earn-devnet deploy-yield-bot
+.PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet upgrade-ext-earn-devnet deploy-yield-bot deploy-subgraph-mainnet deploy-subgraph-devnet
 
 
 #
@@ -105,3 +105,28 @@ deploy-index-bot:
 	docker build --build-arg now="$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:index-bot -f services/index-bot/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:index-bot
 	railway redeploy --service "index bot" --yes
+
+#
+# Subgraphs
+#
+DEVNET_STARTING_BLOCK := 364230817
+MAINNET_STARTING_BLOCK := 333860258
+DEVNET_TARGET_VERSION := v0.0.2 
+MAINNET_TARGET_VERSION := v0.0.3
+
+define deploy-subgraph
+	@cd substreams && \
+	sed -i '' 's/initialBlock: [0-9]*/initialBlock: $(2)/' substreams.yaml && \
+	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' substreams.yaml && \
+	substreams build && \
+	cd subgraph && \
+	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' subgraph.yaml && \
+	npm run generate && npm run build && \
+	graph deploy $(3) --version-label $(4)
+endef
+
+deploy-subgraph-mainnet:
+	$(call deploy-subgraph,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),solana-m,$(MAINNET_TARGET_VERSION))
+
+deploy-subgraph-devnet:
+	$(call deploy-subgraph,solana-devnet,$(DEVNET_STARTING_BLOCK),solana-m-devnet,$(DEVNET_TARGET_VERSION))

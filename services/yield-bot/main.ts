@@ -11,7 +11,15 @@ import {
 } from '@solana/web3.js';
 import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
-import { EXT_PROGRAM_ID, PROGRAM_ID, PublicClient, createPublicClient, http } from '../../sdk/src';
+import {
+  DEVNET_GRAPH_ID,
+  EXT_PROGRAM_ID,
+  MAINNET_GRAPH_ID,
+  PROGRAM_ID,
+  PublicClient,
+  createPublicClient,
+  http,
+} from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
 import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
@@ -19,6 +27,7 @@ import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
 import { buildTransaction } from '../../sdk/src/transaction';
 import { sendSlackMessage, SlackMessage } from '../shared/slack';
+import { Graph } from '../../sdk/src/graph';
 import { logBlockchainBalance } from '../shared/balances';
 
 // logger used by bot and passed to SDK
@@ -35,7 +44,7 @@ interface ParsedOptions {
   signer: Keypair;
   connection: Connection;
   evmClient: PublicClient;
-  graphKey: string;
+  graphClient: Graph;
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
@@ -83,12 +92,13 @@ export async function yieldCLI() {
         await logBlockchainBalance('solana', rpc, signer.publicKey.toBase58(), logger);
 
         const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
+        const graphID = rpc.includes('devnet') ? DEVNET_GRAPH_ID : MAINNET_GRAPH_ID;
 
         const options: ParsedOptions = {
           signer,
           connection: new Connection(rpc, 'processed'),
           evmClient,
-          graphKey,
+          graphClient: new Graph(graphKey, graphID),
           dryRun,
           skipCycle,
           programID: new PublicKey(programID),
@@ -140,7 +150,7 @@ async function executeSteps(
 }
 
 async function distributeYield(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphKey, opt.programID, logger);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphClient, opt.programID, logger);
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
@@ -213,7 +223,7 @@ async function distributeYield(opt: ParsedOptions) {
 
 async function addEarners(opt: ParsedOptions) {
   logger.info('adding earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
+  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
   const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
 
@@ -231,7 +241,7 @@ async function addEarners(opt: ParsedOptions) {
 
 async function removeEarners(opt: ParsedOptions) {
   logger.info('removing earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphKey, logger);
+  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
   const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
 
@@ -249,7 +259,7 @@ async function removeEarners(opt: ParsedOptions) {
 
 async function syncIndex(opt: ParsedOptions) {
   logger.info('syncing index');
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphKey, EXT_PROGRAM_ID, logger);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphClient, EXT_PROGRAM_ID, logger);
   const extIndex = auth['global'].index;
 
   // fetch the current index on the earn program

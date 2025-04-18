@@ -16,15 +16,15 @@ export class Registrar {
   private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
-  private graph: Graph;
+  private graphClient: Graph;
   private program: Program<Earn>;
   private _mint: PublicKey | undefined;
 
-  constructor(connection: Connection, evmClient: PublicClient, graphKey: string, logger: Logger = new MockLogger()) {
+  constructor(connection: Connection, evmClient: PublicClient, graphClient: Graph, logger: Logger = new MockLogger()) {
     this.connection = connection;
     this.logger = logger;
     this.evmClient = evmClient;
-    this.graph = new Graph(graphKey);
+    this.graphClient = graphClient;
     this.program = getProgram(connection);
   }
 
@@ -46,7 +46,7 @@ export class Registrar {
       const existingEarners = await Earner.fromUserAddress(
         this.connection,
         this.evmClient,
-        this.graph.key,
+        this.graphClient,
         user,
         PROGRAM_ID,
       );
@@ -130,6 +130,6 @@ export class Registrar {
 
   async getRegistrarEarners(): Promise<Earner[]> {
     const accounts = await getProgram(this.connection).account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graph.key, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graphClient, a.publicKey, a.account));
   }
 }
