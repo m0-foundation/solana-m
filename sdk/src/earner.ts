@@ -12,15 +12,21 @@ import { EarnManager } from './earn_manager';
 export class Earner {
   private connection: Connection;
   private evmClient: PublicClient;
-  private graph: Graph;
+  private graphClient: Graph;
 
   pubkey: PublicKey;
   data: EarnerData;
 
-  constructor(connection: Connection, evmClient: PublicClient, graphKey: string, pubkey: PublicKey, data: EarnerData) {
+  constructor(
+    connection: Connection,
+    evmClient: PublicClient,
+    graphClient: Graph,
+    pubkey: PublicKey,
+    data: EarnerData,
+  ) {
     this.connection = connection;
     this.evmClient = evmClient;
-    this.graph = new Graph(graphKey);
+    this.graphClient = graphClient;
     this.pubkey = pubkey;
     this.data = data;
   }
@@ -28,7 +34,7 @@ export class Earner {
   static async fromTokenAccount(
     connection: Connection,
     evmClient: PublicClient,
-    graphKey: string,
+    graphClient: Graph,
     tokenAccount: PublicKey,
     program = EXT_PROGRAM_ID,
   ): Promise<Earner> {
@@ -36,10 +42,10 @@ export class Earner {
 
     if (program.equals(EXT_PROGRAM_ID)) {
       const data = await getExtProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, graphKey, earnerAccount, data);
+      return new Earner(connection, evmClient, graphClient, earnerAccount, data);
     } else {
       const data = await getProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, graphKey, earnerAccount, {
+      return new Earner(connection, evmClient, graphClient, earnerAccount, {
         ...data,
         earnManager: null,
         recipientTokenAccount: null,
@@ -50,7 +56,7 @@ export class Earner {
   static async fromUserAddress(
     connection: Connection,
     evmClient: PublicClient,
-    graphKey: string,
+    graphClient: Graph,
     user: PublicKey,
     program = EXT_PROGRAM_ID,
   ): Promise<Earner[]> {
@@ -58,12 +64,12 @@ export class Earner {
 
     if (program.equals(EXT_PROGRAM_ID)) {
       const accounts = await getExtProgram(connection).account.earner.all(filter);
-      return accounts.map((a) => new Earner(connection, evmClient, graphKey, a.publicKey, a.account));
+      return accounts.map((a) => new Earner(connection, evmClient, graphClient, a.publicKey, a.account));
     } else {
       const accounts = await getProgram(connection).account.earner.all(filter);
       return accounts.map(
         (a) =>
-          new Earner(connection, evmClient, graphKey, a.publicKey, {
+          new Earner(connection, evmClient, graphClient, a.publicKey, {
             ...a.account,
             earnManager: null,
             recipientTokenAccount: null,
@@ -73,7 +79,7 @@ export class Earner {
   }
 
   async getHistoricalClaims(): Promise<Claim[]> {
-    return await this.graph.getHistoricalClaims(this.data.userTokenAccount);
+    return await this.graphClient.getHistoricalClaims(this.data.userTokenAccount);
   }
 
   async getClaimedYield(): Promise<BN> {
@@ -94,7 +100,7 @@ export class Earner {
     const currentIndex = await evmCaller.getCurrentIndex();
 
     // Get the index updates from the graph b/w the user's last claim index and current index
-    const steps = await this.graph.getIndexUpdates(this.data.lastClaimIndex, currentIndex);
+    const steps = await this.graphClient.getIndexUpdates(this.data.lastClaimIndex, currentIndex);
 
     // The current index should not be in the index updates list so we add it manually
     steps.push({ index: currentIndex, ts: currentTime });
@@ -111,7 +117,7 @@ export class Earner {
         throw new Error('Invalid index or timestamp');
       }
 
-      const twb = await this.graph.getTimeWeightedBalance(this.data.userTokenAccount, last.ts, current.ts);
+      const twb = await this.graphClient.getTimeWeightedBalance(this.data.userTokenAccount, last.ts, current.ts);
 
       // iterative calculation
       // y_n = (y_(n-1) + twb) * (I_n / I_(n-1) - twb
@@ -127,7 +133,7 @@ export class Earner {
       const earnManager = await EarnManager.fromManagerAddress(
         this.connection,
         this.evmClient,
-        this.graph.key,
+        this.graphClient,
         this.data.earnManager,
       );
 

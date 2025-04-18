@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { gql, GraphQLClient } from 'graphql-request';
+import { MAINNET_GRAPH_ID } from '.';
 
 type TokenAccount = {
   pubkey: PublicKey;
@@ -18,15 +19,11 @@ export type Claim = {
 
 export class Graph {
   private client: GraphQLClient;
-
   private baseURL = 'https://gateway.thegraph.com';
-  private subgraphId = 'Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
-  key: string;
 
-  constructor(apiKey: string) {
-    this.key = apiKey;
-    this.client = new GraphQLClient(`${this.baseURL}/api/subgraphs/id/${this.subgraphId}`, {
-      headers: { Authorization: `Bearer ${this.key}` },
+  constructor(apiKey: string, graphId = MAINNET_GRAPH_ID) {
+    this.client = new GraphQLClient(`${this.baseURL}/api/subgraphs/id/${graphId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
     });
   }
 

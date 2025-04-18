@@ -160,7 +160,7 @@ async function main() {
         mint,
         multisig.publicKey,
         null, // no freeze authority
-        'M by M^0',
+        'M by M0',
         'M',
         'https://gistcdn.githack.com/SC4RECOIN/a729afb77aa15a4aa6b1b46c3afa1b52/raw/209da531ed46c1aaef0b1d3d7b67b3a5cec257f3/M_Symbol_512.svg',
         PROGRAMS.mToken,
@@ -191,7 +191,7 @@ async function main() {
         mint,
         mintAuthority,
         freezeAuthority,
-        'WrappedM by M^0',
+        'WrappedM by M0',
         'wM',
         'https://gistcdn.githack.com/SC4RECOIN/d383d31baee720e8481edae4620eb047/raw/00cd11302f663bf5fe086d5b71b81d1fb0fb31ac/wM_Symbol_512.svg',
         PROGRAMS.wmToken,

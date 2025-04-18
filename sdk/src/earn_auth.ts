@@ -1,7 +1,6 @@
 import { Connection, TransactionInstruction, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { PublicClient } from 'viem';
-
-import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, MINT, PROGRAM_ID } from '.';
+import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
 import { EarnManager } from './earn_manager';
@@ -19,7 +18,7 @@ class EarnAuthority {
   private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
-  private graph: Graph;
+  private graphClient: Graph;
   private program: Program<Earn> | Program<ExtEarn>;
   private global: GlobalAccountData;
   private managerCache: Map<PublicKey, EarnManager> = new Map();
@@ -30,7 +29,7 @@ class EarnAuthority {
   private constructor(
     connection: Connection,
     evmClient: PublicClient,
-    graphKey: string,
+    graphClient: Graph,
     global: GlobalAccountData,
     mintAuth: PublicKey,
     program = PROGRAM_ID,
@@ -39,7 +38,7 @@ class EarnAuthority {
     this.logger = logger;
     this.connection = connection;
     this.evmClient = evmClient;
-    this.graph = new Graph(graphKey);
+    this.graphClient = graphClient;
     this.programID = program;
     this.program = program.equals(PROGRAM_ID) ? getProgram(connection) : getExtProgram(connection);
     this.global = global;
@@ -49,7 +48,7 @@ class EarnAuthority {
   static async load(
     connection: Connection,
     evmClient: PublicClient,
-    graphKey: string,
+    graphClient: Graph,
     program = PROGRAM_ID,
     logger: Logger = new MockLogger(),
   ): Promise<EarnAuthority> {
@@ -66,14 +65,14 @@ class EarnAuthority {
     // get mint multisig
     const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
 
-    return new EarnAuthority(connection, evmClient, graphKey, global, mint.mintAuthority!, program, logger);
+    return new EarnAuthority(connection, evmClient, graphClient, global, mint.mintAuthority!, program, logger);
   }
 
   async refresh(): Promise<void> {
     const updated = await EarnAuthority.load(
       this.connection,
       this.evmClient,
-      this.graph.key,
+      this.graphClient,
       this.programID,
       this.logger,
     );
@@ -86,7 +85,7 @@ class EarnAuthority {
 
   async getAllEarners(): Promise<Earner[]> {
     const accounts = await this.program.account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graph.key, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.graphClient, a.publicKey, a.account));
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
@@ -120,7 +119,7 @@ class EarnAuthority {
     }
 
     // get the index updates from the earner's last claim to the current index
-    const steps = await this.graph.getIndexUpdates(earner.data.lastClaimIndex, this.global.index);
+    const steps = await this.graphClient.getIndexUpdates(earner.data.lastClaimIndex, this.global.index);
 
     // iterate through the steps and calculate the pending yield for the earner
     let claimYield: BN = new BN(0);
@@ -134,7 +133,7 @@ class EarnAuthority {
         throw new Error('Invalid index or timestamp');
       }
 
-      const twb = await this.graph.getTimeWeightedBalance(earner.data.userTokenAccount, last.ts, current.ts);
+      const twb = await this.graphClient.getTimeWeightedBalance(earner.data.userTokenAccount, last.ts, current.ts);
 
       // iterative calculation
       // y_n = (y_(n-1) + twb) * I_n / I_(n-1) - twb
@@ -163,7 +162,7 @@ class EarnAuthority {
         manager = await EarnManager.fromManagerAddress(
           this.connection,
           this.evmClient,
-          this.graph.key,
+          this.graphClient,
           earner.data.earnManager!,
         );
         this.managerCache.set(earner.data.earnManager!, manager);
@@ -178,7 +177,7 @@ class EarnAuthority {
       // vault PDAs
       const [mVaultAccount] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID);
       const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
-        MINT,
+        this.global.mint,
         mVaultAccount,
         true,
         spl.TOKEN_2022_PROGRAM_ID,
@@ -286,7 +285,7 @@ class EarnAuthority {
 
       // vault balance
       const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
-        MINT,
+        this.global.mint,
         PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID)[0],
         true,
         spl.TOKEN_2022_PROGRAM_ID,

@@ -1,5 +1,4 @@
-use consts::SYSTEM_PROGRAMS;
-use consts::{EXT_MINT, MINT};
+use consts::{MINTS, SYSTEM_PROGRAMS};
 use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
 use substreams_solana::pb::sf::solana::r#type::v1::Block;
 use substreams_solana_utils::{
@@ -44,7 +43,7 @@ fn map_transfer_events(block: Block) -> TokenTransactions {
 
         // Parse token account balance updates from mints and transfers
         for token_account in token_accounts(&t) {
-            if token_account.mint != MINT && token_account.mint != EXT_MINT {
+            if !MINTS.contains(&token_account.mint) {
                 continue;
             }
             if token_account.pre_balance == token_account.post_balance {
