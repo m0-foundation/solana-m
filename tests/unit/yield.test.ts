@@ -195,15 +195,12 @@ describe('Yield calculation tests', () => {
           // build claim for earner
           const auth = await EarnAuthority.load(connection, evmClient, graphClient);
           const earner = (await auth.getAllEarners())[0];
-          console.log('earner', earner);
           const ix = await auth.buildClaimInstruction(earner);
-          console.log('ix', ix);
           // build transaction
           const tx = new Transaction().add(ix!);
           tx.feePayer = provider.wallet.publicKey;
           tx.recentBlockhash = svm.latestBlockhash();
           tx.sign(provider.wallet.payer);
-          console.log('tx', tx);
 
           // send txn and parse logs for rewards amount
           const result = svm.sendTransaction(tx) as TransactionMetadata;
