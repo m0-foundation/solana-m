@@ -18,4 +18,6 @@ pub enum ExtError {
     MutableOwner,
     #[msg("Not enough M.")]
     InsufficientCollateral,
+    #[msg("Invalid Mint.")]
+    InvalidMint,
 }

@@ -427,7 +427,7 @@ const closeTokenAccount = async (owner: Keypair, tokenAccount: PublicKey) => {
     await provider.sendAndConfirm(tx, [owner]);
 };
 
-const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: boolean = true) => {
+const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: boolean = true, decimals = 6) => {
     // Create and initialize mint account
 
     const tokenProgram = use2022 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
@@ -445,7 +445,7 @@ const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: bool
 
     const initializeMint = createInitializeMintInstruction(
         mint.publicKey,
-        6, // decimals
+        decimals, // decimals
         mintAuthority, // mint authority
         mintAuthority, // freeze authority
         tokenProgram
@@ -570,7 +570,7 @@ const warp = (seconds: BN, increment: boolean) => {
 };
 
 // instruction convenience functions for earn program
-const prepEarnInitialize = (signer: Keypair) => {
+const prepEarnInitialize = (signer: Keypair, mint: PublicKey) => {
     // Get the global PDA
     const globalAccount = getEarnGlobalAccount();
 
@@ -578,6 +578,7 @@ const prepEarnInitialize = (signer: Keypair) => {
     accounts = {};
     accounts.admin = signer.publicKey;
     accounts.globalAccount = globalAccount;
+    accounts.mint = mint;
     accounts.systemProgram = SystemProgram.programId;
 
     return { globalAccount };
@@ -590,11 +591,11 @@ const initializeEarn = async (
     claimCooldown: BN
 ) => {
     // Setup the instruction
-    const { globalAccount } = prepEarnInitialize(admin);
+    const { globalAccount } = prepEarnInitialize(admin, mint);
 
     // Send the transaction
     await earn.methods
-        .initialize(mint, earnAuthority, initialIndex, claimCooldown)
+        .initialize(earnAuthority, initialIndex, claimCooldown)
         .accounts({ ...accounts })
         .signers([admin])
         .rpc();
@@ -1308,7 +1309,7 @@ describe("ExtEarn unit tests", () => {
                         .accounts({ ...accounts })
                         .signers([nonAdmin])
                         .rpc(),
-                    "ConstraintTokenTokenProgram"
+                    "ConstraintAddress"
                 );
             });
 
@@ -1332,7 +1333,31 @@ describe("ExtEarn unit tests", () => {
                         .accounts({ ...accounts })
                         .signers([nonAdmin])
                         .rpc(),
-                    "ConstraintTokenTokenProgram"
+                    "ConstraintMintTokenProgram"
+                );
+            });
+
+            // given the decimals on ext_mint do not match M
+            // it reverts with a MintDecimals error
+            test("ext_mint incorrect decimals - reverts", async () => {
+                // Create a mint owned by a different program
+                const badMint = new Keypair();
+                await createMint(badMint, nonAdmin.publicKey, true, 9);
+
+                // Setup the instruction call
+                prepExtInitialize(nonAdmin);
+
+                // Change the Ext Mint
+                accounts.extMint = badMint.publicKey;
+
+                // Attempt to send the transaction
+                await expectAnchorError(
+                    extEarn.methods
+                        .initialize(earnAuthority.publicKey)
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "ConstraintMintDecimals"
                 );
             });
 
