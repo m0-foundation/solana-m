@@ -15,6 +15,7 @@ import {
     TOKEN_2022_PROGRAM_ID,
     createInitializeMintInstruction,
     createAssociatedTokenAccountInstruction,
+    createCloseAccountInstruction,
     getAccount,
     getMintLen,
     getMinimumBalanceForRentExemptMultisig,
@@ -412,7 +413,21 @@ const createTokenAccount = async (mint: PublicKey, owner: PublicKey) => {
     return { tokenAccount: tokenAccount.publicKey };
 };
 
-const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: boolean = true) => {
+const closeTokenAccount = async (owner: Keypair, tokenAccount: PublicKey) => {
+    const closeIx = createCloseAccountInstruction(
+        tokenAccount,
+        owner.publicKey,
+        owner.publicKey,
+        [],
+        TOKEN_2022_PROGRAM_ID
+    );
+    
+    let tx = new Transaction().add(closeIx);
+
+    await provider.sendAndConfirm(tx, [owner]);
+};
+
+const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: boolean = true, decimals = 6) => {
     // Create and initialize mint account
 
     const tokenProgram = use2022 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
@@ -430,7 +445,7 @@ const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: bool
 
     const initializeMint = createInitializeMintInstruction(
         mint.publicKey,
-        6, // decimals
+        decimals, // decimals
         mintAuthority, // mint authority
         mintAuthority, // freeze authority
         tokenProgram
@@ -555,7 +570,7 @@ const warp = (seconds: BN, increment: boolean) => {
 };
 
 // instruction convenience functions for earn program
-const prepEarnInitialize = (signer: Keypair) => {
+const prepEarnInitialize = (signer: Keypair, mint: PublicKey) => {
     // Get the global PDA
     const globalAccount = getEarnGlobalAccount();
 
@@ -563,6 +578,7 @@ const prepEarnInitialize = (signer: Keypair) => {
     accounts = {};
     accounts.admin = signer.publicKey;
     accounts.globalAccount = globalAccount;
+    accounts.mint = mint;
     accounts.systemProgram = SystemProgram.programId;
 
     return { globalAccount };
@@ -575,11 +591,11 @@ const initializeEarn = async (
     claimCooldown: BN
 ) => {
     // Setup the instruction
-    const { globalAccount } = prepEarnInitialize(admin);
+    const { globalAccount } = prepEarnInitialize(admin, mint);
 
     // Send the transaction
     await earn.methods
-        .initialize(mint, earnAuthority, initialIndex, claimCooldown)
+        .initialize(earnAuthority, initialIndex, claimCooldown)
         .accounts({ ...accounts })
         .signers([admin])
         .rpc();
@@ -1293,7 +1309,7 @@ describe("ExtEarn unit tests", () => {
                         .accounts({ ...accounts })
                         .signers([nonAdmin])
                         .rpc(),
-                    "ConstraintTokenTokenProgram"
+                    "ConstraintAddress"
                 );
             });
 
@@ -1317,7 +1333,31 @@ describe("ExtEarn unit tests", () => {
                         .accounts({ ...accounts })
                         .signers([nonAdmin])
                         .rpc(),
-                    "ConstraintTokenTokenProgram"
+                    "ConstraintMintTokenProgram"
+                );
+            });
+
+            // given the decimals on ext_mint do not match M
+            // it reverts with a MintDecimals error
+            test("ext_mint incorrect decimals - reverts", async () => {
+                // Create a mint owned by a different program
+                const badMint = new Keypair();
+                await createMint(badMint, nonAdmin.publicKey, true, 9);
+
+                // Setup the instruction call
+                prepExtInitialize(nonAdmin);
+
+                // Change the Ext Mint
+                accounts.extMint = badMint.publicKey;
+
+                // Attempt to send the transaction
+                await expectAnchorError(
+                    extEarn.methods
+                        .initialize(earnAuthority.publicKey)
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "ConstraintMintDecimals"
                 );
             });
 
@@ -1825,6 +1865,8 @@ describe("ExtEarn unit tests", () => {
             //     [X] given the earn manager is not active and has a non-zero fee
             //       [X] it mints all of the rewards to the earner's token account
             //     [X] given the earn manager is active and has a non-zero fee
+            //       [ ] given the earn manager's fee token account is closed
+            //         [X] it mints all of the rewards to the earner's token account
             //       [X] given the fee on the current yield rounds to zero
             //         [X] it mints all of the rewards to the earner's token account
             //       [X] given the fee does not round to zero
@@ -2263,6 +2305,66 @@ describe("ExtEarn unit tests", () => {
                     }
                 );
             });
+
+            // given all the accounts are correct
+            // given the earn manager fee is not zero and earn manager is active
+            // given the earn manager token account is closed
+            // it mints all the yield to the earner's recipient account
+            test("Earn manager fee is non-zero, earn manager active, earn manager token account closed - success", async () => {
+                // Set the earn manager fee to a non-zero value
+                await configureEarnManager(earnManagerOne, new BN(1000));
+
+                // Setup the instruction to claim for earner one
+                const { earnerAccount, userTokenAccount, earnManagerTokenAccount } = await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                // Close the earn manager token account
+                await closeTokenAccount(earnManagerOne, earnManagerTokenAccount);
+
+                // Get the current balance of the earner's token account
+                const earnerStartBalance = await getTokenBalance(userTokenAccount);
+
+                // Confirm the earn manager fee is non-zero and inactive
+                await expectEarnManagerState(
+                    getEarnManagerAccount(earnManagerOne.publicKey),
+                    {
+                        feeBps: new BN(1000),
+                        isActive: true
+                    }
+                );
+
+                // Confirm the starting earner account state
+                await expectEarnerState(
+                    earnerAccount, {
+                    lastClaimIndex: initialIndex,
+                    lastClaimTimestamp: startTime
+                });
+
+                // Send the transaction
+                await extEarn.methods
+                    .claimFor(earnerStartBalance)
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Calculate expected rewards (balance * (global_index / last_claim_index) - balance)
+                const expectedRewards = earnerStartBalance
+                    .mul(newIndex)
+                    .div(initialIndex)
+                    .sub(earnerStartBalance);
+
+                // Verify the expected token balance changes
+                await expectTokenBalance(userTokenAccount, earnerStartBalance.add(expectedRewards));
+
+                // Verify the earner account was updated with the new claim index and claim timestamp
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: newIndex,
+                        lastClaimTimestamp: currentTime()
+                    }
+                );
+            });
+            
 
             // given all the accounts are correct
             // given the earn manager fee is not zero and earn manager is active

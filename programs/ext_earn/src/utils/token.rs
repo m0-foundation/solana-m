@@ -7,15 +7,7 @@ use ::spl_token_2022::extension::PodStateWithExtensions;
 use ::spl_token_2022::pod::PodAccount;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{
-    transfer_checked,
-    Burn, 
-    burn, 
-    Mint, 
-    MintTo, 
-    mint_to, 
-    TokenAccount, 
-    Token2022, 
-    TransferChecked
+    burn, mint_to, transfer_checked, Burn, Mint, MintTo, Token2022, TokenAccount, TransferChecked,
 };
 
 pub fn transfer_tokens_from_program<'info>(
@@ -34,14 +26,14 @@ pub fn transfer_tokens_from_program<'info>(
         mint: mint.to_account_info(),
         authority: authority.clone(),
     };
-    let cpi_context = CpiContext::new_with_signer(token_program.to_account_info(), transfer_options, authority_seeds);
+    let cpi_context = CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        transfer_options,
+        authority_seeds,
+    );
 
     // Call the transfer instruction
-    transfer_checked(
-        cpi_context,
-        amount,
-        mint.decimals,
-    )?;
+    transfer_checked(cpi_context, amount, mint.decimals)?;
 
     Ok(())
 }
@@ -64,11 +56,7 @@ pub fn transfer_tokens<'info>(
     let cpi_context = CpiContext::new(token_program.to_account_info(), transfer_options);
 
     // Call the transfer instruction
-    transfer_checked(
-        cpi_context,
-        amount,
-        mint.decimals,
-    )?;
+    transfer_checked(cpi_context, amount, mint.decimals)?;
 
     Ok(())
 }
@@ -90,13 +78,14 @@ pub fn mint_tokens<'info>(
         authority: authority.clone(),
     };
 
-    let cpi_context = CpiContext::new_with_signer(token_program.to_account_info(), mint_options, authority_seeds);
+    let cpi_context = CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        mint_options,
+        authority_seeds,
+    );
 
     // Call the mint instruction
-    mint_to(
-        cpi_context,
-        amount,
-    )?;
+    mint_to(cpi_context, amount)?;
 
     Ok(())
 }
@@ -118,10 +107,7 @@ pub fn burn_tokens<'info>(
     let cpi_context = CpiContext::new(token_program.to_account_info(), burn_options);
 
     // Call the burn instruction
-    burn(
-        cpi_context,
-        amount,
-    )?;
+    burn(cpi_context, amount)?;
 
     Ok(())
 }
