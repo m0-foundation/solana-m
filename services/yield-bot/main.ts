@@ -30,11 +30,16 @@ import { sendSlackMessage, SlackMessage } from '../shared/slack';
 import { Graph } from '../../sdk/src/graph';
 import { logBlockchainBalance } from '../shared/balances';
 import { getLokiTransport } from './loki';
+import LokiTransport from 'winston-loki';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
-const lokiTransport = getLokiTransport(process.env.LOKI_URL ?? '', logger.logger);
-if (process.env.LOKI_URL) logger.withTransport(lokiTransport);
+
+let lokiTransport: LokiTransport;
+if (process.env.LOKI_URL) {
+  lokiTransport = getLokiTransport(process.env.LOKI_URL ?? '', logger.logger);
+  logger.withTransport(lokiTransport);
+}
 
 // rate limit claims
 const limiter = new RateLimiter({ tokensPerInterval: 2, interval: 1000 });

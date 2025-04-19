@@ -7,13 +7,18 @@ import { WinstonLogger } from '../../sdk/src/logger';
 import { sendSlackMessage, SlackMessage } from '../shared/slack';
 import { logBlockchainBalance } from '../shared/balances';
 import { getLokiTransport } from '../yield-bot/loki';
+import LokiTransport from 'winston-loki';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('index-bot', { imageBuild: process.env.BUILD_TIME ?? '', mint: 'M' }, true);
-const lokiTransport = getLokiTransport(process.env.LOKI_URL ?? '', logger.logger);
-if (process.env.LOKI_URL) logger.withTransport(lokiTransport);
+
+let lokiTransport: LokiTransport;
+if (process.env.LOKI_URL) {
+  lokiTransport = getLokiTransport(process.env.LOKI_URL ?? '', logger.logger);
+  logger.withTransport(lokiTransport);
+}
 
 // meta info from job will be posted to slack
 let slackMessage: SlackMessage;
