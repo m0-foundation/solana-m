@@ -14,7 +14,7 @@ import { buildTransaction } from './transaction';
 import { MockLogger, Logger } from './logger';
 import { RateLimiter } from 'limiter';
 
-class EarnAuthority {
+export class EarnAuthority {
   private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
