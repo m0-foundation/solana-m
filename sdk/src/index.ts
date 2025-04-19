@@ -20,7 +20,7 @@ export const MAINNET_GRAPH_ID = 'bgd3AFHw9bcSox1mfU39W9NbYUeSY53fr4kaVzmkPjC';
 export const DEVNET_GRAPH_ID = 'Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
 
 // Re-export the viem PublicClient type
-export { PublicClient, createPublicClient, createTestClient, http } from 'viem';
+export { type PublicClient, createPublicClient, createTestClient, http } from 'viem';
 
 export { EarnAuthority } from './earn_auth';
 export { EarnManager } from './earn_manager';
