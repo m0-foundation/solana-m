@@ -6,12 +6,14 @@ import { GLOBAL_ACCOUNT } from '../../sdk/src';
 import { WinstonLogger } from '../../sdk/src/logger';
 import { sendSlackMessage, SlackMessage } from '../shared/slack';
 import { logBlockchainBalance } from '../shared/balances';
+import { getLokiTransport } from '../yield-bot/loki';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('index-bot', { imageBuild: process.env.BUILD_TIME ?? '', mint: 'M' }, true);
-if (process.env.LOKI_URL) logger.withLokiTransport(process.env.LOKI_URL);
+const lokiTransport = getLokiTransport(process.env.LOKI_URL ?? '', logger.logger);
+if (process.env.LOKI_URL) logger.withTransport(lokiTransport);
 
 // meta info from job will be posted to slack
 let slackMessage: SlackMessage;
@@ -204,7 +206,7 @@ if (!process.argv[1].endsWith('jest')) {
       if (slackMessage.messages.length === 0) {
         slackMessage.messages.push('No actions taken');
       }
-      await logger.flush();
+      await lokiTransport.flush();
       await sendSlackMessage(slackMessage);
     });
 }
