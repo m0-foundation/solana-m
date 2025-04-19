@@ -106,7 +106,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/wrap" element={<Wrap />} />
             <Route path="/bridge" element={<Bridge />} />
             <Route path="/links" element={<Links />} />
-            <Route path="/earner/:pubkey" element={<EarnerDetails />} />
+            <Route path="/earner/:mint/:pubkey" element={<EarnerDetails />} />
           </Routes>
         </BrowserRouter>
       </QueryClientProvider>

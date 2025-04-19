@@ -39,7 +39,7 @@ export const Holders = ({ token }: { token: 'M' | 'wM' }) => {
             <tr key={holder.user.toString()} className="border-b border-gray-200">
               <td className="px-2 py-4">
                 <NavLink
-                  to={`/earner/${holder.user.toBase58()}`}
+                  to={`/earner/${token}/${holder.user.toBase58()}`}
                   className={`hover:underline ${labels[holder.user.toBase58()] ? 'bg-gray-100 py-1 px-2' : ''}`}
                 >
                   {labels[holder.user.toBase58()] || formatAddress(holder.user)}

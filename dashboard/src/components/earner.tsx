@@ -4,13 +4,15 @@ import { getEarner } from '../services/sdk';
 import { PublicKey } from '@solana/web3.js';
 
 export const EarnerDetails = () => {
-  let { pubkey } = useParams();
+  let { pubkey, mint } = useParams();
 
-  const { data: earners } = useQuery({
+  const { data: earner, ...other } = useQuery({
     queryKey: ['earner', pubkey],
-    queryFn: () => getEarner(new PublicKey(pubkey!)),
+    queryFn: () => getEarner(mint as 'M' | 'wM', new PublicKey(pubkey!)),
     enabled: !!pubkey,
   });
 
-  return <div>{`Earner ${pubkey}: ${earners?.length}`}</div>;
+  console.log('earner', earner, other);
+
+  return <div>{`Earner ${pubkey}: ${JSON.stringify(earner?.data)}`}</div>;
 };

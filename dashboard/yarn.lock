@@ -1046,10 +1046,10 @@
   dependencies:
     "@lit-labs/ssr-dom-shim" "^1.2.0"
 
-"@m0-foundation/solana-m-sdk@^0.1.3":
-  version "0.1.3"
-  resolved "https://registry.yarnpkg.com/@m0-foundation/solana-m-sdk/-/solana-m-sdk-0.1.3.tgz#6b0b1fbc44cad5d9d3eb831ece0620fd9135f736"
-  integrity sha512-Y0rfMUtoBd2SliinC8ls2BT8+A/w777Jcp05eVDthY86O3T0FD26b1ntFMWyN7zlumxyGwGs//Cb2UBTb+55mw==
+"@m0-foundation/solana-m-sdk@^0.1.4":
+  version "0.1.4"
+  resolved "https://registry.yarnpkg.com/@m0-foundation/solana-m-sdk/-/solana-m-sdk-0.1.4.tgz#82dfe04bc28d75e3281144ee7f7dc2e0acef1ba5"
+  integrity sha512-zVNZI+9EPNL8WwKqWxhBcNixtekXSFAylJMmvK2s082xmsR7t4E2BJl4S2je56lYr7A2tGDpzEwqFErhBaGzfQ==
   dependencies:
     "@coral-xyz/anchor" "0.29.0"
     "@solana/spl-token" "^0.4.13"
