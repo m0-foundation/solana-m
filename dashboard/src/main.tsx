@@ -27,6 +27,7 @@ import { Bridge } from './components/bridge';
 import { Links } from './components/links';
 import { IndexUpdates } from './components/index-updates';
 import { WagmiProvider } from 'wagmi';
+import { EarnerDetails } from './components/earner';
 
 console.table(
   Object.entries(import.meta.env).reduce((acc, [key, value]) => {
@@ -105,6 +106,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/wrap" element={<Wrap />} />
             <Route path="/bridge" element={<Bridge />} />
             <Route path="/links" element={<Links />} />
+            <Route path="/earner/:mint/:pubkey" element={<EarnerDetails />} />
           </Routes>
         </BrowserRouter>
       </QueryClientProvider>
