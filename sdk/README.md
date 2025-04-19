@@ -1,6 +1,6 @@
 # M0 Solana SDK
 
-This SDK allows earn managers to add eaners and fetch their historical and pending yield.
+This SDK contains common actions for earn managers and program admins for M and their extensions
 
 ```bash
 npm i @m0-foundation/solana-m-sdk
