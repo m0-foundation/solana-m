@@ -1,10 +1,13 @@
 {
-  "name": "solana-m-sdk",
+  "name": "@m0-foundation/solana-m-sdk",
   "version": "0.1.0",
   "description": "Solana M SDK",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup"
   },
@@ -12,11 +15,23 @@
     "entry": [
       "src/index.ts"
     ],
+    "format": [
+      "cjs",
+      "esm"
+    ],
     "splitting": false,
+    "dts": true,
     "sourcemap": true,
     "clean": true
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "M0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m0-foundation/solana-m.git"
+  },
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
     "@solana/spl-token": "^0.4.13",
