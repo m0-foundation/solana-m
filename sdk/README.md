@@ -1,6 +1,6 @@
 # M0 Solana SDK
 
-This SDK contains common actions for earn managers and program admins for M and their extensions
+This SDK contains common actions for earn managers and program admins for M and M extensions
 
 ```bash
 npm i @m0-foundation/solana-m-sdk
