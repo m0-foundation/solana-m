@@ -6,8 +6,8 @@ import { GLOBAL_ACCOUNT } from '../../sdk/src';
 import { WinstonLogger } from '../../sdk/src/logger';
 import { sendSlackMessage, SlackMessage } from '../shared/slack';
 import { logBlockchainBalance } from '../shared/balances';
-import { getLokiTransport } from '../yield-bot/loki';
 import LokiTransport from 'winston-loki';
+import winston from 'winston';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
@@ -197,6 +197,21 @@ async function sendIndexUpdate(options: ParsedOptions) {
   }
 
   return '';
+}
+
+function getLokiTransport(host: string, logger: winston.Logger) {
+  return new LokiTransport({
+    host,
+    json: true,
+    useWinstonMetaAsLabels: true,
+    ignoredMeta: ['imageBuild'],
+    format: logger.format,
+    batching: true,
+    timeout: 15_000,
+    onConnectionError: (error: any) => {
+      logger.error('Loki connection error:', { error: `${error}` });
+    },
+  });
 }
 
 // do not run the cli if this is being imported by jest

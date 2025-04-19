@@ -29,8 +29,8 @@ import { buildTransaction } from '../../sdk/src/transaction';
 import { sendSlackMessage, SlackMessage } from '../shared/slack';
 import { Graph } from '../../sdk/src/graph';
 import { logBlockchainBalance } from '../shared/balances';
-import { getLokiTransport } from './loki';
 import LokiTransport from 'winston-loki';
+import winston from 'winston';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
@@ -463,6 +463,21 @@ async function proposeSquadsTransaction(
   tx.sign([opt.signer]);
 
   return tx;
+}
+
+function getLokiTransport(host: string, logger: winston.Logger) {
+  return new LokiTransport({
+    host,
+    json: true,
+    useWinstonMetaAsLabels: true,
+    ignoredMeta: ['imageBuild'],
+    format: logger.format,
+    batching: true,
+    timeout: 15_000,
+    onConnectionError: (error: any) => {
+      logger.error('Loki connection error:', { error: `${error}` });
+    },
+  });
 }
 
 // do not run the cli if this is being imported by jest
