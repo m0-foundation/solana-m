@@ -1,8 +1,9 @@
 import { tokenHolders } from '../services/subgraph';
 import { PublicKey } from '@solana/web3.js';
-import { getMintsRPC, MINT_ADDRESSES, NETWORK } from '../services/rpc';
+import { getMintsRPC, MINT_ADDRESSES } from '../services/rpc';
 import Decimal from 'decimal.js';
 import { useQuery } from '@tanstack/react-query';
+import { NavLink } from 'react-router-dom';
 
 const labels: { [key: string]: string } = {
   '8vtsGdu4ErjK2skhV7FfPQwXdae6myWjgWJ8gRMnXi2K': 'wM Vault',
@@ -37,14 +38,12 @@ export const Holders = ({ token }: { token: 'M' | 'wM' }) => {
           {holderData?.map((holder) => (
             <tr key={holder.user.toString()} className="border-b border-gray-200">
               <td className="px-2 py-4">
-                <a
-                  href={`https://solscan.io/account/${holder.user.toBase58()}?cluster=${NETWORK}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <NavLink
+                  to={`/earner/${holder.user.toBase58()}`}
                   className={`hover:underline ${labels[holder.user.toBase58()] ? 'bg-gray-100 py-1 px-2' : ''}`}
                 >
                   {labels[holder.user.toBase58()] || formatAddress(holder.user)}
-                </a>
+                </NavLink>
               </td>
               <td className="px-2 py-4">
                 {token} {formatAmount(holder.balance)}

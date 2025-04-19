@@ -22,6 +22,7 @@ export const Bridges = () => {
       <table className="w-full text-sm text-left rtl:text-right text-xs">
         <thead className="border-b border-gray-200">
           <tr>
+            <th className="px-2 py-3">Timestamp</th>
             <th className="px-2 py-3">Signature</th>
             <th className="px-2 py-3">From</th>
             <th className="px-2 py-3">To</th>
@@ -31,6 +32,7 @@ export const Bridges = () => {
         <tbody>
           {data?.events.map((event) => (
             <tr key={event.ts} className="border-b border-gray-200">
+              <td className="px-2 py-4">{new Date(event.ts * 1000).toLocaleString()}</td>
               <td className="px-2 py-4">
                 <a
                   href={`https://solscan.io/tx/${bs58.encode(event.signature)}?cluster=${NETWORK}`}

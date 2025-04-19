@@ -34,7 +34,7 @@ export const MINT_ADDRESSES: Record<string, PublicKey> = {
 };
 
 export const NETWORK: 'devnet' | 'mainnet' = import.meta.env.VITE_NETWORK;
-const connection = new Connection(import.meta.env.VITE_RPC_URL);
+export const connection = new Connection(import.meta.env.VITE_RPC_URL);
 
 export const getMintsRPC = async (): Promise<Record<string, Mint>> => {
   const data: Record<string, Mint> = {};

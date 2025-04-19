@@ -3,7 +3,7 @@ import { indexUpdates } from '../services/subgraph';
 import bs58 from 'bs58';
 import { NETWORK } from '../services/rpc';
 import { LoadingSkeleton } from './loading';
-import { ResponsiveContainer, AreaChart, CartesianGrid, YAxis, XAxis, Tooltip, Area } from 'recharts';
+import { ResponsiveContainer, CartesianGrid, YAxis, XAxis, Tooltip, BarChart, Bar } from 'recharts';
 
 export const IndexUpdates = () => {
   const { data } = useQuery({ queryKey: ['indexUpdates'], queryFn: () => indexUpdates(10) });
@@ -67,7 +67,7 @@ const UpdatesGraph = ({
   return (
     <div className="w-full h-70">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
+        <BarChart
           width={500}
           height={400}
           data={events}
@@ -86,8 +86,8 @@ const UpdatesGraph = ({
           />
           <XAxis dataKey="ts" type="number" scale="time" domain={['dataMin', 'dataMax']} hide />
           <Tooltip content={<CustomTooltip active={false} payload={[]} />} />
-          <Area type="linear" dataKey="index" stroke="#3b82f680" fill="#3b82f680" />
-        </AreaChart>
+          <Bar type="linear" dataKey="index" stroke="#3b82f680" fill="#3b82f680" />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );
