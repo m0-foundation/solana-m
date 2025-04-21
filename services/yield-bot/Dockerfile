@@ -40,4 +40,4 @@ ENV SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
 ENV GRAFANA_DASHBOARD_URL=$GRAFANA_DASHBOARD_URL
 
 # Use the environment variable in the command
-CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --keypair \"$BOT_KEYPAIR\" --rpc \"$SVM_RPC\" --programID \"$PROGRAM_ID\" --claimThreshold \"$CLAIM_THRESHOLD\" --graphKey \"$GRAPH_KEY\""]
+CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --keypair \"$BOT_KEYPAIR\" --rpc \"$SVM_RPC\" --programID \"$PROGRAM_ID\" --claimThreshold \"$CLAIM_THRESHOLD\" --graphKey \"$GRAPH_KEY\" --squadsPda \"$SQUADS_PDA\""]
