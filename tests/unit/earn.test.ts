@@ -20,7 +20,6 @@ import {
   ExtensionType,
 } from '@solana/spl-token';
 import { randomInt } from 'crypto';
-
 import { MerkleTree, ProofElement } from '../../sdk/src/merkle';
 import { loadKeypair } from '../test-utils';
 import { Earn } from '../../target/types/earn';
@@ -359,7 +358,7 @@ const warp = (seconds: BN, increment: boolean) => {
 };
 
 // instruction convenience functions
-const prepInitialize = (signer: Keypair) => {
+const prepInitialize = (signer: Keypair, mint: PublicKey) => {
   // Get the global PDA
   const globalAccount = getGlobalAccount();
 
@@ -367,6 +366,7 @@ const prepInitialize = (signer: Keypair) => {
   accounts = {};
   accounts.admin = signer.publicKey;
   accounts.globalAccount = globalAccount;
+  accounts.mint = mint;
   accounts.systemProgram = SystemProgram.programId;
 
   return { globalAccount };
@@ -374,11 +374,11 @@ const prepInitialize = (signer: Keypair) => {
 
 const initialize = async (mint: PublicKey, earnAuthority: PublicKey, initialIndex: BN, claimCooldown: BN) => {
   // Setup the instruction
-  const { globalAccount } = prepInitialize(admin);
+  const { globalAccount } = prepInitialize(admin, mint);
 
   // Send the transaction
   await earn.methods
-    .initialize(mint, earnAuthority, initialIndex, claimCooldown)
+    .initialize(earnAuthority, initialIndex, claimCooldown)
     .accounts({ ...accounts })
     .signers([admin])
     .rpc();
@@ -591,11 +591,15 @@ describe('Earn unit tests', () => {
     // the global account is created and configured correctly
     test('Admin can initialize earn program', async () => {
       // Setup the instruction call
-      const { globalAccount } = prepInitialize(admin);
+      const { globalAccount } = prepInitialize(admin, mint.publicKey);
 
       // Create and send the transaction
       await earn.methods
-        .initialize(mint.publicKey, earnAuthority.publicKey, initialIndex, claimCooldown)
+        .initialize(
+          earnAuthority.publicKey,
+          initialIndex,
+          claimCooldown
+        )
         .accounts({ ...accounts })
         .signers([admin])
         .rpc();
@@ -1304,7 +1308,14 @@ describe('Earn unit tests', () => {
       await propagateIndex(newIndex);
 
       // Calculate expected rewards per token and max yield
-      const maxYield = initialSupply.mul(newIndex).div(startIndex).sub(initialSupply).add(startGlobalState.maxYield);
+      const supplyPlusLeftover = initialSupply.add(startGlobalState.maxYield).sub(startGlobalState.distributed);
+
+      const maxYield = supplyPlusLeftover
+        .mul(newIndex)
+        .div(startIndex)
+        .sub(supplyPlusLeftover)
+        .add(startGlobalState.maxYield);
+
 
       // Check that a new cycle started with all updates
       const clock = svm.getClock();
@@ -1868,6 +1879,12 @@ describe('Earn unit tests', () => {
       const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
       await addRegistrarEarner(earnerOne.publicKey, proof);
 
+      // Create an earner account for earner two
+      const { proof: proofTwo } = earnerMerkleTree.getInclusionProof(
+        earnerTwo.publicKey
+      );
+      await addRegistrarEarner(earnerTwo.publicKey, proofTwo);
+
       // Remove earner one from the earner merkle tree
       earnerMerkleTree.removeLeaf(earnerOne.publicKey);
 
@@ -1928,9 +1945,7 @@ describe('Earn unit tests', () => {
     // given all the accounts are valid
     // given the merkle proof for user's exclusion from the earner list is invalid
     // it reverts with an InvalidProof error
-    test('Invalid merkle proof for user exclusion - reverts', async () => {
-      // Create earner account for earner two
-      await addRegistrarEarner(earnerTwo.publicKey, earnerMerkleTree.getInclusionProof(earnerTwo.publicKey).proof);
+    test("Invalid merkle proof for user exclusion - reverts", async () => {
 
       // Get the ATA for earner two
       const earnerTwoATA = await getATA(mint.publicKey, earnerTwo.publicKey);
@@ -1964,6 +1979,45 @@ describe('Earn unit tests', () => {
 
       // Setup the instruction
       const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
+
+      // Remove earner one from the earn manager's list
+      await earn.methods
+        .removeRegistrarEarner(proofs, neighbors)
+        .accounts({ ...accounts })
+        .signers([nonAdmin])
+        .rpc();
+
+      // Verify the earner account was closed correctly
+      expectAccountEmpty(earnerAccount);
+    });
+
+    test("Remove registrar earner ownership transfered - success", async () => {
+      // Get the ATA for earner two
+      const earnerTwoATA = await getATA(mint.publicKey, earnerTwo.publicKey);
+
+      // Setup the instruction
+      const { earnerAccount } = prepRemoveRegistrarEarner(
+        nonAdmin,
+        earnerTwoATA
+      );
+
+      // Modify owner on token account
+      const accountInfo = svm.getAccount(earnerTwoATA)!;
+      accountInfo.data[32] = 0x1;
+      svm.setAccount(earnerTwoATA, accountInfo);
+
+      // Token account
+      const account = await getAccount(
+        provider.connection,
+        earnerTwoATA,
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      // Get the exclusion proof for earner two against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(
+        account.owner
+      );
 
       // Remove earner one from the earn manager's list
       await earn.methods

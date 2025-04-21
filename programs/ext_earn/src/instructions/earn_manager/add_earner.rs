@@ -55,7 +55,7 @@ pub fn handler(ctx: Context<AddEarner>, user: Pubkey) -> Result<()> {
         earn_manager: ctx.accounts.signer.key(),
         recipient_token_account: None,
         last_claim_index: ctx.accounts.global_account.index,
-        last_claim_timestamp: Clock::get()?.unix_timestamp.try_into().unwrap(),
+        last_claim_timestamp: ctx.accounts.global_account.timestamp,
         bump: ctx.bumps.earner_account,
         user,
         user_token_account: ctx.accounts.user_token_account.key(),

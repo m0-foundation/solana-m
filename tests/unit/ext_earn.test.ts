@@ -3,29 +3,36 @@ import { LiteSVM } from 'litesvm';
 import { fromWorkspace, LiteSVMProvider } from 'anchor-litesvm';
 import { PublicKey, Keypair, LAMPORTS_PER_SOL, SystemProgram, Transaction } from '@solana/web3.js';
 import {
-  ACCOUNT_SIZE,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-  TOKEN_2022_PROGRAM_ID,
-  createInitializeMintInstruction,
-  createAssociatedTokenAccountInstruction,
-  getAccount,
-  getMintLen,
-  getMinimumBalanceForRentExemptMultisig,
-  getAssociatedTokenAddressSync,
-  createInitializeAccountInstruction,
-  createInitializeMultisigInstruction,
-  createMintToCheckedInstruction,
-  getAccountLen,
-  createInitializeImmutableOwnerInstruction,
-  ExtensionType,
-} from '@solana/spl-token';
-import { randomInt } from 'crypto';
-
-import { loadKeypair } from '../test-utils';
-import { Earn } from '../../target/types/earn';
-import { ExtEarn } from '../../target/types/ext_earn';
-import { MerkleTree, ProofElement } from '../../sdk/src/merkle';
+    PublicKey,
+    Keypair,
+    LAMPORTS_PER_SOL,
+    SystemProgram,
+    Transaction,
+} from "@solana/web3.js";
+import {
+    ACCOUNT_SIZE,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
+    createInitializeMintInstruction,
+    createAssociatedTokenAccountInstruction,
+    createCloseAccountInstruction,
+    getAccount,
+    getMintLen,
+    getMinimumBalanceForRentExemptMultisig,
+    getAssociatedTokenAddressSync,
+    createInitializeAccountInstruction,
+    createInitializeMultisigInstruction,
+    createMintToCheckedInstruction,
+    getAccountLen,
+    createInitializeImmutableOwnerInstruction,
+    ExtensionType,
+} from "@solana/spl-token";
+import { randomInt } from "crypto";
+import { loadKeypair } from "../test-utils";
+import { Earn } from "../../target/types/earn";
+import { ExtEarn } from "../../target/types/ext_earn";
+import { MerkleTree, ProofElement } from "../merkle";
 
 const EARN_IDL = require('../../target/idl/earn.json');
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
@@ -260,14 +267,43 @@ const expectTokenBalance = async (tokenAccount: PublicKey, expectedBalance: BN) 
   expect(balance.toString()).toEqual(expectedBalance.toString());
 };
 
-const createATA = async (mint: PublicKey, owner: PublicKey) => {
-  const tokenAccount = getAssociatedTokenAddressSync(
-    mint,
-    owner,
-    true,
-    TOKEN_2022_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-  );
+const closeTokenAccount = async (owner: Keypair, tokenAccount: PublicKey) => {
+    const closeIx = createCloseAccountInstruction(
+        tokenAccount,
+        owner.publicKey,
+        owner.publicKey,
+        [],
+        TOKEN_2022_PROGRAM_ID
+    );
+    
+    let tx = new Transaction().add(closeIx);
+
+    await provider.sendAndConfirm(tx, [owner]);
+};
+
+const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: boolean = true, decimals = 6) => {
+    // Create and initialize mint account
+
+    const tokenProgram = use2022 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
+
+    const mintLen = getMintLen([]);
+    const mintLamports =
+        await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+    const createMintAccount = SystemProgram.createAccount({
+        fromPubkey: admin.publicKey,
+        newAccountPubkey: mint.publicKey,
+        space: mintLen,
+        lamports: mintLamports,
+        programId: tokenProgram
+    });
+
+    const initializeMint = createInitializeMintInstruction(
+        mint.publicKey,
+        decimals, // decimals
+        mintAuthority, // mint authority
+        mintAuthority, // freeze authority
+        tokenProgram
+    );
 
   const createATA = createAssociatedTokenAccountInstruction(
     admin.publicKey, // payer
@@ -458,29 +494,35 @@ const warp = (seconds: BN, increment: boolean) => {
 };
 
 // instruction convenience functions for earn program
-const prepEarnInitialize = (signer: Keypair) => {
-  // Get the global PDA
-  const globalAccount = getEarnGlobalAccount();
+const prepEarnInitialize = (signer: Keypair, mint: PublicKey) => {
+    // Get the global PDA
+    const globalAccount = getEarnGlobalAccount();
 
-  // Populate accounts for the instruction
-  accounts = {};
-  accounts.admin = signer.publicKey;
-  accounts.globalAccount = globalAccount;
-  accounts.systemProgram = SystemProgram.programId;
+    // Populate accounts for the instruction
+    accounts = {};
+    accounts.admin = signer.publicKey;
+    accounts.globalAccount = globalAccount;
+    accounts.mint = mint;
+    accounts.systemProgram = SystemProgram.programId;
 
   return { globalAccount };
 };
 
-const initializeEarn = async (mint: PublicKey, earnAuthority: PublicKey, initialIndex: BN, claimCooldown: BN) => {
-  // Setup the instruction
-  const { globalAccount } = prepEarnInitialize(admin);
+const initializeEarn = async (
+    mint: PublicKey,
+    earnAuthority: PublicKey,
+    initialIndex: BN,
+    claimCooldown: BN
+) => {
+    // Setup the instruction
+    const { globalAccount } = prepEarnInitialize(admin, mint);
 
-  // Send the transaction
-  await earn.methods
-    .initialize(mint, earnAuthority, initialIndex, claimCooldown)
-    .accounts({ ...accounts })
-    .signers([admin])
-    .rpc();
+    // Send the transaction
+    await earn.methods
+        .initialize(earnAuthority, initialIndex, claimCooldown)
+        .accounts({ ...accounts })
+        .signers([admin])
+        .rpc();
 
   return globalAccount;
 };
@@ -976,40 +1018,36 @@ const setRecipient = async (earner: Keypair, recipientTokenAccount: PublicKey | 
     .rpc();
 
   return { earnerAccount };
-};
+}
 
-const prepWrap = async (
-  signer: Keypair,
-  userMTokenAccount?: PublicKey,
-  userExtTokenAccount?: PublicKey,
-  vaultMTokenAccount?: PublicKey,
-) => {
-  // Get the M vault pda
-  const mVault = getMVault();
+const prepWrap = async (signer: Keypair, fromMTokenAccount?: PublicKey, toExtTokenAccount?: PublicKey, vaultMTokenAccount?: PublicKey) => {
+    // Get the M vault pda
+    const mVault = getMVault();
 
-  // Populate accounts
-  accounts = {};
-  accounts.signer = signer.publicKey;
-  accounts.mMint = mMint.publicKey;
-  accounts.extMint = extMint.publicKey;
-  accounts.globalAccount = getExtGlobalAccount();
-  accounts.mVault = mVault;
-  accounts.extMintAuthority = getExtMintAuthority();
-  accounts.userMTokenAccount = userMTokenAccount ?? (await getATA(mMint.publicKey, signer.publicKey));
-  accounts.userExtTokenAccount = userExtTokenAccount ?? (await getATA(extMint.publicKey, signer.publicKey));
-  accounts.vaultMTokenAccount = vaultMTokenAccount ?? (await getATA(mMint.publicKey, mVault));
-  accounts.token2022 = TOKEN_2022_PROGRAM_ID;
+    // Populate accounts
+    accounts = {};
+    accounts.signer = signer.publicKey;
+    accounts.mMint = mMint.publicKey;
+    accounts.extMint = extMint.publicKey;
+    accounts.globalAccount = getExtGlobalAccount();
+    accounts.mVault = mVault;
+    accounts.extMintAuthority = getExtMintAuthority();
+    accounts.fromMTokenAccount = fromMTokenAccount ?? await getATA(mMint.publicKey, signer.publicKey);
+    accounts.toExtTokenAccount = toExtTokenAccount ?? await getATA(extMint.publicKey, signer.publicKey);
+    accounts.vaultMTokenAccount = vaultMTokenAccount ?? await getATA(mMint.publicKey, mVault);
+    accounts.token2022 = TOKEN_2022_PROGRAM_ID;
 
-  return {
-    vaultMTokenAccount: accounts.vaultMTokenAccount,
-    userMTokenAccount: accounts.userMTokenAccount,
-    userExtTokenAccount: accounts.userExtTokenAccount,
-  };
+    return {
+        vaultMTokenAccount: accounts.vaultMTokenAccount,
+        fromMTokenAccount: accounts.fromMTokenAccount,
+        toExtTokenAccount: accounts.toExtTokenAccount 
+    };
 };
 
 const wrap = async (user: Keypair, amount: BN) => {
-  // Setup the instruction
-  const { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount } = await prepWrap(user);
+    // Setup the instruction
+    const { vaultMTokenAccount, fromMTokenAccount, toExtTokenAccount } = await prepWrap(user);
+
 
   // Send the instruction
   await extEarn.methods
@@ -1018,41 +1056,36 @@ const wrap = async (user: Keypair, amount: BN) => {
     .signers([user])
     .rpc();
 
-  return { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount };
+    return { vaultMTokenAccount, fromMTokenAccount, toExtTokenAccount };
 };
 
-const prepUnwrap = async (
-  signer: Keypair,
-  userMTokenAccount?: PublicKey,
-  userExtTokenAccount?: PublicKey,
-  vaultMTokenAccount?: PublicKey,
-) => {
-  // Get m vault pda
-  const mVault = getMVault();
+const prepUnwrap = async (signer: Keypair, toMTokenAccount?: PublicKey, fromExtTokenAccount?: PublicKey, vaultMTokenAccount?: PublicKey) => {
+    // Get m vault pda
+    const mVault = getMVault();
 
-  // Populate accounts
-  accounts = {};
-  accounts.signer = signer.publicKey;
-  accounts.mMint = mMint.publicKey;
-  accounts.extMint = extMint.publicKey;
-  accounts.globalAccount = getExtGlobalAccount();
-  accounts.mVault = mVault;
-  accounts.extMintAuthority = getExtMintAuthority();
-  accounts.userMTokenAccount = userMTokenAccount ?? (await getATA(mMint.publicKey, signer.publicKey));
-  accounts.userExtTokenAccount = userExtTokenAccount ?? (await getATA(extMint.publicKey, signer.publicKey));
-  accounts.vaultMTokenAccount = vaultMTokenAccount ?? (await getATA(mMint.publicKey, mVault));
-  accounts.token2022 = TOKEN_2022_PROGRAM_ID;
+    // Populate accounts
+    accounts = {};
+    accounts.signer = signer.publicKey;
+    accounts.mMint = mMint.publicKey;
+    accounts.extMint = extMint.publicKey;
+    accounts.globalAccount = getExtGlobalAccount();
+    accounts.mVault = mVault;
+    accounts.extMintAuthority = getExtMintAuthority();
+    accounts.toMTokenAccount = toMTokenAccount ?? await getATA(mMint.publicKey, signer.publicKey);
+    accounts.fromExtTokenAccount = fromExtTokenAccount ?? await getATA(extMint.publicKey, signer.publicKey);
+    accounts.vaultMTokenAccount = vaultMTokenAccount ?? await getATA(mMint.publicKey, mVault);
+    accounts.token2022 = TOKEN_2022_PROGRAM_ID;
 
-  return {
-    vaultMTokenAccount: accounts.vaultMTokenAccount,
-    userMTokenAccount: accounts.userMTokenAccount,
-    userExtTokenAccount: accounts.userExtTokenAccount,
-  };
+    return {
+        vaultMTokenAccount: accounts.vaultMTokenAccount,
+        toMTokenAccount: accounts.toMTokenAccount,
+        fromExtTokenAccount: accounts.fromExtTokenAccount
+    };
 };
 
 const unwrap = async (user: Keypair, amount: BN) => {
-  // Setup the instruction
-  const { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount } = await prepUnwrap(user);
+    // Setup the instruction
+    const { vaultMTokenAccount, toMTokenAccount, fromExtTokenAccount } = await prepUnwrap(user);
 
   // Send the instruction
   await extEarn.methods
@@ -1061,7 +1094,7 @@ const unwrap = async (user: Keypair, amount: BN) => {
     .signers([user])
     .rpc();
 
-  return { vaultMTokenAccount, userMTokenAccount, userExtTokenAccount };
+    return { vaultMTokenAccount, toMTokenAccount, fromExtTokenAccount };
 };
 
 const prepRemoveOrphanedEarner = (signer: Keypair, earnerATA: PublicKey, earnManager: PublicKey) => {
@@ -1261,35 +1294,158 @@ describe('ExtEarn unit tests', () => {
       });
     });
 
-    describe('set_earn_authority unit tests', () => {
-      // test cases
-      //   [X] given the admin signs the transaction
-      //      [X] the earn authority is updated
-      //   [X] given a non-admin signs the transaction
-      //      [X] the transaction reverts with a not authorized error
+    describe("admin instruction unit tests", () => {
 
-      beforeEach(async () => {
-        // Initialize the program
-        await initializeExt(earnAuthority.publicKey);
-      });
+        describe("initialize unit tests", () => {
+            // test cases
+            // [X] given the m_mint is not owned by the token2022 program
+            //   [X] it reverts with a TokenProgram error
+            // [X] given the ext_mint is not owned by the token2022 program
+            //   [X] it reverts with a TokenProgram error
+            // [X] given the M earn global account does not match the PDA on the earn program
+            //   [X] it reverts with a SeedsConstraint error
+            // [X] given all accounts are correct
+            //   [X] the global account is created
+            //   [X] the admin is set to the signer
+            //   [X] the m_mint is set correctly
+            //   [X] the ext_mint is set correctly
+            //   [X] the m_earn_global_account is set correctly
+            //   [X] the earn authority is set correctly
+            //   [X] the initial index is set correctly
+            //   [X] the bumps are set correctly
 
-      test('Admin can set new earn authority', async () => {
-        // Setup new earn authority
-        const newEarnAuthority = new Keypair();
+            // given the m_mint is not owned by the token2022 program
+            // it reverts with a TokenProgram error
+            test("m_mint not owned by token2022 - reverts", async () => {
+                // Create a mint owned by a different program
+                const wrongMint = new Keypair();
+                await createMint(wrongMint, nonAdmin.publicKey, false);
 
-        // Setup the instruction
-        const { globalAccount } = prepSetEarnAuthority(admin);
+                // Setup the instruction call
+                prepExtInitialize(nonAdmin);
 
-        // Send the transaction
-        await extEarn.methods
-          .setEarnAuthority(newEarnAuthority.publicKey)
-          .accounts({ ...accounts })
-          .signers([admin])
-          .rpc();
+                // Change the M mint
+                accounts.mMint = wrongMint.publicKey;
 
-        // Verify the global state was updated
-        await expectExtGlobalState(globalAccount, {
-          earnAuthority: newEarnAuthority.publicKey,
+                // Attempt to send the transaction
+                await expectAnchorError(
+                    extEarn.methods
+                        .initialize(earnAuthority.publicKey)
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "ConstraintAddress"
+                );
+            });
+
+            // given the ext_mint is not owned by the token2022 program
+            // it reverts with a TokenProgram error
+            test("ext_mint not owned by token2022 - reverts", async () => {
+                // Create a mint owned by a different program
+                const wrongMint = new Keypair();
+                await createMint(wrongMint, nonAdmin.publicKey, false);
+
+                // Setup the instruction call
+                prepExtInitialize(nonAdmin);
+
+                // Change the Ext Mint
+                accounts.extMint = wrongMint.publicKey;
+
+                // Attempt to send the transaction
+                await expectAnchorError(
+                    extEarn.methods
+                        .initialize(earnAuthority.publicKey)
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "ConstraintMintTokenProgram"
+                );
+            });
+
+            // given the decimals on ext_mint do not match M
+            // it reverts with a MintDecimals error
+            test("ext_mint incorrect decimals - reverts", async () => {
+                // Create a mint owned by a different program
+                const badMint = new Keypair();
+                await createMint(badMint, nonAdmin.publicKey, true, 9);
+
+                // Setup the instruction call
+                prepExtInitialize(nonAdmin);
+
+                // Change the Ext Mint
+                accounts.extMint = badMint.publicKey;
+
+                // Attempt to send the transaction
+                await expectAnchorError(
+                    extEarn.methods
+                        .initialize(earnAuthority.publicKey)
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "ConstraintMintDecimals"
+                );
+            });
+
+            // given the M earn global account is invalid
+            // it reverts with a seeds constraint
+            test("m_earn_global_account is incorrect - reverts", async () => {
+                // Setup the instruction call
+                prepExtInitialize(nonAdmin);
+
+                // Change the m earn global account
+                accounts.mEarnGlobalAccount = PublicKey.unique();
+                if (accounts.mEarnGlobalAccount == getEarnGlobalAccount()) return;
+
+                // Attempt to send transaction
+                // Expect error (could be one of several "SeedsConstraint", "AccountOwnedByWrongProgram", "AccountNotInitialized")
+                await expectSystemError(
+                    extEarn.methods
+                        .initialize(earnAuthority.publicKey)
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc()
+                );
+            });
+
+            // given all the accounts are correct
+            // the global account is created and configured correctly
+            test("initialize - success", async () => {
+                // Setup the instruction call
+                const { globalAccount } = prepExtInitialize(admin);
+
+                // Create and send the transaction
+                await extEarn.methods
+                    .initialize(earnAuthority.publicKey)
+                    .accounts({ ...accounts })
+                    .signers([admin])
+                    .rpc();
+
+                // Calculate the expected bumps
+                const [, globalBump] = PublicKey.findProgramAddressSync(
+                    [Buffer.from("global")],
+                    EXT_EARN_PROGRAM_ID
+                );
+                const [, mVaultBump] = PublicKey.findProgramAddressSync(
+                    [Buffer.from("m_vault")],
+                    EXT_EARN_PROGRAM_ID
+                );
+                const [, extMintAuthorityBump] = PublicKey.findProgramAddressSync(
+                    [Buffer.from("mint_authority")],
+                    EXT_EARN_PROGRAM_ID
+                );
+
+                await expectExtGlobalState(globalAccount, {
+                    admin: admin.publicKey,
+                    mMint: mMint.publicKey,
+                    extMint: extMint.publicKey,
+                    earnAuthority: earnAuthority.publicKey,
+                    index: initialIndex,
+                    timestamp: new BN(svm.getClock().unixTimestamp.toString()),
+                    bump: globalBump,
+                    mVaultBump,
+                    extMintAuthorityBump,
+                });
+            });
         });
       });
 
@@ -1626,13 +1782,684 @@ describe('ExtEarn unit tests', () => {
           timestamp: startTime,
         });
 
-        // Confirm the state of the EarnGlobal account before the sync
-        await expectEarnGlobalState(getEarnGlobalAccount(), {
-          index: newIndex,
-          timestamp: currentTime(),
-        });
+        describe("claim_for unit tests", () => {
+            // test cases
+            // [X] given the earn authority does not sign the transaction
+            //   [X] it reverts with a NotAuthorized error
+            // [X] given the earn authority does sign the transaction
+            //   [X] given the wrong ext_mint account is provided
+            //     [X] it reverts with an error (could be various depending on the account)
+            //   [X] given the wrong earn manager account is provided for an earner
+            //     [X] it reverts with a ConstraintSeeds error
+            //   [X] given the wrong token account is provided for the M vault
+            //     [X] it reverts with a ConstraintAssociated error
+            //   [X] given the earn manager token account does not match the token account stored on the earn manager account
+            //     [X] it reverts with an InvalidAccount error
+            //   [X] given the earner does not have a recipient token account defined
+            //     [X] given the user token account does not match the one defined on the earner account
+            //       [X] it reverts with an InvalidAccount error
+            //     [X] given the user token account matches the one defined on the earner account
+            //       [X] it mints yield to the user token account
+            //   [X] given the earner does have a recipient token account defined
+            //     [X] given the user token account does not match the recipient token account
+            //       [X] it reverts with an InvalidAccount error
+            //     [X] given the user token account matches the recipient token account
+            //       [X] it mints yield to the recipient token account
+            //   [X] given the accounts are all correct
+            //     [X] given the earner's last claim index is greater than or equal to the current global index
+            //       [X] it reverts with an AlreadyClaimed error
+            //     [X] given the M vault does not have enough M to mint the rewards against 
+            //        (e.g. the yield for the vault hasn't been claimed yet or the provided balance is too high)
+            //       [X] it reverts with an InsufficientCollateral error
+            //     [X] given the earn manager has zero fee
+            //       [X] it mints all of the rewards to the earner's token account
+            //     [X] given the earn manager is not active and has a non-zero fee
+            //       [X] it mints all of the rewards to the earner's token account
+            //     [X] given the earn manager is active and has a non-zero fee
+            //       [ ] given the earn manager's fee token account is closed
+            //         [X] it mints all of the rewards to the earner's token account
+            //       [X] given the fee on the current yield rounds to zero
+            //         [X] it mints all of the rewards to the earner's token account
+            //       [X] given the fee does not round to zero
+            //         [X] it mints the fee to the earn manager's token account and the remaining rewards
+            //             to the earner's token account
 
-        // Send the transaction
+            beforeEach(async () => {
+                // Push the M yield to the M vault ATA
+                await mClaimFor(getMVault());
+
+                // Sync the latest index from the M earn program to have yield to claim
+                await sync();
+
+                // Add earner two as an earner after the sync so it does not have any yield to claim
+                await addEarner(earnManagerOne, earnerTwo.publicKey);
+            });
+
+            // given the earn authority does not sign the transaction
+            // it reverts with a NotAuthorized error
+            test("Earn authority does not sign the transaction - reverts", async () => {
+                // Setup the instruction to claim for earner one
+                await prepClaimFor(nonAdmin, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                const balance = await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey));
+
+                // Attempt to send the transaction
+                // Expect a NotAuthorized error
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(balance)
+                        .accounts({ ...accounts })
+                        .signers([nonAdmin])
+                        .rpc(),
+                    "NotAuthorized"
+                );
+            });
+
+            // given the wrong ext mint account is provided
+            // it reverts with a InvalidAccount error
+            test("Ext mint account is invalid - reverts", async () => {
+                // Setup the instruction
+                await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                // Change the mint account
+                accounts.extMint = mMint.publicKey;
+
+                // Attempt to send the transaction
+                // Expect revert
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey)))
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc(),
+                    "InvalidAccount"
+                )
+            });
+
+
+            // given the wrong earn manager account is provided for an earner
+            // it reverts with a ConstraintSeeds error
+            test("Earn manager account is invalid - reverts", async () => {
+                // Add another earn manager
+                await addEarnManager(earnManagerTwo.publicKey, new BN(0));
+
+                // Setup the instruction 
+                await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerTwo.publicKey);
+
+                // Attempt send the transaction
+                // Expect revert
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey)))
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc(),
+                    "ConstraintSeeds"
+                );
+            });
+
+            // given the M vault token account is not the M vault's ATA
+            // it reverts with a ConstraintAssociated error
+            test("M Vault token account is invalid - reverts", async () => {
+                // Setup the instruction
+                await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                // Create a non-ATA token account for the M vault
+                const { tokenAccount: invalidMVaultTokenAccount } = await createTokenAccount(
+                    mMint.publicKey,
+                    getMVault()
+                );
+
+                // Replace the M vault token account with the invalid one
+                accounts.vaultMTokenAccount = invalidMVaultTokenAccount;
+
+                // Attempt to send the transaction
+                // Expect revert with a ConstraintAssociated error
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey)))
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc(),
+                    "ConstraintAssociated"
+                );
+            });
+
+            // given the earn manager token account does not match token account stored on the earn manager account
+            // it reverts with an InvalidAccount error
+            test("Earn manager token account is invalid - reverts", async () => {
+                // Create a new token account for the earn manager that doesn't match the one stored
+                const { tokenAccount: invalidEarnManagerTokenAccount } = await createTokenAccount(
+                    extMint.publicKey,
+                    earnManagerOne.publicKey
+                );
+
+                // Setup the instruction
+                await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey, null, invalidEarnManagerTokenAccount);
+
+                // Attempt to send the transaction
+                // Expect revert with an InvalidAccount error
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey)))
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc(),
+                    "InvalidAccount"
+                );
+            });
+
+            // given the earner does not have a recipient token account defined
+            // given the user token account does not match the user token account on the earner account
+            // it reverts with an InvalidAccount error
+            test("Earner has no recipient account, token account doesn't match - reverts", async () => {
+                // Create a new token account for the earner that doesn't match the one stored
+                const { tokenAccount: invalidUserTokenAccount } = await createTokenAccount(
+                    extMint.publicKey,
+                    earnerOne.publicKey
+                );
+
+                // Setup the instruction with the invalid user token account
+                await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey, invalidUserTokenAccount);
+
+                // Attempt to send the transaction
+                // Expect revert with an InvalidAccount error
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(await getTokenBalance(invalidUserTokenAccount))
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc(),
+                    "InvalidAccount"
+                );
+            });
+
+            // given the earner does not have a recipient token account defined
+            // given the user token account matches
+            // it mints the yield to the user token account
+            test("Earner has no recipient account, token account matches - success", async () => {
+                // Setup the instruction
+                const { earnerAccount } = await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+                const earnerATA = await getATA(extMint.publicKey, earnerOne.publicKey);
+
+                // Check that the last claim index and the last claim timestamp are the initial values
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: initialIndex,
+                        lastClaimTimestamp: startTime
+                    }
+                );
+
+                // Get the initial balance for the earner ata
+                const initialBalance = await getTokenBalance(earnerATA);
+
+                // Calculate the expected new balance
+                // Note: earn manager fee is 0, so it all goes to the earner
+                const expectedBalance = initialBalance.mul(newIndex).div(initialIndex);
+
+                // Send the instruction
+                await extEarn.methods
+                    .claimFor(initialBalance)
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Check the new balance matches the expected balance
+                await expectTokenBalance(earnerATA, expectedBalance);
+
+                // Check the earner account is updated
+                await expectEarnerState(
+                    earnerAccount, {
+                    lastClaimIndex: newIndex,
+                    lastClaimTimestamp: currentTime()
+                }
+                );
+            });
+
+            test("Earner has recipient account, token account does not match - reverts", async () => {
+                // Set the earner's recipient account to the yield recipients ATA
+                const yieldRecipientATA = await getATA(extMint.publicKey, yieldRecipient.publicKey);
+                await setRecipient(earnerOne, yieldRecipientATA);
+
+                // Setup the instruction with the earner's ATA as the user token account
+                const earnerATA = await getATA(extMint.publicKey, earnerOne.publicKey);
+                await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey, earnerATA);
+
+                // Attempt to send the transaction
+                // Expect revert with an InvalidAccount error
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(await getTokenBalance(earnerATA))
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc(),
+                    "InvalidAccount"
+                );
+            });
+
+            test("Earner has recipient account, token account matches - success", async () => {
+                // Set the earner's recipient account to the yield recipients ATA
+                const yieldRecipientATA = await getATA(extMint.publicKey, yieldRecipient.publicKey);
+                await setRecipient(earnerOne, yieldRecipientATA);
+
+                // Setup the instruction
+                const { earnerAccount } = await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey, yieldRecipientATA);
+                const earnerATA = await getATA(extMint.publicKey, earnerOne.publicKey);
+
+                // Check that the last claim index and the last claim timestamp are the initial values
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: initialIndex,
+                        lastClaimTimestamp: startTime
+                    }
+                );
+
+                // Get the initial balance for the earner ata
+                const initialBalance = await getTokenBalance(earnerATA);
+
+                // Calculate the expected yield
+                // Note: earn manager fee is 0, so it all goes to the yield recipient
+                const expectedYield = initialBalance.mul(newIndex).div(initialIndex).sub(initialBalance);
+
+                // Send the instruction
+                await extEarn.methods
+                    .claimFor(initialBalance)
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Check the ata balance didn't change but the yield recipient received the yield
+                await expectTokenBalance(earnerATA, initialBalance);
+                await expectTokenBalance(yieldRecipientATA, expectedYield);
+
+                // Check the earner account is updated
+                await expectEarnerState(
+                    earnerAccount, {
+                    lastClaimIndex: newIndex,
+                    lastClaimTimestamp: currentTime()
+                });
+            });
+
+            // given all accounts are correct
+            // given the earner's yield has been claimed up to the current index
+            // it reverts with an AlreadyClaimed error
+            test("Earner yield already claimed up to current index - reverts", async () => {
+                // Setup the instruction to claim for earner two
+                // earnerTwo was added after the sync, so its lastClaimIndex should equal the current index
+                const { earnerAccount } = await prepClaimFor(earnAuthority, earnerTwo.publicKey, earnManagerOne.publicKey);
+                const balance = await getTokenBalance(await getATA(extMint.publicKey, earnerTwo.publicKey));
+
+                // Verify that the earner's last claim index is equal to the current global index
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: newIndex,
+                        lastClaimTimestamp: currentTime()
+                    }
+                );
+
+                // Attempt to send the transaction
+                // Expect an AlreadyClaimed error
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(balance)
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc(),
+                    "AlreadyClaimed"
+                );
+            });
+
+            // given all the accounts are correct
+            // given the M vault doesn't have enough M collateral to mint the yield against
+            // it reverts with an InsufficientCollateral error
+            test("Insufficient M collateral to mint yield - reverts", async () => {
+                // Setup the instruction to claim for earner one
+                const { earnerAccount } = await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                // Get the actual balance of the earner's token account
+                const actualBalance = await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey));
+
+                // Use a balance 4x greater than the actual balance to try and mint more ext tokens than M available
+                const inflatedBalance = actualBalance.mul(new BN(4));
+
+                // Attempt to send the transaction with the inflated balance
+                // Expect an InsufficientCollateral error
+                await expectAnchorError(
+                    extEarn.methods
+                        .claimFor(inflatedBalance)
+                        .accounts({ ...accounts })
+                        .signers([earnAuthority])
+                        .rpc(),
+                    "InsufficientCollateral"
+                );
+            });
+
+
+            // given all the accounts are correct
+            // given the earn manager has zero fee
+            // it mints all the yield to the earner's recipient account
+            test("Earn manager fee is zero - success", async () => {
+                // Setup the instruction to claim for earner one
+                const { earnerAccount, userTokenAccount, earnManagerTokenAccount } = await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                // Get the current balance of the earner's token account
+                const earnerStartBalance = await getTokenBalance(userTokenAccount);
+
+                // Get the current balance of the earn manager's token account
+                const earnManagerStartBalance = await getTokenBalance(earnManagerTokenAccount);
+
+                // Confirm the earn manager fee is zero
+                await expectEarnManagerState(
+                    getEarnManagerAccount(earnManagerOne.publicKey),
+                    {
+                        feeBps: new BN(0)
+                    }
+                );
+
+                // Confirm the starting earner account state
+                await expectEarnerState(
+                    earnerAccount, {
+                    lastClaimIndex: initialIndex,
+                    lastClaimTimestamp: startTime
+                }
+                );
+
+                // Send the transaction
+                await extEarn.methods
+                    .claimFor(earnerStartBalance)
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Calculate expected rewards (balance * (global_index / last_claim_index) - balance)
+                const expectedRewards = earnerStartBalance
+                    .mul(newIndex)
+                    .div(initialIndex)
+                    .sub(earnerStartBalance);
+
+                // Verify the expected token balance changes
+                await expectTokenBalance(userTokenAccount, earnerStartBalance.add(expectedRewards));
+                await expectTokenBalance(earnManagerTokenAccount, earnManagerStartBalance);
+
+                // Verify the earner account was updated with the new claim index and claim timestamp
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: newIndex,
+                        lastClaimTimestamp: currentTime()
+                    }
+                );
+            });
+
+            // given all the accounts are correct
+            // given the earn manager fee is not zero and earn manager is not active
+            // it mints all the yield to the earner's recipient account
+            test("Earn manager fee is non-zero, earn manager inactive - success", async () => {
+                // Set the earn manager fee to a non-zero value
+                await configureEarnManager(earnManagerOne, new BN(1000));
+
+                // Remove the earn manager
+                await removeEarnManager(earnManagerOne.publicKey);
+
+                // Setup the instruction to claim for earner one
+                const { earnerAccount, userTokenAccount, earnManagerTokenAccount } = await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                // Get the current balance of the earner's token account
+                const earnerStartBalance = await getTokenBalance(userTokenAccount);
+
+                // Get the current balance of the earn manager's token account
+                const earnManagerStartBalance = await getTokenBalance(earnManagerTokenAccount);
+
+                // Confirm the earn manager fee is non-zero and inactive
+                await expectEarnManagerState(
+                    getEarnManagerAccount(earnManagerOne.publicKey),
+                    {
+                        feeBps: new BN(1000),
+                        isActive: false
+                    }
+                );
+
+                // Confirm the starting earner account state
+                await expectEarnerState(
+                    earnerAccount, {
+                    lastClaimIndex: initialIndex,
+                    lastClaimTimestamp: startTime
+                }
+                );
+
+                // Send the transaction
+                await extEarn.methods
+                    .claimFor(earnerStartBalance)
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Calculate expected rewards (balance * (global_index / last_claim_index) - balance)
+                const expectedRewards = earnerStartBalance
+                    .mul(newIndex)
+                    .div(initialIndex)
+                    .sub(earnerStartBalance);
+
+                // Verify the expected token balance changes
+                await expectTokenBalance(userTokenAccount, earnerStartBalance.add(expectedRewards));
+                await expectTokenBalance(earnManagerTokenAccount, earnManagerStartBalance);
+
+                // Verify the earner account was updated with the new claim index and claim timestamp
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: newIndex,
+                        lastClaimTimestamp: currentTime()
+                    }
+                );
+            });
+
+            // given all the accounts are correct
+            // given the earn manager fee is not zero and earn manager is active
+            // given the earn manager token account is closed
+            // it mints all the yield to the earner's recipient account
+            test("Earn manager fee is non-zero, earn manager active, earn manager token account closed - success", async () => {
+                // Set the earn manager fee to a non-zero value
+                await configureEarnManager(earnManagerOne, new BN(1000));
+
+                // Setup the instruction to claim for earner one
+                const { earnerAccount, userTokenAccount, earnManagerTokenAccount } = await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                // Close the earn manager token account
+                await closeTokenAccount(earnManagerOne, earnManagerTokenAccount);
+
+                // Get the current balance of the earner's token account
+                const earnerStartBalance = await getTokenBalance(userTokenAccount);
+
+                // Confirm the earn manager fee is non-zero and inactive
+                await expectEarnManagerState(
+                    getEarnManagerAccount(earnManagerOne.publicKey),
+                    {
+                        feeBps: new BN(1000),
+                        isActive: true
+                    }
+                );
+
+                // Confirm the starting earner account state
+                await expectEarnerState(
+                    earnerAccount, {
+                    lastClaimIndex: initialIndex,
+                    lastClaimTimestamp: startTime
+                });
+
+                // Send the transaction
+                await extEarn.methods
+                    .claimFor(earnerStartBalance)
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Calculate expected rewards (balance * (global_index / last_claim_index) - balance)
+                const expectedRewards = earnerStartBalance
+                    .mul(newIndex)
+                    .div(initialIndex)
+                    .sub(earnerStartBalance);
+
+                // Verify the expected token balance changes
+                await expectTokenBalance(userTokenAccount, earnerStartBalance.add(expectedRewards));
+
+                // Verify the earner account was updated with the new claim index and claim timestamp
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: newIndex,
+                        lastClaimTimestamp: currentTime()
+                    }
+                );
+            });
+            
+
+            // given all the accounts are correct
+            // given the earn manager fee is not zero and earn manager is active
+            // given the fee amount rounds to zero
+            // it mints all the yield to the earner's recipient account
+            test("Earn manager fee is non-zero, earn manager active, fee amount rounds to zero - success", async () => {
+                // Set a very small fee (1 bps = 0.01%)
+                await configureEarnManager(earnManagerOne, new BN(1));
+
+                // Setup the accounts
+                const { earnerAccount, userTokenAccount, earnManagerTokenAccount } = await prepClaimFor(
+                    earnAuthority,
+                    earnerOne.publicKey,
+                    earnManagerOne.publicKey
+                );
+
+                // Get the earner starting balance (this is used to compare later)
+                const earnerStartBalance = await getTokenBalance(userTokenAccount);
+
+                // Get the earn manager token account starting balance
+                const earnManagerStartBalance = await getTokenBalance(earnManagerTokenAccount);
+
+                // Confirm the earn manager fee is non-zero and active
+                await expectEarnManagerState(
+                    getEarnManagerAccount(earnManagerOne.publicKey),
+                    {
+                        feeBps: new BN(1),
+                        isActive: true
+                    }
+                );
+
+                // Confirm the starting earner account state
+                await expectEarnerState(
+                    earnerAccount, {
+                    lastClaimIndex: initialIndex,
+                    lastClaimTimestamp: startTime
+                }
+                );
+
+                // Send the transaction
+                // We use a smaller balance for the yield calculation here to make the fee round to zero
+                const snapshotBalance = new BN(10000);
+                await extEarn.methods
+                    .claimFor(snapshotBalance)
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Calculate expected rewards (balance * (global_index / last_claim_index) - balance)
+                const expectedRewards = snapshotBalance
+                    .mul(newIndex)
+                    .div(initialIndex)
+                    .sub(snapshotBalance);
+
+                // Verify the expected token balance changes
+                // Since fee rounds to zero, all rewards go to the earner
+                await expectTokenBalance(userTokenAccount, earnerStartBalance.add(expectedRewards));
+                await expectTokenBalance(earnManagerTokenAccount, earnManagerStartBalance);
+
+                // Verify the earner account was updated with the new claim index and claim timestamp
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: newIndex,
+                        lastClaimTimestamp: currentTime()
+                    }
+                );
+
+            });
+
+            // given all the accounts are correct
+            // given the earn manager fee is not zero and earn manager is active
+            // given the fee amount is not zero
+            // it mints the fee amount to the earn manager token account
+            // it mints the yield minus the fee amount to the earner's recipient account
+            test("Earn manager fee is non-zero, earn manager active, fee amount not zero - success", async () => {
+                // Configure the earn manager account with a 1% fee
+                const feeBps = new BN(100);
+                await configureEarnManager(earnManagerOne, feeBps);
+
+                // Setup the instruction to claim for earner one
+                const { earnerAccount, userTokenAccount, earnManagerTokenAccount } = await prepClaimFor(earnAuthority, earnerOne.publicKey, earnManagerOne.publicKey);
+
+                // Get the current balance of the earner's token account
+                const earnerStartBalance = await getTokenBalance(userTokenAccount);
+
+                // Get the current balance of the earn manager's token account
+                const earnManagerStartBalance = await getTokenBalance(earnManagerTokenAccount);
+
+                // Confirm the earn manager fee is 1%
+                await expectEarnManagerState(
+                    getEarnManagerAccount(earnManagerOne.publicKey),
+                    {
+                        feeBps,
+                        isActive: true
+                    }
+                );
+
+                // Confirm the starting earner account state
+                await expectEarnerState(
+                    earnerAccount, {
+                    lastClaimIndex: initialIndex,
+                    lastClaimTimestamp: startTime
+                }
+                );
+
+                // Send the transaction
+                const snapshotBalance = await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey));
+                await extEarn.methods
+                    .claimFor(snapshotBalance)
+                    .accounts({ ...accounts })
+                    .signers([earnAuthority])
+                    .rpc();
+
+                // Calculate expected rewards (balance * (global_index / last_claim_index) - balance)
+                const expectedRewards = snapshotBalance
+                    .mul(newIndex)
+                    .div(initialIndex)
+                    .sub(snapshotBalance);
+
+                // Calculate the fee amount (1% of rewards)
+                const feeAmount = expectedRewards
+                    .mul(feeBps)
+                    .div(new BN(10000));
+
+                // Calculate the amount that should go to the earner
+                const earnerAmount = expectedRewards.sub(feeAmount);
+
+                // Verify the expected token balance changes
+                await expectTokenBalance(userTokenAccount, earnerStartBalance.add(earnerAmount));
+                await expectTokenBalance(earnManagerTokenAccount, earnManagerStartBalance.add(feeAmount));
+
+                // Verify the earner account was updated with the new claim index and claim timestamp
+                await expectEarnerState(
+                    earnerAccount,
+                    {
+                        lastClaimIndex: newIndex,
+                        lastClaimTimestamp: currentTime()
+                    }
+                );
+
+            });
+
+          // Send the transaction
         await extEarn.methods
           .sync()
           .accounts({ ...accounts })
@@ -3083,29 +3910,271 @@ describe('ExtEarn unit tests', () => {
           recipientTokenAccount: startRecipientAccount,
         });
 
-        // Send the instruction
-        await extEarn.methods
-          .setRecipient()
-          .accounts({ ...accounts })
-          .signers([earnerOne])
-          .rpc();
+        describe("wrap unit tests", () => {
+            // test cases
+            // [X] given the m mint account does not match the one stored in the global account
+            //   [X] it reverts with an InvalidAccount error
+            // [X] given the ext mint account does not match the one stored in the global account
+            //   [X] it reverts with an InvalidAccount error
+            // [X] given the signer is not the authority on the from m token account
+            //   [X] it reverts with a ConstraintTokenOwner error
+            // [X] given the vault M token account is not the M Vaults ATA for the M token mint
+            //   [X] it reverts with a ConstraintAssociated error
+            // [X] given the from m token account is for the wrong mint
+            //   [X] it reverts with a ConstraintTokenMint error
+            // [X] given the to ext token account is for the wrong mint
+            //   [X] it reverts with a ConstraintTokenMint error
+            // [X] given all the accounts are correct
+            //   [X] given the user does not have enough M tokens
+            //     [X] it reverts with a ? error
+            //   [X] given the user has enough M tokens
+            //     [X] it transfers the amount of M tokens from the user's M token account to the M vault token account
+            //     [X] it mints the amount of wM tokens to the user's wM token account
+            // TODO there are a couple other account constraints that can be tested
 
-        // Check that the recipient token account was updated
-        await expectEarnerState(earnerAccount, {
-          recipientTokenAccount: undefined,
-        });
-      });
+            // given the m mint account does not match the one stored in the global account
+            // it reverts with an InvalidAccount error
+            test("M mint account does not match global account - reverts", async () => {
+                // Setup the instruction
+                await prepWrap(earnerOne);
 
-      // given the new recipient token account is None
-      // given the earn manager signs the transaction
-      // it updates the recipient account to None
-      test('Earn manager signs, new recipient tokenaccount is None (default) - success', async () => {
-        // Setup the instruction
-        const { earnerAccount } = await prepSetRecipient(earnManagerOne, earnerOne.publicKey, null);
+                // Change the m mint account
+                accounts.mMint = extMint.publicKey;
 
-        // Check the starting value
-        await expectEarnerState(earnerAccount, {
-          recipientTokenAccount: startRecipientAccount,
+                // Attempt to send the transaction
+                // Expect an invalid account error
+                await expectAnchorError(
+                    extEarn.methods
+                        .wrap(mintAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "InvalidAccount"
+                );
+            });
+
+            // given the ext mint account does not match the one stored in the global account
+            // it reverts with an InvalidAccount error
+            test("Ext mint account does not match global account - reverts", async () => {
+                // Setup the instruction
+                await prepWrap(earnerOne);
+
+                // Change the ext mint account
+                accounts.extMint = mMint.publicKey;
+
+                // Attempt to send the transaction
+                // Expect an invalid account error
+                await expectAnchorError(
+                    extEarn.methods
+                        .wrap(mintAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "InvalidAccount"
+                );
+            });
+
+            // given the signer is not the authority on the user M token account
+            // it reverts with a ConstraintTokenOwner error
+            test("Signer is not the authority on the from M token account - reverts", async () => {
+                // Get the ATA for another user 
+                const wrongATA = await getATA(mMint.publicKey, nonEarnerOne.publicKey);
+
+                // Setup the instruction with the wrong user M token account
+                await prepWrap(earnerOne, wrongATA);
+
+                // Attempt to send the transaction
+                // Expect revert with TokenOwner error
+                await expectAnchorError(
+                    extEarn.methods
+                        .wrap(mintAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "ConstraintTokenOwner"
+                );
+            });
+
+            // given the M vault token account is not the M vault PDA's ATA
+            // it reverts with a ConstraintAssociated error
+            test("M Vault Token account is the the M Vault PDA's ATA (other token account) - reverts", async () => {
+                // Create a token account for the M vault that is not the ATA
+                const tokenAccountKeypair = Keypair.generate();
+                const tokenAccountLen = getAccountLen([ExtensionType.ImmutableOwner]);
+                const lamports = await provider.connection.getMinimumBalanceForRentExemption(tokenAccountLen);
+
+                const mVault = getMVault();
+
+                // Create token account with the immutable owner extension
+                const transaction = new Transaction().add(
+                    SystemProgram.createAccount({
+                        fromPubkey: admin.publicKey,
+                        newAccountPubkey: tokenAccountKeypair.publicKey,
+                        space: tokenAccountLen,
+                        lamports,
+                        programId: TOKEN_2022_PROGRAM_ID,
+                    }),
+                    createInitializeImmutableOwnerInstruction(
+                        tokenAccountKeypair.publicKey,
+                        TOKEN_2022_PROGRAM_ID,
+                    ),
+                    createInitializeAccountInstruction(
+                        tokenAccountKeypair.publicKey,
+                        mMint.publicKey,
+                        mVault,
+                        TOKEN_2022_PROGRAM_ID,
+                    ),
+                );
+
+                await provider.send(transaction, [admin, tokenAccountKeypair]);
+
+                // Setup the instruction with the non-ATA vault m token account
+                await prepWrap(earnerOne, undefined, undefined, tokenAccountKeypair.publicKey);
+
+                // Attempt to send the transaction
+                // Expect revert with a ConstraintAssociated error
+                await expectAnchorError(
+                    extEarn.methods
+                        .wrap(mintAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "ConstraintAssociated"
+                );
+            });
+
+            // given the from m token account is for the wrong mint
+            // it reverts with a ConstraintTokenMint error
+            test("From M token account is for wrong mint - reverts", async () => {
+                // Get the user's ATA for the ext mint and pass it as the user M token account
+                const wrongUserATA = await getATA(
+                    extMint.publicKey,
+                    earnerOne.publicKey
+                );
+
+                // Setup the instruction
+                await prepWrap(earnerOne, wrongUserATA);
+
+                // Attempt to send the transaction
+                // Expect revert with a ConstraintTokenMint error
+                await expectAnchorError(
+                    extEarn.methods
+                        .wrap(mintAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "ConstraintTokenMint"
+                );
+            });
+
+            // given the to ext token account is for the wrong mint
+            // it reverts with a ConstraintTokenMint error
+            test("To Ext token account is for the wrong mint - reverts", async () => {
+                // Get the user's ATA for the m mint and pass it as the user ext token account
+                const wrongUserATA = await getATA(
+                    mMint.publicKey,
+                    earnerOne.publicKey
+                );
+
+                // Setup the instruction
+                await prepWrap(earnerOne, undefined, wrongUserATA);
+
+                // Attempt to send the transaction
+                // Expect revert with a ConstraintTokenMint error
+                await expectAnchorError(
+                    extEarn.methods
+                        .wrap(mintAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "ConstraintTokenMint"
+                );
+            });
+
+            // given all accounts are correct
+            // give the user does not have enough M tokens
+            // it reverts
+            test("Not enough M - reverts", async () => {
+                // Setup the instruction
+                await prepWrap(earnerOne);
+
+                const wrapAmount = new BN(randomInt(mintAmount.toNumber() + 1, 2 ** 48 - 1));
+
+                // Attempt to send the transaction
+                // Expect an error
+                await expectSystemError(
+                    extEarn.methods
+                        .wrap(wrapAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc()
+                );
+            });
+
+
+            // given all accounts are correct
+            // given the user has enough M tokens
+            // it transfers the amount of M tokens from the user's M token account to the M vault token account
+            // it mints the amount of wM tokens to the user's wM token account
+            test("Wrap as wM earner - success", async () => {
+                // Setup the instruction
+                const {
+                    vaultMTokenAccount,
+                    fromMTokenAccount,
+                    toExtTokenAccount
+                } = await prepWrap(earnerOne);
+
+                // Confirm initial balances
+                await expectTokenBalance(fromMTokenAccount, mintAmount);
+                await expectTokenBalance(vaultMTokenAccount, new BN(0));
+                await expectTokenBalance(toExtTokenAccount, new BN(0));
+
+                const wrapAmount = new BN(randomInt(1, mintAmount.toNumber()));
+
+                // Send the instruction
+                await extEarn.methods
+                    .wrap(wrapAmount)
+                    .accounts({ ...accounts })
+                    .signers([earnerOne])
+                    .rpc();
+
+                // Confirm updated balances
+                await expectTokenBalance(fromMTokenAccount, mintAmount.sub(wrapAmount));
+                await expectTokenBalance(vaultMTokenAccount, wrapAmount);
+                await expectTokenBalance(toExtTokenAccount, wrapAmount);
+            });
+
+            // given all accounts are correct
+            // given the user has enough M tokens
+            // it transfers the amount of M tokens from the user's M token account to the M vault token account
+            // it mints the amount of wM tokens to the user's wM token account
+            test("Wrap as non-earner - success", async () => {
+                // Setup the instruction
+                const {
+                    vaultMTokenAccount,
+                    fromMTokenAccount,
+                    toExtTokenAccount
+                } = await prepWrap(nonEarnerOne);
+
+                // Confirm initial balances
+                await expectTokenBalance(fromMTokenAccount, mintAmount);
+                await expectTokenBalance(vaultMTokenAccount, new BN(0));
+                await expectTokenBalance(toExtTokenAccount, new BN(0));
+
+                const wrapAmount = new BN(randomInt(1, mintAmount.toNumber()));
+
+                // Send the instruction
+                await extEarn.methods
+                    .wrap(wrapAmount)
+                    .accounts({ ...accounts })
+                    .signers([nonEarnerOne])
+                    .rpc();
+
+                // Confirm updated balances
+                await expectTokenBalance(fromMTokenAccount, mintAmount.sub(wrapAmount));
+                await expectTokenBalance(vaultMTokenAccount, wrapAmount);
+                await expectTokenBalance(toExtTokenAccount, wrapAmount);
+            });
         });
 
         // Send the instruction
@@ -3115,119 +4184,278 @@ describe('ExtEarn unit tests', () => {
           .signers([earnManagerOne])
           .rpc();
 
-        // Check that the recipient token account was updated
-        await expectEarnerState(earnerAccount, {
-          recipientTokenAccount: undefined,
-        });
-      });
+        describe("unwrap unit tests", () => {
+            const wrappedAmount = new BN(50_000_000);
+            beforeEach(async () => {
+                // Wrap tokens for the users so we can test unwrapping
+                await wrap(earnerOne, wrappedAmount);
+                await wrap(nonEarnerOne, wrappedAmount);
+            });
 
-      // given the transaction is not signed by the earner or the earn manager
-      // it reverts with a NotAuthorized error
-      test('Neither earner nor earn manager signs the transaction - reverts', async () => {
-        // Setup the instruction to change the recipient account back to the default
-        await prepSetRecipient(nonAdmin, earnerOne.publicKey, null);
+            // test cases
+            // [X] given the m mint account does not match the one stored in the global account
+            //   [X] it reverts with an InvalidAccount error
+            // [X] given the ext mint account does not match the one stored in the global account
+            //   [X] it reverts with an InvalidAccount error
+            // [X] given the signer is not the authority on the from ext token account
+            //   [X] it reverts with a ConstraintTokenOwner error
+            // [X] given the vault M token account is not the M Vaults ATA for the M token mint
+            //   [X] it reverts with a ConstraintAssociated error
+            // [X] given the to m token account is for the wrong mint
+            //   [X] it reverts with a ConstraintTokenMint error
+            // [X] given the from ext token account is for the wrong mint
+            //   [X] it reverts with a ConstraintTokenMint error
+            // [X] given all the accounts are correct
+            //   [X] given the user does not have enough ext tokens
+            //     [X] it reverts 
+            //   [X] given the user has enough ext tokens
+            //     [X] it transfers the amount of M tokens from the M vault token account to the user's M token account
+            //     [X] it burns the amount of ext tokens from the user's ext token account
+            // TODO there are a couple other account constraints that can be tested 
 
-        // Send the instruction
-        // Expect revert with a NotAuthorized error
-        await expectAnchorError(
-          extEarn.methods
-            .setRecipient()
-            .accounts({ ...accounts })
-            .signers([nonAdmin])
-            .rpc(),
-          'NotAuthorized',
-        );
-      });
+            // given the m mint account does not match the one stored in the global account
+            // it reverts with an InvalidAccount error
+            test("M mint account does not match global account - reverts", async () => {
+                // Setup the instruction
+                await prepUnwrap(earnerOne);
 
-      // given a recipient token account is provided
-      // given the recipient token account is for the wrong mint
-      // it reverts with a ConstraintTokenMint error
-      test('Recipient token account is for the wrong mint - reverts', async () => {
-        // Create an ATA for the wrong mint (M mint instead of EXT mint)
-        const wrongMintATA = await getATA(mMint.publicKey, earnerOne.publicKey);
+                // Change the m mint account
+                accounts.mMint = extMint.publicKey;
 
-        // Setup the instruction
-        await prepSetRecipient(earnerOne, earnerOne.publicKey, wrongMintATA);
+                // Attempt to send the transaction
+                // Expect an invalid account error
+                await expectAnchorError(
+                    extEarn.methods
+                        .unwrap(wrappedAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "InvalidAccount"
+                );
+            });
 
-        // Attempt to send the transaction
-        // Expect a ConstraintTokenMint error
-        await expectAnchorError(
-          extEarn.methods
-            .setRecipient()
-            .accounts({ ...accounts })
-            .signers([earnerOne])
-            .rpc(),
-          'ConstraintTokenMint',
-        );
-      });
+            // given the ext mint account does not match the one stored in the global account
+            // it reverts with an InvalidAccount error
+            test("Ext mint account does not match global account - reverts", async () => {
+                // Setup the instruction
+                await prepUnwrap(earnerOne);
 
-      // given a recipient token account is provided
-      // given the recipient token account has a Mutable owner
-      // it reverts with a MutableOwner error
-      test('Recipient token account has a mutable owner - reverts', async () => {
-        // Create a token account manually, which will not have the immutable owner extension
-        const { tokenAccount: mutableTokenAccount } = await createTokenAccount(extMint.publicKey, earnerOne.publicKey);
+                // Change the ext mint account
+                accounts.extMint = mMint.publicKey;
 
-        // Setup the instruction
-        await prepSetRecipient(earnerOne, earnerOne.publicKey, mutableTokenAccount);
+                // Attempt to send the transaction
+                // Expect an invalid account error
+                await expectAnchorError(
+                    extEarn.methods
+                        .unwrap(wrappedAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "InvalidAccount"
+                );
+            });
 
-        // Attempt to send the transaction
-        // Expect a MutableOwner error
-        await expectAnchorError(
-          extEarn.methods
-            .setRecipient()
-            .accounts({ ...accounts })
-            .signers([earnerOne])
-            .rpc(),
-          'MutableOwner',
-        );
-      });
+            // given the signer is not the authority on the user M token account
+            // it reverts with a ConstraintTokenOwner error
+            test("Signer is not the authority on the from Ext token account - reverts", async () => {
+                // Get the ATA for another user 
+                const mATA = await getATA(mMint.publicKey, earnerOne.publicKey);
+                const wrongExtATA = await getATA(extMint.publicKey, nonEarnerOne.publicKey);
 
-      // given a recipient token account is provided
-      // given the recipient token account is valid
-      // given the earner signs the transaction
-      // it updates the earner's recipient token account to the provided token account
-      test('Earner signs, new recipient token account provided - success', async () => {
-        // Get the ATA for the recipient (use yieldRecipient as the recipient)
-        const recipientATA = await getATA(extMint.publicKey, yieldRecipient.publicKey);
+                // Setup the instruction with the wrong user M token account
+                await prepUnwrap(earnerOne, mATA, wrongExtATA);
 
-        // Setup the instruction
-        const { earnerAccount } = await prepSetRecipient(earnerOne, earnerOne.publicKey, recipientATA);
+                // Attempt to send the transaction
+                // Expect revert with TokenOwner error
+                await expectAnchorError(
+                    extEarn.methods
+                        .unwrap(wrappedAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "ConstraintTokenOwner"
+                );
+            });
 
-        // Send the instruction
-        await extEarn.methods
-          .setRecipient()
-          .accounts({ ...accounts })
-          .signers([earnerOne])
-          .rpc();
+            // given the M vault token account is not the M vault PDA's ATA
+            // it reverts with a ConstraintAssociated error
+            test("M Vault Token account is the the M Vault PDA's ATA (other token account) - reverts", async () => {
+                // Create a token account for the M vault that is not the ATA
+                const tokenAccountKeypair = Keypair.generate();
+                const tokenAccountLen = getAccountLen([ExtensionType.ImmutableOwner]);
+                const lamports = await provider.connection.getMinimumBalanceForRentExemption(tokenAccountLen);
 
-        // Check that the recipient token account was updated correctly
-        await expectEarnerState(earnerAccount, {
-          recipientTokenAccount: recipientATA,
-        });
-      });
+                const mVault = getMVault();
 
-      // given a recipient token account is provided
-      // given the recipient token account is validr
-      // given the earn manager signs the transaction
-      // it updates the earner's recipient token account to the provided token account
-      test('Earn manager signs, new recipient token account provided - success', async () => {
-        // Get the ATA for the recipient (using yieldRecipient as the recipient)
-        const recipientATA = await getATA(extMint.publicKey, yieldRecipient.publicKey);
+                // Create token account with the immutable owner extension
+                const transaction = new Transaction().add(
+                    SystemProgram.createAccount({
+                        fromPubkey: admin.publicKey,
+                        newAccountPubkey: tokenAccountKeypair.publicKey,
+                        space: tokenAccountLen,
+                        lamports,
+                        programId: TOKEN_2022_PROGRAM_ID,
+                    }),
+                    createInitializeImmutableOwnerInstruction(
+                        tokenAccountKeypair.publicKey,
+                        TOKEN_2022_PROGRAM_ID,
+                    ),
+                    createInitializeAccountInstruction(
+                        tokenAccountKeypair.publicKey,
+                        mMint.publicKey,
+                        mVault,
+                        TOKEN_2022_PROGRAM_ID,
+                    ),
+                );
 
-        // Setup the instruction
-        const { earnerAccount } = await prepSetRecipient(earnManagerOne, earnerOne.publicKey, recipientATA);
+                await provider.send(transaction, [admin, tokenAccountKeypair]);
 
-        // Send the instruction
-        await extEarn.methods
-          .setRecipient()
-          .accounts({ ...accounts })
-          .signers([earnManagerOne])
-          .rpc();
+                // Setup the instruction with the non-ATA vault m token account
+                await prepUnwrap(earnerOne, undefined, undefined, tokenAccountKeypair.publicKey);
 
-        // Check that the recipient token account was updated correctly
-        await expectEarnerState(earnerAccount, {
-          recipientTokenAccount: recipientATA,
+                // Attempt to send the transaction
+                // Expect revert with a ConstraintAssociated error
+                await expectAnchorError(
+                    extEarn.methods
+                        .unwrap(wrappedAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "ConstraintAssociated"
+                );
+            });
+
+            // given the user m token account is for the wrong mint
+            // it reverts with a ConstraintTokenMint error
+            test("To M token account is for wrong mint - reverts", async () => {
+                // Get the user's ATA for the ext mint and pass it as the user M token account
+                const wrongUserATA = await getATA(
+                    extMint.publicKey,
+                    earnerOne.publicKey
+                );
+
+                // Setup the instruction
+                await prepUnwrap(earnerOne, wrongUserATA);
+
+                // Attempt to send the transaction
+                // Expect revert with a ConstraintTokenMint error
+                await expectAnchorError(
+                    extEarn.methods
+                        .unwrap(wrappedAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "ConstraintTokenMint"
+                );
+            });
+
+            // given the user ext token account is for the wrong mint
+            // it reverts with a ConstraintTokenMint error
+            test("From Ext token account is for the wrong mint - reverts", async () => {
+                // Get the user's ATA for the m mint and pass it as the user ext token account
+                const wrongUserATA = await getATA(
+                    mMint.publicKey,
+                    earnerOne.publicKey
+                );
+
+                // Setup the instruction
+                await prepUnwrap(earnerOne, undefined, wrongUserATA);
+
+                // Attempt to send the transaction
+                // Expect revert with a ConstraintTokenMint error
+                await expectAnchorError(
+                    extEarn.methods
+                        .unwrap(wrappedAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc(),
+                    "ConstraintTokenMint"
+                );
+            });
+
+            // given all accounts are correct
+            // give the user does not have enough ext tokens
+            // it reverts
+            test("Not enough ext tokens - reverts", async () => {
+                // Setup the instruction
+                await prepUnwrap(earnerOne);
+
+                const unwrapAmount = new BN(randomInt(wrappedAmount.toNumber() + 1, 2 ** 48 - 1));
+
+                // Attempt to send the transaction
+                // Expect an error
+                await expectSystemError(
+                    extEarn.methods
+                        .unwrap(unwrapAmount)
+                        .accounts({ ...accounts })
+                        .signers([earnerOne])
+                        .rpc()
+                );
+            });
+
+            // given all accounts are correct
+            // given the user has enough ext tokens
+            // it transfers the amount of M tokens from the M vault token account to the user's M token account
+            // it burns the amount of ext tokens from the user's ext token account
+            test("Unwrap as ext earner - success", async () => {
+                // Setup the instruction
+                const {
+                    vaultMTokenAccount,
+                    toMTokenAccount,
+                    fromExtTokenAccount
+                } = await prepUnwrap(earnerOne);
+
+                // Confirm initial balances
+                await expectTokenBalance(toMTokenAccount, mintAmount.sub(wrappedAmount));
+                await expectTokenBalance(vaultMTokenAccount, wrappedAmount.add(wrappedAmount));
+                await expectTokenBalance(fromExtTokenAccount, wrappedAmount);
+
+                const unwrapAmount = new BN(randomInt(1, wrappedAmount.toNumber()));
+
+                // Send the instruction
+                await extEarn.methods
+                    .unwrap(unwrapAmount)
+                    .accounts({ ...accounts })
+                    .signers([earnerOne])
+                    .rpc();
+
+                // Confirm updated balances
+                await expectTokenBalance(toMTokenAccount, mintAmount.sub(wrappedAmount).add(unwrapAmount));
+                await expectTokenBalance(vaultMTokenAccount, wrappedAmount.add(wrappedAmount).sub(unwrapAmount));
+                await expectTokenBalance(fromExtTokenAccount, wrappedAmount.sub(unwrapAmount));
+            });
+
+            // given all accounts are correct
+            // given the user has enough ext tokens
+            // it transfers the amount of M tokens from the M vault token account to the user's M token account
+            // it burns the amount of ext tokens from the user's ext token account
+            test("Unwrap as non-earner - success", async () => {
+                // Setup the instruction
+                const {
+                    vaultMTokenAccount,
+                    toMTokenAccount,
+                    fromExtTokenAccount
+                } = await prepUnwrap(nonEarnerOne);
+
+                // Confirm initial balances
+                await expectTokenBalance(toMTokenAccount, mintAmount.sub(wrappedAmount));
+                await expectTokenBalance(vaultMTokenAccount, wrappedAmount.add(wrappedAmount));
+                await expectTokenBalance(fromExtTokenAccount, wrappedAmount);
+
+                const unwrapAmount = new BN(randomInt(1, wrappedAmount.toNumber()));
+
+                // Send the instruction
+                await extEarn.methods
+                    .unwrap(unwrapAmount)
+                    .accounts({ ...accounts })
+                    .signers([nonEarnerOne])
+                    .rpc();
+
+                // Confirm updated balances
+                await expectTokenBalance(toMTokenAccount, mintAmount.sub(wrappedAmount).add(unwrapAmount));
+                await expectTokenBalance(vaultMTokenAccount, wrappedAmount.add(wrappedAmount).sub(unwrapAmount));
+                await expectTokenBalance(fromExtTokenAccount, wrappedAmount.sub(unwrapAmount));
+            });
         });
       });
     });

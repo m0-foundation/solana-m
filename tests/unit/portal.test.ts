@@ -246,9 +246,14 @@ describe('Portal unit tests', () => {
     });
     test('initialize earn', async () => {
       await earn.methods
-        .initialize(mint.publicKey, Keypair.generate().publicKey, new BN(1_000_000_000_000), new BN(0))
+        .initialize(
+          Keypair.generate().publicKey,
+          new BN(1_000_000_000_000),
+          new BN(0)
+        )
         .accounts({
-          globalAccount: config.EARN_GLOBAL_ACCOUNT,
+          globalAccount: EARN_GLOBAL_ACCOUNT,
+          mint: mint.publicKey,
           admin: admin.publicKey,
         })
         .signers([admin])

@@ -29,7 +29,7 @@ pub fn handler(ctx: Context<Sync>) -> Result<()> {
     ctx.accounts.global_account.index = ctx.accounts.m_earn_global_account.index;
     ctx.accounts.global_account.timestamp = ctx.accounts.m_earn_global_account.timestamp;
 
-    emit!(IndexUpdate {
+    emit!(SyncIndexUpdate {
         index: ctx.accounts.global_account.index,
         ts: ctx.accounts.global_account.timestamp,
     });
@@ -38,7 +38,7 @@ pub fn handler(ctx: Context<Sync>) -> Result<()> {
 }
 
 #[event]
-pub struct IndexUpdate {
+pub struct SyncIndexUpdate {
     pub index: u64,
     pub ts: u64,
 }
