@@ -72,7 +72,11 @@ export async function yieldCLI() {
     .option('-g, --graphKey <key>', 'API key for the subgraph')
     .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
-    .option('-p, --squadsPda [pubkey]', 'Propose transactions to squads vault instead of sending')
+    .option(
+      '-p, --squadsPda [pubkey]',
+      'Propose transactions to squads vault instead of sending',
+      '11111111111111111111111111111111',
+    )
     .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
     .option('-i, --stepInterval [number]', 'Wait interval for steps', '5000')
     .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
@@ -113,10 +117,6 @@ export async function yieldCLI() {
           mint: new PublicKey(programID).equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
         };
 
-        if (squadsPda) {
-          options.squadsPda = new PublicKey(squadsPda);
-        }
-
         logger.addMetaField('mint', options.mint);
 
         slackMessage = {
@@ -126,6 +126,13 @@ export async function yieldCLI() {
           level: 'info',
           devnet: rpc.includes('devnet'),
         };
+
+        const squadsPDA = new PublicKey(squadsPda);
+
+        if (!squadsPDA.equals(PublicKey.default)) {
+          options.squadsPda = squadsPDA;
+          slackMessage.messages.push('Bot is in propose mode');
+        }
 
         const steps = options.programID.equals(PROGRAM_ID)
           ? [removeEarners, distributeYield, addEarners]
