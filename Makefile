@@ -153,3 +153,13 @@ deploy-subgraph-mainnet:
 
 deploy-subgraph-devnet:
 	$(call deploy-subgraph,solana-devnet,$(DEVNET_STARTING_BLOCK),solana-m-devnet,$(DEVNET_TARGET_VERSION))
+
+#
+# SDK
+#
+publish-sdk:
+	@cd sdk && \
+	yarn build && \
+	echo "//registry.npmjs.org/:_authToken=$(shell op read "op://Web3/NPM Publish Token m0-foundation/credential")" > .npmrc && \
+	npm publish && \
+	rm .npmrc
