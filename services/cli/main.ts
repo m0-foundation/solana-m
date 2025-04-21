@@ -36,7 +36,7 @@ import {
   TokenMetadata,
 } from '@solana/spl-token-metadata';
 import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
-import { createPublicClient, EXT_GLOBAL_ACCOUNT, EXT_MINT, http } from '../../sdk/src';
+import { createPublicClient, EXT_GLOBAL_ACCOUNT, EXT_MINT, Graph, http } from '../../sdk/src';
 
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
@@ -516,7 +516,7 @@ async function main() {
       const earner = new PublicKey(earnerAddress);
 
       const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL) });
-      const manager = await EarnManager.fromManagerAddress(connection, evmClient, owner.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, new Graph(''), owner.publicKey);
 
       const ixs = await manager.buildAddEarnerInstruction(earner);
       const sig = await sendAndConfirmTransaction(connection, new Transaction().add(...ixs), [owner]);
