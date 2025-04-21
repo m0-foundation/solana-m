@@ -248,7 +248,7 @@ async function main() {
     .command('initialize-earn')
     .description('Initialize the earn program')
     .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
-    .option('-s, --squadsAdmin [bool]', 'Set the admin to the squads vault', false)
+    .option('-a, --squadsAdmin [bool]', 'Set the admin to the squads vault', false)
     .action(async ({ squadsEarnAuth, squadsAdmin }) => {
       const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
@@ -284,7 +284,7 @@ async function main() {
     .command('initialize-ext-earn')
     .description('Initialize the extension earn program')
     .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
-    .option('-s, --squadsAdmin [bool]', 'Set the admin to the squads vault', false)
+    .option('-a, --squadsAdmin [bool]', 'Set the admin to the squads vault', false)
     .action(async ({ squadsEarnAuth, squadsAdmin }) => {
       const [owner, mMint, wmMint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
 
