@@ -22,7 +22,6 @@ use crate::{
     bitmap::Bitmap,
     config::*,
     error::NTTError,
-    instructions::BridgeEvent,
     peer::NttManagerPeer,
     queue::{
         inbox::InboxRateLimit,
@@ -250,16 +249,6 @@ pub fn transfer_burn<'info>(
         recipient_address,
         should_queue,
     )?;
-
-    accs.common.mint.reload()?;
-
-    emit!(BridgeEvent {
-        amount: -(amount as i64),
-        token_supply: accs.common.mint.supply,
-        to: recipient_address,
-        from: accs.common.from.owner.to_bytes(),
-        wormhole_chain_id: recipient_chain.id,
-    });
 
     Ok(())
 }

@@ -4,7 +4,10 @@ use anchor_lang::prelude::*;
 
 use crate::{
     errors::ExtError,
-    state::{EarnManager, Earner, EARNER_SEED, EARN_MANAGER_SEED},
+    state::{
+        Earner, EARNER_SEED,
+        EarnManager, EARN_MANAGER_SEED,
+    }
 };
 
 #[derive(Accounts)]
@@ -40,3 +43,4 @@ pub fn handler(ctx: Context<TransferEarner>, to_earn_manager: Pubkey) -> Result<
 
     Ok(())
 }
+

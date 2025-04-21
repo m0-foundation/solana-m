@@ -1,8 +1,8 @@
 // earn/utils/merkle_proof.rs
 
-use crate::errors::EarnError;
 use anchor_lang::prelude::*;
 use solana_program;
+use crate::errors::EarnError;
 
 pub const ZERO_BIT: u8 = 0;
 pub const ONE_BIT: u8 = 1;
@@ -13,7 +13,11 @@ pub struct ProofElement {
     pub on_right: bool,
 }
 
-pub fn verify_in_tree(root: [u8; 32], value: [u8; 32], proof: Vec<ProofElement>) -> Result<u64> {
+pub fn verify_in_tree(
+    root: [u8; 32],
+    value: [u8; 32],
+    proof: Vec<ProofElement>,
+) -> Result<u64> {
     let leaf = solana_program::keccak::hashv(&[&[ZERO_BIT], value.as_slice()]).to_bytes();
 
     let mut computed_hash = leaf;
@@ -77,7 +81,7 @@ pub fn verify_not_in_tree(
             // Value is smaller than the smallest leaf in the tree
             // The neighbor should be the first leaf in the tree
             let neighbor_index = verify_in_tree(root, neighbor, proof.clone())?;
-
+            
             return if neighbor_index == 0 {
                 Ok(())
             } else {
@@ -93,7 +97,8 @@ pub fn verify_not_in_tree(
             // using a subset of the tree (which would be shorter)
             let expected_index = 2u64.pow(proof.len() as u32) - 1;
 
-            let neighbor_index = verify_in_tree(root, neighbor, proof.clone())?;
+            let neighbor_index =
+                verify_in_tree(root, neighbor, proof.clone())?;
 
             return if neighbor_index == expected_index {
                 Ok(())
@@ -102,7 +107,7 @@ pub fn verify_not_in_tree(
             };
         } else {
             // Can't be the same as the neighbor
-            return err!(EarnError::InvalidProof);
+            return err!(EarnError::InvalidProof); 
         }
     }
 
@@ -115,14 +120,16 @@ pub fn verify_not_in_tree(
 
     // Verify that the left neighbor is smaller than the right neighbor and that the value is between them
     if left_neighbor >= right_neighbor || value <= left_neighbor || value >= right_neighbor {
-        return err!(EarnError::InvalidProof);
+        return err!(EarnError::InvalidProof); 
     }
 
     // Verify that the left neighbor is in the tree
-    let left_index = verify_in_tree(root, left_neighbor, left_proof.clone())?;
+    let left_index =
+        verify_in_tree(root, left_neighbor, left_proof.clone())?;
 
     // Verify that the right neighbor is in the tree
-    let right_index = verify_in_tree(root, right_neighbor, right_proof.clone())?;
+    let right_index =
+        verify_in_tree(root, right_neighbor, right_proof.clone())?;
 
     // Verify that the neighbor indices are next to each other
     if left_index + 1 != right_index {

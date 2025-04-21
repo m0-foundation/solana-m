@@ -1,5 +1,5 @@
-import { PublicKey } from '@solana/web3.js';
-import { Keccak } from 'sha3';
+import { PublicKey } from "@solana/web3.js";
+import { Keccak } from "sha3";
 
 export interface ProofElement {
   node: number[];
@@ -7,8 +7,8 @@ export interface ProofElement {
 }
 
 const bufferSort = (a: Buffer, b: Buffer) => {
-  const iA = BigInt('0x' + a.toString('hex'));
-  const iB = BigInt('0x' + b.toString('hex'));
+  const iA = BigInt("0x" + a.toString("hex"));
+  const iB = BigInt("0x" + b.toString("hex"));
 
   if (iA < iB) {
     return -1;
@@ -26,17 +26,16 @@ export class MerkleTree {
   private leaves: Buffer[];
   // Array of arrays of nodes, stored as buffers
   // In ascending order of depth, i.e. 0-index is the leaves
-  private tree: Buffer[][] = [];
-  private root?: Buffer;
-  private depth: number = 0;
+  private tree: Buffer[][];
+  private root: Buffer;
+  private depth: number;
   private hasher = new Keccak(256);
 
   constructor(leaves: PublicKey[]) {
+
     if (leaves.length === 0) {
       leaves.push(PublicKey.default);
     }
-    // Dedupe the leaves
-    leaves = [...new Set(leaves)];
 
     // Process the leaves
     this.rawLeaves = leaves.map((leaf) => leaf.toBuffer());
@@ -59,7 +58,7 @@ export class MerkleTree {
     // The root is the hash of the leaf, or, if empty, the zero value
     let len = this.leaves.length;
     if (len === 0) {
-      this.root = this._hashLeaf(PublicKey.default.toBuffer());
+      this.root = this._hashLeaf(PublicKey.default.toBuffer())
       return;
     }
     if (len === 1) {
@@ -95,7 +94,10 @@ export class MerkleTree {
       }
 
       if (!lastEven) {
-        nodes[nextLen - 1] = this._hashNode(lastNodes[len - 1], lastNodes[len - 1]);
+        nodes[nextLen - 1] = this._hashNode(
+          lastNodes[len - 1],
+          lastNodes[len - 1]
+        );
       }
 
       this.tree.push(nodes);
@@ -161,12 +163,12 @@ export class MerkleTree {
     // Check that the leaf is not already in the tree
     let leafIndex = this._getLeafIndex(leafBuffer);
     if (leafIndex !== -1) {
-      throw new Error('Leaf already exists in the tree');
+      throw new Error("Leaf already exists in the tree");
     }
 
     // Do not allow zero-valued leaves
     if (leaf.equals(PublicKey.default)) {
-      throw new Error('Zero-valued leaf found');
+      throw new Error("Zero-valued leaf found");
     }
 
     // Add the leaf to the leaves
@@ -200,7 +202,7 @@ export class MerkleTree {
     // Check that the leaf is in the tree
     let index = this._getLeafIndex(leafBuffer);
     if (index === -1) {
-      throw new Error('Leaf not found in the tree');
+      throw new Error("Leaf not found in the tree");
     }
 
     // Remove the leaf hash
@@ -221,10 +223,13 @@ export class MerkleTree {
   }
 
   public getRoot(): number[] {
-    return Array.from(this.root ?? []);
+    return Array.from(this.root);
   }
 
-  public getInclusionProof(leaf: PublicKey, useDuplicate: boolean = false): { proof: ProofElement[] } {
+  public getInclusionProof(
+    leaf: PublicKey,
+    useDuplicate: boolean = false
+  ): { proof: ProofElement[] } {
     const leafBuffer = leaf.toBuffer();
 
     // Find the index of the leaf in the leaves
@@ -232,7 +237,7 @@ export class MerkleTree {
     // by just sending the first index
     let index = this._getLeafIndex(leafBuffer);
     if (index === -1) {
-      throw new Error('Leaf not found in the tree');
+      throw new Error("Leaf not found in the tree");
     }
 
     // If the tree has only one leaf, the proof is empty
@@ -286,7 +291,7 @@ export class MerkleTree {
 
       // If the index is -1, throw an error
       if (index === -1) {
-        throw new Error('Parent not found in the tree');
+        throw new Error("Parent not found in the tree");
       }
     }
 
@@ -308,7 +313,7 @@ export class MerkleTree {
     // Check that the leaf is not in the tree
     let index = this._getLeafIndex(leafBuffer);
     if (index !== -1) {
-      throw new Error('Leaf found in the tree');
+      throw new Error("Leaf found in the tree");
     }
 
     // Find the index that the leaf would be at if it was in the tree
@@ -372,8 +377,12 @@ export class MerkleTree {
     let rightNeighbor = this.rawLeaves[index];
 
     // Generate the inclusion proofs for the neighbors
-    let { proof: leftProof } = this.getInclusionProof(new PublicKey(leftNeighbor));
-    let { proof: rightProof } = this.getInclusionProof(new PublicKey(rightNeighbor));
+    let { proof: leftProof } = this.getInclusionProof(
+      new PublicKey(leftNeighbor)
+    );
+    let { proof: rightProof } = this.getInclusionProof(
+      new PublicKey(rightNeighbor)
+    );
     proofs.push(leftProof);
     proofs.push(rightProof);
 

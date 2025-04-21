@@ -4,7 +4,11 @@ use anchor_lang::prelude::*;
 
 use crate::{
     errors::ExtError,
-    state::{EarnManager, Earner, ExtGlobal, EARNER_SEED, EARN_MANAGER_SEED, EXT_GLOBAL_SEED},
+    state::{
+        ExtGlobal, EXT_GLOBAL_SEED,
+        Earner, EARNER_SEED,
+        EarnManager, EARN_MANAGER_SEED,
+    }
 };
 
 #[derive(Accounts)]

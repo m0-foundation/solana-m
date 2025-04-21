@@ -8,8 +8,9 @@ pub const GLOBAL_SEED: &[u8] = b"global";
 #[account]
 #[derive(InitSpace)]
 pub struct Global {
-    pub admin: Pubkey,          // can update config values
-    pub earn_authority: Pubkey, // address that can distribute yield
+    pub admin: Pubkey,            // can update config values
+    pub earn_authority: Pubkey,   // address that can distribute yield
+    pub portal_authority: Pubkey, // portal authority that propogates indexes and roots
     pub mint: Pubkey,
     pub index: u64,          // most recent index that yield is being distributed for
     pub timestamp: u64,      // timestamp of the most recent index update
@@ -19,6 +20,5 @@ pub struct Global {
     pub distributed: u64, // total yield distributed in this claim cycle
     pub claim_complete: bool,
     pub earner_merkle_root: [u8; 32],
-    pub portal_authority: Pubkey, // portal authority that propogates indexes and roots
-    pub bump: u8,                 // bump seed on this PDA
+    pub bump: u8,
 }
