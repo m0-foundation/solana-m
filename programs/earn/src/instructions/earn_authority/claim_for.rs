@@ -115,6 +115,8 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &ctx.accounts.token_program,           // token program
     )?;
 
+    ctx.accounts.mint.reload()?;
+
     // Check the current supply of M against the max supply in the global account
     // If it is greater, update the max supply
     // This check is also done when an index is propagated for a bridge

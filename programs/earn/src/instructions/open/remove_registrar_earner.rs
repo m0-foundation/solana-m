@@ -2,6 +2,7 @@
 
 // external dependencies
 use anchor_lang::prelude::*;
+use anchor_spl::token_interface::TokenAccount;
 
 // local dependencies
 use crate::{
@@ -23,10 +24,13 @@ pub struct RemoveRegistrarEarner<'info> {
     #[account(
         mut,
         close = signer,
+        has_one = user_token_account,
         seeds = [EARNER_SEED, earner_account.user_token_account.as_ref()],
         bump = earner_account.bump,
     )]
     pub earner_account: Account<'info, Earner>,
+
+    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 }
 
 pub fn handler(
@@ -37,7 +41,12 @@ pub fn handler(
     // Verify the user is not in the approved earners list
     verify_not_in_tree(
         ctx.accounts.global_account.earner_merkle_root,
-        ctx.accounts.earner_account.user.to_bytes(),
+        ctx.accounts
+            .user_token_account
+            .clone()
+            .into_inner()
+            .owner
+            .to_bytes(),
         proofs,
         neighbors,
     )?;

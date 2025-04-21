@@ -7,6 +7,7 @@ use anchor_spl::token_interface::{Mint, Token2022};
 // local dependencies
 use crate::{
     constants::ANCHOR_DISCRIMINATOR_SIZE,
+    errors::ExtError,
     state::{ExtGlobal, EXT_GLOBAL_SEED, MINT_AUTHORITY_SEED, M_VAULT_SEED},
 };
 use earn::{
@@ -29,12 +30,15 @@ pub struct Initialize<'info> {
     pub global_account: Account<'info, ExtGlobal>,
 
     #[account(
-        token::token_program = token_2022
+        mint::token_program = token_2022,
+        address = m_earn_global_account.mint,
     )]
     pub m_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
-        token::token_program = token_2022
+        mint::token_program = token_2022,
+        mint::decimals = m_mint.decimals,
+        constraint = ext_mint.supply == 0 @ ExtError::InvalidMint,
     )]
     pub ext_mint: InterfaceAccount<'info, Mint>,
 
@@ -52,8 +56,12 @@ pub struct Initialize<'info> {
 
 pub fn handler(ctx: Context<Initialize>, earn_authority: Pubkey) -> Result<()> {
     let m_vault_bump = Pubkey::find_program_address(&[M_VAULT_SEED], ctx.program_id).1;
-    let ext_mint_authority_bump =
-        Pubkey::find_program_address(&[MINT_AUTHORITY_SEED], ctx.program_id).1;
+    let (ext_mint_authority, ext_mint_authority_bump) =
+        Pubkey::find_program_address(&[MINT_AUTHORITY_SEED], ctx.program_id);
+
+    if ctx.accounts.ext_mint.mint_authority.unwrap_or_default() != ext_mint_authority {
+        return err!(ExtError::InvalidMint);
+    }
 
     ctx.accounts.global_account.set_inner(ExtGlobal {
         admin: ctx.accounts.admin.key(),
