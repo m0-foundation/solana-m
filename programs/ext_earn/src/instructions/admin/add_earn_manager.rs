@@ -6,10 +6,7 @@ use anchor_spl::token_interface::TokenAccount;
 use crate::{
     constants::{ANCHOR_DISCRIMINATOR_SIZE, ONE_HUNDRED_PERCENT},
     errors::ExtError,
-    state::{
-        ExtGlobal, EXT_GLOBAL_SEED,
-        EarnManager, EARN_MANAGER_SEED,
-    }
+    state::{EarnManager, ExtGlobal, EARN_MANAGER_SEED, EXT_GLOBAL_SEED},
 };
 
 #[derive(Accounts)]

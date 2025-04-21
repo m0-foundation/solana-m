@@ -8,6 +8,7 @@ use spl_token_2022::onchain;
 use crate::{
     config::*,
     error::NTTError,
+    instructions::BridgeEvent,
     queue::inbox::{InboxItem, ReleaseStatus},
     spl_multisig::SplMultisig,
 };
@@ -87,6 +88,7 @@ pub fn release_inbound_mint_multisig<'info>(
     let inbox_item = &mut ctx.accounts.common.inbox_item;
 
     if !inbox_item.try_release()? {
+        msg!("Item cannot be released: {:?}", inbox_item.release_status);
         if args.revert_on_delay {
             return Err(NTTError::CantReleaseYet.into());
         }
@@ -132,11 +134,15 @@ pub fn release_inbound_mint_multisig<'info>(
             token_authority_sig,
         )?;
 
-        msg!(
-            "Transferred {} tokens to {}",
-            inbox_item.transfer.amount,
-            inbox_item.transfer.recipient
-        );
+        ctx.accounts.common.mint.reload()?;
+
+        emit!(BridgeEvent {
+            amount: inbox_item.transfer.amount as i64,
+            token_supply: ctx.accounts.common.mint.supply,
+            to: inbox_item.transfer.recipient.to_bytes(),
+            from: inbox_item.source.from,
+            wormhole_chain_id: inbox_item.source.chain.id,
+        });
     }
 
     // Send update to the earn program
@@ -168,17 +174,13 @@ pub fn release_inbound_mint_multisig<'info>(
             token_authority_sig,
         );
 
-        let root_updates = inbox_item.root_updates.clone().unwrap_or_default();
-        earn::cpi::propagate_index(
-            ctx,
-            inbox_item.index_update,
-            root_updates.earner_root,
-        )?;
+        let earner_root = inbox_item.earners_root_update.unwrap_or_default();
+        earn::cpi::propagate_index(ctx, inbox_item.index_update, earner_root)?;
 
         msg!(
             "Index update: {} | root update: {}",
             inbox_item.index_update,
-            inbox_item.root_updates.is_some()
+            inbox_item.earners_root_update.is_some()
         );
     }
 

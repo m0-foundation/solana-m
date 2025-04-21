@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package transfers.v1;
+
+message TokenTransactions {
+  repeated TokenTransaction transactions = 1;
+  string blockhash = 2;
+  uint64 slot = 3;
+  int64 block_time = 4;
+  uint64 block_height = 5;
+}
+
+message TokenTransaction {
+  string signature = 1;
+  repeated TokenBalanceUpdate balance_updates = 2;
+  repeated Instruction instructions = 3;
+}
+
+message TokenBalanceUpdate {
+  string pubkey = 1;
+  string mint = 2;
+  string owner = 3;
+  uint64 pre_balance = 4;
+  uint64 post_balance = 5;
+}
+
+message Instruction {
+  string program_id = 1;
+  optional string instruction = 2;
+
+  oneof update {
+    IndexUpdate index_update = 10;
+    Claim claim = 11;
+    BridgeEvent bridge_event = 12;
+  }
+}
+
+message IndexUpdate {
+  uint64 index = 1;
+  uint64 ts = 2;
+  uint64 token_supply = 3;
+  uint64 max_yield = 4;
+}
+
+message Claim {
+  string token_account = 1;
+  string recipient_token_account = 2;
+  uint64 amount = 3;
+  uint64 manager_fee = 4;
+  uint64 index = 5;
+}
+
+message BridgeEvent {
+  int64 amount = 1;
+  uint64 token_supply = 2;
+  bytes from = 3;
+  bytes to = 4;
+  string chain = 5;
+}
