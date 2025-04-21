@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "op run --env-file='.env' -- vite",
+    "devnet": "op run --env-file='.env.dev.template' -- vite",
+    "mainnet": "op run --env-file='.env.prod.template' -- vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

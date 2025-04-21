@@ -28,13 +28,13 @@ import { SendTransactionMutate } from 'wagmi/query';
 import { Config } from 'wagmi';
 import { JsonRpcProvider } from 'ethers';
 
+export const NETWORK: 'devnet' | 'mainnet' = import.meta.env.VITE_NETWORK;
+export const connection = new Connection(import.meta.env.VITE_RPC_URL);
+
 export const MINT_ADDRESSES: Record<string, PublicKey> = {
   M: M_MINT,
   wM: wM_MINT,
 };
-
-export const NETWORK: 'devnet' | 'mainnet' = import.meta.env.VITE_NETWORK;
-export const connection = new Connection(import.meta.env.VITE_RPC_URL);
 
 export const getMintsRPC = async (): Promise<Record<string, Mint>> => {
   const data: Record<string, Mint> = {};

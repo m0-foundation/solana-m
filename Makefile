@@ -1,4 +1,4 @@
-.PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet upgrade-ext-earn-devnet deploy-yield-bot deploy-subgraph-mainnet deploy-subgraph-devnet
+.PHONY: test-yield-bot yield-bot-devnet test-local-validator test-sdk build-devnet upgrade-earn-devnet upgrade-portal-devnet upgrade-ext-earn-devnet deploy-yield-bot deploy-subgraph-mainnet deploy-subgraph-devnet deploy-dashboard-devnet deploy-dashboard-mainnet
 
 
 #
@@ -113,13 +113,21 @@ deploy-index-bot:
 	docker push ghcr.io/m0-foundation/solana-m:index-bot
 	railway redeploy --service "index bot" --yes
 
-deploy-dashboard:
+define deploy-dashboard
+	railway environment $(1)
 	cd dashboard && \
-	op inject -i .env -o .env.production && \
+	op inject -i $(2) -o .env.production && \
 	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:dashboard . && \
 	rm .env.production
 	docker push ghcr.io/m0-foundation/solana-m:dashboard
 	railway redeploy --service dashboard --yes
+endef
+
+deploy-dashboard-devnet:
+	$(call deploy-dashboard,development,.env.dev.template)
+
+deploy-dashboard-mainnet:
+	$(call deploy-dashboard,production,.env.prod.template)
 
 #
 # Subgraphs
