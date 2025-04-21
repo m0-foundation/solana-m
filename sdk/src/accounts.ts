@@ -13,6 +13,7 @@ export interface GlobalAccountData {
   admin: PublicKey;
   earnAuthority: PublicKey;
   mint: PublicKey;
+  underlyingMint?: PublicKey;
   index: BN;
   timestamp: BN;
   maxSupply?: BN;

@@ -59,7 +59,7 @@ class EarnAuthority {
       global = await getProgram(connection).account.global.fetch(globalAccount);
     } else {
       const extGlobal = await getExtProgram(connection).account.extGlobal.fetch(globalAccount);
-      global = { ...extGlobal, mint: extGlobal.extMint };
+      global = { ...extGlobal, mint: extGlobal.extMint, underlyingMint: extGlobal.mMint };
     }
 
     // get mint multisig
@@ -177,7 +177,7 @@ class EarnAuthority {
       // vault PDAs
       const [mVaultAccount] = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID);
       const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
-        this.global.mint,
+        this.global.underlyingMint!,
         mVaultAccount,
         true,
         spl.TOKEN_2022_PROGRAM_ID,
@@ -285,7 +285,7 @@ class EarnAuthority {
 
       // vault balance
       const vaultMTokenAccount = spl.getAssociatedTokenAddressSync(
-        this.global.mint,
+        this.global.underlyingMint!,
         PublicKey.findProgramAddressSync([Buffer.from('m_vault')], this.programID)[0],
         true,
         spl.TOKEN_2022_PROGRAM_ID,
