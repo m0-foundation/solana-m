@@ -337,7 +337,7 @@ const closeTokenAccount = async (owner: Keypair, tokenAccount: PublicKey) => {
 
   let tx = new Transaction().add(closeIx);
 
-  await provider.sendAndConfirm(tx, [owner]);
+  await provider.sendAndConfirm!(tx, [owner]);
 };
 
 const createMint = async (mint: Keypair, mintAuthority: PublicKey, use2022: boolean = true, decimals = 6) => {

@@ -126,30 +126,7 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
 
     // Calculate the earn manager fee if applicable and subtract from the earner's rewards
     // If the earn manager is not active, then no fee is taken
-    let fee = if ctx.accounts.earn_manager_account.fee_bps > 0
-        && ctx.accounts.earn_manager_account.is_active
-    {
-        // Fees are rounded down in favor of the user
-        let fee = (rewards * ctx.accounts.earn_manager_account.fee_bps) / ONE_HUNDRED_PERCENT;
-
-        if fee > 0 {
-            mint_tokens(
-                &ctx.accounts.earn_manager_token_account, // to
-                fee,                                      // amount
-                &ctx.accounts.ext_mint,                   // mint
-                &ctx.accounts.ext_mint_authority,         // mint authority
-                mint_authority_seeds,                     // mint authority seeds
-                &ctx.accounts.token_2022,                 // token program
-            )?;
-
-            // Return the fee to reduce the rewards by
-            fee
-        } else {
-            0u64
-        }
-    } else {
-        0u64
-    };
+    let fee = handle_fee(&ctx, rewards, mint_authority_seeds)?;
 
     rewards -= fee;
 
@@ -220,14 +197,4 @@ fn handle_fee(
     mint_to(cpi_context, fee)?;
 
     Ok(fee)
-}
-
-#[event]
-pub struct RewardsClaim {
-    pub token_account: Pubkey,
-    pub recipient_token_account: Pubkey,
-    pub amount: u64,
-    pub fee: u64,
-    pub ts: u64,
-    pub index: u64,
 }
