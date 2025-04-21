@@ -30,6 +30,7 @@ pub struct ClaimFor<'info> {
     )]
     pub mint: InterfaceAccount<'info, Mint>,
 
+    /// CHECK: This account is checked in the CPI to Token2022 program
     #[account(
         seeds = [TOKEN_AUTHORITY_SEED],
         bump
@@ -125,14 +126,13 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         ctx.accounts.global_account.max_supply = ctx.accounts.mint.supply;
     }
 
-    let user_token_key = ctx.accounts.user_token_account.key();
-
     emit!(RewardsClaim {
-        token_account: user_token_key,
-        recipient_token_account: user_token_key,
+        token_account: ctx.accounts.user_token_account.key(),
+        recipient_token_account: ctx.accounts.user_token_account.key(),
         amount: rewards,
         ts: ctx.accounts.earner_account.last_claim_timestamp,
         index: ctx.accounts.global_account.index,
+        fee: 0,
     });
 
     Ok(())
@@ -145,4 +145,5 @@ pub struct RewardsClaim {
     pub amount: u64,
     pub ts: u64,
     pub index: u64,
+    pub fee: u64,
 }

@@ -3,6 +3,7 @@
 // external dependencies
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{mint_to, Mint, MintTo, Token2022, TokenAccount};
+use earn::instructions::claim_for::RewardsClaim;
 
 // local dependencies
 use crate::{

@@ -5,3 +5,11 @@ target
 node_modules
 test-ledger
 .yarn
+devnet-keypair.json
+.substreams.env
+*.spkg
+*.log
+substreams/subgraph/build
+dist
+services/**/*.js
+.npmrc
