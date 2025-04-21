@@ -248,19 +248,21 @@ async function main() {
     .command('initialize-earn')
     .description('Initialize the earn program')
     .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
-    .action(async ({ squadsEarnAuth }) => {
+    .option('-s, --squadsAdmin [bool]', 'Set the admin to the squads vault', false)
+    .action(async ({ squadsEarnAuth, squadsAdmin }) => {
       const [owner, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
 
       const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
       const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
 
       let earnAuth = owner.publicKey;
+      let admin = owner.publicKey;
 
       if (squadsEarnAuth) {
-        earnAuth = multisig.getVaultPda({
-          multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
-          index: 0,
-        })[0];
+        earnAuth = new PublicKey(process.env.SQUADS_EARN_ADMIN_VAULT!);
+      }
+      if (squadsAdmin) {
+        admin = new PublicKey(process.env.SQUADS_VAULT!);
       }
 
       await earn.methods
@@ -272,7 +274,7 @@ async function main() {
         )
         .accounts({
           globalAccount,
-          admin: owner.publicKey,
+          admin,
         })
         .signers([owner])
         .rpc();
@@ -282,7 +284,8 @@ async function main() {
     .command('initialize-ext-earn')
     .description('Initialize the extension earn program')
     .option('-s, --squadsEarnAuth [bool]', 'Set the earn authority to the squads vault', false)
-    .action(async ({ squadsEarnAuth }) => {
+    .option('-s, --squadsAdmin [bool]', 'Set the admin to the squads vault', false)
+    .action(async ({ squadsEarnAuth, squadsAdmin }) => {
       const [owner, mMint, wmMint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR', 'WM_MINT_KEYPAIR']);
 
       const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, PROGRAMS.extEarn, anchorProvider(connection, owner));
@@ -290,18 +293,19 @@ async function main() {
       const [extGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.extEarn);
 
       let earnAuth = owner.publicKey;
+      let admin = owner.publicKey;
 
       if (squadsEarnAuth) {
-        earnAuth = multisig.getVaultPda({
-          multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA ?? ''),
-          index: 0,
-        })[0];
+        earnAuth = new PublicKey(process.env.SQUADS_EARN_ADMIN_VAULT!);
+      }
+      if (squadsAdmin) {
+        admin = new PublicKey(process.env.SQUADS_VAULT!);
       }
 
       await extEarn.methods
         .initialize(earnAuth)
         .accounts({
-          admin: owner.publicKey,
+          admin,
           globalAccount: extGlobalAccount,
           mMint: mMint.publicKey,
           extMint: wmMint.publicKey,
