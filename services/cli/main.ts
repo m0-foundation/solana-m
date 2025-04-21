@@ -51,6 +51,8 @@ import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
 import { EarnManager } from '../../sdk/src/earn_manager';
 import { getExtProgram, getProgram } from '../../sdk/src/idl';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import { Graph } from '../../sdk/src/graph';
+import { NTT } from '@wormhole-foundation/sdk-solana-ntt';
 const EARN_IDL = require('../../target/idl/earn.json');
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
@@ -415,6 +417,30 @@ async function main() {
     });
 
   program
+    .command('set-ntt-admin')
+    .argument('<owner>', 'new owner')
+    .action(async (ownerAddress: string) => {
+      const [payer, mint] = keysFromEnv(['PAYER_KEYPAIR', 'M_MINT_KEYPAIR']);
+      const { ntt } = NttManager(connection, payer, mint.publicKey);
+      const newOwner = new PublicKey(ownerAddress);
+      const pdas = NTT.pdas(ntt.program.programId);
+
+      const sig = await ntt.program.methods
+        .transferOwnershipOneStepUnchecked()
+        .accounts({
+          config: pdas.configAccount(),
+          newOwner,
+        })
+        .signers([payer])
+        .rpc();
+
+      console.log('transfering ownership', {
+        newOwner: newOwner.toBase58(),
+        sig,
+      });
+    });
+
+  program
     .command('add-registrar-earner')
     .description('Add earner that is in the earner merkle tree')
     .argument('<earner>', 'The earner to add')
@@ -512,7 +538,7 @@ async function main() {
       const earner = new PublicKey(earnerAddress);
 
       const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL) });
-      const manager = await EarnManager.fromManagerAddress(connection, evmClient, owner.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, new Graph(''), owner.publicKey);
 
       const ixs = await manager.buildAddEarnerInstruction(earner);
       const sig = await sendAndConfirmTransaction(connection, new Transaction().add(...ixs), [owner]);
