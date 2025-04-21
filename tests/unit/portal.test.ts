@@ -41,6 +41,7 @@ import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { utils } from 'web3';
 import { BN, Program } from '@coral-xyz/anchor';
 import { Earn } from '../../target/types/earn';
+import { GLOBAL_ACCOUNT } from '../../sdk/src';
 const EARN_IDL = require('../../target/idl/earn.json');
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
@@ -246,13 +247,9 @@ describe('Portal unit tests', () => {
     });
     test('initialize earn', async () => {
       await earn.methods
-        .initialize(
-          Keypair.generate().publicKey,
-          new BN(1_000_000_000_000),
-          new BN(0)
-        )
+        .initialize(Keypair.generate().publicKey, new BN(1_000_000_000_000), new BN(0))
         .accounts({
-          globalAccount: EARN_GLOBAL_ACCOUNT,
+          globalAccount: GLOBAL_ACCOUNT,
           mint: mint.publicKey,
           admin: admin.publicKey,
         })

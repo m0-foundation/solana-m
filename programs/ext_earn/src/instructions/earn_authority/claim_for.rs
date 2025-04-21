@@ -198,13 +198,3 @@ fn handle_fee(
 
     Ok(fee)
 }
-
-#[event]
-pub struct RewardsClaim {
-    pub token_account: Pubkey,
-    pub recipient_token_account: Pubkey,
-    pub amount: u64,
-    pub fee: u64,
-    pub ts: u64,
-    pub index: u64,
-}

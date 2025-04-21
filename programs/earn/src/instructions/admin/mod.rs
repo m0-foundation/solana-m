@@ -8,10 +8,6 @@ pub mod set_earn_authority;
 
 pub use initialize::Initialize;
 pub(crate) use initialize::__client_accounts_initialize;
-pub use set_claim_cooldown::SetClaimCooldown;
-pub(crate) use set_claim_cooldown::__client_accounts_set_claim_cooldown;
-pub use set_earn_authority::SetEarnAuthority;
-pub(crate) use set_earn_authority::__client_accounts_set_earn_authority;
 
 use crate::{
     errors::EarnError,
