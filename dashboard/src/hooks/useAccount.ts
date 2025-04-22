@@ -100,5 +100,6 @@ export const useAccount = () => {
     evmBalances,
     isLoading: isSolanaBalancesLoading || isEvmBalancesLoading,
     error: solanaBalancesError || evmBalancesError,
+    caipAddress,
   };
 };

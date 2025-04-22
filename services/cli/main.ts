@@ -287,15 +287,19 @@ async function main() {
         admin = new PublicKey(process.env.SQUADS_VAULT!);
       }
 
+      const evmCaller = new EvmCaller(evmClient);
+      const currentIndex = await evmCaller.getCurrentIndex();
+
       await earn.methods
         .initialize(
           earnAuth,
-          new BN(1001886486057), // initial index // TODO programmatically get from mainnet at deployment time
-          new BN(5 * 60), // cooldown
+          new BN(currentIndex.toString()), // initial index
+          new BN(8 * 60 * 60), // cooldown (8 hours)
         )
         .accounts({
           globalAccount,
           admin,
+          mint: mint.publicKey,
         })
         .signers([owner])
         .rpc();

@@ -50,21 +50,19 @@ yield-bot-devnet:
 
 
 #
-# Devnet upgrade commands
+# Program upgrade commands
 #
 EARN_PROGRAM_ID := MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c
 EXT_EARN_PROGRAM_ID := wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko
 PORTAL_PROGRAM_ID := mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY
+SQUADS_VAULT := 9QpF8a9TDM9DMiQ556bjEAyAx3WRunzW9HfiDcAPNyJW
 DEVNET_KEYPAIR := devnet-keypair.json
 COMPUTE_UNIT_PRICE := 300000
 MAX_SIGN_ATTEMPTS := 5
 
-build-devnet:
-	anchor build -- --features devnet --no-default-features
-
-define build-verified-devnet
-	@echo "Building verified $(1) program for devnet...\n"
-	solana-verify build --library-name $(1) -- --features devnet --no-default-features
+define build-verified
+	@echo "Building verified $(1) program for $(2)...\n"
+	solana-verify build --library-name $(1) -- --features $(2) --no-default-features
 endef
 
 define upgrade_program
@@ -84,34 +82,64 @@ define upgrade_program
 	@rm temp-buffer.json
 endef
 
+define propose_upgrade_program
+	@solana-keygen new --no-bip39-passphrase --force -s --outfile=temp-buffer.json
+	@echo "\nWriting buffer for $(1) program..."
+	@solana program write-buffer \
+		--with-compute-unit-price $(COMPUTE_UNIT_PRICE) \
+		--keypair $(DEVNET_KEYPAIR) \
+		--max-sign-attempts $(MAX_SIGN_ATTEMPTS) \
+		--buffer temp-buffer.json \
+		target/deploy/$(1).so 
+	@echo "Transfering buffer $$(solana address --keypair temp-buffer.json) authority to Squads" 
+	@solana program set-buffer-authority $$(solana address --keypair temp-buffer.json) \
+		--new-buffer-authority $(SQUADS_VAULT) \
+		--keypair $(DEVNET_KEYPAIR)
+	@cat temp-buffer.json
+	@rm temp-buffer.json
+endef
+
 upgrade-earn-devnet: 
-	$(call build-verified-devnet,earn)
+	$(call build-verified,earn,devnet)
 	$(call upgrade_program,earn,$(EARN_PROGRAM_ID))
 
 upgrade-ext-earn-devnet:
-	$(call build-verified-devnet,ext_earn)
+	$(call build-verified,ext_ear,devnet)
 	$(call upgrade_program,ext_earn,$(EXT_EARN_PROGRAM_ID))
 
 upgrade-portal-devnet:
-	$(call build-verified-devnet,portal)
+	$(call build-verified,portal,devnet)
 	$(call upgrade_program,portal,$(PORTAL_PROGRAM_ID))
 
+upgrade-earn-mainnet: 
+	$(call build-verified,earn,mainnet)
+	$(call propose_upgrade_program,earn,$(EARN_PROGRAM_ID))
+
+upgrade-ext-earn-mainnet:
+	$(call build-verified,ext_ear,mainnet)
+	$(call propose_upgrade_program,ext_earn,$(EXT_EARN_PROGRAM_ID))
+
+upgrade-portal-mainnet:
+	$(call build-verified,portal,mainnet)
+	$(call propose_upgrade_program,portal,$(PORTAL_PROGRAM_ID))
 
 #
 # Railway infra
 #
-deploy-yield-bot:
-	railway environment development
+define deploy-yield-bot
+	railway environment $(1)
 	docker build --build-arg now="$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:yield-bot -f services/yield-bot/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:yield-bot
 	railway redeploy --service "yield bot - M" --yes
 	railway redeploy --service "yield bot - wM" --yes
+endef
 
-deploy-index-bot:
-	railway environment development
+define deploy-index-bot
+	railway environment $(1)
 	docker build --build-arg now="$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:index-bot -f services/index-bot/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:index-bot
 	railway redeploy --service "index bot" --yes
+endef
 
 define deploy-dashboard
 	railway environment $(1)
@@ -122,6 +150,18 @@ define deploy-dashboard
 	docker push ghcr.io/m0-foundation/solana-m:dashboard
 	railway redeploy --service dashboard --yes
 endef
+
+deploy-yield-bot-devnet:
+	$(call deploy-yield-bot,development)
+
+deploy-yield-bot-mainnet:
+	$(call deploy-yield-bot,production)
+
+deploy-index-bot-devnet:
+	$(call deploy-index-bot,development)
+
+deploy-index-bot-mainnet:
+	$(call deploy-index-bot,production)
 
 deploy-dashboard-devnet:
 	$(call deploy-dashboard,development,.env.dev.template)

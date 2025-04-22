@@ -7,20 +7,44 @@ import { toast, ToastContainer } from 'react-toastify';
 import { bridgeFromEvm, bridgeFromSolana, NETWORK } from '../services/rpc';
 import { chainIcons } from './bridges';
 import { useSendTransaction } from 'wagmi';
+import { switchChain } from '@wagmi/core';
+import { wagmiAdapter } from '../main';
 
 type Chain = {
   name: string;
+  label: string;
   icon: string;
+  namespace: 'evm' | 'svm';
+  id?: number;
 };
 
 const chains: Chain[] = [
   {
     name: 'Solana',
+    label: 'Solana',
     icon: chainIcons.Solana,
+    namespace: 'svm',
   },
   {
     name: NETWORK === 'devnet' ? 'Sepolia' : 'Ethereum',
+    label: NETWORK === 'devnet' ? 'Sepolia' : 'Ethereum',
     icon: chainIcons.Ethereum,
+    namespace: 'evm',
+    id: NETWORK === 'devnet' ? 11155111 : 1,
+  },
+  {
+    name: 'Arbitrum',
+    label: NETWORK === 'devnet' ? 'ArbitrumSepolia' : 'Arbitrum',
+    icon: chainIcons.Arbitrum,
+    namespace: 'evm',
+    id: NETWORK === 'devnet' ? 421614 : 42161,
+  },
+  {
+    name: 'Optimism',
+    label: NETWORK === 'devnet' ? 'OptimismSepolia' : 'Optimism',
+    icon: chainIcons.Optimism,
+    namespace: 'evm',
+    id: NETWORK === 'devnet' ? 11155420 : 10,
   },
 ];
 
@@ -74,7 +98,7 @@ const ChainDropdown = ({ selectedChain, onChange }: { selectedChain: Chain; onCh
 };
 
 export const Bridge = () => {
-  const { isConnected, solanaBalances, evmBalances, isSolanaWallet, address } = useAccount();
+  const { isConnected, solanaBalances, evmBalances, isSolanaWallet, address, caipAddress } = useAccount();
   const { walletProvider } = useAppKitProvider<Provider>('solana');
   const { sendTransaction, isPending } = useSendTransaction();
 
@@ -84,24 +108,38 @@ export const Bridge = () => {
   const [inputChain, setInputChain] = useState<Chain>(chains[0]);
   const [outputChain, setOutputChain] = useState<Chain>(chains[1]);
 
-  const handleInputChainChange = (chain: Chain) => {
+  useEffect(() => {
+    if (!caipAddress) return;
+    const [namespace, chainId, _] = caipAddress.split(':');
+
+    // set to selected network
+    if (namespace === 'eip155') {
+      handleInputChainChange(chains.find((c) => c.id === parseInt(chainId)) ?? chains[0]);
+    } else {
+      handleInputChainChange(chains[0]);
+    }
+  }, [caipAddress]);
+
+  const handleInputChainChange = async (chain: Chain) => {
     setInputChain(chain);
-    // If output chain is the same as the newly selected input chain, update output chain
-    if (outputChain.name === chain.name) {
-      // Find the first chain that's not the newly selected input chain
-      const newOutputChain = chains.find((c) => c.name !== chain.name);
+    // Ensure briding is from EVM to SVM
+    if (outputChain.namespace === chain.namespace) {
+      // Find the first chain that's not the same namespace
+      const newOutputChain = chains.find((c) => c.namespace !== chain.namespace);
       if (newOutputChain) {
         setOutputChain(newOutputChain);
       }
+    }
+
+    if (chain.namespace == 'evm') {
+      await switchChain(wagmiAdapter.wagmiConfig, { chainId: chain.id! });
     }
   };
 
   const handleOutputChainChange = (chain: Chain) => {
     setOutputChain(chain);
-    // If input chain is the same as the newly selected output chain, update input chain
-    if (inputChain.name === chain.name) {
-      // Find the first chain that's not the newly selected output chain
-      const newInputChain = chains.find((c) => c.name !== chain.name);
+    if (inputChain.namespace === chain.namespace) {
+      const newInputChain = chains.find((c) => c.namespace !== chain.namespace);
       if (newInputChain) {
         setInputChain(newInputChain);
       }
@@ -134,10 +172,10 @@ export const Bridge = () => {
       setIsLoading(true);
 
       let sig: string;
-      if (inputChain.name === 'Solana') {
-        sig = await bridgeFromSolana(walletProvider, amountValue, recipientAddress, outputChain.name);
+      if (inputChain.namespace === 'svm') {
+        sig = await bridgeFromSolana(walletProvider, amountValue, recipientAddress, outputChain.label);
       } else {
-        sig = await bridgeFromEvm(sendTransaction, address, amountValue, recipientAddress, inputChain.name);
+        sig = await bridgeFromEvm(sendTransaction, address, amountValue, recipientAddress, inputChain.label);
       }
 
       const txUrl = `https://wormholescan.io/#/tx/${sig}?network=Testnet`;
@@ -225,7 +263,7 @@ export const Bridge = () => {
 
         <button
           onClick={handleBridge}
-          disabled={!isConnected || !isValidAmount || !isValidRecipient || isLoading}
+          disabled={!isConnected || !isValidAmount || !isValidRecipient || isLoading || !validWallet}
           className={`w-full py-3 hover:cursor-pointer ${
             !isValidAmount || !isValidRecipient || isLoading
               ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
