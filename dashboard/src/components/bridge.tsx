@@ -4,7 +4,7 @@ import { type Provider } from '@reown/appkit-adapter-solana/react';
 import { useAppKitProvider } from '@reown/appkit/react';
 import Decimal from 'decimal.js';
 import { toast, ToastContainer } from 'react-toastify';
-import { bidgeFromEvm, bidgeFromSolana, NETWORK } from '../services/rpc';
+import { bridgeFromEvm, bridgeFromSolana, NETWORK } from '../services/rpc';
 import { chainIcons } from './bridges';
 import { useSendTransaction } from 'wagmi';
 
@@ -135,9 +135,9 @@ export const Bridge = () => {
 
       let sig: string;
       if (inputChain.name === 'Solana') {
-        sig = await bidgeFromSolana(walletProvider, amountValue, recipientAddress, outputChain.name);
+        sig = await bridgeFromSolana(walletProvider, amountValue, recipientAddress, outputChain.name);
       } else {
-        sig = await bidgeFromEvm(sendTransaction, address, amountValue, recipientAddress, inputChain.name);
+        sig = await bridgeFromEvm(sendTransaction, address, amountValue, recipientAddress, inputChain.name);
       }
 
       const txUrl = `https://wormholescan.io/#/tx/${sig}?network=Testnet`;

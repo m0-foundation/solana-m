@@ -170,7 +170,7 @@ export const wrapOrUnwrap = async (action: 'wrap' | 'unwrap', walletProvider: Pr
   return await walletProvider.sendTransaction(tx, connection);
 };
 
-export const bidgeFromSolana = async (
+export const bridgeFromSolana = async (
   walletProvider: Provider,
   amount: Decimal,
   recipient: string,
@@ -238,7 +238,7 @@ export const bidgeFromSolana = async (
   return sig;
 };
 
-export const bidgeFromEvm = async (
+export const bridgeFromEvm = async (
   sendTransaction: SendTransactionMutate<Config>,
   address: string | undefined,
   amount: Decimal,
