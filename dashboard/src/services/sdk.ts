@@ -14,15 +14,15 @@ export const getEarner = async (programId: PublicKey, pubkey: PublicKey) => {
     throw new Error(`No earners found for ${pubkey.toBase58()}`);
   }
 
-  const [claimedYield, pendingYield, tokenAccount] = await Promise.all([
-    earners[0].getClaimedYield(),
+  const [claims, pendingYield, tokenAccount] = await Promise.all([
+    earners[0].getHistoricalClaims(),
     earners[0].getPendingYield(),
     getAccount(connection, earners[0].data.userTokenAccount, connection.commitment, TOKEN_2022_ID),
   ]);
 
   return {
     earner: earners[0],
-    claimedYield,
+    claims,
     pendingYield,
     tokenAccount,
   };
