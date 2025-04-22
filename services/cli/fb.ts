@@ -5,11 +5,6 @@ import {
   getOrCreateAssociatedTokenAccount,
   TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
-// import {
-//   FireblocksConnectionAdapter,
-//   FireblocksConnectionAdapterConfig,
-//   FeeLevel,
-// } from 'solana_fireblocks_web3_provider';
 
 import { Fireblocks, FeeLevel, TransactionOperation, TransactionRequest } from '@fireblocks/ts-sdk';
 import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
@@ -83,16 +78,6 @@ async function main() {
 
     return fbAddress;
   };
-
-  //   const fireblocksConnectionConfig: FireblocksConnectionAdapterConfig = {
-  //     apiKey: process.env.FIREBLOCKS_API_KEY,
-  //     apiSecretPath: '~/secrets/fb_solana_test.key',
-  //     vaultAccountId: process.env.FIREBLOCKS_VAULT_ID,
-  //     feeLevel: FeeLevel.HIGH,
-  //     silent: true,
-  //   };
-
-  //   const connection = await FireblocksConnectionAdapter.create(clusterApiUrl('devnet'), fireblocksConnectionConfig);
 
   const connection = new Connection(process.env.RPC_URL ?? '');
 
@@ -171,9 +156,8 @@ async function main() {
       txn.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
       txn.feePayer = fbAddress;
 
-      //   const result = await sendToFireblocks(txn, `Wrap ${amount.toString()} M to wM.`);
-      //   console.log('Transaction sent to Fireblocks:', result);
-      console.log(txn);
+      const result = await sendToFireblocks(txn, `Wrap ${amount.toString()} M to wM.`);
+      console.log('Transaction sent to Fireblocks:', result);
     });
 
   program
