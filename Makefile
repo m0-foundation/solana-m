@@ -134,24 +134,12 @@ define deploy-yield-bot
 	railway redeploy --service "yield bot - wM" --yes
 endef
 
-deploy-yield-bot-devnet:
-	$(call deploy-yield-bot,development)
-
-deploy-yield-bot-mainnet:
-	$(call deploy-yield-bot,production)
-
 define deploy-index-bot
 	railway environment $(1)
 	docker build --build-arg now="$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:index-bot -f services/index-bot/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:index-bot
 	railway redeploy --service "index bot" --yes
 endef
-
-deploy-index-bot-devnet:
-	$(call deploy-index-bot,development)
-
-deploy-index-bot-mainnet:
-	$(call deploy-index-bot,production)
 
 define deploy-dashboard
 	railway environment $(1)
@@ -162,6 +150,18 @@ define deploy-dashboard
 	docker push ghcr.io/m0-foundation/solana-m:dashboard
 	railway redeploy --service dashboard --yes
 endef
+
+deploy-yield-bot-devnet:
+	$(call deploy-yield-bot,development)
+
+deploy-yield-bot-mainnet:
+	$(call deploy-yield-bot,production)
+
+deploy-index-bot-devnet:
+	$(call deploy-index-bot,development)
+
+deploy-index-bot-mainnet:
+	$(call deploy-index-bot,production)
 
 deploy-dashboard-devnet:
 	$(call deploy-dashboard,development,.env.dev.template)
