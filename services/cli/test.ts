@@ -60,8 +60,10 @@ async function main() {
       const [userMTokenAccount, userExtTokenAccount, vaultMTokenAccount] = atas;
       await new Promise((resolve) => setTimeout(resolve, 2500));
 
+      amount = new BN(amount);
+
       const sig = await program.methods
-        .wrap(new BN(amount))
+        .wrap(amount)
         .accounts({
           signer: sender.publicKey,
           mMint: m.publicKey,
@@ -69,9 +71,9 @@ async function main() {
           globalAccount: EXT_GLOBAL_ACCOUNT,
           mVault,
           extMintAuthority,
-          userMTokenAccount,
+          fromMTokenAccount: userMTokenAccount,
           vaultMTokenAccount,
-          userExtTokenAccount,
+          toExtTokenAccount: userExtTokenAccount,
           token2022: TOKEN_2022_PROGRAM_ID,
         })
         .signers([sender])

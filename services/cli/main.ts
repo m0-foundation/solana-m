@@ -119,6 +119,28 @@ async function main() {
     });
 
   program
+    .command('print-earn-global-state')
+    .description('Print the global state of the earn program')
+    .action(async () => {
+      const [owner] = keysFromEnv(['PAYER_KEYPAIR']);
+      const earn = new Program<Earn>(EARN_IDL, PROGRAMS.earn, anchorProvider(connection, owner));
+      const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.earn);
+      const global = await earn.account.global.fetch(globalAccount);
+      console.log('Earn Global State:', global);
+    });
+
+  program
+    .command('print-ext-earn-global-state')
+    .description('Print the global state of the ext earn program')
+    .action(async () => {
+      const [owner] = keysFromEnv(['PAYER_KEYPAIR']);
+      const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, PROGRAMS.extEarn, anchorProvider(connection, owner));
+      const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAMS.extEarn);
+      const global = await extEarn.account.extGlobal.fetch(globalAccount);
+      console.log('ExtEarn Global State:', global);
+    });
+
+  program
     .command('create-multisig')
     .description('Create multisig for the mint authority')
     .action(async () => {
@@ -267,7 +289,6 @@ async function main() {
 
       await earn.methods
         .initialize(
-          mint.publicKey,
           earnAuth,
           new BN(1001886486057), // initial index // TODO programmatically get from mainnet at deployment time
           new BN(5 * 60), // cooldown
