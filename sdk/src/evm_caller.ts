@@ -41,6 +41,11 @@ export class EvmCaller {
     return new BN((await contract.read.currentIndex()).toString());
   }
 
+  async getEarnerRate(): Promise<BN> {
+    const contract = this._getMTokenContract();
+    return new BN((await contract.read.earnerRate()).toString());
+  }
+
   private async getList(list: 'earners' | 'managers'): Promise<PublicKey[]> {
     const contract = this._getMerkleContract();
     const earners = await contract.read.getList([REGISTRAR_LISTS[list]]);
@@ -78,6 +83,13 @@ export class EvmCaller {
         inputs: [],
         name: 'currentIndex',
         outputs: [{ internalType: 'uint256', name: 'currentIndex', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+      {
+        inputs: [],
+        name: 'earnerRate',
+        outputs: [{ internalType: 'uint32', name: 'earnerRate', type: 'uint32' }],
         stateMutability: 'view',
         type: 'function',
       },

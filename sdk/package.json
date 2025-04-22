@@ -1,6 +1,6 @@
 {
   "name": "@m0-foundation/solana-m-sdk",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Solana M SDK",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
