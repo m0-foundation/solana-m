@@ -27,6 +27,8 @@ import { SolanaPlatform } from '@wormhole-foundation/sdk-solana';
 import { SendTransactionMutate } from 'wagmi/query';
 import { Config } from 'wagmi';
 import { JsonRpcProvider } from 'ethers';
+import evm from '@wormhole-foundation/sdk/evm';
+import { wormhole } from '@wormhole-foundation/sdk';
 
 export const NETWORK: 'devnet' | 'mainnet' = import.meta.env.VITE_NETWORK;
 export const connection = new Connection(import.meta.env.VITE_RPC_URL);
@@ -165,12 +167,12 @@ export const wrapOrUnwrap = async (action: 'wrap' | 'unwrap', walletProvider: Pr
 
   const tx = new Transaction().add(...ixs, ix);
   tx.feePayer = walletProvider.publicKey;
-  tx.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
+  tx.recentBlockhash = (await connection.getLatestBlockhash('finalized')).blockhash;
 
   return await walletProvider.sendTransaction(tx, connection);
 };
 
-export const bidgeFromSolana = async (
+export const bridgeFromSolana = async (
   walletProvider: Provider,
   amount: Decimal,
   recipient: string,
@@ -238,7 +240,7 @@ export const bidgeFromSolana = async (
   return sig;
 };
 
-export const bidgeFromEvm = async (
+export const bridgeFromEvm = async (
   sendTransaction: SendTransactionMutate<Config>,
   address: string | undefined,
   amount: Decimal,
@@ -249,7 +251,7 @@ export const bidgeFromEvm = async (
     throw new Error('Wallet not connected');
   }
 
-  const ntt = EvmNttManager();
+  const ntt = await EvmNttManager(fromChain);
   const sender = Wormhole.parseAddress(fromChain as any, address);
 
   const xferTxs = ntt.transfer(
@@ -321,12 +323,21 @@ export function NttManager(connection: Connection, mint: PublicKey) {
   return ntt;
 }
 
-function EvmNttManager() {
+async function EvmNttManager(chain: string) {
   const wormholeNetwork = NETWORK === 'devnet' ? 'Testnet' : 'Mainnet';
-  const wh = new Wormhole(wormholeNetwork, [SolanaPlatform]);
-  const ctx = wh.getChain('Solana');
+  const wh = await wormhole(wormholeNetwork, [evm]);
+  const ctx = wh.getChain(chain as any);
 
-  return new EvmNtt('Testnet', 'Sepolia', new JsonRpcProvider(import.meta.env.VITE_EVM_RPC_URL), {
+  const rpc: { [key: string]: string } = {
+    Sepolia: import.meta.env.VITE_EVM_RPC_URL,
+    ArbitrumSeplia: import.meta.env.VITE_ARBITRUM_RPC_URL,
+    OptimismSeplia: import.meta.env.VITE_OPTIMISM_RPC_URL,
+    Ethereum: import.meta.env.VITE_EVM_RPC_URL,
+    Arbitrum: import.meta.env.VITE_ARBITRUM_RPC_URL,
+    Optimism: import.meta.env.VITE_OPTIMISM_RPC_URL,
+  };
+
+  return new EvmNtt(wormholeNetwork, chain as any, new JsonRpcProvider(rpc[chain]), {
     ...ctx.config.contracts,
     ntt: {
       token: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
