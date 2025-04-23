@@ -204,6 +204,7 @@ export const Bridge = () => {
   const isValidAmount = amount !== '' && parseFloat(amount) > 0;
   const isValidRecipient = recipientAddress.trim() !== '';
   const validWallet = isConnected && (isSolanaWallet ? inputChain.name === 'Solana' : inputChain.name !== 'Solana');
+  const buttonDisabled = !isConnected || !isValidAmount || !isValidRecipient || isLoading || !validWallet;
 
   return (
     <div className="flex justify-center mt-20">
@@ -263,11 +264,9 @@ export const Bridge = () => {
 
         <button
           onClick={handleBridge}
-          disabled={!isConnected || !isValidAmount || !isValidRecipient || isLoading || !validWallet}
+          disabled={buttonDisabled}
           className={`w-full py-3 hover:cursor-pointer ${
-            !isValidAmount || !isValidRecipient || isLoading
-              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
+            buttonDisabled ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
           {!validWallet ? (
