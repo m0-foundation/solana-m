@@ -79,6 +79,10 @@ export class EarnAuthority {
     Object.assign(this, updated);
   }
 
+  public get latestIndex(): BN {
+    return this.global.index;
+  }
+
   public get admin() {
     return new PublicKey(this.global.admin);
   }
