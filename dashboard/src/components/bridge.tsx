@@ -109,7 +109,6 @@ export const Bridge = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [inputChain, setInputChain] = useState<Chain>(chains[0]);
   const [outputChain, setOutputChain] = useState<Chain>(chains[1]);
-  
   const [displayNonceInput, setDisplayNonceInput] = useState<boolean>(false);
   const [nonceAccount, setNonceAccount] = useState<string>('');
 
