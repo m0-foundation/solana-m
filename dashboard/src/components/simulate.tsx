@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NETWORK } from '../services/rpc';
-import { Message } from '@solana/web3.js';
+import { Message, MessageV0 } from '@solana/web3.js';
 
 export const Simulate = () => {
   const [typedMessage, setTypedMessage] = useState('');
@@ -26,10 +26,26 @@ export const Simulate = () => {
     // convert the typed message into a serialized solana transaction
     try {
       const parsedMessage = JSON.parse(value);
-      console.log(parsedMessage);
-      const message = new Message(parsedMessage.message);
 
-      const serializedMessage = message.serialize().toString('base64');
+      if (!parsedMessage.message) {
+        throw new Error('Invalid message format');
+      }
+
+      console.log('Parsed message:', parsedMessage.message);
+
+      let serializedMessage;
+      if (parsedMessage.message.staticAccountKeys) {
+        console.log('made it here');
+        const message = new MessageV0(parsedMessage.message);
+        // Probably something like this: message.resolveAddressTableLookups();
+        serializedMessage = Buffer.from(message.serialize()).toString('base64');
+        console.log('Serialized message:', serializedMessage);
+      } else if (parsedMessage.message.accountKeys) {
+        const message = new Message(parsedMessage.message);
+        serializedMessage = message.serialize().toString('base64');
+      } else {
+        throw new Error('Invalid message format');
+      }
 
       // escape the serialized string for the URL
       const escapedSerialized = encodeURIComponent(serializedMessage);
