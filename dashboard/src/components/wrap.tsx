@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAccount } from '../hooks/useAccount';
 import { NETWORK, wrapOrUnwrap } from '../services/rpc';
+import { PublicKey } from '@solana/web3.js';
 import { type Provider } from '@reown/appkit-adapter-solana/react';
 import { useAppKitProvider } from '@reown/appkit/react';
 import Decimal from 'decimal.js';
@@ -19,6 +20,8 @@ export const Wrap = () => {
   const [amount, setAmount] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const isWrapping = activeTab === TabType.WRAP;
+  const [displayNonceInput, setDisplayNonceInput] = useState<boolean>(false);
+  const [nonceAccount, setNonceAccount] = useState<string>('');
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
@@ -48,7 +51,18 @@ export const Wrap = () => {
 
     try {
       setIsLoading(true);
-      const sig = await wrapOrUnwrap(activeTab, walletProvider, amountValue);
+      let sig;
+      if (nonceAccount === '') {
+        sig = await wrapOrUnwrap(activeTab, walletProvider, amountValue);
+      } else {
+        let noncePubkey;
+        try {
+          noncePubkey = new PublicKey(nonceAccount);
+        } catch (error) {
+          throw new Error('Invalid nonce account address');
+        }
+        sig = await wrapOrUnwrap(activeTab, walletProvider, amountValue, noncePubkey);
+      }
       const txUrl = `https://solscan.io/tx/${sig}?cluster=${NETWORK}`;
 
       // give an extra second for the transaction to be confirmed
@@ -74,6 +88,20 @@ export const Wrap = () => {
   // check for valid values
   const isValidAmount = amount !== '' && parseFloat(amount) > 0;
   const invalidWalletConnect = !isConnected || address?.startsWith('0x');
+
+  const handleNonceCheckBox = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setDisplayNonceInput(checked);
+  };
+
+  const handleNonceAccountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    // allow base58 address
+    if (value === '' || /^[1-9A-HJ-NP-Za-km-z]+$/.test(value)) {
+      setNonceAccount(value);
+    }
+  };
 
   return (
     <div className="flex justify-center mt-20">
@@ -121,6 +149,28 @@ export const Wrap = () => {
             </div>
           </div>
         </div>
+
+        <div className="mb-6 text-xs text-gray-400 flex items-center">
+          <input type="checkbox" onChange={handleNonceCheckBox} id="durableNonce" className="mr-2" />
+          <label htmlFor="durableNonce">
+            Use durable nonce? Allows for signing operations that take more than ~90 seconds to complete.
+          </label>
+        </div>
+
+        {displayNonceInput && (
+          <div className="mb-6">
+            <div className="mb-2 text-gray-400 text-xs">
+              <label>Nonce Account Pubkey</label>
+            </div>
+            <input
+              type="text"
+              value={nonceAccount}
+              onChange={handleNonceAccountChange}
+              placeholder=""
+              className="w-full bg-off-blue py-3 px-4 focus:outline-none"
+            />
+          </div>
+        )}
 
         <button
           onClick={handleWrapUnwrap}
