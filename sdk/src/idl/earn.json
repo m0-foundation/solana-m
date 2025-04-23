@@ -33,16 +33,17 @@
           "isSigner": false
         },
         {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "mint",
-          "type": "publicKey"
-        },
         {
           "name": "earnAuthority",
           "type": "publicKey"
@@ -126,10 +127,7 @@
         {
           "name": "earnerMerkleRoot",
           "type": {
-            "array": [
-              "u8",
-              32
-            ]
+            "array": ["u8", 32]
           }
         }
       ]
@@ -262,6 +260,11 @@
           "name": "earnerAccount",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -279,10 +282,7 @@
           "name": "neighbors",
           "type": {
             "vec": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           }
         }
@@ -366,10 +366,7 @@
           {
             "name": "earnerMerkleRoot",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -393,10 +390,7 @@
           {
             "name": "node",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {

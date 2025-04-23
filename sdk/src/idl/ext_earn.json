@@ -208,7 +208,11 @@
         {
           "name": "earnManagerTokenAccount",
           "isMut": true,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "if the token account has been closed or is not initialized",
+            "This prevents DoSing earner yield by closing this account"
+          ]
         },
         {
           "name": "token2022",
@@ -437,7 +441,7 @@
           "isSigner": false
         },
         {
-          "name": "userMTokenAccount",
+          "name": "fromMTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -447,7 +451,7 @@
           "isSigner": false
         },
         {
-          "name": "userExtTokenAccount",
+          "name": "toExtTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -493,7 +497,7 @@
           "isSigner": false
         },
         {
-          "name": "userMTokenAccount",
+          "name": "toMTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -503,7 +507,7 @@
           "isSigner": false
         },
         {
-          "name": "userExtTokenAccount",
+          "name": "fromExtTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -670,7 +674,7 @@
   ],
   "events": [
     {
-      "name": "IndexUpdate",
+      "name": "SyncIndexUpdate",
       "fields": [
         {
           "name": "index",
@@ -725,6 +729,11 @@
       "code": 6007,
       "name": "InsufficientCollateral",
       "msg": "Not enough M."
+    },
+    {
+      "code": 6008,
+      "name": "InvalidMint",
+      "msg": "Invalid Mint."
     }
   ]
 }
