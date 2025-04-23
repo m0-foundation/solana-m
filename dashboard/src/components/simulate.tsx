@@ -1,13 +1,39 @@
 import { useState } from 'react';
 import { NETWORK } from '../services/rpc';
-import { Message, MessageV0 } from '@solana/web3.js';
+import { Message, MessageV0, PublicKey } from '@solana/web3.js';
 
 export const Simulate = () => {
   const [typedMessage, setTypedMessage] = useState('');
   const [linkToTxn, setLinkToTxn] = useState('');
   const [parseError, setParseError] = useState(false);
 
-  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const buildMessageV0 = async (rawMessage: any) => {
+    const message = rawMessage;
+
+    const addressTableLookups = message.addressTableLookups.map((lookup: any) => ({
+      accountKey: new PublicKey(lookup.accountKey),
+      writableIndexes: lookup.writableIndexes,
+      readonlyIndexes: lookup.readonlyIndexes,
+    }));
+
+    const compiledInstructions = message.compiledInstructions.map((ix: any) => ({
+      programIdIndex: ix.programIdIndex,
+      accountKeyIndexes: ix.accountKeyIndexes,
+      data: Buffer.from(Object.values(ix.data)),
+    }));
+
+    const msgV0 = new MessageV0({
+      header: message.header,
+      staticAccountKeys: message.staticAccountKeys.map((k: string) => new PublicKey(k)),
+      recentBlockhash: message.recentBlockhash,
+      compiledInstructions,
+      addressTableLookups,
+    });
+
+    return msgV0;
+  };
+
+  const handleMessageChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
 
     if (value === '') {
@@ -35,11 +61,8 @@ export const Simulate = () => {
 
       let serializedMessage;
       if (parsedMessage.message.staticAccountKeys) {
-        console.log('made it here');
-        const message = new MessageV0(parsedMessage.message);
-        // Probably something like this: message.resolveAddressTableLookups();
+        const message = await buildMessageV0(parsedMessage.message);
         serializedMessage = Buffer.from(message.serialize()).toString('base64');
-        console.log('Serialized message:', serializedMessage);
       } else if (parsedMessage.message.accountKeys) {
         const message = new Message(parsedMessage.message);
         serializedMessage = message.serialize().toString('base64');
