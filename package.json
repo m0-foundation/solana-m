@@ -9,10 +9,12 @@
     "build": "anchor build",
     "cli:dev": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/main.ts",
     "cli:prod": "op run --account mzerolabs.1password.com --env-file='./.env.prod' -- ts-node services/cli/main.ts",
-    "cli:test": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/test.ts"
+    "cli:test": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/test.ts",
+    "fb:dev": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/fb.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
+    "@fireblocks/ts-sdk": "^10.0.2",
     "@solana-developers/helpers": "^2.7.0",
     "@solana/spl-token": "^0.4.12",
     "@solana/web3.js": "^1.98.0",

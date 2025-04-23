@@ -22,6 +22,7 @@ import {
   AppKitNetwork,
 } from '@reown/appkit/networks';
 import { Wrap } from './components/wrap';
+import { Simulate } from './components/simulate';
 import './index.css';
 import { Bridge } from './components/bridge';
 import { Links } from './components/links';
@@ -105,6 +106,7 @@ createRoot(document.getElementById('root')!).render(
             />
             <Route path="/wrap" element={<Wrap />} />
             <Route path="/bridge" element={<Bridge />} />
+            <Route path="/simulate" element={<Simulate />} />
             <Route path="/links" element={<Links />} />
             <Route path="/earner/:mint/:pubkey" element={<EarnerDetails />} />
           </Routes>
