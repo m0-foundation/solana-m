@@ -58,6 +58,7 @@ describe('SDK unit tests', () => {
   const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], earn.programId);
   const [extGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], extEarn.programId);
   const [tokenAuth] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], earn.programId);
+  const [extMintAuth] = PublicKey.findProgramAddressSync([Buffer.from('mint_authority')], extEarn.programId);
 
   // use local EVM testnet (anvil)
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
@@ -111,47 +112,70 @@ describe('SDK unit tests', () => {
           lamports,
           programId: spl.TOKEN_2022_PROGRAM_ID,
         }),
-        spl.createInitializeMintInstruction(mint.publicKey, 9, signer.publicKey, null, spl.TOKEN_2022_PROGRAM_ID),
+        spl.createInitializeMintInstruction(mint.publicKey, 6, signer.publicKey, null, spl.TOKEN_2022_PROGRAM_ID),
       );
 
       await provider.sendAndConfirm(tx, [signer, mint]);
-
-      const ataTransaction = new Transaction();
-
-      mintATAs.push(
-        [earnerA, earnerB, earnerC].map((earner) => {
-          const earnerATA = spl.getAssociatedTokenAddressSync(
-            mint.publicKey,
-            earner.publicKey,
-            true,
-            spl.TOKEN_2022_PROGRAM_ID,
-          );
-          ataTransaction.add(
-            spl.createAssociatedTokenAccountInstruction(
-              signer.publicKey,
-              earnerATA,
-              earner.publicKey,
-              mint.publicKey,
-              spl.TOKEN_2022_PROGRAM_ID,
-            ),
-          );
-          // mint some tokens to the account
-          ataTransaction.add(
-            spl.createMintToInstruction(
-              mint.publicKey,
-              earnerATA,
-              signer.publicKey,
-              earnerA === earner ? 5000e9 : earner === earnerB ? 3000e9 : 0,
-              [],
-              spl.TOKEN_2022_PROGRAM_ID,
-            ),
-          );
-          return earnerATA;
-        }),
-      );
-
-      await provider.sendAndConfirm(ataTransaction, [signer]);
     }
+
+    // mint M to ATAs and create wM ATAs
+    const ataTransaction = new Transaction();
+
+    mintATAs.push(
+      [earnerA, earnerB, earnerC].map((earner) => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[0].publicKey,
+          earner.publicKey,
+          true,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+        ataTransaction.add(
+          spl.createAssociatedTokenAccountInstruction(
+            signer.publicKey,
+            earnerATA,
+            earner.publicKey,
+            mints[0].publicKey,
+            spl.TOKEN_2022_PROGRAM_ID,
+          ),
+        );
+        // mint some tokens to the account
+        ataTransaction.add(
+          spl.createMintToInstruction(
+            mints[0].publicKey,
+            earnerATA,
+            signer.publicKey,
+            earnerA === earner ? 5000e9 : earner === earnerB ? 3000e9 : 0,
+            [],
+            spl.TOKEN_2022_PROGRAM_ID,
+          ),
+        );
+        return earnerATA;
+      }),
+    );
+
+    mintATAs.push(
+      [earnerA, earnerB, earnerC].map((earner) => {
+        const earnerATA = spl.getAssociatedTokenAddressSync(
+          mints[1].publicKey,
+          earner.publicKey,
+          true,
+          spl.TOKEN_2022_PROGRAM_ID,
+        );
+        ataTransaction.add(
+          spl.createAssociatedTokenAccountInstruction(
+            signer.publicKey,
+            earnerATA,
+            earner.publicKey,
+            mints[1].publicKey,
+            spl.TOKEN_2022_PROGRAM_ID,
+          ),
+        );
+
+        return earnerATA;
+      }),
+    );
+
+    await provider.sendAndConfirm(ataTransaction, [signer]);
 
     // mint multisig on earn program
     const multiSigTx = new Transaction().add(
@@ -180,10 +204,25 @@ describe('SDK unit tests', () => {
 
     await provider.sendAndConfirm(multiSigTx, [signer, multisig]);
 
+    // make the ext earn program the mint authority of the wM mint
+    const extMintTx = new Transaction().add(
+      spl.createSetAuthorityInstruction(
+        mints[1].publicKey,
+        signer.publicKey,
+        spl.AuthorityType.MintTokens,
+        extMintAuth,
+        [],
+        spl.TOKEN_2022_PROGRAM_ID,
+      ),
+    );
+
+    await provider.sendAndConfirm(extMintTx, [signer]);
+
     // intialize the programs
     await earn.methods
-      .initialize(mints[0].publicKey, signer.publicKey, new BN(1_000_000_000_000), new BN(0))
+      .initialize(signer.publicKey, new BN(1_000_000_000_000), new BN(0))
       .accounts({
+        mint: mints[0].publicKey,
         globalAccount,
         admin: signer.publicKey,
       })
@@ -428,7 +467,7 @@ describe('SDK unit tests', () => {
 
     test('post claim cycle validation', async () => {
       const global = await earn.account.global.fetch(globalAccount, 'processed');
-      expect(global.maxSupply.toString()).toEqual('8000000000000');
+      expect(global.maxSupply.toString()).toEqual('8050000000000');
       expect(global.maxYield.toString()).toEqual('80000000000');
       expect(global.distributed.toString()).toEqual('50000000000');
       expect(global.claimComplete).toBeFalsy();
