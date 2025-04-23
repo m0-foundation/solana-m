@@ -27,6 +27,8 @@ const PROGRAMS = {
   wmToken: '0x437cc33344a0B27A429f795ff6B469C72698B291',
 };
 
+const SCALE = Number(1e6);
+
 async function main() {
   const program = new Command();
 
@@ -156,7 +158,7 @@ async function main() {
       txn.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
       txn.feePayer = fbAddress;
 
-      const result = await sendToFireblocks(txn, `Wrap ${amount.toString()} M to wM.`);
+      const result = await sendToFireblocks(txn, `Wrap ${Number(amount.toString()) / SCALE} M to wM.`);
       console.log('Transaction sent to Fireblocks:', result);
     });
 
@@ -194,7 +196,7 @@ async function main() {
       txn.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
       txn.feePayer = fbAddress;
 
-      const result = await sendToFireblocks(txn, `Unwrap ${amount.toString()} wM to M.`);
+      const result = await sendToFireblocks(txn, `Unwrap ${Number(amount.toString()) / SCALE} wM to M.`);
       console.log('Transaction sent to Fireblocks:', result);
     });
 
