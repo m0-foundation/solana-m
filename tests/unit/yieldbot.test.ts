@@ -33,13 +33,27 @@ function mockRequestData(earner: PublicKey) {
   nock.disableNetConnect();
 
   nock(GRAPH_URL)
-    .post('/query/106645/m-token-transactions/version/latest', () => true)
+    .post('/query/106645/m-token-transactions/version/latest', (body: any) => true)
     .reply(200, {
       data: {
         tokenAccount: {
           balance: '0',
           transfers: [],
         },
+      },
+    })
+    .persist();
+
+  nock(GRAPH_URL)
+    .post('', (body: any) => body.operationName === 'getLatestIndex')
+    .reply(200, {
+      data: {
+        indexUpdates: [
+          {
+            index: '1004732326605',
+            timestamp: '482752727808',
+          },
+        ],
       },
     })
     .persist();

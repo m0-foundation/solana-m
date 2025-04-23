@@ -207,10 +207,10 @@ export class Graph {
 
   async getLatestIndex(): Promise<{ index: BN; ts: BN }> {
     const query = gql`
-      query getLatestIndex() {
-        indexUpdates(first:1, orderBy:ts, orderDirection:desc) {
+      query getLatestIndex {
+        indexUpdates(orderBy: ts, orderDirection: desc, first: 1) {
+          index
           ts
-          id
         }
       }
     `;
