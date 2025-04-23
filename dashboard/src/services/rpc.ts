@@ -213,7 +213,20 @@ export const wrapOrUnwrap = async (
   tx.feePayer = walletProvider.publicKey;
   tx.recentBlockhash = recentBlockhash;
 
-  return await walletProvider.sendTransaction(tx, connection);
+  const sig = await walletProvider.sendTransaction(tx, connection);
+
+  const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
+
+  await connection.confirmTransaction(
+    {
+      blockhash: blockhash,
+      lastValidBlockHeight: lastValidBlockHeight,
+      signature: sig,
+    },
+    'confirmed',
+  );
+
+  return sig;
 };
 
 export const bridgeFromSolana = async (
