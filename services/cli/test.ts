@@ -21,6 +21,7 @@ import {
 import BN from 'bn.js';
 import { Program } from '@coral-xyz/anchor';
 import { ExtEarn } from '../../target/types/ext_earn';
+import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
 async function main() {
@@ -57,7 +58,7 @@ async function main() {
         atas.push(address);
       }
 
-      const [userMTokenAccount, userExtTokenAccount, vaultMTokenAccount] = atas;
+      const [fromMTokenAccount, toExtTokenAccount, vaultMTokenAccount] = atas;
       await new Promise((resolve) => setTimeout(resolve, 2500));
 
       const sig = await program.methods
@@ -69,9 +70,9 @@ async function main() {
           globalAccount: EXT_GLOBAL_ACCOUNT,
           mVault,
           extMintAuthority,
-          userMTokenAccount,
+          fromMTokenAccount,
           vaultMTokenAccount,
-          userExtTokenAccount,
+          toExtTokenAccount,
           token2022: TOKEN_2022_PROGRAM_ID,
         })
         .signers([sender])
@@ -220,6 +221,46 @@ async function main() {
 
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
+    });
+
+  program
+    .command('json-to-base64')
+    .argument('[json-string]')
+    .action(async (json: string) => {
+      if (!json) {
+        console.error('Please provide a JSON string.');
+        return;
+      }
+
+      const txn = JSON.parse(json);
+
+      const instructions = txn.message.instructions.map((ix: any) => {
+        const { programIdIndex, accounts, data } = ix;
+
+        const bytes = bs58.decode(data);
+        const disc = bytes.subarray(0, 8).toString('hex');
+
+        const writableAccounts: any = {
+          b2280abde481ba8c: [0, 2, 6, 7, 8], // wrap
+          '7eafc60ed445322c': [0, 2, 5, 6, 7], // unwrap
+        };
+
+        return new TransactionInstruction({
+          programId: new PublicKey(txn.message.accountKeys[programIdIndex]),
+          keys: accounts.map((index: number) => ({
+            pubkey: new PublicKey(txn.message.accountKeys[index]),
+            isSigner: index === 0,
+            isWritable: writableAccounts[disc]?.[index] ?? false,
+          })),
+          data: bytes,
+        });
+      });
+
+      const transaction = new Transaction().add(...instructions);
+      transaction.recentBlockhash = txn.message.recentBlockhash;
+      transaction.feePayer = new PublicKey(txn.message.accountKeys[0]);
+
+      console.log('Transaction:', transaction.serialize({ verifySignatures: false }).toString('base64'));
     });
 
   await program.parseAsync(process.argv);
