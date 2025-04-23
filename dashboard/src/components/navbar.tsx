@@ -20,6 +20,7 @@ export const Navbar = () => {
               { path: '/', label: 'Home' },
               { path: '/wrap', label: 'Wrap' },
               { path: '/bridge', label: 'Bridge' },
+              { path: '/simulate', label: 'Simulate' },
               { path: '/links', label: 'Links' },
             ].map(({ path, label }) => (
               <NavLink

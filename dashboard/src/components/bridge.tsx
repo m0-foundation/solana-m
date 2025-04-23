@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAccount } from '../hooks/useAccount';
 import { type Provider } from '@reown/appkit-adapter-solana/react';
+import { PublicKey } from '@solana/web3.js';
 import { useAppKitProvider } from '@reown/appkit/react';
 import Decimal from 'decimal.js';
 import { toast, ToastContainer } from 'react-toastify';
@@ -108,6 +109,9 @@ export const Bridge = () => {
   const [inputChain, setInputChain] = useState<Chain>(chains[0]);
   const [outputChain, setOutputChain] = useState<Chain>(chains[1]);
 
+  const [displayNonceInput, setDisplayNonceInput] = useState<boolean>(false);
+  const [nonceAccount, setNonceAccount] = useState<string>('');
+
   useEffect(() => {
     if (!caipAddress) return;
     const [namespace, chainId, _] = caipAddress.split(':');
@@ -173,7 +177,17 @@ export const Bridge = () => {
 
       let sig: string;
       if (inputChain.namespace === 'svm') {
-        sig = await bridgeFromSolana(walletProvider, amountValue, recipientAddress, outputChain.label);
+        if (nonceAccount === '') {
+          sig = await bridgeFromSolana(walletProvider, amountValue, recipientAddress, outputChain.label);
+        } else {
+          let noncePubkey;
+          try {
+            noncePubkey = new PublicKey(nonceAccount);
+          } catch (error) {
+            throw new Error('Invalid nonce account address');
+          }
+          sig = await bridgeFromSolana(walletProvider, amountValue, recipientAddress, outputChain.label, noncePubkey);
+        }
       } else {
         sig = await bridgeFromEvm(sendTransaction, address, amountValue, recipientAddress, inputChain.label);
       }
@@ -205,6 +219,20 @@ export const Bridge = () => {
   const isValidRecipient = recipientAddress.trim() !== '';
   const validWallet = isConnected && (isSolanaWallet ? inputChain.name === 'Solana' : inputChain.name !== 'Solana');
   const buttonDisabled = !isConnected || !isValidAmount || !isValidRecipient || isLoading || !validWallet;
+
+  const handleNonceCheckBox = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setDisplayNonceInput(checked);
+  };
+
+  const handleNonceAccountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    // allow base58 address
+    if (value === '' || /^[1-9A-HJ-NP-Za-km-z]+$/.test(value)) {
+      setNonceAccount(value);
+    }
+  };
 
   return (
     <div className="flex justify-center mt-20">
@@ -261,6 +289,30 @@ export const Bridge = () => {
             />
           </div>
         </div>
+
+        {inputChain.namespace === 'svm' && (
+          <div className="mb-6 text-xs text-gray-400 flex items-center">
+            <input type="checkbox" onChange={handleNonceCheckBox} id="durableNonce" className="mr-2" />
+            <label htmlFor="durableNonce">
+              Use durable nonce? Allows for signing operations that take more than ~90 seconds to complete.
+            </label>
+          </div>
+        )}
+
+        {inputChain.namespace === 'svm' && displayNonceInput && (
+          <div className="mb-6">
+            <div className="mb-2 text-gray-400 text-xs">
+              <label>Nonce Account Pubkey</label>
+            </div>
+            <input
+              type="text"
+              value={nonceAccount}
+              onChange={handleNonceAccountChange}
+              placeholder=""
+              className="w-full bg-off-blue py-3 px-4 focus:outline-none"
+            />
+          </div>
+        )}
 
         <button
           onClick={handleBridge}
