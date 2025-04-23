@@ -57,7 +57,7 @@ async function main() {
         atas.push(address);
       }
 
-      const [userMTokenAccount, userExtTokenAccount, vaultMTokenAccount] = atas;
+      const [fromMTokenAccount, toExtTokenAccount, vaultMTokenAccount] = atas;
       await new Promise((resolve) => setTimeout(resolve, 2500));
 
       amount = new BN(amount);
@@ -71,9 +71,9 @@ async function main() {
           globalAccount: EXT_GLOBAL_ACCOUNT,
           mVault,
           extMintAuthority,
-          fromMTokenAccount: userMTokenAccount,
+          fromMTokenAccount,
           vaultMTokenAccount,
-          toExtTokenAccount: userExtTokenAccount,
+          toExtTokenAccount,
           token2022: TOKEN_2022_PROGRAM_ID,
         })
         .signers([sender])

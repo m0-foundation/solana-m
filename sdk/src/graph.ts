@@ -204,4 +204,26 @@ export class Graph {
       ts: new BN(update.ts),
     }));
   }
+
+  async getLatestIndex(): Promise<{ index: BN; ts: BN }> {
+    const query = gql`
+      query getLatestIndex {
+        indexUpdates(orderBy: ts, orderDirection: desc, first: 1) {
+          index
+          ts
+        }
+      }
+    `;
+
+    interface Data {
+      indexUpdates: { index: string; ts: string }[];
+    }
+
+    const data = await this.client.request<Data>(query);
+
+    return {
+      index: new BN(data.indexUpdates[0].index),
+      ts: new BN(data.indexUpdates[0].ts),
+    };
+  }
 }
