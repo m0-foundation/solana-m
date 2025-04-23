@@ -5,11 +5,12 @@ import { PublicKey } from '@solana/web3.js';
 import { useAppKitProvider } from '@reown/appkit/react';
 import Decimal from 'decimal.js';
 import { toast, ToastContainer } from 'react-toastify';
-import { bridgeFromEvm, bridgeFromSolana, NETWORK } from '../services/rpc';
+import { bridgeFromEvm, bridgeFromSolana, checkERC20Allowance, erc20Abi, NETWORK } from '../services/rpc';
 import { chainIcons } from './bridges';
 import { useSendTransaction } from 'wagmi';
-import { switchChain } from '@wagmi/core';
+import { switchChain, writeContract } from '@wagmi/core';
 import { wagmiAdapter } from '../main';
+import { useQuery } from '@tanstack/react-query';
 
 type Chain = {
   name: string;
@@ -112,6 +113,21 @@ export const Bridge = () => {
   const [displayNonceInput, setDisplayNonceInput] = useState<boolean>(false);
   const [nonceAccount, setNonceAccount] = useState<string>('');
 
+  const allowanceQuery = useQuery({
+    queryKey: ['allowance', address],
+    queryFn: () => checkERC20Allowance(address! as `0x${string}`),
+    enabled: isConnected && !!address && inputChain.namespace === 'evm',
+    refetchInterval: 5000,
+  });
+
+  // handle allowance check errors
+  useEffect(() => {
+    if (allowanceQuery.isError) {
+      toast.error(<div>Failed to check allowance: {allowanceQuery.error.toString()}</div>);
+    }
+  }, [allowanceQuery.isError, allowanceQuery.error]);
+
+  // handle connected wallet change
   useEffect(() => {
     if (!caipAddress) return;
     const [namespace, chainId, _] = caipAddress.split(':');
@@ -214,11 +230,50 @@ export const Bridge = () => {
     }
   };
 
+  const handleApprove = async () => {
+    try {
+      setIsLoading(true);
+
+      const amountValue = new Decimal(amount).mul(1e6).floor().toString();
+
+      const hash = await writeContract(wagmiAdapter.wagmiConfig, {
+        address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: ['0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd', BigInt(amountValue)],
+      });
+
+      toast.success(
+        <div>
+          <div>Approval successful!</div>
+          <a
+            href={`${inputChain.id === 11155111 ? 'https://sepolia.etherscan.io' : 'https://etherscan.io'}/tx/${hash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 underline"
+          >
+            View on Etherscan
+          </a>
+        </div>,
+      );
+
+      // Refetch allowance
+      allowanceQuery.refetch();
+    } catch (error) {
+      console.error(error);
+      toast.error(<div>Approval failed: {error instanceof Error ? error.message : 'Unknown error'}</div>);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // check for valid values
   const isValidAmount = amount !== '' && parseFloat(amount) > 0;
   const isValidRecipient = recipientAddress.trim() !== '';
   const validWallet = isConnected && (isSolanaWallet ? inputChain.name === 'Solana' : inputChain.name !== 'Solana');
   const buttonDisabled = !isConnected || !isValidAmount || !isValidRecipient || isLoading || !validWallet;
+  const hasAllowance =
+    inputChain.name === 'Solana' || (isValidAmount && (allowanceQuery.data ?? 0n) >= BigInt(isValidAmount));
 
   const handleNonceCheckBox = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
@@ -315,7 +370,7 @@ export const Bridge = () => {
         )}
 
         <button
-          onClick={handleBridge}
+          onClick={hasAllowance ? handleBridge : handleApprove}
           disabled={buttonDisabled}
           className={`w-full py-3 hover:cursor-pointer ${
             buttonDisabled ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -327,8 +382,10 @@ export const Bridge = () => {
             <div className="flex items-center justify-center animate-pulse transition-opacity duration-1000">
               <span className="loader mr-2"></span>Processing...
             </div>
-          ) : (
+          ) : hasAllowance ? (
             'Bridge'
+          ) : (
+            'Approve'
           )}
         </button>
         <div className="mt-5 text-xs text-gray-400 text-center">Bridge M using Wormhole</div>

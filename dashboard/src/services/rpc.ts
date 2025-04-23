@@ -31,6 +31,7 @@ import { Config } from 'wagmi';
 import { JsonRpcProvider } from 'ethers';
 import evm from '@wormhole-foundation/sdk/evm';
 import { wormhole } from '@wormhole-foundation/sdk';
+import { getContract, createPublicClient, http } from 'viem';
 
 export const NETWORK: 'devnet' | 'mainnet' = import.meta.env.VITE_NETWORK;
 export const connection = new Connection(import.meta.env.VITE_RPC_URL);
@@ -437,4 +438,39 @@ async function EvmNttManager(chain: string) {
       },
     },
   });
+}
+
+export const erc20Abi = [
+  {
+    inputs: [
+      { internalType: 'address', name: 'owner', type: 'address' },
+      { internalType: 'address', name: 'spender', type: 'address' },
+    ],
+    name: 'allowance',
+    outputs: [{ internalType: 'uint256', name: 'allowance', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'spender', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const;
+
+export async function checkERC20Allowance(ownerAddress: `0x${string}`): Promise<bigint> {
+  const evmClient = createPublicClient({ transport: http(import.meta.env.VITE_EVM_RPC_URL ?? '') });
+
+  const tokenContract = getContract({
+    address: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+    abi: erc20Abi,
+    client: evmClient,
+  });
+
+  return await tokenContract.read.allowance([ownerAddress, '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd']);
 }
