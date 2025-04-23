@@ -31,6 +31,7 @@ import { Graph } from '../../sdk/src/graph';
 import { logBlockchainBalance } from '../shared/balances';
 import LokiTransport from 'winston-loki';
 import winston from 'winston';
+import { validateSubgraph } from '../shared/validation';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
@@ -135,8 +136,8 @@ export async function yieldCLI() {
         }
 
         const steps = options.programID.equals(PROGRAM_ID)
-          ? [removeEarners, distributeYield, addEarners]
-          : [syncIndex, distributeYield];
+          ? [validation, removeEarners, distributeYield, addEarners]
+          : [validation, syncIndex, distributeYield];
 
         await executeSteps(options, steps, parseInt(stepInterval));
       },
@@ -161,6 +162,12 @@ async function executeSteps(
     // wait interval to ensure transactions from previous steps have landed
     await new Promise((resolve) => setTimeout(resolve, waitInterval));
   }
+}
+
+async function validation(opt: ParsedOptions) {
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphClient, opt.programID, logger);
+  await validateSubgraph(auth, opt.graphClient);
+  return true;
 }
 
 async function distributeYield(opt: ParsedOptions) {
