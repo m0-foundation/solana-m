@@ -17,6 +17,7 @@ import {
   MAINNET_GRAPH_ID,
   PROGRAM_ID,
   PublicClient,
+  TransactionBuilder,
   createPublicClient,
   http,
 } from '../../sdk/src';
@@ -25,7 +26,6 @@ import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
-import { buildTransaction } from '../../sdk/src/transaction';
 import { sendSlackMessage, SlackMessage } from '../shared/slack';
 import { Graph } from '../../sdk/src/graph';
 import { logBlockchainBalance } from '../shared/balances';
@@ -51,6 +51,7 @@ let slackMessage: SlackMessage;
 interface ParsedOptions {
   signer: Keypair;
   connection: Connection;
+  builder: TransactionBuilder;
   evmClient: PublicClient;
   graphClient: Graph;
   dryRun: boolean;
@@ -105,10 +106,12 @@ export async function yieldCLI() {
 
         const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
         const graphID = rpc.includes('devnet') ? DEVNET_GRAPH_ID : MAINNET_GRAPH_ID;
+        const connection = new Connection(rpc, 'confirmed');
 
         const options: ParsedOptions = {
           signer,
-          connection: new Connection(rpc, 'processed'),
+          connection,
+          builder: new TransactionBuilder(connection),
           evmClient,
           graphClient: new Graph(graphKey, graphID),
           dryRun,
@@ -394,7 +397,7 @@ async function buildTransactions(
       continue;
     }
 
-    const tx = await buildTransaction(opt.connection, batchIxs, opt.signer.publicKey, priorityFee);
+    const tx = await opt.builder.buildTransaction(batchIxs, opt.signer.publicKey, priorityFee);
 
     tx.sign([opt.signer]);
     transactions.push(tx);
@@ -473,7 +476,7 @@ async function proposeSquadsTransaction(
     transactionIndex: newTransactionIndex,
   });
 
-  const tx = await buildTransaction(opt.connection, [ix1, ix2], opt.signer.publicKey, priorityFee);
+  const tx = await opt.builder.buildTransaction([ix1, ix2], opt.signer.publicKey, priorityFee);
   tx.sign([opt.signer]);
 
   return tx;

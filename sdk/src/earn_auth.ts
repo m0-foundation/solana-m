@@ -1,6 +1,6 @@
 import { Connection, TransactionInstruction, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { PublicClient } from 'viem';
-import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
+import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID, TransactionBuilder } from '.';
 import { Earner } from './earner';
 import { Graph } from './graph';
 import { EarnManager } from './earn_manager';
@@ -10,13 +10,13 @@ import { BN, Program } from '@coral-xyz/anchor';
 import { getExtProgram, getProgram } from './idl';
 import { Earn } from './idl/earn';
 import { ExtEarn } from './idl/ext_earn';
-import { buildTransaction } from './transaction';
 import { MockLogger, Logger } from './logger';
 import { RateLimiter } from 'limiter';
 
 export class EarnAuthority {
   private logger: Logger;
   private connection: Connection;
+  private builder: TransactionBuilder;
   private evmClient: PublicClient;
   private graphClient: Graph;
   private program: Program<Earn> | Program<ExtEarn>;
@@ -37,6 +37,7 @@ export class EarnAuthority {
   ) {
     this.logger = logger;
     this.connection = connection;
+    this.builder = new TransactionBuilder(connection);
     this.evmClient = evmClient;
     this.graphClient = graphClient;
     this.programID = program;
@@ -363,7 +364,7 @@ export class EarnAuthority {
 
     for (let i = 0; i < ixs.length; i += batchSize) {
       const batchIxs = ixs.slice(i, i + batchSize);
-      transactions.push(await buildTransaction(this.connection, batchIxs, feePayer, priorityFee));
+      transactions.push(await this.builder.buildTransaction(batchIxs, feePayer, priorityFee));
     }
 
     return transactions;
