@@ -228,7 +228,7 @@ export const wrapOrUnwrap = async (
       'confirmed',
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
     throw new Error(`Failed to confirm transaction: ${sig}. Error details: ${errorMessage}`);
   }
 
@@ -334,7 +334,8 @@ export const bridgeFromSolana = async (
         'confirmed',
       );
     } catch (error) {
-      throw new Error(`Failed to confirm transaction: ${sig}`);
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      throw new Error(`Failed to confirm transaction: ${sig}. Error details: ${errorMessage}`);
     }
   }
 
