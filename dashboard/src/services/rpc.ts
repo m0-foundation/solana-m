@@ -228,7 +228,8 @@ export const wrapOrUnwrap = async (
       'confirmed',
     );
   } catch (error) {
-    throw new Error(`Failed to confirm transaction: ${sig}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to confirm transaction: ${sig}. Error details: ${errorMessage}`);
   }
 
   return sig;
