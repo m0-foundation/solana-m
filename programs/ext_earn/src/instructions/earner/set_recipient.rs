@@ -6,7 +6,6 @@ use anchor_spl::token_interface::TokenAccount;
 use crate::{
     errors::ExtError,
     state::{Earner, ExtGlobal, EARNER_SEED, EXT_GLOBAL_SEED},
-    utils::token::has_immutable_owner,
 };
 
 #[derive(Accounts)]
@@ -32,10 +31,7 @@ pub struct SetRecipient<'info> {
     )]
     pub earner_account: Account<'info, Earner>,
 
-    #[account(
-        token::mint = global_account.ext_mint,
-        constraint = has_immutable_owner(&recipient_token_account) @ ExtError::MutableOwner,
-    )]
+    #[account(token::mint = global_account.ext_mint)]
     pub recipient_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
 }
 
