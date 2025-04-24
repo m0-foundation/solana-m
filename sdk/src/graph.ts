@@ -101,10 +101,10 @@ export class Graph {
     }
 
     const query = gql`
-      query getBalanceUpdates($tokenAccountId: Bytes!, $lowerTS: BigInt!, $upperTS: BigInt!) {
+      query getBalanceUpdates($tokenAccountId: Bytes!, $lowerTS: BigInt!) {
         tokenAccount(id: $tokenAccountId) {
           balance
-          transfers(where: { ts_gte: $lowerTS, ts_lt: $upperTS }, orderBy: ts, orderDirection: desc) {
+          transfers(where: { ts_gte: $lowerTS }, orderBy: ts, orderDirection: desc) {
             amount
             ts
           }
@@ -124,7 +124,6 @@ export class Graph {
     const data = await this.client.request<Data>(query, {
       tokenAccountId,
       lowerTS: lowerTS.toString(),
-      upperTS: upperTS.toString(),
     });
 
     if (!data.tokenAccount) {
@@ -140,12 +139,24 @@ export class Graph {
   }
 
   private static calculateTimeWeightedBalance(
-    balance: BN,
+    currentBalance: BN,
     lowerTS: BN,
     upperTS: BN,
     transfers: { ts: string; amount: string }[],
   ): BN {
-    if (upperTS.eq(lowerTS) || transfers.length === 0) {
+    // determine starting balance at start of range
+    let balance = currentBalance;
+    let rangeTransfers = transfers;
+    for (const transfer of transfers) {
+      if (upperTS.gt(new BN(transfer.ts))) {
+        break;
+      }
+      balance = balance.sub(new BN(transfer.amount));
+      rangeTransfers = rangeTransfers.slice(1);
+    }
+
+    // no transfers in range
+    if (upperTS.eq(lowerTS) || rangeTransfers.length === 0) {
       return balance;
     }
 
@@ -153,7 +164,7 @@ export class Graph {
     let prevTS = upperTS;
 
     // use transfers to calculate the weighted balance
-    for (const transfer of transfers) {
+    for (const transfer of rangeTransfers) {
       if (upperTS.lt(new BN(transfer.ts))) {
         continue;
       }
