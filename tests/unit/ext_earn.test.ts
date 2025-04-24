@@ -2468,43 +2468,6 @@ describe('ExtEarn unit tests', () => {
         );
       });
 
-      test('Add earner with mutable token account - reverts', async () => {
-        const tokenAccountKeypair = Keypair.generate();
-        const tokenAccountLen = getAccountLen([]);
-        const lamports = await provider.connection.getMinimumBalanceForRentExemption(tokenAccountLen);
-
-        // Create token account without the immutable owner extension
-        const transaction = new Transaction().add(
-          SystemProgram.createAccount({
-            fromPubkey: earnManagerOne.publicKey,
-            newAccountPubkey: tokenAccountKeypair.publicKey,
-            space: tokenAccountLen,
-            lamports,
-            programId: TOKEN_2022_PROGRAM_ID,
-          }),
-          createInitializeAccountInstruction(
-            tokenAccountKeypair.publicKey,
-            extMint.publicKey,
-            earnerTwo.publicKey,
-            TOKEN_2022_PROGRAM_ID,
-          ),
-        );
-
-        await provider.send!(transaction, [earnManagerOne, tokenAccountKeypair]);
-
-        // Setup the instruction
-        prepAddEarner(earnManagerOne, earnManagerOne.publicKey, tokenAccountKeypair.publicKey);
-
-        await expectAnchorError(
-          extEarn.methods
-            .addEarner(earnerTwo.publicKey)
-            .accounts({ ...accounts })
-            .signers([earnManagerOne])
-            .rpc(),
-          'MutableOwner',
-        );
-      });
-
       test('Add earner - success', async () => {
         const tokenAccountKeypair = Keypair.generate();
         const tokenAccountLen = getAccountLen([ExtensionType.ImmutableOwner]);
@@ -3158,8 +3121,6 @@ describe('ExtEarn unit tests', () => {
       // [X] given a recipient token account is provided
       //   [X] given the recipient token account is for the wrong mint
       //     [X] it reverts with a ConstraintTokenMint error
-      //   [X] given the recipient token account does not have an immutable owner
-      //     [X] it reverts with a MutableOwner error
       //   [X] given the recipient token account is valid
       //     [X] given the earner signs the transaction
       //       [X] it updates the earner's recipient token account to the provided value
@@ -3253,28 +3214,6 @@ describe('ExtEarn unit tests', () => {
             .signers([earnerOne])
             .rpc(),
           'ConstraintTokenMint',
-        );
-      });
-
-      // given a recipient token account is provided
-      // given the recipient token account has a Mutable owner
-      // it reverts with a MutableOwner error
-      test('Recipient token account has a mutable owner - reverts', async () => {
-        // Create a token account manually, which will not have the immutable owner extension
-        const { tokenAccount: mutableTokenAccount } = await createTokenAccount(extMint.publicKey, earnerOne.publicKey);
-
-        // Setup the instruction
-        await prepSetRecipient(earnerOne, earnerOne.publicKey, mutableTokenAccount);
-
-        // Attempt to send the transaction
-        // Expect a MutableOwner error
-        await expectAnchorError(
-          extEarn.methods
-            .setRecipient()
-            .accounts({ ...accounts })
-            .signers([earnerOne])
-            .rpc(),
-          'MutableOwner',
         );
       });
 

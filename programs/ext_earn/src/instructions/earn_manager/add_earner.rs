@@ -9,7 +9,6 @@ use crate::{
     constants::ANCHOR_DISCRIMINATOR_SIZE,
     errors::ExtError,
     state::{EarnManager, Earner, ExtGlobal, EARNER_SEED, EARN_MANAGER_SEED, EXT_GLOBAL_SEED},
-    utils::token::has_immutable_owner,
 };
 
 #[derive(Accounts)]
@@ -34,7 +33,6 @@ pub struct AddEarner<'info> {
     #[account(
         token::mint = global_account.ext_mint,
         token::authority = user,
-        constraint = has_immutable_owner(&user_token_account) @ ExtError::MutableOwner,
     )]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
