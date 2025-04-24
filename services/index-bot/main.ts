@@ -226,7 +226,7 @@ if (!process.argv[1].endsWith('jest')) {
       if (slackMessage.messages.length === 0) {
         slackMessage.messages.push('No actions taken');
       }
-      await lokiTransport.flush();
+      await lokiTransport?.flush();
       await sendSlackMessage(slackMessage);
       process.exit(0);
     });
