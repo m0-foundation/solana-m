@@ -8,7 +8,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import { bridgeFromEvm, bridgeFromSolana, checkERC20Allowance, erc20Abi, NETWORK } from '../services/rpc';
 import { chainIcons } from './bridges';
 import { useSendTransaction } from 'wagmi';
-import { switchChain, writeContract } from '@wagmi/core';
+import { switchChain, waitForTransactionReceipt, writeContract } from '@wagmi/core';
 import { wagmiAdapter } from '../main';
 import { useQuery } from '@tanstack/react-query';
 
@@ -208,17 +208,26 @@ export const Bridge = () => {
         sig = await bridgeFromEvm(sendTransaction, address, amountValue, recipientAddress, inputChain.label);
       }
 
-      const txUrl = `https://wormholescan.io/#/tx/${sig}?network=Testnet`;
+      const txUrl = `https://wormholescan.io/#/tx/${sig}`;
+      const explorerUrl =
+        inputChain.namespace === 'svm' ? `https://solana.fm/tx/${sig}` : `https://etherscan.io/tx/${sig}`;
 
       // give an extra second for the transaction to be confirmed
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
 
       toast.success(
         <div>
-          <div>Bridge successful!</div>
-          <a href={txUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-            View on WormholeScan
-          </a>
+          <div>{`Bridged ${amount} tokens to ${outputChain.name}`}</div>
+          <div>
+            <a href={txUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+              View on WormholeScan
+            </a>
+          </div>
+          <div>
+            <a href={explorerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+              View on Explorer
+            </a>
+          </div>
         </div>,
       );
     } catch (error) {
@@ -243,11 +252,13 @@ export const Bridge = () => {
         args: ['0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd', BigInt(amountValue)],
       });
 
+      await waitForTransactionReceipt(wagmiAdapter.wagmiConfig, { hash });
+
       toast.success(
         <div>
           <div>Approval successful!</div>
           <a
-            href={`${inputChain.id === 11155111 ? 'https://sepolia.etherscan.io' : 'https://etherscan.io'}/tx/${hash}`}
+            href={`https://etherscan.io/tx/${hash}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 underline"
@@ -273,7 +284,7 @@ export const Bridge = () => {
   const validWallet = isConnected && (isSolanaWallet ? inputChain.name === 'Solana' : inputChain.name !== 'Solana');
   const buttonDisabled = !isConnected || !isValidAmount || !isValidRecipient || isLoading || !validWallet;
   const hasAllowance =
-    inputChain.name === 'Solana' || (isValidAmount && (allowanceQuery.data ?? 0n) >= BigInt(isValidAmount));
+    inputChain.name === 'Solana' || (isValidAmount && (allowanceQuery.data ?? 0n) >= BigInt(parseFloat(amount) * 1e6));
 
   const handleNonceCheckBox = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
@@ -390,7 +401,7 @@ export const Bridge = () => {
         </button>
         <div className="mt-5 text-xs text-gray-400 text-center">Bridge M using Wormhole</div>
       </div>
-      <ToastContainer position="bottom-right" autoClose={5000} />
+      <ToastContainer position="bottom-right" autoClose={false} stacked={false} closeOnClick={false} />
     </div>
   );
 };
