@@ -10,7 +10,19 @@ use anchor_lang::prelude::*;
 
 use instructions::*;
 
-declare_id!("ATPNKbFx7D5bQaKV4YSsoQePsUpkrihHBHLzPKTPeuzL");
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    // Required fields
+    name: "wM Earn Program",
+    project_url: "https://m0.org/",
+    contacts: "email:security@m0.xyz",
+    // Optional Fields
+    preferred_languages: "en",
+    source_code: "https://github.com/m0-foundation/solana-m/tree/main/programs/ext_earn",
+    auditors: "Sec3, Halborn, Ottersec"
+}
+
+declare_id!("wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko");
 
 #[program]
 pub mod ext_earn {

@@ -5,19 +5,16 @@ use anchor_spl::token_interface::TokenAccount;
 
 use crate::{
     errors::ExtError,
-    state::{
-        ExtGlobal, EXT_GLOBAL_SEED,
-        Earner, EARNER_SEED,
-    },
-    utils::token::has_immutable_owner
+    state::{Earner, ExtGlobal, EARNER_SEED, EXT_GLOBAL_SEED},
+    utils::token::has_immutable_owner,
 };
 
 #[derive(Accounts)]
 pub struct SetRecipient<'info> {
     #[account(
-        constraint = 
-            signer.key() == earner_account.user || 
-            signer.key() == earner_account.earn_manager 
+        constraint =
+            signer.key() == earner_account.user ||
+            signer.key() == earner_account.earn_manager
             @ ExtError::NotAuthorized,
     )]
     pub signer: Signer<'info>,

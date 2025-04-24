@@ -1,13 +1,7 @@
-import { Program, AnchorError, BN } from "@coral-xyz/anchor";
-import { LiteSVM } from "litesvm";
-import { fromWorkspace, LiteSVMProvider } from "anchor-litesvm";
-import {
-  PublicKey,
-  Keypair,
-  LAMPORTS_PER_SOL,
-  SystemProgram,
-  Transaction,
-} from "@solana/web3.js";
+import { Program, AnchorError, BN } from '@coral-xyz/anchor';
+import { LiteSVM } from 'litesvm';
+import { fromWorkspace, LiteSVMProvider } from 'anchor-litesvm';
+import { PublicKey, Keypair, LAMPORTS_PER_SOL, SystemProgram, Transaction } from '@solana/web3.js';
 import {
   ACCOUNT_SIZE,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -22,26 +16,24 @@ import {
   createInitializeMultisigInstruction,
   createMintToCheckedInstruction,
   getAccountLen,
-} from "@solana/spl-token";
-import { randomInt } from "crypto";
+} from '@solana/spl-token';
+import { randomInt } from 'crypto';
 
-import { MerkleTree, ProofElement } from "../merkle";
-import { loadKeypair } from "../test-utils";
-import { Earn } from "../../target/types/earn";
+import { MerkleTree, ProofElement } from '../../sdk/src/merkle';
+import { loadKeypair } from '../test-utils';
+import { Earn } from '../../target/types/earn';
 
-const EARN_IDL = require("../../target/idl/earn.json");
-const EARN_PROGRAM_ID = new PublicKey(
-  "MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"
-);
+const EARN_IDL = require('../../target/idl/earn.json');
+const EARN_PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c');
 
 // Unit tests for earn program
 
 const ZERO_WORD = new Array(32).fill(0);
 
 // Setup wallets once at the beginning of the test suite
-const admin: Keypair = loadKeypair("tests/keys/admin.json");
-const portal: Keypair = loadKeypair("tests/keys/admin.json");
-const mint: Keypair = loadKeypair("tests/keys/mint.json");
+const admin: Keypair = loadKeypair('tests/keys/admin.json');
+const portal: Keypair = loadKeypair('tests/keys/admin.json');
+const mint: Keypair = loadKeypair('tests/keys/mint.json');
 const earnAuthority: Keypair = new Keypair();
 const mintAuthority: Keypair = new Keypair();
 const nonAdmin: Keypair = new Keypair();
@@ -57,7 +49,7 @@ const yieldRecipient: Keypair = new Keypair();
 
 let svm: LiteSVM;
 let provider: LiteSVMProvider;
-let accounts: Record<string, PublicKey> = {};
+let accounts: Record<string, PublicKey | null> = {};
 let earn: Program<Earn>;
 
 // Start parameters
@@ -93,27 +85,21 @@ interface Earner {
 }
 
 const getGlobalAccount = () => {
-  const [globalAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("global")],
-    earn.programId
-  );
+  const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], earn.programId);
 
   return globalAccount;
 };
 
 const getEarnTokenAuthority = () => {
-  const [earnTokenAuthority] = PublicKey.findProgramAddressSync(
-    [Buffer.from("token_authority")],
-    earn.programId
-  );
+  const [earnTokenAuthority] = PublicKey.findProgramAddressSync([Buffer.from('token_authority')], earn.programId);
 
   return earnTokenAuthority;
 };
 
 const getEarnerAccount = (tokenAccount: PublicKey) => {
   const [earnerAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from("earner"), tokenAccount.toBuffer()],
-    earn.programId
+    [Buffer.from('earner'), tokenAccount.toBuffer()],
+    earn.programId,
   );
 
   return earnerAccount;
@@ -130,13 +116,10 @@ const expectAccountEmpty = (account: PublicKey) => {
   }
 };
 
-const expectAnchorError = async (
-  txResult: Promise<string>,
-  errCode: string
-) => {
+const expectAnchorError = async (txResult: Promise<string>, errCode: string) => {
   try {
     await txResult;
-    throw new Error("Transaction should have reverted");
+    throw new Error('Transaction should have reverted');
   } catch (e) {
     if (!(e instanceof AnchorError)) throw new Error(`Expected AnchorError, got ${e}`);
     const err: AnchorError = e;
@@ -157,68 +140,32 @@ const expectSystemError = async (txResult: Promise<string>) => {
   }
 };
 
-const expectGlobalState = async (
-  globalAccount: PublicKey,
-  expected: Global
-) => {
+const expectGlobalState = async (globalAccount: PublicKey, expected: Global) => {
   const state = await earn.account.global.fetch(globalAccount);
 
-  if (expected.earnAuthority)
-    expect(state.earnAuthority).toEqual(expected.earnAuthority);
-  if (expected.index)
-    expect(state.index.toString()).toEqual(expected.index.toString());
-  if (expected.timestamp)
-    expect(state.timestamp.toString()).toEqual(expected.timestamp.toString());
-  if (expected.claimCooldown)
-    expect(state.claimCooldown.toString()).toEqual(
-      expected.claimCooldown.toString()
-    );
-  if (expected.maxSupply)
-    expect(state.maxSupply.toString()).toEqual(expected.maxSupply.toString());
-  if (expected.maxYield)
-    expect(state.maxYield.toString()).toEqual(expected.maxYield.toString());
-  if (expected.distributed)
-    expect(state.distributed.toString()).toEqual(
-      expected.distributed.toString()
-    );
-  if (expected.claimComplete !== undefined)
-    expect(state.claimComplete).toEqual(expected.claimComplete);
-  if (expected.earnerMerkleRoot)
-    expect(state.earnerMerkleRoot).toEqual(expected.earnerMerkleRoot);
+  if (expected.earnAuthority) expect(state.earnAuthority).toEqual(expected.earnAuthority);
+  if (expected.index) expect(state.index.toString()).toEqual(expected.index.toString());
+  if (expected.timestamp) expect(state.timestamp.toString()).toEqual(expected.timestamp.toString());
+  if (expected.claimCooldown) expect(state.claimCooldown.toString()).toEqual(expected.claimCooldown.toString());
+  if (expected.maxSupply) expect(state.maxSupply.toString()).toEqual(expected.maxSupply.toString());
+  if (expected.maxYield) expect(state.maxYield.toString()).toEqual(expected.maxYield.toString());
+  if (expected.distributed) expect(state.distributed.toString()).toEqual(expected.distributed.toString());
+  if (expected.claimComplete !== undefined) expect(state.claimComplete).toEqual(expected.claimComplete);
+  if (expected.earnerMerkleRoot) expect(state.earnerMerkleRoot).toEqual(expected.earnerMerkleRoot);
 };
 
-const expectEarnerState = async (
-  earnerAccount: PublicKey,
-  expected: Earner
-) => {
+const expectEarnerState = async (earnerAccount: PublicKey, expected: Earner) => {
   const state = await earn.account.earner.fetch(earnerAccount);
 
-  if (expected.lastClaimIndex)
-    expect(state.lastClaimIndex.toString()).toEqual(
-      expected.lastClaimIndex.toString()
-    );
+  if (expected.lastClaimIndex) expect(state.lastClaimIndex.toString()).toEqual(expected.lastClaimIndex.toString());
   if (expected.lastClaimTimestamp)
-    expect(state.lastClaimTimestamp.toString()).toEqual(
-      expected.lastClaimTimestamp.toString()
-    );
-  if (expected.user)
-    expect(state.user).toEqual(expected.user);
-  if (expected.userTokenAccount)
-    expect(state.userTokenAccount).toEqual(expected.userTokenAccount);
+    expect(state.lastClaimTimestamp.toString()).toEqual(expected.lastClaimTimestamp.toString());
+  if (expected.user) expect(state.user).toEqual(expected.user);
+  if (expected.userTokenAccount) expect(state.userTokenAccount).toEqual(expected.userTokenAccount);
 };
 
-const expectTokenBalance = async (
-  tokenAccount: PublicKey,
-  expectedBalance: BN
-) => {
-  const balance = (
-    await getAccount(
-      provider.connection,
-      tokenAccount,
-      null,
-      TOKEN_2022_PROGRAM_ID
-    )
-  ).amount;
+const expectTokenBalance = async (tokenAccount: PublicKey, expectedBalance: BN) => {
+  const balance = (await getAccount(provider.connection, tokenAccount, undefined, TOKEN_2022_PROGRAM_ID)).amount;
 
   expect(balance.toString()).toEqual(expectedBalance.toString());
 };
@@ -229,7 +176,7 @@ const createATA = async (mint: PublicKey, owner: PublicKey) => {
     owner,
     true,
     TOKEN_2022_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID
+    ASSOCIATED_TOKEN_PROGRAM_ID,
   );
 
   const createATA = createAssociatedTokenAccountInstruction(
@@ -238,12 +185,12 @@ const createATA = async (mint: PublicKey, owner: PublicKey) => {
     owner, // owner
     mint, // mint
     TOKEN_2022_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID
+    ASSOCIATED_TOKEN_PROGRAM_ID,
   );
 
   let tx = new Transaction().add(createATA);
 
-  await provider.sendAndConfirm(tx, [admin]);
+  await provider.sendAndConfirm!(tx, [admin]);
 
   return tokenAccount;
 };
@@ -255,7 +202,7 @@ const getATA = async (mint: PublicKey, owner: PublicKey) => {
     owner,
     true,
     TOKEN_2022_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID
+    ASSOCIATED_TOKEN_PROGRAM_ID,
   );
 
   const tokenAccountInfo = svm.getAccount(tokenAccount);
@@ -277,20 +224,13 @@ const createTokenAccount = async (mint: PublicKey, owner: PublicKey) => {
       fromPubkey: admin.publicKey,
       newAccountPubkey: tokenAccount.publicKey,
       space: ACCOUNT_SIZE,
-      lamports: await provider.connection.getMinimumBalanceForRentExemption(
-        ACCOUNT_SIZE
-      ),
+      lamports: await provider.connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE),
       programId: TOKEN_2022_PROGRAM_ID,
     }),
-    createInitializeAccountInstruction(
-      tokenAccount.publicKey,
-      mint,
-      owner,
-      TOKEN_2022_PROGRAM_ID
-    )
+    createInitializeAccountInstruction(tokenAccount.publicKey, mint, owner, TOKEN_2022_PROGRAM_ID),
   );
 
-  await provider.sendAndConfirm(tx, [admin, tokenAccount]);
+  await provider.sendAndConfirm!(tx, [admin, tokenAccount]);
 
   return { tokenAccount: tokenAccount.publicKey };
 };
@@ -299,8 +239,7 @@ const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
   // Create and initialize mint account
 
   const mintLen = getMintLen([]);
-  const mintLamports =
-    await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+  const mintLamports = await provider.connection.getMinimumBalanceForRentExemption(mintLen);
   const createMintAccount = SystemProgram.createAccount({
     fromPubkey: admin.publicKey,
     newAccountPubkey: mint.publicKey,
@@ -314,33 +253,28 @@ const createMint = async (mint: Keypair, mintAuthority: Keypair) => {
     6, // decimals
     mintAuthority.publicKey, // mint authority
     null, // freeze authority
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
 
   let tx = new Transaction();
   tx.add(createMintAccount, initializeMint);
 
-  await provider.sendAndConfirm(tx, [admin, mint]);
+  await provider.sendAndConfirm!(tx, [admin, mint]);
 
   // Verify the mint was created properly
   const mintInfo = await provider.connection.getAccountInfo(mint.publicKey);
   if (!mintInfo) {
-    throw new Error("Mint account was not created");
+    throw new Error('Mint account was not created');
   }
 
   return mint.publicKey;
 };
 
-const createMintWithMultisig = async (
-  mint: Keypair,
-  mintAuthority: Keypair
-) => {
+const createMintWithMultisig = async (mint: Keypair, mintAuthority: Keypair) => {
   // Create and initialize multisig mint authority on the token program
   const multisigLen = 355;
   // const multisigLamports = await provider.connection.getMinimumBalanceForRentExemption(multisigLen);
-  const multisigLamports = await getMinimumBalanceForRentExemptMultisig(
-    provider.connection
-  );
+  const multisigLamports = await getMinimumBalanceForRentExemptMultisig(provider.connection);
 
   const createMultisigAccount = SystemProgram.createAccount({
     fromPubkey: admin.publicKey,
@@ -356,19 +290,18 @@ const createMintWithMultisig = async (
     mintAuthority.publicKey, // account
     [portal, earnTokenAuthority],
     1,
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
 
   let tx = new Transaction();
   tx.add(createMultisigAccount, initializeMultisig);
 
-  await provider.sendAndConfirm(tx, [admin, mintAuthority]);
+  await provider.sendAndConfirm!(tx, [admin, mintAuthority]);
 
   // Create and initialize mint account
 
   const mintLen = getMintLen([]);
-  const mintLamports =
-    await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+  const mintLamports = await provider.connection.getMinimumBalanceForRentExemption(mintLen);
   const createMintWithMultisigAccount = SystemProgram.createAccount({
     fromPubkey: admin.publicKey,
     newAccountPubkey: mint.publicKey,
@@ -382,18 +315,18 @@ const createMintWithMultisig = async (
     6, // decimals
     mintAuthority.publicKey, // mint authority
     null, // freeze authority
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
 
   tx = new Transaction();
   tx.add(createMintWithMultisigAccount, initializeMint);
 
-  await provider.sendAndConfirm(tx, [admin, mint]);
+  await provider.sendAndConfirm!(tx, [admin, mint]);
 
   // Verify the mint was created properly
   const mintInfo = await provider.connection.getAccountInfo(mint.publicKey);
   if (!mintInfo) {
-    throw new Error("Mint account was not created");
+    throw new Error('Mint account was not created');
   }
 
   return mint.publicKey;
@@ -409,19 +342,17 @@ const mintM = async (to: PublicKey, amount: BN) => {
     BigInt(amount.toString()),
     6,
     [portal],
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
 
   let tx = new Transaction();
   tx.add(mintToInstruction);
-  await provider.sendAndConfirm(tx, [portal]);
+  await provider.sendAndConfirm!(tx, [portal]);
 };
 
 const warp = (seconds: BN, increment: boolean) => {
   const clock = svm.getClock();
-  clock.unixTimestamp = increment
-    ? clock.unixTimestamp + BigInt(seconds.toString())
-    : BigInt(seconds.toString());
+  clock.unixTimestamp = increment ? clock.unixTimestamp + BigInt(seconds.toString()) : BigInt(seconds.toString());
   svm.setClock(clock);
 };
 
@@ -440,12 +371,7 @@ const prepInitialize = (signer: Keypair, mint: PublicKey) => {
   return { globalAccount };
 };
 
-const initialize = async (
-  mint: PublicKey,
-  earnAuthority: PublicKey,
-  initialIndex: BN,
-  claimCooldown: BN
-) => {
+const initialize = async (mint: PublicKey, earnAuthority: PublicKey, initialIndex: BN, claimCooldown: BN) => {
   // Setup the instruction
   const { globalAccount } = prepInitialize(admin, mint);
 
@@ -491,7 +417,7 @@ const prepSetClaimCooldown = (signer: Keypair) => {
   accounts.globalAccount = globalAccount;
 
   return { globalAccount };
-}
+};
 
 const prepPropagateIndex = (signer: Keypair) => {
   // Get the global PDA
@@ -506,10 +432,7 @@ const prepPropagateIndex = (signer: Keypair) => {
   return { globalAccount };
 };
 
-const propagateIndex = async (
-  newIndex: BN,
-  earnerMerkleRoot: number[] = ZERO_WORD,
-) => {
+const propagateIndex = async (newIndex: BN, earnerMerkleRoot: number[] = ZERO_WORD) => {
   // Setup the instruction
   const { globalAccount } = prepPropagateIndex(portal);
 
@@ -525,11 +448,7 @@ const propagateIndex = async (
   return { globalAccount };
 };
 
-const prepClaimFor = async (
-  signer: Keypair,
-  mint: PublicKey,
-  earner: PublicKey,
-) => {
+const prepClaimFor = async (signer: Keypair, mint: PublicKey, earner: PublicKey) => {
   // Get the global and token authority PDAs
   const globalAccount = getGlobalAccount();
   const earnTokenAuthority = getEarnTokenAuthority();
@@ -628,10 +547,10 @@ const prepRemoveRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
   return { globalAccount, earnerAccount };
 };
 
-describe("Earn unit tests", () => {
+describe('Earn unit tests', () => {
   beforeEach(async () => {
     // Initialize the SVM instance with all necessary configurations
-    svm = fromWorkspace("")
+    svm = fromWorkspace('')
       .withSplPrograms() // Add SPL programs (including token programs)
       .withBuiltins() // Add builtin programs
       .withSysvars() // Setup standard sysvars
@@ -657,7 +576,7 @@ describe("Earn unit tests", () => {
     await mintM(admin.publicKey, initialSupply);
   });
 
-  describe("initialize unit tests", () => {
+  describe('initialize unit tests', () => {
     // test cases
     //   [X] given the admin signs the transaction
     //      [X] the global account is created
@@ -669,17 +588,13 @@ describe("Earn unit tests", () => {
 
     // given the admin signs the transaction
     // the global account is created and configured correctly
-    test("Admin can initialize earn program", async () => {
+    test('Admin can initialize earn program', async () => {
       // Setup the instruction call
       const { globalAccount } = prepInitialize(admin, mint.publicKey);
 
       // Create and send the transaction
       await earn.methods
-        .initialize(
-          earnAuthority.publicKey,
-          initialIndex,
-          claimCooldown
-        )
+        .initialize(earnAuthority.publicKey, initialIndex, claimCooldown)
         .accounts({ ...accounts })
         .signers([admin])
         .rpc();
@@ -697,7 +612,7 @@ describe("Earn unit tests", () => {
     });
   });
 
-  describe("set_earn_authority unit tests", () => {
+  describe('set_earn_authority unit tests', () => {
     // test cases
     //   [X] given the admin signs the transaction
     //      [X] the earn authority is updated
@@ -706,15 +621,10 @@ describe("Earn unit tests", () => {
 
     beforeEach(async () => {
       // Initialize the program
-      await initialize(
-        mint.publicKey,
-        earnAuthority.publicKey,
-        initialIndex,
-        claimCooldown
-      );
+      await initialize(mint.publicKey, earnAuthority.publicKey, initialIndex, claimCooldown);
     });
 
-    test("Admin can set new earn authority", async () => {
+    test('Admin can set new earn authority', async () => {
       // Setup new earn authority
       const newEarnAuthority = new Keypair();
 
@@ -734,7 +644,7 @@ describe("Earn unit tests", () => {
       });
     });
 
-    test("Non-admin cannot set earn authority", async () => {
+    test('Non-admin cannot set earn authority', async () => {
       // Attempt to set new earn authority with non-admin
       const newEarnAuthority = new Keypair();
 
@@ -746,12 +656,12 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "NotAuthorized"
+        'NotAuthorized',
       );
     });
   });
 
-  describe("set_claim_cooldown unit tests", () => {
+  describe('set_claim_cooldown unit tests', () => {
     // test cases
     // [X] given the admin does not sign the transaction
     //   [X] it reverts with a NotAuthorized error
@@ -763,15 +673,10 @@ describe("Earn unit tests", () => {
 
     beforeEach(async () => {
       // Initialize the program
-      await initialize(
-        mint.publicKey,
-        earnAuthority.publicKey,
-        initialIndex,
-        claimCooldown
-      );
+      await initialize(mint.publicKey, earnAuthority.publicKey, initialIndex, claimCooldown);
     });
 
-    test("Admin does not sign transaction - reverts", async () => {
+    test('Admin does not sign transaction - reverts', async () => {
       // Attempt to set the claim cooldown without the admin signing
       prepSetClaimCooldown(nonAdmin);
 
@@ -781,12 +686,11 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "NotAuthorized"
+        'NotAuthorized',
       );
-
     });
 
-    test("Admin tries to set cooldown to more than  1 week - reverts", async () => {
+    test('Admin tries to set cooldown to more than  1 week - reverts', async () => {
       // Attempt to set the claim cooldown to more than 1 week
 
       const randomCooldown = randomInt(604_801, 2 ** 32);
@@ -799,12 +703,11 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([admin])
           .rpc(),
-        "InvalidParam"
+        'InvalidParam',
       );
-
     });
 
-    test("Admin sets cooldown to less than or equal to 1 week - success", async () => {
+    test('Admin sets cooldown to less than or equal to 1 week - success', async () => {
       // Attempt to set the claim cooldown to less than or equal to 1 week
       const newCooldown = new BN(randomInt(0, 604_800));
 
@@ -820,11 +723,10 @@ describe("Earn unit tests", () => {
       await expectGlobalState(globalAccount, {
         claimCooldown: newCooldown,
       });
-
     });
   });
 
-  describe("propagate_index unit tests", () => {
+  describe('propagate_index unit tests', () => {
     // test cases
     // [X] given the portal does not sign the transaction
     //   [X] the transaction fails with a not authorized error
@@ -891,25 +793,13 @@ describe("Earn unit tests", () => {
 
     beforeEach(async () => {
       // Initialize the program
-      await initialize(
-        mint.publicKey,
-        earnAuthority.publicKey,
-        initialIndex,
-        claimCooldown
-      );
+      await initialize(mint.publicKey, earnAuthority.publicKey, initialIndex, claimCooldown);
 
       // Populate the earner merkle tree with the initial earners
-      earnerMerkleTree = new MerkleTree([
-        admin.publicKey,
-        earnerOne.publicKey,
-        earnerTwo.publicKey,
-      ]);
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
 
       // Propagate the earner and earn manager merkle roots so they are set to non-zero values
-      await propagateIndex(
-        initialIndex,
-        earnerMerkleTree.getRoot()
-      );
+      await propagateIndex(initialIndex, earnerMerkleTree.getRoot());
 
       // Warp past the initial cooldown period
       warp(claimCooldown, true);
@@ -917,7 +807,7 @@ describe("Earn unit tests", () => {
 
     // given the portal does not sign the transaction
     // the transaction fails with an address constraint error
-    test("Non-portal cannot update index - reverts", async () => {
+    test('Non-portal cannot update index - reverts', async () => {
       const newIndex = new BN(1_100_000_000_000);
       const newEarnerRoot = Array(32).fill(1);
 
@@ -929,82 +819,70 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "NotAuthorized"
+        'NotAuthorized',
       );
     });
 
     // given new index is less than the existing index
     // given new earner merkle root is empty
     // nothing is updated
-    test("new index < existing index, new earner root empty", async () => {
+    test('new index < existing index, new earner root empty', async () => {
       // Try to propagate a new index with a lower value
       const lowerIndex = new BN(999_999_999_999);
       const emptyEarnerRoot = ZERO_WORD;
       const emptyEarnManagerRoot = ZERO_WORD;
 
-      const { globalAccount } = await propagateIndex(
-        lowerIndex,
-        emptyEarnerRoot
-      );
+      const { globalAccount } = await propagateIndex(lowerIndex, emptyEarnerRoot);
 
       // Check the state
       await expectGlobalState(globalAccount, {
-        earnerMerkleRoot: earnerMerkleTree.getRoot()
+        earnerMerkleRoot: earnerMerkleTree.getRoot(),
       });
     });
 
     // given new index is less than the existing index
     // given new earner merkle root is not empty
     // nothing is updated
-    test("new index < existing index, new earner root not empty", async () => {
+    test('new index < existing index, new earner root not empty', async () => {
       // Try to propagate a new index with a lower value
       const lowerIndex = new BN(999_999_999_999);
       const newEarnerRoot = new Array(32).fill(1);
 
-      const { globalAccount } = await propagateIndex(
-        lowerIndex,
-        newEarnerRoot
-      );
+      const { globalAccount } = await propagateIndex(lowerIndex, newEarnerRoot);
 
       // Check the state
       await expectGlobalState(globalAccount, {
-        earnerMerkleRoot: earnerMerkleTree.getRoot()
+        earnerMerkleRoot: earnerMerkleTree.getRoot(),
       });
     });
 
     // given new index is greater than or equal to the existing index
     // given new earner merkle root is empty
     // nothing is updated
-    test("new index >= existing index, new earner root empty", async () => {
+    test('new index >= existing index, new earner root empty', async () => {
       // Try to propagate a new index with a higher value
       const randomIncrement = randomInt(0, 2 ** 32);
       const higherIndex = initialIndex.add(new BN(randomIncrement));
       const emptyEarnerRoot = ZERO_WORD;
 
-      const { globalAccount } = await propagateIndex(
-        higherIndex,
-        emptyEarnerRoot,
-      );
+      const { globalAccount } = await propagateIndex(higherIndex, emptyEarnerRoot);
 
       // Check the state
       await expectGlobalState(globalAccount, {
-        earnerMerkleRoot: earnerMerkleTree.getRoot()
+        earnerMerkleRoot: earnerMerkleTree.getRoot(),
       });
     });
 
     // given new index is greater than or equal to the existing index
     // given new earner merkle root is not empty
     // earner merkle root is updated
-    test("new index >= existing index, new earner root not empty", async () => {
+    test('new index >= existing index, new earner root not empty', async () => {
       // Try to propagate a new index with a higher value
       const randomIncrement = randomInt(0, 2 ** 32);
       const higherIndex = initialIndex.add(new BN(randomIncrement));
       const newEarnerRoot = new Array(32).fill(1);
 
-      const { globalAccount } = await propagateIndex(
-        higherIndex,
-        newEarnerRoot,
-      );
+      const { globalAccount } = await propagateIndex(higherIndex, newEarnerRoot);
 
       // Check the state
       await expectGlobalState(globalAccount, {
@@ -1017,7 +895,7 @@ describe("Earn unit tests", () => {
     // given the time is within the cooldown period
     // given current supply is less than or equal to max supply
     // nothing is updated
-    test("new index <= existing index, claim not complete, within cooldown period, supply <= max supply", async () => {
+    test('new index <= existing index, claim not complete, within cooldown period, supply <= max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1045,7 +923,7 @@ describe("Earn unit tests", () => {
     // given the time is within the cooldown period
     // given current supply is greater than max supply
     // max supply is updated to the current supply
-    test("new index <= existing index, claim not complete, within cooldown period, supply > max supply", async () => {
+    test('new index <= existing index, claim not complete, within cooldown period, supply > max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1077,7 +955,7 @@ describe("Earn unit tests", () => {
     // given the time is within the cooldown period
     // given current supply is greater than max supply
     // max supply is updated to the current supply
-    test("new index <= existing index, claim complete, within cooldown period, supply > max supply", async () => {
+    test('new index <= existing index, claim complete, within cooldown period, supply > max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1112,7 +990,7 @@ describe("Earn unit tests", () => {
     // given the time is within the cooldown period
     // given current supply is less than or equal to max supply
     // nothing is updated
-    test("new index <= existing index, claim complete, within cooldown period, supply <= max supply", async () => {
+    test('new index <= existing index, claim complete, within cooldown period, supply <= max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1142,7 +1020,7 @@ describe("Earn unit tests", () => {
     // given the time is past the cooldown period
     // given the current supply is greater than max supply
     // max supply is updated to the current supply
-    test("new index <= existing index, claim not complete, past cooldown period, supply > max supply", async () => {
+    test('new index <= existing index, claim not complete, past cooldown period, supply > max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1177,7 +1055,7 @@ describe("Earn unit tests", () => {
     // given the time is past the cooldown period
     // given the current supply is less than or equal to max supply
     // nothing is updated
-    test("new index <= existing index, claim not complete, past cooldown period, supply <= max supply", async () => {
+    test('new index <= existing index, claim not complete, past cooldown period, supply <= max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1207,7 +1085,7 @@ describe("Earn unit tests", () => {
     // given the time is within the cooldown period
     // given current supply is less than or equal to max supply
     // nothing is updated
-    test("new index > existing index, claim not complete, within cooldown period, supply <= max supply", async () => {
+    test('new index > existing index, claim not complete, within cooldown period, supply <= max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1237,7 +1115,7 @@ describe("Earn unit tests", () => {
     // given the time is within the cooldown period
     // given current supply is greater than max supply
     // max supply is updated to the current supply
-    test("new index > existing index, claim not complete, within cooldown period, supply > max supply", async () => {
+    test('new index > existing index, claim not complete, within cooldown period, supply > max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1269,7 +1147,7 @@ describe("Earn unit tests", () => {
     // given the time is within the cooldown period
     // given current supply is less than or equal to max supply
     // nothing is updated
-    test("new index > existing index, claim complete, within cooldown period, supply <= max supply", async () => {
+    test('new index > existing index, claim complete, within cooldown period, supply <= max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1299,7 +1177,7 @@ describe("Earn unit tests", () => {
     // given the time is within the cooldown period
     // given current supply is greater than max supply
     // max supply is updated to the current supply
-    test("new index > existing index, claim complete, within cooldown period, supply > max supply", async () => {
+    test('new index > existing index, claim complete, within cooldown period, supply > max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1334,7 +1212,7 @@ describe("Earn unit tests", () => {
     // given the time is past the cooldown period
     // given current supply is less than or equal to max supply
     // nothing is updated
-    test("new index > existing index, claim not complete, past cooldown period, supply <= max supply", async () => {
+    test('new index > existing index, claim not complete, past cooldown period, supply <= max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1364,7 +1242,7 @@ describe("Earn unit tests", () => {
     // given the time is past the cooldown period
     // given current supply is greater than max supply
     // max supply is updated to the current supply
-    test("new index > existing index, claim not complete, past cooldown period, supply > max supply", async () => {
+    test('new index > existing index, claim not complete, past cooldown period, supply > max supply', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const startTimestamp = new BN(svm.getClock().unixTimestamp.toString());
@@ -1402,7 +1280,7 @@ describe("Earn unit tests", () => {
     // distributed is set to 0
     // max yield is updated
     // claim complete is set to false
-    test("new index > existing index, claim complete, past cooldown period, new cycle starts", async () => {
+    test('new index > existing index, claim complete, past cooldown period, new cycle starts', async () => {
       // Update the index initially so the claim is not complete and the time is within the cooldown period
       const startIndex = new BN(1_100_000_000_000);
       const { globalAccount } = await propagateIndex(startIndex);
@@ -1446,7 +1324,7 @@ describe("Earn unit tests", () => {
     });
   });
 
-  describe("claim_for unit tests", () => {
+  describe('claim_for unit tests', () => {
     // test cases
     // [X] given the earn authority does not sign the transaction
     //   [X] it reverts with an address constraint error
@@ -1462,33 +1340,19 @@ describe("Earn unit tests", () => {
 
     beforeEach(async () => {
       // Initialize the program
-      await initialize(
-        mint.publicKey,
-        earnAuthority.publicKey,
-        initialIndex,
-        claimCooldown
-      );
+      await initialize(mint.publicKey, earnAuthority.publicKey, initialIndex, claimCooldown);
 
       // Populate the earner merkle tree with the initial earners
-      earnerMerkleTree = new MerkleTree([
-        admin.publicKey,
-        earnerOne.publicKey,
-        earnerTwo.publicKey,
-      ]);
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
 
       // Warp past the initial cooldown period
       warp(claimCooldown, true);
 
       // Propagate the earner and earn manager merkle roots so we can add earners
-      await propagateIndex(
-        initialIndex,
-        earnerMerkleTree.getRoot(),
-      );
+      await propagateIndex(initialIndex, earnerMerkleTree.getRoot());
 
       // Add earner one as a registrar earner
-      const { proof: earnerOneProof } = earnerMerkleTree.getInclusionProof(
-        earnerOne.publicKey
-      );
+      const { proof: earnerOneProof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
       await addRegistrarEarner(earnerOne.publicKey, earnerOneProof);
 
       // Send earner one 10 tokens so they have a positive balance
@@ -1497,7 +1361,7 @@ describe("Earn unit tests", () => {
 
     // given the earn authority doesn't sign the transaction
     // it reverts with an address constraint error
-    test("Non-earn authority cannot claim - reverts", async () => {
+    test('Non-earn authority cannot claim - reverts', async () => {
       // Setup the instruction
       await prepClaimFor(nonAdmin, mint.publicKey, earnerOne.publicKey);
 
@@ -1508,14 +1372,14 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "NotAuthorized"
+        'NotAuthorized',
       );
     });
 
     // given the earn authority signs the transaction
     // given the user token account's earner account is not initialized
     // it reverts with an account not initialized error
-    test("Earner account not initialized - reverts", async () => {
+    test('Earner account not initialized - reverts', async () => {
       // Setup the instruction
       await prepClaimFor(earnAuthority, mint.publicKey, earnerTwo.publicKey);
 
@@ -1526,14 +1390,14 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
-        "AccountNotInitialized"
+        'AccountNotInitialized',
       );
     });
 
     // given the earn authority signs the transaction
     // given the earner's last claim index is the current index
     // it reverts with an AlreadyClaimed error
-    test("Earner already claimed - reverts", async () => {
+    test('Earner already claimed - reverts', async () => {
       // Setup the instruction
       await prepClaimFor(earnAuthority, mint.publicKey, earnerOne.publicKey);
 
@@ -1544,14 +1408,14 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
-        "AlreadyClaimed"
+        'AlreadyClaimed',
       );
     });
 
     // given the earn authority signs the transaction
     // given the amount to be minted causes the total distributed to exceed the max yield
     // it reverts with an ExceedsMaxYield error
-    test("Exceeds max yield - reverts", async () => {
+    test('Exceeds max yield - reverts', async () => {
       // Update the index so there is outstanding yield
       await propagateIndex(new BN(1_100_000_000_000));
 
@@ -1565,23 +1429,19 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
-        "ExceedsMaxYield"
+        'ExceedsMaxYield',
       );
     });
 
     // given the earn authority signs the transaction
     // given the inputs are correct
     // the correct amount is minted to the earner's token account
-    test("Claim for - success", async () => {
+    test('Claim for - success', async () => {
       // Update the index so there is outstanding yield
       await propagateIndex(new BN(1_100_000_000_000));
 
       // Setup the instruction
-      const { earnerAccount, earnerATA } = await prepClaimFor(
-        earnAuthority,
-        mint.publicKey,
-        earnerOne.publicKey
-      );
+      const { earnerAccount, earnerATA } = await prepClaimFor(earnAuthority, mint.publicKey, earnerOne.publicKey);
 
       // Verify the starting values
       await expectTokenBalance(earnerATA, new BN(10_000_000));
@@ -1608,7 +1468,7 @@ describe("Earn unit tests", () => {
     });
   });
 
-  describe("complete_claims unit tests", () => {
+  describe('complete_claims unit tests', () => {
     // test cases
     // [X] given the earn authority does not sign the transaction
     //   [X] it reverts with an address constraint error
@@ -1620,12 +1480,7 @@ describe("Earn unit tests", () => {
 
     beforeEach(async () => {
       // Initialize the program
-      await initialize(
-        mint.publicKey,
-        earnAuthority.publicKey,
-        initialIndex,
-        claimCooldown
-      );
+      await initialize(mint.publicKey, earnAuthority.publicKey, initialIndex, claimCooldown);
 
       // Warp past the initial cooldown period
       warp(claimCooldown, true);
@@ -1636,7 +1491,7 @@ describe("Earn unit tests", () => {
 
     // given the earn authority does not sign the transaction
     // it reverts with an address constraint error
-    test("Earn authority does not sign - reverts", async () => {
+    test('Earn authority does not sign - reverts', async () => {
       // Setup the instruction
       prepCompleteClaims(nonAdmin);
 
@@ -1647,14 +1502,14 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "NotAuthorized"
+        'NotAuthorized',
       );
     });
 
     // given the earn authority signs the transaction
     // given the most recent claim is complete
     // it reverts with a NoActiveClaim error
-    test("Claim already complete - reverts", async () => {
+    test('Claim already complete - reverts', async () => {
       // Complete the active claim
       await completeClaims();
 
@@ -1671,14 +1526,14 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
-        "NoActiveClaim"
+        'NoActiveClaim',
       );
     });
 
     // given the earn authority signs the transaction
     // given the most recent claim is not complete
     // it sets the claim complete flag to true in the global account
-    test("Complete claims - success", async () => {
+    test('Complete claims - success', async () => {
       // Setup the instruction
       const { globalAccount } = prepCompleteClaims(earnAuthority);
 
@@ -1696,9 +1551,7 @@ describe("Earn unit tests", () => {
     });
   });
 
-
-
-  describe("add_registrar_earner unit tests", () => {
+  describe('add_registrar_earner unit tests', () => {
     // test cases
     // [X] given the earner tree is empty and the user is the zero value pubkey
     //   [X] it reverts with an InvalidParam error
@@ -1723,39 +1576,24 @@ describe("Earn unit tests", () => {
 
     beforeEach(async () => {
       // Initialize the program
-      await initialize(
-        mint.publicKey,
-        earnAuthority.publicKey,
-        initialIndex,
-        claimCooldown
-      );
+      await initialize(mint.publicKey, earnAuthority.publicKey, initialIndex, claimCooldown);
 
       // Populate the earner merkle tree with the initial earners
-      earnerMerkleTree = new MerkleTree([
-        admin.publicKey,
-        earnerOne.publicKey,
-        earnerTwo.publicKey,
-      ]);
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
 
       // Warp time forward past the initial cooldown period
       warp(claimCooldown, true);
 
       // Propagate a new index to start a new claim cycle and set the merkle roots
-      await propagateIndex(
-        new BN(1_100_000_000_000),
-        earnerMerkleTree.getRoot()
-      );
+      await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot());
     });
 
-    test("Earner tree is empty and user is zero value - reverts", async () => {
+    test('Earner tree is empty and user is zero value - reverts', async () => {
       // Remove all earners from the merkle tree
       earnerMerkleTree = new MerkleTree([]);
 
       // Propagate the new merkle root
-      await propagateIndex(
-        new BN(1_100_000_000_000),
-        earnerMerkleTree.getRoot()
-      );
+      await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot());
 
       // Get the ATA for the zero value pubkey
       const zeroATA = await getATA(mint.publicKey, PublicKey.default);
@@ -1773,20 +1611,16 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "InvalidParam"
+        'InvalidParam',
       );
-
     });
 
-    test("Earner tree is empty and user is zero value - reverts", async () => {
+    test('Earner tree is empty and user is zero value - reverts', async () => {
       // Remove all earners from the merkle tree
       earnerMerkleTree = new MerkleTree([]);
 
       // Propagate the new merkle root
-      await propagateIndex(
-        new BN(1_100_000_000_000),
-        earnerMerkleTree.getRoot()
-      );
+      await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot());
 
       // Get the ATA for the zero value pubkey
       const zeroATA = await getATA(mint.publicKey, PublicKey.default);
@@ -1804,14 +1638,13 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "InvalidParam"
+        'InvalidParam',
       );
-
     });
 
     // given the user token account is for the wrong token mint
     // it reverts with a constraint token mint error
-    test("User token account is for the wrong token mint - reverts", async () => {
+    test('User token account is for the wrong token mint - reverts', async () => {
       // Create a new token mint
       const wrongMint = new Keypair();
       await createMint(wrongMint, nonAdmin);
@@ -1832,13 +1665,13 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "ConstraintTokenMint"
+        'ConstraintTokenMint',
       );
     });
 
     // given the user token account is not owned by the user pubkey
     // it reverts with a constraint token owner error
-    test("User token account authority does not match user pubkey - reverts", async () => {
+    test('User token account authority does not match user pubkey - reverts', async () => {
       // Get the ATA for a random user
       const randomATA = await getATA(mint.publicKey, nonAdmin.publicKey);
 
@@ -1855,20 +1688,20 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "ConstraintTokenOwner"
+        'ConstraintTokenOwner',
       );
     });
 
     // given the user token account is not initialized
     // it reverts with an account not initialized error
-    test("User token account is not initialized - reverts", async () => {
+    test('User token account is not initialized - reverts', async () => {
       // Calculate the ATA for earner one, but don't create it
       const nonInitATA = getAssociatedTokenAddressSync(
         mint.publicKey,
         earnerOne.publicKey,
         true,
         TOKEN_2022_PROGRAM_ID,
-        ASSOCIATED_TOKEN_PROGRAM_ID
+        ASSOCIATED_TOKEN_PROGRAM_ID,
       );
 
       // Get the inclusion proof for earner one in the earner merkle tree
@@ -1884,13 +1717,13 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "AccountNotInitialized"
+        'AccountNotInitialized',
       );
     });
 
     // given the earner account is already initialized
     // it reverts with an account already initialized error
-    test("Earner account already initialized - reverts", async () => {
+    test('Earner account already initialized - reverts', async () => {
       // Get the ATA for earner one
       const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
@@ -1909,11 +1742,11 @@ describe("Earn unit tests", () => {
           .addRegistrarEarner(earnerOne.publicKey, proof)
           .accounts({ ...accounts })
           .signers([nonAdmin])
-          .rpc()
+          .rpc(),
       );
     });
 
-    test("User token account has mutable owner - reverts", async () => {
+    test('User token account has mutable owner - reverts', async () => {
       const tokenAccountKeypair = Keypair.generate();
       const tokenAccountLen = getAccountLen([]);
       const lamports = await provider.connection.getMinimumBalanceForRentExemption(tokenAccountLen);
@@ -1935,18 +1768,13 @@ describe("Earn unit tests", () => {
         ),
       );
 
-      await provider.send(transaction, [nonAdmin, tokenAccountKeypair]);
+      await provider.send!(transaction, [nonAdmin, tokenAccountKeypair]);
 
       // Get the inclusion proof for the earner against the earner merkle tree
-      const { proof } = earnerMerkleTree.getInclusionProof(
-        earnerOne.publicKey
-      );
+      const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
-      prepAddRegistrarEarner(
-        nonAdmin,
-        tokenAccountKeypair.publicKey
-      );
+      prepAddRegistrarEarner(nonAdmin, tokenAccountKeypair.publicKey);
 
       await expectAnchorError(
         earn.methods
@@ -1954,19 +1782,16 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "MutableOwner"
+        'MutableOwner',
       );
     });
 
     // given all the accounts are valid
     // given the merkle proof for the user in the earner list is invalid
     // it reverts with an InvalidProof error
-    test("Invalid merkle proof for user inclusion - reverts", async () => {
+    test('Invalid merkle proof for user inclusion - reverts', async () => {
       // Get the ATA for non earner one
-      const nonEarnerOneATA = await getATA(
-        mint.publicKey,
-        nonEarnerOne.publicKey
-      );
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Get the inclusion proof for earner one in the earner merkle tree
       const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
@@ -1981,7 +1806,7 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "InvalidProof"
+        'InvalidProof',
       );
     });
 
@@ -1990,7 +1815,7 @@ describe("Earn unit tests", () => {
     // it creates the earner account
     // it sets the earner account's earn_manager to None
     // it sets the earner account's last_claim_index to the current index
-    test("Add registrar earner - success", async () => {
+    test('Add registrar earner - success', async () => {
       // Get the ATA for earner one
       const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
@@ -2019,7 +1844,7 @@ describe("Earn unit tests", () => {
     });
   });
 
-  describe("remove_registrar_earner unit tests", () => {
+  describe('remove_registrar_earner unit tests', () => {
     // test cases
     // [X] given the earner account is not initialized
     //   [X] it reverts with an account not initialized error
@@ -2033,68 +1858,46 @@ describe("Earn unit tests", () => {
 
     beforeEach(async () => {
       // Initialize the program
-      await initialize(
-        mint.publicKey,
-        earnAuthority.publicKey,
-        initialIndex,
-        claimCooldown
-      );
+      await initialize(mint.publicKey, earnAuthority.publicKey, initialIndex, claimCooldown);
 
       // Populate the earner merkle tree with the initial earners
-      earnerMerkleTree = new MerkleTree([
-        admin.publicKey,
-        earnerOne.publicKey,
-        earnerTwo.publicKey,
-      ]);
+      earnerMerkleTree = new MerkleTree([admin.publicKey, earnerOne.publicKey, earnerTwo.publicKey]);
 
       // Warp time forward past the initial cooldown period
       warp(claimCooldown, true);
 
       // Propagate a new index to start a new claim cycle and set the merkle roots
-      await propagateIndex(
-        new BN(1_100_000_000_000),
-        earnerMerkleTree.getRoot()
-      );
+      await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot());
 
       // Create an earner account for earner one
       const { proof } = earnerMerkleTree.getInclusionProof(earnerOne.publicKey);
       await addRegistrarEarner(earnerOne.publicKey, proof);
 
       // Create an earner account for earner two
-      const { proof: proofTwo } = earnerMerkleTree.getInclusionProof(
-        earnerTwo.publicKey
-      );
+      const { proof: proofTwo } = earnerMerkleTree.getInclusionProof(earnerTwo.publicKey);
       await addRegistrarEarner(earnerTwo.publicKey, proofTwo);
 
       // Remove earner one from the earner merkle tree
       earnerMerkleTree.removeLeaf(earnerOne.publicKey);
 
       // Update the earner merkle root on the global account
-      const { globalAccount } = await propagateIndex(
-        new BN(1_100_000_000_000),
-        earnerMerkleTree.getRoot()
-      );
+      const { globalAccount } = await propagateIndex(new BN(1_100_000_000_000), earnerMerkleTree.getRoot());
 
       // Confirm the global account is updated
       expectGlobalState(globalAccount, {
         index: new BN(1_100_000_000_000),
-        earnerMerkleRoot: earnerMerkleTree.getRoot()
+        earnerMerkleRoot: earnerMerkleTree.getRoot(),
       });
     });
 
     // given the earner account is not initialized
     // it reverts with an account not initialized error
-    test("Earner account is not initialized - reverts", async () => {
+    test('Earner account is not initialized - reverts', async () => {
       // Get the ATA for non earner one
-      const nonEarnerOneATA = await getATA(
-        mint.publicKey,
-        nonEarnerOne.publicKey
-      );
+      const nonEarnerOneATA = await getATA(mint.publicKey, nonEarnerOne.publicKey);
 
       // Get the exclusion proof for non earner one against the earner merkle tree
-      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(
-        nonEarnerOne.publicKey
-      );
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(nonEarnerOne.publicKey);
 
       // Setup the instruction
       prepRemoveRegistrarEarner(nonAdmin, nonEarnerOneATA);
@@ -2106,14 +1909,14 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "AccountNotInitialized"
+        'AccountNotInitialized',
       );
     });
 
     // given all the accounts are valid
     // given no proofs or neighbors are provided
     // it reverts with an InvalidProof error
-    test("Empty merkle proof for user exclusion - reverts", async () => {
+    test('Empty merkle proof for user exclusion - reverts', async () => {
       // Get the ATA for earner one
       const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
@@ -2127,21 +1930,19 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "InvalidProof"
+        'InvalidProof',
       );
     });
 
     // given all the accounts are valid
     // given the merkle proof for user's exclusion from the earner list is invalid
     // it reverts with an InvalidProof error
-    test("Invalid merkle proof for user exclusion - reverts", async () => {
+    test('Invalid merkle proof for user exclusion - reverts', async () => {
       // Get the ATA for earner two
       const earnerTwoATA = await getATA(mint.publicKey, earnerTwo.publicKey);
 
       // Get the exclusion proof for earner one against the earner merkle tree
-      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(
-        earnerOne.publicKey
-      );
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
       prepRemoveRegistrarEarner(nonAdmin, earnerTwoATA);
@@ -2153,27 +1954,22 @@ describe("Earn unit tests", () => {
           .accounts({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
-        "InvalidProof"
+        'InvalidProof',
       );
     });
 
     // given all the accounts are valid
     // given the merkle proof for user's exclusion from the earner list is valid
     // it closes the earner account and refunds the rent to the signer
-    test("Remove registrar earner - success", async () => {
+    test('Remove registrar earner - success', async () => {
       // Get the ATA for earner one
       const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
 
       // Get the exclusion proof for earner one against the earner merkle tree
-      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(
-        earnerOne.publicKey
-      );
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
 
       // Setup the instruction
-      const { earnerAccount } = prepRemoveRegistrarEarner(
-        nonAdmin,
-        earnerOneATA
-      );
+      const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
 
       // Remove earner one from the earn manager's list
       await earn.methods
@@ -2186,15 +1982,12 @@ describe("Earn unit tests", () => {
       expectAccountEmpty(earnerAccount);
     });
 
-    test("Remove registrar earner ownership transfered - success", async () => {
+    test('Remove registrar earner ownership transfered - success', async () => {
       // Get the ATA for earner two
       const earnerTwoATA = await getATA(mint.publicKey, earnerTwo.publicKey);
 
       // Setup the instruction
-      const { earnerAccount } = prepRemoveRegistrarEarner(
-        nonAdmin,
-        earnerTwoATA
-      );
+      const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerTwoATA);
 
       // Modify owner on token account
       const accountInfo = svm.getAccount(earnerTwoATA)!;
@@ -2202,17 +1995,10 @@ describe("Earn unit tests", () => {
       svm.setAccount(earnerTwoATA, accountInfo);
 
       // Token account
-      const account = await getAccount(
-        provider.connection,
-        earnerTwoATA,
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      );
+      const account = await getAccount(provider.connection, earnerTwoATA, undefined, TOKEN_2022_PROGRAM_ID);
 
       // Get the exclusion proof for earner two against the earner merkle tree
-      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(
-        account.owner
-      );
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(account.owner);
 
       // Remove earner one from the earn manager's list
       await earn.methods

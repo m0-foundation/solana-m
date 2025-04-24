@@ -3,6 +3,7 @@
 // external dependencies
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{mint_to, Mint, MintTo, Token2022, TokenAccount};
+use earn::instructions::claim_for::RewardsClaim;
 
 // local dependencies
 use crate::{
@@ -123,8 +124,8 @@ pub fn handler(ctx: Context<ClaimFor>, snapshot_balance: u64) -> Result<()> {
         &[ctx.accounts.global_account.ext_mint_authority_bump],
     ]];
 
-    // Calculate and send the earn manager fee if applicable
-    // Then, subtract from the earner's rewards
+    // Calculate the earn manager fee if applicable and subtract from the earner's rewards
+    // If the earn manager is not active, then no fee is taken
     let fee = handle_fee(&ctx, rewards, mint_authority_seeds)?;
 
     rewards -= fee;
@@ -196,14 +197,4 @@ fn handle_fee(
     mint_to(cpi_context, fee)?;
 
     Ok(fee)
-}
-
-#[event]
-pub struct RewardsClaim {
-    pub token_account: Pubkey,
-    pub recipient_token_account: Pubkey,
-    pub amount: u64,
-    pub fee: u64,
-    pub ts: u64,
-    pub index: u64,
 }
