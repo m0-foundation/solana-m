@@ -13,6 +13,8 @@ import * as multisig from '@sqds/multisig';
 import EarnAuthority from '../../sdk/src/earn_auth';
 import {
   DEVNET_GRAPH_ID,
+  ETH_MERKLE_TREE_BUILDER,
+  ETH_MERKLE_TREE_BUILDER_DEVNET,
   EXT_PROGRAM_ID,
   MAINNET_GRAPH_ID,
   PROGRAM_ID,
@@ -53,6 +55,7 @@ interface ParsedOptions {
   connection: Connection;
   builder: TransactionBuilder;
   evmClient: PublicClient;
+  merkleTreeAddress: `0x${string}`;
   graphClient: Graph;
   dryRun: boolean;
   skipCycle: boolean;
@@ -120,6 +123,7 @@ export async function yieldCLI() {
           connection,
           builder: new TransactionBuilder(connection),
           evmClient,
+          merkleTreeAddress: rpc.includes('devnet') ? ETH_MERKLE_TREE_BUILDER_DEVNET : ETH_MERKLE_TREE_BUILDER,
           graphClient: new Graph(graphKey, graphID),
           dryRun,
           skipCycle,
@@ -258,7 +262,7 @@ async function addEarners(opt: ParsedOptions) {
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
   const signer = opt.squadsPda ? opt.squadsVault! : opt.signer.publicKey;
-  const instructions = await registrar.buildMissingEarnersInstructions(signer);
+  const instructions = await registrar.buildMissingEarnersInstructions(signer, opt.merkleTreeAddress);
 
   if (instructions.length === 0) {
     logger.info('no earners to add');
@@ -277,7 +281,7 @@ async function removeEarners(opt: ParsedOptions) {
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
   const signer = opt.squadsPda ? opt.squadsVault! : opt.signer.publicKey;
-  const instructions = await registrar.buildRemovedEarnersInstructions(signer);
+  const instructions = await registrar.buildRemovedEarnersInstructions(signer, opt.merkleTreeAddress);
 
   if (instructions.length === 0) {
     logger.info('no earners to remove');
