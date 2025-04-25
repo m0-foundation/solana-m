@@ -56,6 +56,7 @@ interface ParsedOptions {
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
+  squadsVault?: PublicKey;
   claimThreshold: BN;
   programID: PublicKey;
   mint: 'M' | 'wM';
@@ -78,6 +79,11 @@ export async function yieldCLI() {
       'Propose transactions to squads vault instead of sending',
       '11111111111111111111111111111111',
     )
+    .option(
+      '-v, --squadsVault [pubkey]',
+      'Squads vault that will sign transactions',
+      '75VwgjdZLaesTXHG5tWHQWJS8DoANwZe4Yvzkwe2DanE',
+    )
     .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
     .option('-i, --stepInterval [number]', 'Wait interval for steps', '5000')
     .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
@@ -89,6 +95,7 @@ export async function yieldCLI() {
         dryRun,
         skipCycle,
         squadsPda,
+        squadsVault,
         programID,
         claimThreshold,
         graphKey,
@@ -132,6 +139,7 @@ export async function yieldCLI() {
 
         if (!squadsPDA.equals(PublicKey.default)) {
           options.squadsPda = squadsPDA;
+          options.squadsVault = new PublicKey(squadsVault);
           slackMessage.messages.push('Bot is in propose mode');
         }
 
@@ -246,7 +254,8 @@ async function addEarners(opt: ParsedOptions) {
   logger.info('adding earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
-  const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
+  const signer = opt.squadsPda ? opt.squadsVault! : opt.signer.publicKey;
+  const instructions = await registrar.buildMissingEarnersInstructions(signer);
 
   if (instructions.length === 0) {
     logger.info('no earners to add');
@@ -264,7 +273,8 @@ async function removeEarners(opt: ParsedOptions) {
   logger.info('removing earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
-  const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
+  const signer = opt.squadsPda ? opt.squadsVault! : opt.signer.publicKey;
+  const instructions = await registrar.buildRemovedEarnersInstructions(signer);
 
   if (instructions.length === 0) {
     logger.info('no earners to remove');
@@ -506,7 +516,7 @@ if (!process.argv[1].endsWith('jest')) {
       if (slackMessage.messages.length === 0) {
         slackMessage.messages.push('No actions taken');
       }
-      await lokiTransport.flush();
+      await lokiTransport?.flush();
       await sendSlackMessage(slackMessage);
       process.exit(0);
     });

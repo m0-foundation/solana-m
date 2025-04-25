@@ -13,7 +13,8 @@ export const EARN_ADDRESS_TABLE = new PublicKey('HtKQ9sHyMhun73asZsARkGCc1fDz2dQ
 
 // Ethereum contract addresses
 export const ETH_M_ADDRESS: `0x${string}` = '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b';
-export const ETH_MERKLE_TREE_BUILDER: `0x${string}` = '0x050258e4761650ad774b5090a5DA0e204348Eb48';
+export const ETH_MERKLE_TREE_BUILDER: `0x${string}` = '0xCab755D715f312AD946d6982b8778BFAD7E322d7';
+export const ETH_MERKLE_TREE_BUILDER_DEVNET: `0x${string}` = '0x050258e4761650ad774b5090a5DA0e204348Eb48';
 
 // Graph IDs
 export const MAINNET_GRAPH_ID = 'bgd3AFHw9bcSox1mfU39W9NbYUeSY53fr4kaVzmkPjC';
