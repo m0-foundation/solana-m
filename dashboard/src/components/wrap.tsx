@@ -70,7 +70,7 @@ export const Wrap = () => {
 
       toast.success(
         <div>
-          <div>Transaction successful!</div>
+          <div>{`Successfully ${activeTab}ped ${amount} tokens`}</div>
           <a href={txUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
             View on Solscan
           </a>
@@ -198,7 +198,7 @@ export const Wrap = () => {
           {isWrapping ? 'Wrapping converts M to wM for use with DeFi protocols' : 'Unwrapping converts wM back to M'}
         </div>
       </div>
-      <ToastContainer position="bottom-right" autoClose={5000} />
+      <ToastContainer position="bottom-right" autoClose={false} stacked={false} closeOnClick={false} />
     </div>
   );
 };

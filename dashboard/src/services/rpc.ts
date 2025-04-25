@@ -216,16 +216,21 @@ export const wrapOrUnwrap = async (
 
   const sig = await walletProvider.sendTransaction(tx, connection);
 
-  const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
+  try {
+    const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
 
-  await connection.confirmTransaction(
-    {
-      blockhash: blockhash,
-      lastValidBlockHeight: lastValidBlockHeight,
-      signature: sig,
-    },
-    'confirmed',
-  );
+    await connection.confirmTransaction(
+      {
+        blockhash: blockhash,
+        lastValidBlockHeight: lastValidBlockHeight,
+        signature: sig,
+      },
+      'confirmed',
+    );
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+    throw new Error(`Failed to confirm transaction: ${sig}. Error details: ${errorMessage}`);
+  }
 
   return sig;
 };
@@ -316,16 +321,22 @@ export const bridgeFromSolana = async (
     newTx.sign([outboxItem]);
 
     sig = await connection.sendTransaction(newTx);
-    const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
 
-    await connection.confirmTransaction(
-      {
-        blockhash: blockhash,
-        lastValidBlockHeight: lastValidBlockHeight,
-        signature: sig,
-      },
-      'confirmed',
-    );
+    try {
+      const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash();
+
+      await connection.confirmTransaction(
+        {
+          blockhash: blockhash,
+          lastValidBlockHeight: lastValidBlockHeight,
+          signature: sig,
+        },
+        'confirmed',
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      throw new Error(`Failed to confirm transaction: ${sig}. Error details: ${errorMessage}`);
+    }
   }
 
   return sig;

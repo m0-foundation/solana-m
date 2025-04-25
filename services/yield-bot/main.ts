@@ -17,6 +17,7 @@ import {
   MAINNET_GRAPH_ID,
   PROGRAM_ID,
   PublicClient,
+  TransactionBuilder,
   createPublicClient,
   http,
 } from '../../sdk/src';
@@ -25,7 +26,6 @@ import BN from 'bn.js';
 import { getProgram } from '../../sdk/src/idl';
 import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
-import { buildTransaction } from '../../sdk/src/transaction';
 import { sendSlackMessage, SlackMessage } from '../shared/slack';
 import { Graph } from '../../sdk/src/graph';
 import { logBlockchainBalance } from '../shared/balances';
@@ -51,11 +51,13 @@ let slackMessage: SlackMessage;
 interface ParsedOptions {
   signer: Keypair;
   connection: Connection;
+  builder: TransactionBuilder;
   evmClient: PublicClient;
   graphClient: Graph;
   dryRun: boolean;
   skipCycle: boolean;
   squadsPda?: PublicKey;
+  squadsVault?: PublicKey;
   claimThreshold: BN;
   programID: PublicKey;
   mint: 'M' | 'wM';
@@ -78,6 +80,11 @@ export async function yieldCLI() {
       'Propose transactions to squads vault instead of sending',
       '11111111111111111111111111111111',
     )
+    .option(
+      '-v, --squadsVault [pubkey]',
+      'Squads vault that will sign transactions',
+      '75VwgjdZLaesTXHG5tWHQWJS8DoANwZe4Yvzkwe2DanE',
+    )
     .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
     .option('-i, --stepInterval [number]', 'Wait interval for steps', '5000')
     .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
@@ -89,6 +96,7 @@ export async function yieldCLI() {
         dryRun,
         skipCycle,
         squadsPda,
+        squadsVault,
         programID,
         claimThreshold,
         graphKey,
@@ -105,10 +113,12 @@ export async function yieldCLI() {
 
         const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
         const graphID = rpc.includes('devnet') ? DEVNET_GRAPH_ID : MAINNET_GRAPH_ID;
+        const connection = new Connection(rpc, 'confirmed');
 
         const options: ParsedOptions = {
           signer,
-          connection: new Connection(rpc, 'processed'),
+          connection,
+          builder: new TransactionBuilder(connection),
           evmClient,
           graphClient: new Graph(graphKey, graphID),
           dryRun,
@@ -132,6 +142,7 @@ export async function yieldCLI() {
 
         if (!squadsPDA.equals(PublicKey.default)) {
           options.squadsPda = squadsPDA;
+          options.squadsVault = new PublicKey(squadsVault);
           slackMessage.messages.push('Bot is in propose mode');
         }
 
@@ -246,7 +257,8 @@ async function addEarners(opt: ParsedOptions) {
   logger.info('adding earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
-  const instructions = await registrar.buildMissingEarnersInstructions(opt.signer.publicKey);
+  const signer = opt.squadsPda ? opt.squadsVault! : opt.signer.publicKey;
+  const instructions = await registrar.buildMissingEarnersInstructions(signer);
 
   if (instructions.length === 0) {
     logger.info('no earners to add');
@@ -264,7 +276,8 @@ async function removeEarners(opt: ParsedOptions) {
   logger.info('removing earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
-  const instructions = await registrar.buildRemovedEarnersInstructions(opt.signer.publicKey);
+  const signer = opt.squadsPda ? opt.squadsVault! : opt.signer.publicKey;
+  const instructions = await registrar.buildRemovedEarnersInstructions(signer);
 
   if (instructions.length === 0) {
     logger.info('no earners to remove');
@@ -394,7 +407,7 @@ async function buildTransactions(
       continue;
     }
 
-    const tx = await buildTransaction(opt.connection, batchIxs, opt.signer.publicKey, priorityFee);
+    const tx = await opt.builder.buildTransaction(batchIxs, opt.signer.publicKey, priorityFee);
 
     tx.sign([opt.signer]);
     transactions.push(tx);
@@ -473,7 +486,7 @@ async function proposeSquadsTransaction(
     transactionIndex: newTransactionIndex,
   });
 
-  const tx = await buildTransaction(opt.connection, [ix1, ix2], opt.signer.publicKey, priorityFee);
+  const tx = await opt.builder.buildTransaction([ix1, ix2], opt.signer.publicKey, priorityFee);
   tx.sign([opt.signer]);
 
   return tx;
@@ -506,7 +519,7 @@ if (!process.argv[1].endsWith('jest')) {
       if (slackMessage.messages.length === 0) {
         slackMessage.messages.push('No actions taken');
       }
-      await lokiTransport.flush();
+      await lokiTransport?.flush();
       await sendSlackMessage(slackMessage);
       process.exit(0);
     });

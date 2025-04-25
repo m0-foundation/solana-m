@@ -575,9 +575,9 @@ async function main() {
   program
     .command('update-earn-lut')
     .description('Create or update the LUT for common addresses')
-    .option('-a, --address [pubkey]', 'Address of table to update', 'HtKQ9sHyMhun73asZsARkGCc1fDz2dQH7QhGfFJcQo7S')
+    .option('-a, --address [pubkey]', 'Address of table to update', 'Aq87DiRe8thyDfPhkpe92umFj9VU6bt8o9S9MTAhNC6c')
     .action(async ({ address }) => {
-      const [owner] = keysFromEnv(['OWNER_KEYPAIR']);
+      const [owner] = keysFromEnv(['PAYER_KEYPAIR']);
       const ixs = [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 250_000 })];
 
       // Get or create LUT
