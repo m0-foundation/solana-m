@@ -101,10 +101,10 @@ export class Graph {
     }
 
     const query = gql`
-      query getBalanceUpdates($tokenAccountId: Bytes!, $lowerTS: BigInt!, $upperTS: BigInt!) {
+      query getBalanceUpdates($tokenAccountId: Bytes!, $lowerTS: BigInt!) {
         tokenAccount(id: $tokenAccountId) {
           balance
-          transfers(where: { ts_gte: $lowerTS, ts_lt: $upperTS }, orderBy: ts, orderDirection: desc) {
+          transfers(where: { ts_gte: $lowerTS }, orderBy: ts, orderDirection: desc) {
             amount
             ts
           }
@@ -124,7 +124,6 @@ export class Graph {
     const data = await this.client.request<Data>(query, {
       tokenAccountId,
       lowerTS: lowerTS.toString(),
-      upperTS: upperTS.toString(),
     });
 
     if (!data.tokenAccount) {
@@ -140,30 +139,58 @@ export class Graph {
   }
 
   private static calculateTimeWeightedBalance(
-    balance: BN,
+    currentBalance: BN,
     lowerTS: BN,
     upperTS: BN,
     transfers: { ts: string; amount: string }[],
   ): BN {
-    if (upperTS.eq(lowerTS) || transfers.length === 0) {
-      return balance;
+    // determine balance at end of range
+    // assume the transfers are in descending order of timestamp (newest first)
+    // and that there are no transfers before lowerTS
+    // track the previous transfers timestamp to ensure correct ordering
+    let endBalance = currentBalance;
+    let count = 0;
+    let prevTS = new BN(Date.now() / 1000);
+    for (const transfer of transfers) {
+      const transferTS = new BN(transfer.ts);
+      if (transferTS.gt(prevTS)) {
+        throw new Error(`Invalid transfer order: ${transfer.ts}`);
+      }
+      if (upperTS.gt(transferTS)) {
+        break;
+      }
+      endBalance = endBalance.sub(new BN(transfer.amount));
+      prevTS = transferTS;
+      count++;
+    }
+    const rangeTransfers = transfers.slice(count);
+
+    // no transfers in range
+    if (upperTS.eq(lowerTS) || rangeTransfers.length === 0) {
+      return endBalance;
     }
 
     let weightedBalance = new BN(0);
-    let prevTS = upperTS;
+    let balance = endBalance;
+    prevTS = upperTS;
 
-    // use transfers to calculate the weighted balance
-    for (const transfer of transfers) {
-      if (upperTS.lt(new BN(transfer.ts))) {
+    // use transfers to calculate the weighted balance from the end balance
+    for (const transfer of rangeTransfers) {
+      const transferTS = new BN(transfer.ts);
+
+      if (transferTS.gt(prevTS)) {
+        throw new Error(`Invalid transfer order: ${transfer.ts}`);
+      }
+      if (upperTS.lt(transferTS)) {
         continue;
       }
-      if (lowerTS.gt(new BN(transfer.ts))) {
+      if (lowerTS.gt(transferTS)) {
         break;
       }
 
-      weightedBalance = weightedBalance.add(balance.mul(prevTS.sub(new BN(transfer.ts))));
+      weightedBalance = weightedBalance.add(balance.mul(prevTS.sub(transferTS)));
       balance = balance.sub(new BN(transfer.amount));
-      prevTS = new BN(transfer.ts);
+      prevTS = transferTS;
     }
 
     // calculate up to sinceTS

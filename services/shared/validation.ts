@@ -6,7 +6,7 @@ export async function validateSubgraph(authority: EarnAuthority, graph: Graph) {
   const subgraphIndex = await graph.getLatestIndex();
   const index = authority.latestIndex;
 
-  if (!subgraphIndex.index.eq(index)) {
+  if (subgraphIndex.index.lt(index)) {
     throw new Error(`Subgraph index is not up to date: ${subgraphIndex.index.toString()} vs ${index.toString()}`);
   }
 }

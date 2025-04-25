@@ -3,7 +3,7 @@ import { PublicClient } from 'viem';
 
 import { EvmCaller } from './evm_caller';
 import { Earner } from './earner';
-import { GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
+import { ETH_M_ADDRESS, ETH_MERKLE_TREE_BUILDER, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
 import { MerkleTree } from './merkle';
 import * as spl from '@solana/spl-token';
 import { Program } from '@coral-xyz/anchor';
@@ -36,9 +36,12 @@ export class Registrar {
     return this._mint;
   }
 
-  async buildMissingEarnersInstructions(signer: PublicKey): Promise<TransactionInstruction[]> {
+  async buildMissingEarnersInstructions(
+    signer: PublicKey,
+    merkleTreeAddress = ETH_MERKLE_TREE_BUILDER,
+  ): Promise<TransactionInstruction[]> {
     // get all earners that should be registered
-    const evmCaller = new EvmCaller(this.evmClient);
+    const evmCaller = new EvmCaller(this.evmClient, ETH_M_ADDRESS, merkleTreeAddress);
     const earners = await evmCaller.getEarners();
 
     const ixs: TransactionInstruction[] = [];
@@ -90,9 +93,12 @@ export class Registrar {
     return ixs;
   }
 
-  async buildRemovedEarnersInstructions(signer: PublicKey): Promise<TransactionInstruction[]> {
+  async buildRemovedEarnersInstructions(
+    signer: PublicKey,
+    merkleTreeAddress = ETH_MERKLE_TREE_BUILDER,
+  ): Promise<TransactionInstruction[]> {
     // get all earners on registrar
-    const evmCaller = new EvmCaller(this.evmClient);
+    const evmCaller = new EvmCaller(this.evmClient, ETH_M_ADDRESS, merkleTreeAddress);
     const earners = await evmCaller.getEarners();
 
     // get all eaners on the earn program
