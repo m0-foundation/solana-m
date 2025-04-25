@@ -41,7 +41,7 @@ export class TransactionBuilder {
     message.instructions.unshift(
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
       ComputeBudgetProgram.setComputeUnitLimit({
-        units: Math.floor((simulation.value.unitsConsumed ?? 200_000) * 1.1),
+        units: Math.floor((simulation.value.unitsConsumed || 300_000) * 1.1),
       }),
     );
 
