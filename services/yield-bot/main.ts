@@ -310,6 +310,7 @@ async function syncIndex(opt: ParsedOptions) {
   };
 
   if (extIndex.eq(index)) {
+    slackMessage.messages.push('index already synced');
     logger.info('index already synced', logsFields);
     return false;
   }
