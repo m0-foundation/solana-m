@@ -107,10 +107,27 @@ describe('Yield calculation tests', () => {
     ),
   });
 
+  const setTokenAccountBalance = (balance: bigint) => {
+    // encode the balance as a big-endian hex string
+    const balanceHex = balance.toString(16).padStart(16, '0').match(/../g)?.reverse().join('') ?? '000000000000000';
+
+    const data = Buffer.from(
+      `0b86be66d32bc5a4b5ab1febdf48e33b06c3b5a163b19c1730ed78705f7ef68c54592e90a3d0812d2ba6712e2c42888a30d3266e63608461091432d850ef8379${balanceHex}00000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002070000000f00010000`,
+      'hex',
+    );
+
+    svm.setAccount(new PublicKey('BXr9Y8RarW8GhZ43Ma1vfUgm5haJVy9x2XSea9aCFSya'), {
+      executable: false,
+      owner: TOKEN_2022_ID,
+      lamports: 2108880,
+      data,
+    });
+  };
+
   describe('calculations', () => {
     // create index updates
     const indexUpdates: { ts: bigint; index: bigint }[] = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 20; i++) {
       const ts = BigInt(i) * 10n;
       indexUpdates.push({
         ts,
@@ -128,8 +145,8 @@ describe('Yield calculation tests', () => {
         { ts: 95n, amount: 250000000n },
       ],
       startingBalance: 1000000000n,
-      expectedReward: new BN(2879439),
-      expectedTolerance: new BN(2),
+      expectedReward: new BN(24968184),
+      expectedTolerance: new BN(20),
     };
 
     // each test is an array of indexes where claims are made
@@ -147,7 +164,7 @@ describe('Yield calculation tests', () => {
       [1, 3, 5, 7, 9, 11, 13, 15, 17, 18],
       [1, 3, 5, 15, 18],
       [1, 4, 6, 15, 18],
-      [7, 11, 14],
+      [7, 11, 14, 18],
       [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18],
       [0, 15, 18],
     ];
@@ -183,11 +200,12 @@ describe('Yield calculation tests', () => {
           const lastClaimTs = testConfig.indexUpdates[lastClaim].ts;
 
           // set balance updates on mocked subgraph for this iteration
-          const startingBalance = balanceUpdates
-            .filter((b) => b.ts <= lastClaimTs)
-            .reduce((a, b) => a + b.amount, testConfig.startingBalance);
-          const filteredUpdates = balanceUpdates.filter((b) => b.ts > lastClaimTs && b.ts < update.ts);
-          mockSubgraphBalances(startingBalance, filteredUpdates);
+          const currentBalance = balanceUpdates
+            .filter((b) => b.ts <= update.ts)
+            .reduce((acc, b) => acc + b.amount, testConfig.startingBalance);
+          setTokenAccountBalance(currentBalance);
+          const filteredUpdates = balanceUpdates.filter((b) => b.ts >= lastClaimTs && b.ts <= update.ts);
+          mockSubgraphBalances(currentBalance, filteredUpdates);
 
           // set index updates on mocked subgraph
           mockSubgraphIndexUpdates(testConfig.indexUpdates.slice(lastClaim, j + 2));
@@ -244,18 +262,12 @@ describe('Yield calculation tests', () => {
 });
 
 function mockSubgraphBalances(
-  startingBalance: bigint,
+  currentBalance: bigint,
   balanceUpdates: {
     ts: bigint;
     amount: bigint;
   }[],
 ) {
-  // work backwards to get final balance
-  let balance = startingBalance;
-  for (const update of balanceUpdates) {
-    balance += update.amount;
-  }
-
   nock(GRAPH_URL)
     .post('', (body) => body.operationName === 'getBalanceUpdates')
     .reply(200, (_: any, requestBody: { variables: { lowerTS: string } }) => {
@@ -264,12 +276,10 @@ function mockSubgraphBalances(
       return {
         data: {
           tokenAccount: {
-            balance: balanceUpdates
-              .filter((u) => u.ts < lowerTS)
-              .reduce((a, b) => a + b.amount, startingBalance)
-              .toString(),
+            balance: currentBalance.toString(),
             transfers: balanceUpdates
               .filter((u) => u.ts >= lowerTS)
+              .sort((a, b) => (a.ts > b.ts ? -1 : 1))
               .map((update) => ({
                 amount: update.amount.toString(),
                 ts: update.ts.toString(),
