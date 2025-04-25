@@ -258,9 +258,8 @@ function mockSubgraphBalances(
 
   nock(GRAPH_URL)
     .post('', (body) => body.operationName === 'getBalanceUpdates')
-    .reply(200, (_: any, requestBody: { variables: { lowerTS: string; upperTS: string } }) => {
+    .reply(200, (_: any, requestBody: { variables: { lowerTS: string } }) => {
       const lowerTS = BigInt(requestBody.variables.lowerTS);
-      const upperTS = BigInt(requestBody.variables.upperTS);
 
       return {
         data: {
@@ -270,7 +269,7 @@ function mockSubgraphBalances(
               .reduce((a, b) => a + b.amount, startingBalance)
               .toString(),
             transfers: balanceUpdates
-              .filter((u) => u.ts >= lowerTS && u.ts < upperTS)
+              .filter((u) => u.ts >= lowerTS)
               .map((update) => ({
                 amount: update.amount.toString(),
                 ts: update.ts.toString(),
