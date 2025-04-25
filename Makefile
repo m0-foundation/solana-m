@@ -178,7 +178,7 @@ DEVNET_TARGET_VERSION := v0.0.2
 MAINNET_TARGET_VERSION := v0.0.4
 
 define deploy-subgraph
-	@cd substreams && \
+	@cd substreams/graph && \
 	sed -i '' 's/initialBlock: [0-9]*/initialBlock: $(2)/' substreams.yaml && \
 	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' substreams.yaml && \
 	substreams build && \

@@ -9,7 +9,7 @@ devnet-keypair.json
 .substreams.env
 *.spkg
 *.log
-substreams/subgraph/build
+substreams/graph/subgraph/build
 dist
 services/**/*.js
 .npmrc
