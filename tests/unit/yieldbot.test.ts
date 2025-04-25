@@ -1,6 +1,7 @@
 import { Keypair, PublicKey } from '@solana/web3.js';
 import nock from 'nock';
 import { yieldCLI } from '../../services/yield-bot/main';
+import { EARN_ADDRESS_TABLE_DEVNET, EARN_ADDRESS_TABLE } from '../../sdk/src';
 
 const SVM_RPC = 'https://api.devnet.solana.com';
 const EVM_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
@@ -151,7 +152,8 @@ function mockRequestData(earner: PublicKey) {
     ],
     [
       (body: any) =>
-        body.method === 'getAccountInfo' && body.params?.[0] === 'HtKQ9sHyMhun73asZsARkGCc1fDz2dQH7QhGfFJcQo7S', // LUT
+        body.method === 'getAccountInfo' &&
+        [EARN_ADDRESS_TABLE.toBase58(), EARN_ADDRESS_TABLE_DEVNET.toBase58()].includes(body.params?.[0]), // LUTs
       {
         context,
         value: {

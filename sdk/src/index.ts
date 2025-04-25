@@ -9,7 +9,8 @@ export const EXT_MINT = new PublicKey('mzeroXDoBpRVhnEXBra27qzAMdxgpWVY3DzQW7xMV
 export const MINT_MULTISIG = new PublicKey('ms2SCrTYioPuumF6oBvReXoVRizEW5qYkiVuUEak7Th');
 export const GLOBAL_ACCOUNT = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID)[0];
 export const EXT_GLOBAL_ACCOUNT = PublicKey.findProgramAddressSync([Buffer.from('global')], EXT_PROGRAM_ID)[0];
-export const EARN_ADDRESS_TABLE = new PublicKey('HtKQ9sHyMhun73asZsARkGCc1fDz2dQH7QhGfFJcQo7S');
+export const EARN_ADDRESS_TABLE = new PublicKey('Aq87DiRe8thyDfPhkpe92umFj9VU6bt8o9S9MTAhNC6c');
+export const EARN_ADDRESS_TABLE_DEVNET = new PublicKey('HtKQ9sHyMhun73asZsARkGCc1fDz2dQH7QhGfFJcQo7S');
 
 // Ethereum contract addresses
 export const ETH_M_ADDRESS: `0x${string}` = '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b';
