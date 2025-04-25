@@ -144,37 +144,53 @@ export class Graph {
     upperTS: BN,
     transfers: { ts: string; amount: string }[],
   ): BN {
-    // determine starting balance at start of range
-    let balance = currentBalance;
-    let rangeTransfers = transfers;
+    // determine balance at end of range
+    // assume the transfers are in descending order of timestamp (newest first)
+    // and that there are no transfers before lowerTS
+    // track the previous transfers timestamp to ensure correct ordering
+    let endBalance = currentBalance;
+    let count = 0;
+    let prevTS = new BN(Date.now() / 1000);
     for (const transfer of transfers) {
-      if (upperTS.gt(new BN(transfer.ts))) {
+      const transferTS = new BN(transfer.ts);
+      if (transferTS.gt(prevTS)) {
+        throw new Error(`Invalid transfer order: ${transfer.ts}`);
+      }
+      if (upperTS.gt(transferTS)) {
         break;
       }
-      balance = balance.sub(new BN(transfer.amount));
-      rangeTransfers = rangeTransfers.slice(1);
+      endBalance = endBalance.sub(new BN(transfer.amount));
+      prevTS = transferTS;
+      count++;
     }
+    const rangeTransfers = transfers.slice(count);
 
     // no transfers in range
     if (upperTS.eq(lowerTS) || rangeTransfers.length === 0) {
-      return balance;
+      return endBalance;
     }
 
     let weightedBalance = new BN(0);
-    let prevTS = upperTS;
+    let balance = endBalance;
+    prevTS = upperTS;
 
-    // use transfers to calculate the weighted balance
+    // use transfers to calculate the weighted balance from the end balance
     for (const transfer of rangeTransfers) {
-      if (upperTS.lt(new BN(transfer.ts))) {
+      const transferTS = new BN(transfer.ts);
+
+      if (transferTS.gt(prevTS)) {
+        throw new Error(`Invalid transfer order: ${transfer.ts}`);
+      }
+      if (upperTS.lt(transferTS)) {
         continue;
       }
-      if (lowerTS.gt(new BN(transfer.ts))) {
+      if (lowerTS.gt(transferTS)) {
         break;
       }
 
-      weightedBalance = weightedBalance.add(balance.mul(prevTS.sub(new BN(transfer.ts))));
+      weightedBalance = weightedBalance.add(balance.mul(prevTS.sub(transferTS)));
       balance = balance.sub(new BN(transfer.amount));
-      prevTS = new BN(transfer.ts);
+      prevTS = transferTS;
     }
 
     // calculate up to sinceTS
