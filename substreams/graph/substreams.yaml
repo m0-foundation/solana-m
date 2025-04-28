@@ -29,12 +29,12 @@ modules:
     use: solana:map_block_with_filtered_transactions
     initialBlock: 335213628
 
-  - name: map_transfer_events
+  - name: map_transfer_events_to_db
     kind: map
     inputs:
       - map: map_filtered_transactions
     output:
-      type: proto:transfers.v1.TokenTransactions
+      type: proto:database.v1.DatabaseChanges
 
 network: solana-mainnet-beta
 

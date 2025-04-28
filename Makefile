@@ -177,26 +177,34 @@ MAINNET_STARTING_BLOCK := 335213628
 DEVNET_TARGET_VERSION := v0.0.2 
 MAINNET_TARGET_VERSION := v0.0.4
 
-define deploy-subgraph
+define build-substream
 	@cd substreams/graph && \
 	sed -i '' 's/initialBlock: [0-9]*/initialBlock: $(2)/' substreams.yaml && \
 	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' substreams.yaml && \
-	substreams build && \
-	cd subgraph && \
+	sed -i '' 's/type: proto:.*/type: proto:$(3)/' substreams.yaml && \
+	sed -i '' 's/name: map_transfer_events.*/name: $(4)/' substreams.yaml && \
+	substreams build
+endef
+
+define deploy-subgraph
+	@cd substreams/graph/subgraph && \
 	sed -i '' 's/network: solana[-a-z]*/network: $(1)/' subgraph.yaml && \
 	npm run generate && npm run build && \
-	graph deploy $(3) --version-label $(4)
+	graph deploy $(2) --version-label $(3)
 endef
 
 deploy-subgraph-mainnet:
-	$(call deploy-subgraph,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),solana-m,$(MAINNET_TARGET_VERSION))
+	$(call build-substream,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),transfers.v1.TokenTransactions,map_transfer_events)
+	$(call deploy-subgraph,solana-mainnet-beta,solana-m,$(MAINNET_TARGET_VERSION))
 
 deploy-subgraph-devnet:
-	$(call deploy-subgraph,solana-devnet,$(DEVNET_STARTING_BLOCK),solana-m-devnet,$(DEVNET_TARGET_VERSION))
-
+	$(call build-substream,solana-devnet,$(DEVNET_STARTING_BLOCK),transfers.v1.TokenTransactions,map_transfer_events)
+	$(call deploy-subgraph,solana-devnet,solana-m-devnet,$(DEVNET_TARGET_VERSION))
 
 deploy-substream-mongo:
-	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:substream-mongo -f substreams/db/Dockerfile .
+	$(call build-substream,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),database.v1.DatabaseChanges,map_transfer_events_to_db)
+	cp -f substreams/graph/m-token-transactions-v0.1.0.spkg substreams/db/m-token-transactions.spkg
+	# docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:substream-mongo -f substreams/db/Dockerfile .
 
 
 #
