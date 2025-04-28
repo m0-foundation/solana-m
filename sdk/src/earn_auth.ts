@@ -197,7 +197,7 @@ export class EarnAuthority {
           extMintAuthority: this.mintAuth,
           mVaultAccount,
           vaultMTokenAccount,
-          userTokenAccount: earner.data.userTokenAccount,
+          userTokenAccount: earner.data.recipientTokenAccount ?? earner.data.userTokenAccount,
           earnerAccount,
           earnManagerAccount,
           earnManagerTokenAccount,
