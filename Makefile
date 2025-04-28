@@ -194,6 +194,11 @@ deploy-subgraph-mainnet:
 deploy-subgraph-devnet:
 	$(call deploy-subgraph,solana-devnet,$(DEVNET_STARTING_BLOCK),solana-m-devnet,$(DEVNET_TARGET_VERSION))
 
+
+deploy-substream-mongo:
+	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:substream-mongo -f substreams/db/Dockerfile .
+
+
 #
 # SDK
 #

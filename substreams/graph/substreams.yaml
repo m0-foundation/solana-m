@@ -9,6 +9,7 @@ imports:
 protobuf:
   files:
     - transfers.proto
+    - database.proto
   importPaths:
     - ./proto
   excludePaths:
@@ -21,7 +22,7 @@ protobuf:
 binaries:
   default:
     type: wasm/rust-v1+wasm-bindgen-shims
-    file: ../target/wasm32-unknown-unknown/release/substreams.wasm
+    file: ../../target/wasm32-unknown-unknown/release/substreams.wasm
 
 modules:
   - name: map_filtered_transactions

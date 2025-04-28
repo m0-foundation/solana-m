@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package database.v1;
+
+message DatabaseChanges {
+  repeated TableChange table_changes = 1;
+}
+
+message TableChange {
+  string table = 1;
+  oneof primary_key {
+    string pk = 2;
+    CompositePrimaryKey composite_pk = 6;
+  }
+  uint64 ordinal = 3;
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    OPERATION_CREATE = 1;
+    OPERATION_UPDATE = 2;
+    OPERATION_DELETE = 3;
+  }
+  Operation operation = 4;
+  repeated Field fields = 5;
+}
+
+message CompositePrimaryKey {
+  map<string, string> keys = 1;
+}
+
+message Field {
+  string name = 1;
+  string new_value = 2;
+  string old_value = 3;
+}

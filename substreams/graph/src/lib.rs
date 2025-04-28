@@ -1,5 +1,11 @@
 use consts::{MINTS, SYSTEM_PROGRAMS};
-use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
+use pb::{
+    database::v1::{
+        table_change::{Operation, PrimaryKey},
+        DatabaseChanges, Field, TableChange,
+    },
+    transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions},
+};
 use substreams_solana::pb::sf::solana::r#type::v1::Block;
 use substreams_solana_utils::{
     instruction::{self, StructuredInstructions},
@@ -84,4 +90,41 @@ fn map_transfer_events(block: Block) -> TokenTransactions {
     }
 
     events
+}
+
+#[substreams::handlers::map]
+fn map_transfer_events_to_db(block: Block) -> DatabaseChanges {
+    let mut db_changes = DatabaseChanges {
+        table_changes: vec![],
+    };
+
+    for (i, t) in block.transactions.into_iter().enumerate() {
+        let context = match transaction::get_context(&t) {
+            Ok(context) => context,
+            Err(_) => continue,
+        };
+
+        let change = TableChange {
+            table: "transaction".to_owned(),
+            ordinal: i as u64,
+            operation: Operation::Create.into(),
+            primary_key: Some(PrimaryKey::Pk(context.signature.to_string())),
+            fields: vec![
+                Field {
+                    name: "blockhash".to_owned(),
+                    old_value: "".to_owned(),
+                    new_value: block.blockhash.to_string(),
+                },
+                Field {
+                    name: "slot".to_owned(),
+                    old_value: "".to_owned(),
+                    new_value: block.slot.to_string(),
+                },
+            ],
+        };
+
+        db_changes.table_changes.push(change);
+    }
+
+    db_changes
 }
