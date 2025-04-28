@@ -345,8 +345,8 @@ async function buildAndSendTransaction(
       });
 
       if (retry) {
-        logger.info('retrying transaction');
-        return buildAndSendTransaction(opt, ixs, batchSize, memo, false);
+        logger.info('retrying transaction after a brief delay');
+        await sleep(1000); // 1-second delay before retrying
       }
 
       throw new Error(`Transaction simulation failed: ${result.value.logs}`);
