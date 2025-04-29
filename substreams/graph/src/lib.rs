@@ -1,15 +1,11 @@
 use base64::prelude::*;
 use consts::{MINTS, SYSTEM_PROGRAMS};
 use pb::{
-    database::v1::{
-        table_change::{Operation, PrimaryKey},
-        CompositePrimaryKey, DatabaseChanges, Field, TableChange,
-    },
+    database::v1::{table_change::Operation, DatabaseChanges, Field, TableChange},
     transfers::v1::{
         instruction::Update, Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions,
     },
 };
-use std::collections::HashMap;
 use substreams_solana::pb::sf::solana::r#type::v1::Block;
 use substreams_solana_utils::{
     instruction::{self, StructuredInstructions},
@@ -109,10 +105,10 @@ fn map_transfer_events_to_db(block: Block) -> DatabaseChanges {
         };
 
         let mut transaction = TableChange {
-            table: "transaction".to_owned(),
+            table: "transactions".to_owned(),
             ordinal: i as u64,
             operation: Operation::Create.into(),
-            primary_key: Some(PrimaryKey::Pk(context.signature.to_string())),
+            pk: context.signature.to_string(),
             fields: vec![
                 Field {
                     name: "blockhash".to_owned(),
@@ -158,15 +154,14 @@ fn map_transfer_events_to_db(block: Block) -> DatabaseChanges {
             let post_balance = token_account.post_balance.unwrap_or(0);
 
             let balance_update = TableChange {
-                table: "balance_update".to_owned(),
+                table: "balance_updates".to_owned(),
                 ordinal: i as u64,
                 operation: Operation::Create.into(),
-                primary_key: Some(PrimaryKey::CompositePk(CompositePrimaryKey {
-                    keys: HashMap::from([
-                        ("pubkey".to_owned(), token_account.address.to_string()),
-                        ("signature".to_owned(), context.signature.clone()),
-                    ]),
-                })),
+                pk: format!(
+                    "pubkey::{}-signature::{}",
+                    token_account.address.to_string(),
+                    context.signature.to_string()
+                ),
                 fields: vec![
                     new_field("pubkey", token_account.address.to_string()),
                     new_field("mint", token_account.mint.to_string()),
@@ -197,10 +192,14 @@ fn map_transfer_events_to_db(block: Block) -> DatabaseChanges {
             let ix_name = parse_logs_for_instruction_name(ix.logs().as_ref()).unwrap_or_default();
 
             let mut event = TableChange {
-                table: "event".to_owned(),
+                table: "events".to_owned(),
                 ordinal: ix_idx as u64,
                 operation: Operation::Create.into(),
-                primary_key: None,
+                pk: format!(
+                    "instruction::{}-signature::{}",
+                    ix_idx,
+                    context.signature.to_string()
+                ),
                 fields: vec![
                     new_field("program_id", pid.to_string()),
                     new_field("instruction", ix_name),
@@ -216,14 +215,7 @@ fn map_transfer_events_to_db(block: Block) -> DatabaseChanges {
 
             match log_event {
                 Update::BridgeEvent(bridge) => {
-                    // use event type in composite key
-                    event.primary_key = Some(PrimaryKey::CompositePk(CompositePrimaryKey {
-                        keys: HashMap::from([
-                            ("signature".to_owned(), context.signature.clone()),
-                            ("event".to_owned(), "bridge".to_owned()),
-                            ("index".to_owned(), ix_idx.to_string()),
-                        ]),
-                    }));
+                    event.pk = format!("{}-bridge", event.pk);
 
                     event.fields.extend(vec![
                         new_field("event", "bridge"),
@@ -235,14 +227,7 @@ fn map_transfer_events_to_db(block: Block) -> DatabaseChanges {
                     ]);
                 }
                 Update::IndexUpdate(update) => {
-                    // use event type in composite key
-                    event.primary_key = Some(PrimaryKey::CompositePk(CompositePrimaryKey {
-                        keys: HashMap::from([
-                            ("signature".to_owned(), context.signature.clone()),
-                            ("event".to_owned(), "index_update".to_owned()),
-                            ("index".to_owned(), ix_idx.to_string()),
-                        ]),
-                    }));
+                    event.pk = format!("{}-index_update", event.pk);
 
                     event.fields.extend(vec![
                         new_field("event", "index_update"),
@@ -253,14 +238,7 @@ fn map_transfer_events_to_db(block: Block) -> DatabaseChanges {
                     ]);
                 }
                 Update::Claim(claim) => {
-                    // use event type in composite key
-                    event.primary_key = Some(PrimaryKey::CompositePk(CompositePrimaryKey {
-                        keys: HashMap::from([
-                            ("signature".to_owned(), context.signature.clone()),
-                            ("event".to_owned(), "claim".to_owned()),
-                            ("index".to_owned(), ix_idx.to_string()),
-                        ]),
-                    }));
+                    event.pk = format!("{}-claim", event.pk);
 
                     event.fields.extend(vec![
                         new_field("event", "claim"),

@@ -11,14 +11,14 @@ pub struct DatabaseChanges {
 pub struct TableChange {
     #[prost(string, tag="1")]
     pub table: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub pk: ::prost::alloc::string::String,
     #[prost(uint64, tag="3")]
     pub ordinal: u64,
     #[prost(enumeration="table_change::Operation", tag="4")]
     pub operation: i32,
     #[prost(message, repeated, tag="5")]
     pub fields: ::prost::alloc::vec::Vec<Field>,
-    #[prost(oneof="table_change::PrimaryKey", tags="2, 6")]
-    pub primary_key: ::core::option::Option<table_change::PrimaryKey>,
 }
 /// Nested message and enum types in `TableChange`.
 pub mod table_change {
@@ -54,20 +54,6 @@ pub mod table_change {
             }
         }
     }
-    #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum PrimaryKey {
-        #[prost(string, tag="2")]
-        Pk(::prost::alloc::string::String),
-        #[prost(message, tag="6")]
-        CompositePk(super::CompositePrimaryKey),
-    }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CompositePrimaryKey {
-    #[prost(map="string, string", tag="1")]
-    pub keys: ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
