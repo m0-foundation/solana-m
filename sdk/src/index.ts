@@ -32,3 +32,10 @@ export { Graph } from './graph';
 export { Registrar } from './registrar';
 export * from './logger';
 export * from './transaction';
+
+// Helpers, Anchor IDL and Type Exports for testing programs that CPI into the Solana M programs
+export { MerkleTree, ProofElement } from './merkle';
+export { Earn } from './idl/earn';
+export const EARN_IDL = require('./idl/earn.json');
+export { ExtEarn } from './idl/ext_earn';
+export const EXT_EARN_IDL = require('./idl/ext_earn.json');
