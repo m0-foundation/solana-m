@@ -202,9 +202,9 @@ deploy-subgraph-devnet:
 	$(call deploy-subgraph,solana-devnet,solana-m-devnet,$(DEVNET_TARGET_VERSION))
 
 deploy-substream-mongo:
-	$(call build-substream,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),database.v1.DatabaseChanges,map_transfer_events_to_db)
+	$(call build-substream,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),sf.substreams.sink.database.v1.DatabaseChanges,map_transfer_events_to_db)
 	cp -f substreams/graph/m-token-transactions-v0.1.0.spkg substreams/db/m-token-transactions.spkg
-	# docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:substream-mongo -f substreams/db/Dockerfile .
+	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:substream-mongo -f substreams/db/Dockerfile .
 
 
 #

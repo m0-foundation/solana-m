@@ -1,9 +1,15 @@
 // @generated
-pub mod database {
-    // @@protoc_insertion_point(attribute:database.v1)
-    pub mod v1 {
-        include!("database.v1.rs");
-        // @@protoc_insertion_point(database.v1)
+pub mod sf {
+    pub mod substreams {
+        pub mod sink {
+            pub mod database {
+                // @@protoc_insertion_point(attribute:sf.substreams.sink.database.v1)
+                pub mod v1 {
+                    include!("sf.substreams.sink.database.v1.rs");
+                    // @@protoc_insertion_point(sf.substreams.sink.database.v1)
+                }
+            }
+        }
     }
 }
 pub mod transfers {

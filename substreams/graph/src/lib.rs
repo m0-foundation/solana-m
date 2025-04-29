@@ -1,6 +1,6 @@
 use consts::{MINTS, SYSTEM_PROGRAMS};
 use pb::{
-    database::v1::{
+    sf::substreams::sink::database::v1::{
         table_change::{Operation, PrimaryKey},
         DatabaseChanges, Field, TableChange,
     },
