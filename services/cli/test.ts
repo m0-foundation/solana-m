@@ -64,7 +64,7 @@ async function main() {
 
       const sig = await program.methods
         .wrap(amount)
-        .accounts({
+        .accountsPartial({
           signer: sender.publicKey,
           mMint: m.publicKey,
           extMint: wM.publicKey,
@@ -206,7 +206,7 @@ async function main() {
         ixs.push(
           await program.methods
             .addEarner(user.publicKey)
-            .accounts({
+            .accountsPartial({
               globalAccount: EXT_GLOBAL_ACCOUNT,
               earnManagerAccount,
               userTokenAccount: associatedToken,

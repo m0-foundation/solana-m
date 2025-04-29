@@ -141,7 +141,7 @@ async function main() {
 
       const txn = await extEarn.methods
         .wrap(new BN(amount))
-        .accounts({
+        .accountsPartial({
           signer: new PublicKey(fbAddress ?? ''),
           mMint: mMint.publicKey,
           extMint: wmMint.publicKey,
@@ -181,7 +181,7 @@ async function main() {
 
       const txn = await extEarn.methods
         .unwrap(new BN(amount))
-        .accounts({
+        .accountsPartial({
           signer: new PublicKey(fbAddress ?? ''),
           mMint: mMint.publicKey,
           extMint: wmMint.publicKey,

@@ -80,7 +80,7 @@ export class Registrar {
       ixs.push(
         await this.program.methods
           .addRegistrarEarner(user, proof)
-          .accounts({
+          .accountsPartial({
             signer: signer,
             globalAccount: GLOBAL_ACCOUNT,
             userTokenAccount,
@@ -122,7 +122,7 @@ export class Registrar {
       ixs.push(
         await this.program.methods
           .removeRegistrarEarner(proofs, neighbors)
-          .accounts({
+          .accountsPartial({
             signer: signer,
             globalAccount: GLOBAL_ACCOUNT,
             earnerAccount: earner.pubkey,

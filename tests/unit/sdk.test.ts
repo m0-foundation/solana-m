@@ -52,8 +52,8 @@ describe('SDK unit tests', () => {
   const provider = new AnchorProvider(connection, new Wallet(signer), { commitment: 'processed' });
 
   // anchor client for setting up the programs
-  const earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM, provider);
-  const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, EXT_PROGRAM_ID, provider);
+  const earn = new Program<Earn>(EARN_IDL, provider);
+  const extEarn = new Program<ExtEarn>(EXT_EARN_IDL, provider);
 
   const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], earn.programId);
   const [extGlobalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], extEarn.programId);
@@ -221,9 +221,9 @@ describe('SDK unit tests', () => {
     // intialize the programs
     await earn.methods
       .initialize(signer.publicKey, new BN(1_000_000_000_000), new BN(0))
-      .accounts({
+      .accountsPartial({
         mint: mints[0].publicKey,
-        globalAccount,
+        globalAccount: globalAccount,
         admin: signer.publicKey,
       })
       .signers([signer])
@@ -231,7 +231,7 @@ describe('SDK unit tests', () => {
 
     await extEarn.methods
       .initialize(signer.publicKey)
-      .accounts({
+      .accountsPartial({
         globalAccount: extGlobalAccount,
         admin: signer.publicKey,
         mMint: mints[0].publicKey,
@@ -247,9 +247,9 @@ describe('SDK unit tests', () => {
 
     await earn.methods
       .propagateIndex(new BN(1_000_000_000_000), earnerMerkleTree.getRoot())
-      .accounts({
+      .accountsPartial({
         signer: signer.publicKey,
-        globalAccount,
+        globalAccount: globalAccount,
         mint: mints[0].publicKey,
       })
       .signers([signer])
@@ -266,10 +266,16 @@ describe('SDK unit tests', () => {
 
     // add earner from root
     await earn.methods
-      .addRegistrarEarner(earnerA.publicKey, earnerMerkleTree.getInclusionProof(earnerA.publicKey).proof)
-      .accounts({
+      .addRegistrarEarner(
+        earnerA.publicKey,
+        earnerMerkleTree.getInclusionProof(earnerA.publicKey).proof as unknown as {
+          node: number[];
+          onRight: boolean;
+        }[],
+      )
+      .accountsPartial({
         signer: signer.publicKey,
-        globalAccount,
+        globalAccount: globalAccount,
         earnerAccount: earnerAccountA,
         userTokenAccount: mintATAs[0][0],
       })
@@ -283,30 +289,30 @@ describe('SDK unit tests', () => {
 
     await extEarn.methods
       .addEarnManager(signer.publicKey, new BN(10))
-      .accounts({
+      .accountsPartial({
         admin: signer.publicKey,
         globalAccount: extGlobalAccount,
-        earnManagerAccount,
+        earnManagerAccount: earnManagerAccount,
         feeTokenAccount: mintATAs[1][0],
       })
       .rpc();
 
     await extEarn.methods
       .addEarner(earnerB.publicKey)
-      .accounts({
+      .accountsPartial({
         signer: signer.publicKey,
         globalAccount: extGlobalAccount,
         earnerAccount: earnerAccountB,
         userTokenAccount: mintATAs[1][1],
-        earnManagerAccount,
+        earnManagerAccount: earnManagerAccount,
       })
       .rpc();
 
     await earn.methods
       .propagateIndex(new BN(1_010_000_000_000), earnerMerkleTree.getRoot())
-      .accounts({
+      .accountsPartial({
         signer: signer.publicKey,
-        globalAccount,
+        globalAccount: globalAccount,
         mint: mints[0].publicKey,
       })
       .signers([signer])
@@ -314,7 +320,7 @@ describe('SDK unit tests', () => {
 
     await extEarn.methods
       .sync()
-      .accounts({
+      .accountsPartial({
         globalAccount: extGlobalAccount,
         mEarnGlobalAccount: globalAccount,
         earnAuthority: signer.publicKey,

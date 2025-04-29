@@ -72,7 +72,7 @@ export class EarnManager {
 
     return this.program.methods
       .configureEarnManager(new BN(feeBPS))
-      .accounts({
+      .accountsPartial({
         signer: this.manager,
         globalAccount: EXT_GLOBAL_ACCOUNT,
         earnManagerAccount,
@@ -117,7 +117,7 @@ export class EarnManager {
     ixs.push(
       await this.program.methods
         .addEarner(user)
-        .accounts({
+        .accountsPartial({
           signer: this.manager,
           globalAccount: EXT_GLOBAL_ACCOUNT,
           earnManagerAccount,

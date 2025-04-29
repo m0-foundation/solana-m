@@ -9,13 +9,13 @@ const EXT_EARN_IDL = require('./ext_earn.json');
 export function getProgram(connection: Connection): Program<Earn> {
   const dummyKeypair = Keypair.generate();
   const provider = new AnchorProvider(connection, new DummyWallet(), { commitment: connection.commitment });
-  return new Program<Earn>(EARN_IDL, PROGRAM_ID, provider);
+  return new Program<Earn>(EARN_IDL, provider);
 }
 
 export function getExtProgram(connection: Connection): Program<ExtEarn> {
   const dummyKeypair = Keypair.generate();
   const provider = new AnchorProvider(connection, new DummyWallet(), { commitment: connection.commitment });
-  return new Program<ExtEarn>(EXT_EARN_IDL, EXT_PROGRAM_ID, provider);
+  return new Program<ExtEarn>(EXT_EARN_IDL, provider);
 }
 
 class DummyWallet implements Wallet {

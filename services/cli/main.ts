@@ -296,7 +296,7 @@ async function main() {
           new BN(currentIndex.toString()), // initial index
           new BN(8 * 60 * 60), // cooldown (8 hours)
         )
-        .accounts({
+        .accountsPartial({
           globalAccount,
           admin,
           mint: mint.publicKey,
@@ -329,7 +329,7 @@ async function main() {
 
       await extEarn.methods
         .initialize(earnAuth)
-        .accounts({
+        .accountsPartial({
           admin,
           globalAccount: extGlobalAccount,
           mMint: mMint.publicKey,
@@ -484,7 +484,7 @@ async function main() {
       // register the earner with proof
       const sig = await earn.methods
         .addRegistrarEarner(earner, proof.proof)
-        .accounts({
+        .accountsPartial({
           signer: owner.publicKey,
           userTokenAccount: earnerATA,
           globalAccount,
@@ -521,7 +521,7 @@ async function main() {
 
       const sig = await extEarn.methods
         .addEarnManager(owner.publicKey, new BN(15))
-        .accounts({
+        .accountsPartial({
           admin: owner.publicKey,
           globalAccount: EXT_GLOBAL_ACCOUNT,
           earnManagerAccount,
@@ -562,7 +562,7 @@ async function main() {
 
       const sig = await earn.methods
         .setEarnAuthority(earnAuth)
-        .accounts({
+        .accountsPartial({
           admin: owner.publicKey,
           globalAccount,
         })
