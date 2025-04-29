@@ -1,1 +1,5 @@
-{}
+{
+  "transaction": {
+    "slot": "double"
+  }
+}
