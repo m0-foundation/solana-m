@@ -17,11 +17,6 @@ import { LiteSVMProvider } from 'anchor-litesvm';
 import { FailedTransactionMetadata, LiteSVM, TransactionMetadata } from 'litesvm';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 import { Wallet } from '@coral-xyz/anchor';
-import { ChainAddress, ChainContext, sha256, UniversalAddress } from '@wormhole-foundation/sdk-definitions';
-import { NTT } from '@wormhole-foundation/sdk-solana-ntt';
-import { SolanaWormholeCore } from '@wormhole-foundation/sdk-solana-core';
-import { SolanaPlatform } from '@wormhole-foundation/sdk-solana';
-import { Wormhole, encoding } from '@wormhole-foundation/sdk';
 
 export function loadKeypair(filePath: string): Keypair {
   const fullPath = path.resolve(filePath);
@@ -103,47 +98,4 @@ export class LiteSVMProviderExt extends LiteSVMProvider {
       value: await this.connection.getAccountInfo(pk),
     });
   }
-}
-
-export function createSetEvmAddresses(pid: PublicKey, admin: PublicKey, M: string, wM: string) {
-  return new TransactionInstruction({
-    programId: pid,
-    keys: [
-      {
-        pubkey: admin,
-        isSigner: true,
-        isWritable: true,
-      },
-      {
-        pubkey: NTT.pdas(pid).configAccount(),
-        isSigner: false,
-        isWritable: true,
-      },
-    ],
-    data: Buffer.concat([
-      sha256('global:set_destination_addresses').slice(0, 8),
-      Buffer.from(M.slice(2).padStart(64, '0'), 'hex'),
-      Buffer.from(wM.slice(2).padStart(64, '0'), 'hex'),
-    ]),
-  });
-}
-
-export function getWormholeContext(connection: Connection) {
-  const w = new Wormhole('Devnet', [SolanaPlatform], {
-    chains: { Solana: { contracts: { coreBridge: 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth' } } },
-  });
-  const remoteXcvr: ChainAddress = {
-    chain: 'Ethereum',
-    address: new UniversalAddress(encoding.bytes.encode('transceiver'.padStart(32, '\0'))),
-  };
-  const remoteMgr: ChainAddress = {
-    chain: 'Ethereum',
-    address: new UniversalAddress(encoding.bytes.encode('nttManager'.padStart(32, '\0'))),
-  };
-  const ctx = w.getPlatform('Solana').getChain('Solana', connection);
-
-  const coreBridge = new SolanaWormholeCore('Devnet', 'Solana', connection, {
-    coreBridge: 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth',
-  });
-  return { ctx, coreBridge, remoteXcvr, remoteMgr };
 }

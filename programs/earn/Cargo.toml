@@ -20,6 +20,7 @@ release = []
 testing = []
 mainnet = []
 devnet = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true, features = [
