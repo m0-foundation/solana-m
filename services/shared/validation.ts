@@ -1,4 +1,4 @@
-import { Graph, EarnAuthority } from '../../sdk/src';
+import { Graph, EarnAuthority } from '@m0-foundation/solana-m-sdk';
 
 // validates the subgraph is up to date
 // throws if on-chain data does not match subgraph data

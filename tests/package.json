@@ -1,0 +1,23 @@
+{
+  "name": "tests",
+  "dependencies": {
+    "@coral-xyz/anchor": "catalog:",
+    "@m0-foundation/solana-m-sdk": "workspace:",
+    "@wormhole-foundation/sdk": "catalog:",
+    "@wormhole-foundation/sdk-solana": "catalog:",
+    "@wormhole-foundation/sdk-solana-ntt": "catalog:",
+    "@wormhole-foundation/sdk-definitions": "catalog:",
+    "@solana/spl-token": "catalog:",
+    "@solana/web3.js": "catalog:",
+    "@types/jest": "~29.0.3",
+    "@types/bn.js": "catalog:",
+    "anchor-litesvm": "~0.1.1",
+    "bn.js": "catalog:",
+    "jest": "~29.0.3",
+    "litesvm": "~0.1.0",
+    "nock": "~14.0.2",
+    "ts-jest": "~29.0.2",
+    "ts-node": "~10.9.2",
+    "web3": "catalog:"
+  }
+}

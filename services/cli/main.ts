@@ -8,7 +8,6 @@ import {
   sendAndConfirmTransaction,
   SystemProgram,
   Transaction,
-  TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
@@ -41,7 +40,6 @@ import { createPublicClient, EXT_GLOBAL_ACCOUNT, EXT_MINT, Graph, http } from '.
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
 import { Program, BN } from '@coral-xyz/anchor';
-import * as multisig from '@sqds/multisig';
 import { Earn } from '../../target/types/earn';
 import { ExtEarn } from '../../target/types/ext_earn';
 import { anchorProvider, keysFromEnv, NttManager } from './utils';

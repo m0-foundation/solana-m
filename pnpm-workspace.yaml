@@ -1,0 +1,35 @@
+packages:
+  - services/*
+  - sdk
+  - dashboard
+  - tests
+  - '!substreams/graph/subgraph'
+linkWorkspacePackages: true
+catalog:
+  '@coral-xyz/anchor': 0.29.0
+  '@sqds/multisig': ~2.1.3
+  '@solana/spl-token': ~0.4.12
+  '@solana/web3.js': ^1.68.0
+  '@types/bn.js': ^5.1.2
+  '@types/node': ~22.13.13
+  '@types/bs58': ^4.0.1
+  '@wormhole-foundation/sdk': 1.0.0
+  '@wormhole-foundation/sdk-definitions': 1.0.0
+  '@wormhole-foundation/sdk-definitions-ntt': 0.5.0
+  '@wormhole-foundation/sdk-solana': 1.0.0
+  '@wormhole-foundation/sdk-solana-core': 1.0.0
+  '@wormhole-foundation/sdk-solana-ntt': 0.7.0-multi-token-alpha.0
+  '@wormhole-foundation/sdk-evm-ntt': ^0.7.1
+  bn.js: ~5.2.1
+  bs58: ^4.0.1
+  commander: 13.1.0
+  graphql: ^16.10.0
+  graphql-request: 6.1.0
+  limiter: ~3.0.0
+  prettier: ~2.6.2
+  sha3: ^2.1.4
+  typescript: '5'
+  viem: ~2.23.14
+  web3: ~4.16.0
+  winston: ~3.17.0
+  winston-loki: ~6.1.3

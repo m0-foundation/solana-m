@@ -1,17 +1,9 @@
 import { Command } from 'commander';
-import { Registrar } from '../../sdk/src/registrar';
 import {
-  ComputeBudgetProgram,
-  Connection,
-  Keypair,
-  PublicKey,
-  TransactionInstruction,
-  TransactionMessage,
-  VersionedTransaction,
-} from '@solana/web3.js';
-import * as multisig from '@sqds/multisig';
-import EarnAuthority from '../../sdk/src/earn_auth';
-import {
+  Registrar,
+  EarnAuthority,
+  WinstonLogger,
+  Graph,
   DEVNET_GRAPH_ID,
   ETH_MERKLE_TREE_BUILDER,
   ETH_MERKLE_TREE_BUILDER_DEVNET,
@@ -22,18 +14,26 @@ import {
   TransactionBuilder,
   createPublicClient,
   http,
-} from '../../sdk/src';
+} from '@m0-foundation/solana-m-sdk';
+import {
+  ComputeBudgetProgram,
+  Connection,
+  Keypair,
+  PublicKey,
+  TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js';
+import * as multisig from '@sqds/multisig';
 import { instructions } from '@sqds/multisig';
 import BN from 'bn.js';
-import { getProgram } from '../../sdk/src/idl';
-import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
-import { sendSlackMessage, SlackMessage } from '../shared/slack';
-import { Graph } from '../../sdk/src/graph';
-import { logBlockchainBalance } from '../shared/balances';
+import { sendSlackMessage, SlackMessage } from 'shared/slack';
+import { logBlockchainBalance } from 'shared/balances';
 import LokiTransport from 'winston-loki';
 import winston from 'winston';
-import { validateSubgraph } from '../shared/validation';
+import { validateSubgraph } from 'shared/validation';
+import { getProgram } from '@m0-foundation/solana-m-sdk/src/idl';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);

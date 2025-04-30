@@ -3,8 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "dependencies": {
-    "@m0-foundation/solana-m-sdk": "workspace:*",
-    "@solana/web3.js": "workspace:*",
-    "bn.js": "workspace:*"
+    "@m0-foundation/solana-m-sdk": "workspace:",
+    "@solana/web3.js": "catalog:",
+    "bn.js": "catalog:",
+    "@types/bn.js": "catalog:"
   }
 }

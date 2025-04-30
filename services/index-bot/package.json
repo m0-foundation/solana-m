@@ -4,13 +4,13 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "@m0-foundation/solana-m-sdk": "workspace:*",
-    "@solana/web3.js": "workspace:*",
-    "commander": "workspace:*",
-    "shared": "workspace:*",
-    "typescript": "workspace:*",
-    "viem": "workspace:*",
-    "winston": "workspace:*",
-    "winston-loki": "~6.1.3"
+    "@m0-foundation/solana-m-sdk": "workspace:",
+    "@solana/web3.js": "catalog:",
+    "commander": "catalog:",
+    "shared": "workspace:",
+    "typescript": "catalog:",
+    "viem": "catalog:",
+    "winston": "catalog:",
+    "winston-loki": "catalog:"
   }
 }
