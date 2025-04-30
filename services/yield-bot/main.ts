@@ -151,8 +151,8 @@ export async function yieldCLI() {
         }
 
         const steps = options.programID.equals(PROGRAM_ID)
-          ? [validation, removeEarners, distributeYield, addEarners]
-          : [validation, syncIndex, distributeYield];
+          ? [validation, removeEarners, distributeYield, addEarners, syncIndex]
+          : [validation, distributeYield];
 
         await executeSteps(options, steps, parseInt(stepInterval));
       },
@@ -329,6 +329,7 @@ async function buildAndSendTransaction(
   ixs: TransactionInstruction[],
   batchSize = 10,
   memo?: string,
+  retry = true,
 ): Promise<string[]> {
   const priorityFee = await getPriorityFee();
   const logs: string[][] = [];
@@ -342,6 +343,13 @@ async function buildAndSendTransaction(
         err: result.value.err,
         b64: Buffer.from(txn.serialize()).toString('base64'),
       });
+
+      if (retry) {
+        logger.info('retrying transaction');
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        return buildAndSendTransaction(opt, ixs, batchSize, memo, false);
+      }
+
       throw new Error(`Transaction simulation failed: ${result.value.logs}`);
     }
 
@@ -396,7 +404,6 @@ async function buildTransactions(
   batchSize = 10,
   memo?: string,
 ): Promise<VersionedTransaction[]> {
-  const { blockhash } = await opt.connection.getLatestBlockhash();
   const computeBudgetIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee });
 
   // split instructions into batches
