@@ -1,0 +1,19 @@
+{
+  "transactions": {
+    "slot": "double",
+    "block_height": "double",
+    "block_time": "timestamp"
+  },
+  "events": {
+    "amount": "double",
+    "token_supply": "double",
+    "manager_fee": "double",
+    "index": "double",
+    "ts": "timestamp"
+  },
+  "balance_updates": {
+    "pre_balance": "double",
+    "post_balance": "double",
+    "amount": "double"
+  }
+}

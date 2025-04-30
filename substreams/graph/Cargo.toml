@@ -17,3 +17,4 @@ substreams-solana-utils = { git = "https://github.com/0xpapercut/substreams-sola
 anchor-lang.workspace = true
 five8_const = "0.1.3"
 earn = { path = "../../programs/earn" }
+base64 = "0.22.1"

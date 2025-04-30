@@ -1732,6 +1732,7 @@ name = "m_token_transactions"
 version = "0.0.1"
 dependencies = [
  "anchor-lang",
+ "base64 0.22.1",
  "bs58 0.5.1",
  "earn",
  "five8_const",

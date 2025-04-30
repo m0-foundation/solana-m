@@ -1,5 +1,11 @@
+use base64::prelude::*;
 use consts::{MINTS, SYSTEM_PROGRAMS};
-use pb::transfers::v1::{Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions};
+use pb::{
+    database::v1::{table_change::Operation, DatabaseChanges, Field, TableChange},
+    transfers::v1::{
+        instruction::Update, Instruction, TokenBalanceUpdate, TokenTransaction, TokenTransactions,
+    },
+};
 use substreams_solana::pb::sf::solana::r#type::v1::Block;
 use substreams_solana_utils::{
     instruction::{self, StructuredInstructions},
@@ -84,4 +90,180 @@ fn map_transfer_events(block: Block) -> TokenTransactions {
     }
 
     events
+}
+
+#[substreams::handlers::map]
+fn map_transfer_events_to_db(block: Block) -> DatabaseChanges {
+    let mut db_changes = DatabaseChanges {
+        table_changes: vec![],
+    };
+
+    for (i, t) in block.transactions.into_iter().enumerate() {
+        let context = match transaction::get_context(&t) {
+            Ok(context) => context,
+            Err(_) => continue,
+        };
+
+        let mut transaction = TableChange {
+            table: "transactions".to_owned(),
+            ordinal: i as u64,
+            operation: Operation::Create.into(),
+            pk: context.signature.to_string(),
+            fields: vec![
+                Field {
+                    name: "blockhash".to_owned(),
+                    old_value: "".to_owned(),
+                    new_value: block.blockhash.to_string(),
+                },
+                Field {
+                    name: "slot".to_owned(),
+                    old_value: "".to_owned(),
+                    new_value: block.slot.to_string(),
+                },
+                Field {
+                    name: "signature".to_owned(),
+                    old_value: "".to_owned(),
+                    new_value: context.signature.clone(),
+                },
+            ],
+        };
+
+        if let Some(ref height) = block.block_height {
+            transaction.fields.push(Field {
+                name: "block_height".to_owned(),
+                old_value: "".to_owned(),
+                new_value: height.block_height.to_string(),
+            });
+        }
+        if let Some(ref time) = block.block_time {
+            transaction
+                .fields
+                .push(new_field("block_time", time.timestamp.to_string()));
+        }
+
+        // Parse token account balance updates from mints and transfers
+        for token_account in token_accounts(&t) {
+            if !MINTS.contains(&token_account.mint) {
+                continue;
+            }
+            if token_account.pre_balance == token_account.post_balance {
+                continue;
+            }
+
+            let pre_balance = token_account.pre_balance.unwrap_or(0);
+            let post_balance = token_account.post_balance.unwrap_or(0);
+
+            let balance_update = TableChange {
+                table: "balance_updates".to_owned(),
+                ordinal: i as u64,
+                operation: Operation::Create.into(),
+                pk: format!(
+                    "pubkey::{}-signature::{}",
+                    token_account.address.to_string(),
+                    context.signature.to_string()
+                ),
+                fields: vec![
+                    new_field("pubkey", token_account.address.to_string()),
+                    new_field("mint", token_account.mint.to_string()),
+                    new_field("owner", token_account.owner.to_string()),
+                    new_field("pre_balance", pre_balance),
+                    new_field("post_balance", post_balance),
+                    new_field("signature", context.signature.clone()),
+                ],
+            };
+
+            db_changes.table_changes.push(balance_update);
+        }
+
+        let instructions = match instruction::get_structured_instructions(&t) {
+            Ok(instructions) => instructions.flattened(),
+            Err(_) => continue,
+        };
+
+        // Parse instruction logs and updates
+        for (ix_idx, ix) in instructions.iter().enumerate() {
+            let pid = ix.program_id().to_pubkey().unwrap_or(Pubkey::default());
+
+            // Ignore system programs
+            if SYSTEM_PROGRAMS.contains(&pid) {
+                continue;
+            }
+
+            let ix_name = parse_logs_for_instruction_name(ix.logs().as_ref()).unwrap_or_default();
+
+            let mut event = TableChange {
+                table: "events".to_owned(),
+                ordinal: ix_idx as u64,
+                operation: Operation::Create.into(),
+                pk: format!(
+                    "instruction::{}-signature::{}",
+                    ix_idx,
+                    context.signature.to_string()
+                ),
+                fields: vec![
+                    new_field("program_id", pid.to_string()),
+                    new_field("instruction", ix_name),
+                    new_field("signature", context.signature.clone()),
+                ],
+            };
+
+            // Look for events in the logs
+            let log_event = match parse_logs_for_events(ix.logs().as_ref()) {
+                Some(log_event) => log_event,
+                _ => continue,
+            };
+
+            match log_event {
+                Update::BridgeEvent(bridge) => {
+                    event.pk = format!("{}-bridge", event.pk);
+
+                    event.fields.extend(vec![
+                        new_field("event", "bridge"),
+                        new_field("amount", bridge.amount),
+                        new_field("token_supply", bridge.token_supply),
+                        new_field("from", BASE64_STANDARD.encode(bridge.from)),
+                        new_field("to", BASE64_STANDARD.encode(bridge.to)),
+                        new_field("chain", bridge.chain),
+                    ]);
+                }
+                Update::IndexUpdate(update) => {
+                    event.pk = format!("{}-index_update", event.pk);
+
+                    event.fields.extend(vec![
+                        new_field("event", "index_update"),
+                        new_field("index", update.index),
+                        new_field("ts", update.ts),
+                        new_field("token_supply", update.token_supply),
+                        new_field("max_yield", update.max_yield),
+                    ]);
+                }
+                Update::Claim(claim) => {
+                    event.pk = format!("{}-claim", event.pk);
+
+                    event.fields.extend(vec![
+                        new_field("event", "claim"),
+                        new_field("token_account", claim.token_account),
+                        new_field("recipient_token_account", claim.recipient_token_account),
+                        new_field("amount", claim.amount),
+                        new_field("manager_fee", claim.manager_fee),
+                        new_field("index", claim.index),
+                    ]);
+                }
+            };
+
+            db_changes.table_changes.push(event);
+        }
+
+        db_changes.table_changes.push(transaction);
+    }
+
+    db_changes
+}
+
+fn new_field<T: ToString>(name: &str, new_value: T) -> Field {
+    Field {
+        name: name.to_owned(),
+        old_value: "".to_owned(),
+        new_value: new_value.to_string(),
+    }
 }
