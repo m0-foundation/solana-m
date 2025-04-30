@@ -25,7 +25,9 @@ jobs:
         uses: ./.github/setup
 
       - name: Run tests
-        run: yarn run jest --preset ts-jest --verbose tests/unit/earn.test.ts
+        run: |
+          cd tests
+          pnpm run jest --preset ts-jest --verbose tests/unit/earn.test.ts
         shell: bash
 
   ext-earn-tests:
@@ -38,7 +40,9 @@ jobs:
         uses: ./.github/setup
 
       - name: Run tests
-        run: yarn run jest --preset ts-jest --verbose tests/unit/ext_earn.test.ts
+        run: |
+          cd tests
+          pnpm run jest --preset ts-jest --verbose tests/unit/ext_earn.test.ts
         shell: bash
 
   portal-tests:
@@ -51,7 +55,9 @@ jobs:
         uses: ./.github/setup
 
       - name: Run tests
-        run: yarn run jest --preset ts-jest --verbose tests/unit/portal.test.ts
+        run: |
+          cd tests
+          pnpm run jest --preset ts-jest --verbose tests/unit/portal.test.ts
         shell: bash
 
   sdk-tests:
@@ -67,7 +73,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Install SDK Dependencies
-        run: cd sdk && yarn install && cd ..
+        run: cd sdk && pnpm install && cd ..
         shell: bash
 
       - name: Run SDK tests
@@ -86,7 +92,7 @@ jobs:
           node-version: '22'
 
       - name: Install Dependencies
-        run: npm i -g yarn && yarn install && cd sdk && yarn install && cd ../services/yield-bot && yarn install && cd ../..
+        run: npm i -g pnpm && pnpm install && cd sdk && pnpm install && cd ../services/yield-bot && pnpm install && cd ../..
         shell: bash
 
       - name: Run yield tests
@@ -105,7 +111,7 @@ jobs:
           node-version: '22'
 
       - name: Install Dependencies
-        run: npm i -g yarn && yarn install && cd sdk && yarn install && cd ../services/index-bot && yarn install && cd ../..
+        run: npm i -g pnpm && pnpm install && cd sdk && pnpm install && cd ../services/index-bot && pnpm install && cd ../..
         shell: bash
 
       - name: Run index tests

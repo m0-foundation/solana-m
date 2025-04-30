@@ -520,7 +520,7 @@ function getLokiTransport(host: string, logger: winston.Logger) {
 }
 
 // do not run the cli if this is being imported by jest
-if (!process.argv[1].endsWith('jest')) {
+if (!process.argv[1].endsWith('jest.js')) {
   yieldCLI()
     .catch((error) => {
       logger.error(error);

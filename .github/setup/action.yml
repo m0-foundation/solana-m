@@ -57,11 +57,11 @@ runs:
       shell: bash
 
     - name: Install Node Dependencies
-      run: npm i -g yarn && yarn install
+      run: npm i -g pnpm && pnpm install
       shell: bash
 
     - name: Install SDK and Bot Dependencies
-      run: cd sdk && yarn install && cd ../services/yield-bot && yarn install && cd ../..
+      run: cd sdk && pnpm install && cd ../services/yield-bot && pnpm install && cd ../..
       shell: bash
 
     - name: Build programs

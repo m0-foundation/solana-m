@@ -5,19 +5,19 @@
 # Test commands
 #
 test-yield-bot:
-	yarn jest --preset ts-jest tests/unit/yieldbot.test.ts; exit $$?
+	cd tests && pnpm jest --preset ts-jest tests/unit/yieldbot.test.ts; exit $$?
 
 test-index-bot:
-	yarn jest --preset ts-jest tests/unit/indexbot.test.ts; exit $$?
+	cd tests && pnpm jest --preset ts-jest tests/unit/indexbot.test.ts; exit $$?
 
 test-yield:
-	yarn jest --preset ts-jest tests/unit/yield.test.ts; exit $$?
+	cd tests && pnpm jest --preset ts-jest tests/unit/yield.test.ts; exit $$?
 
 test-sdk:
 	@anchor localnet --skip-build > /dev/null 2>&1 & \
 	anvil -f https://gateway.tenderly.co/public/sepolia > /dev/null 2>&1 & \
 	sleep 2 && \
-	yarn jest --preset ts-jest tests/unit/sdk.test.ts; \
+	cd tests && pnpm jest --preset ts-jest tests/unit/sdk.test.ts; \
 	e=$$?; \
 	kill -9 $$(lsof -ti:8899) & kill -9 $$(lsof -ti:8545); \
 	exit $$e
@@ -41,7 +41,7 @@ test-local-validator:
 # Devnet commands
 #
 yield-bot-devnet:
-	@yarn --silent ts-node services/yield-bot/main.ts distribute \
+	@pnpm --silent ts-node services/yield-bot/main.ts distribute \
 	--rpc $(shell op read "op://Solana Dev/Helius/dev rpc") \
 	--keypair $(shell op read "op://Solana Dev/Solana Program Keys/devnet-authority") \
 	--graphKey $(shell op read "op://Solana Dev/The Graph/credential") \
@@ -222,7 +222,7 @@ deploy-substream-mongo-mainnet:
 #
 publish-sdk:
 	@cd sdk && \
-	yarn build && \
+	pnpm build && \
 	echo "//registry.npmjs.org/:_authToken=$(shell op read "op://Web3/NPM Publish Token m0-foundation/credential")" > .npmrc && \
 	npm publish && \
 	rm .npmrc
