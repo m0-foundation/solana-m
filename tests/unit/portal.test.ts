@@ -40,8 +40,8 @@ import {
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { utils } from 'web3';
 import { BN, Program } from '@coral-xyz/anchor';
-import { Earn } from '../../target/types/earn';
-const EARN_IDL = require('../../target/idl/earn.json');
+import { Earn } from '@m0-foundation/solana-m-sdk/src/idl/earn';
+const EARN_IDL = require('@m0-foundation/solana-m-sdk/src/idl/earn.json');
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 
@@ -68,17 +68,17 @@ describe('Portal unit tests', () => {
   let multisig = Keypair.generate();
 
   let tokenAccount: PublicKey;
-  const mint = loadKeypair('tests/keys/mint.json');
+  const mint = loadKeypair('keys/mint.json');
   const tokenAddress = mint.publicKey.toBase58();
 
-  const payer = loadKeypair('tests/keys/user.json');
-  const admin = loadKeypair('tests/keys/admin.json');
+  const payer = loadKeypair('keys/user.json');
+  const admin = loadKeypair('keys/admin.json');
   const owner = payer;
 
-  const svm = fromWorkspace('').withSplPrograms().withBuiltins().withSysvars().withBlockhashCheck(false);
+  const svm = fromWorkspace('../').withSplPrograms().withBuiltins().withSysvars().withBlockhashCheck(false);
 
   // Wormhole program
-  svm.addProgramFromFile(config.WORMHOLE_PID, 'tests/programs/core_bridge.so');
+  svm.addProgramFromFile(config.WORMHOLE_PID, 'programs/core_bridge.so');
 
   // Add necessary wormhole accounts
   svm.setAccount(config.WORMHOLE_BRIDGE_CONFIG, {
@@ -340,7 +340,7 @@ describe('Portal unit tests', () => {
       const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
 
       const pdas = NTT.pdas(config.PORTAL_PROGRAM_ID);
-      inboxItem = pdas.inboxItemAccount(vaa.emitterChain, vaa.payload.nttManagerPayload);
+      inboxItem = pdas.inboxItemAccount(vaa.emitterChain as any, vaa.payload.nttManagerPayload);
 
       // return custom generator where the redeem ix has the desired remaining accounts
       return async function* redeemTxns() {

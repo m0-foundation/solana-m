@@ -10,27 +10,24 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { createPublicClient, createTestClient, DEVNET_GRAPH_ID, http } from '../../sdk/src';
+import { createPublicClient, createTestClient, DEVNET_GRAPH_ID, http } from '@m0-foundation/solana-m-sdk';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
-import { MerkleTree } from '../../sdk/src/merkle';
-import { PROGRAM_ID as EARN_PROGRAM, EXT_PROGRAM_ID } from '../../sdk/src';
-import { Graph } from '../../sdk/src/graph';
-import EarnAuthority from '../../sdk/src/earn_auth';
-import { EarnManager } from '../../sdk/src/earn_manager';
-import { Earner } from '../../sdk/src/earner';
+import { PROGRAM_ID as EARN_PROGRAM, EXT_PROGRAM_ID } from '@m0-foundation/solana-m-sdk';
+import { Graph, EarnAuthority, EarnManager, Earner } from '@m0-foundation/solana-m-sdk';
 import nock from 'nock';
-import { Earn } from '../../sdk/src/idl/earn';
-import { ExtEarn } from '../../sdk/src/idl/ext_earn';
-const EARN_IDL = require('../../sdk/src/idl/earn.json');
-const EXT_EARN_IDL = require('../../sdk/src/idl/ext_earn.json');
+import { Earn } from '@m0-foundation/solana-m-sdk/src/idl/earn';
+import { ExtEarn } from '@m0-foundation/solana-m-sdk/src/idl/ext_earn';
+import { MerkleTree } from '@m0-foundation/solana-m-sdk/src/merkle';
+const EARN_IDL = require('@m0-foundation/solana-m-sdk/src/idl/earn.json');
+const EXT_EARN_IDL = require('@m0-foundation/solana-m-sdk/src/idl/ext_earn.json');
 
 const GRAPH_CLIENT = new Graph('', DEVNET_GRAPH_ID);
 const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
 
 describe('SDK unit tests', () => {
-  const signer = loadKeypair('tests/keys/user.json');
-  const mints = [loadKeypair('tests/keys/mint.json'), Keypair.generate()];
+  const signer = loadKeypair('keys/user.json');
+  const mints = [loadKeypair('keys/mint.json'), Keypair.generate()];
   const multisig = Keypair.generate();
   const earnerA = Keypair.fromSecretKey(
     Buffer.from(

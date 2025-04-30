@@ -11,7 +11,6 @@ catalog:
   '@solana/spl-token': ~0.4.12
   '@solana/web3.js': ^1.68.0
   '@types/bn.js': ^5.1.2
-  '@types/node': ~22.13.13
   '@types/bs58': ^4.0.1
   '@wormhole-foundation/sdk': 1.0.0
   '@wormhole-foundation/sdk-definitions': 1.0.0

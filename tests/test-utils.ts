@@ -17,7 +17,7 @@ import { LiteSVMProvider } from 'anchor-litesvm';
 import { FailedTransactionMetadata, LiteSVM, TransactionMetadata } from 'litesvm';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 import { Wallet } from '@coral-xyz/anchor';
-import { ChainAddress, ChainContext, sha256, UniversalAddress } from '@wormhole-foundation/sdk-definitions';
+import { ChainAddress, sha256, UniversalAddress } from '@wormhole-foundation/sdk-definitions';
 import { NTT } from '@wormhole-foundation/sdk-solana-ntt';
 import { SolanaWormholeCore } from '@wormhole-foundation/sdk-solana-core';
 import { SolanaPlatform } from '@wormhole-foundation/sdk-solana';

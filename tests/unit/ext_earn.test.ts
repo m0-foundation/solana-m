@@ -38,9 +38,9 @@ const EXT_EARN_PROGRAM_ID = new PublicKey('wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g
 const ZERO_WORD = new Array(32).fill(0);
 
 // Setup wallets once at the beginning of the test suite
-const admin: Keypair = loadKeypair('tests/keys/admin.json');
-const portal: Keypair = loadKeypair('tests/keys/admin.json');
-const mMint: Keypair = loadKeypair('tests/keys/mint.json');
+const admin: Keypair = loadKeypair('keys/admin.json');
+const portal: Keypair = loadKeypair('keys/admin.json');
+const mMint: Keypair = loadKeypair('keys/mint.json');
 const extMint: Keypair = new Keypair();
 const earnAuthority: Keypair = new Keypair();
 const mMintAuthority: Keypair = new Keypair();
@@ -1103,7 +1103,7 @@ describe('ExtEarn unit tests', () => {
 
   beforeEach(async () => {
     // Initialize the SVM instance with all necessary configurations
-    svm = fromWorkspace('')
+    svm = fromWorkspace('../')
       .withSplPrograms() // Add SPL programs (including token programs)
       .withBuiltins() // Add builtin programs
       .withSysvars() // Setup standard sysvars

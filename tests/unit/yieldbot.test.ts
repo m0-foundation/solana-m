@@ -1,7 +1,7 @@
 import { Keypair, PublicKey } from '@solana/web3.js';
 import nock from 'nock';
 import { yieldCLI } from '../../services/yield-bot/main';
-import { EARN_ADDRESS_TABLE_DEVNET, EARN_ADDRESS_TABLE } from '../../sdk/src';
+import { EARN_ADDRESS_TABLE_DEVNET, EARN_ADDRESS_TABLE } from '@m0-foundation/solana-m-sdk';
 
 const SVM_RPC = 'https://api.devnet.solana.com';
 const EVM_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';

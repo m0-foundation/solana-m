@@ -36,6 +36,7 @@
     "@coral-xyz/anchor": "catalog:",
     "@solana/spl-token": "catalog:",
     "@solana/web3.js": "catalog:",
+    "@types/bn.js": "catalog:",
     "bn.js": "catalog:",
     "bs58": "catalog:",
     "graphql": "catalog:",
@@ -47,8 +48,6 @@
     "winston": "catalog:"
   },
   "devDependencies": {
-    "@types/bn.js": "catalog:",
-    "@types/node": "catalog:",
     "tsup": "^8.4.0",
     "typescript": "catalog:"
   }
