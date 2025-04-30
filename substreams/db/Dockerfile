@@ -18,5 +18,8 @@ COPY --from=builder /app/schema.json /app/
 COPY --from=builder /app/m-token-transactions.spkg /app/
 COPY --from=builder /app/substreams-sink-mongodb /usr/local/bin/
 
+# So logger knows it's running in a container
+RUN touch /.dockerenv
+
 # expects SUBSTREAMS_API_TOKEN
-CMD ["sh", "-c", "substreams-sink-mongodb run \"$MONGO_DNS\" solana-m-substream schema.json mainnet.sol.streamingfast.io:443 m-token-transactions.spkg map_transfer_events_to_db 335850995:335850999"]
+CMD ["sh", "-c", "substreams-sink-mongodb run \"$MONGO_DNS\" solana-m-substream schema.json \"$SUBSTREAM_RPC\" m-token-transactions.spkg map_transfer_events_to_db $STARTING_BLOCK:"]

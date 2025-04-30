@@ -201,13 +201,21 @@ deploy-subgraph-devnet:
 	$(call build-substream,solana-devnet,$(DEVNET_STARTING_BLOCK),transfers.v1.TokenTransactions,map_transfer_events)
 	$(call deploy-subgraph,solana-devnet,solana-m-devnet,$(DEVNET_TARGET_VERSION))
 
-deploy-substream-mongo:
-	railway environment development
-	$(call build-substream,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),sf.substreams.sink.database.v1.DatabaseChanges,map_transfer_events_to_db)
+define deploy-substream-mongo
+	$(call build-substream,$(1),$(3),sf.substreams.sink.database.v1.DatabaseChanges,map_transfer_events_to_db)
 	cp -f substreams/graph/m-token-transactions-v0.1.0.spkg substreams/db/m-token-transactions.spkg
-	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:substream-mongo -f substreams/db/Dockerfile .
-	docker push ghcr.io/m0-foundation/solana-m:substream-mongo
+	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:substream-mongo-$(2) -f substreams/db/Dockerfile .
+	docker push ghcr.io/m0-foundation/solana-m:substream-mongo-$(2)
 	railway redeploy --service substream-mongo --yes
+endef
+
+deploy-substream-mongo-devnet:
+	railway environment development
+	$(call deploy-substream-mongo,solana-devnet,devnet,$(DEVNET_STARTING_BLOCK))
+
+deploy-substream-mongo-mainnet:
+	railway environment production
+	$(call deploy-substream-mongo,solana-mainnet-beta,mainnet,$(MAINNET_STARTING_BLOCK))
 
 #
 # SDK
