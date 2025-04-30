@@ -9,6 +9,7 @@ imports:
 protobuf:
   files:
     - transfers.proto
+    - database.proto
   importPaths:
     - ./proto
   excludePaths:
@@ -21,19 +22,19 @@ protobuf:
 binaries:
   default:
     type: wasm/rust-v1+wasm-bindgen-shims
-    file: ../target/wasm32-unknown-unknown/release/substreams.wasm
+    file: ../../target/wasm32-unknown-unknown/release/substreams.wasm
 
 modules:
   - name: map_filtered_transactions
     use: solana:map_block_with_filtered_transactions
     initialBlock: 335213628
 
-  - name: map_transfer_events
+  - name: map_transfer_events_to_db
     kind: map
     inputs:
       - map: map_filtered_transactions
     output:
-      type: proto:transfers.v1.TokenTransactions
+      type: proto:sf.substreams.sink.database.v1.DatabaseChanges
 
 network: solana-mainnet-beta
 
