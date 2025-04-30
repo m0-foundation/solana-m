@@ -205,7 +205,7 @@ deploy-substream-mongo:
 	railway environment development
 	$(call build-substream,solana-mainnet-beta,$(MAINNET_STARTING_BLOCK),sf.substreams.sink.database.v1.DatabaseChanges,map_transfer_events_to_db)
 	cp -f substreams/graph/m-token-transactions-v0.1.0.spkg substreams/db/m-token-transactions.spkg
-	docker build -t ghcr.io/m0-foundation/solana-m:substream-mongo -f substreams/db/Dockerfile .
+	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:substream-mongo -f substreams/db/Dockerfile .
 	docker push ghcr.io/m0-foundation/solana-m:substream-mongo
 	railway redeploy --service substream-mongo --yes
 
