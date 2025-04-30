@@ -1,0 +1,10 @@
+{
+  "name": "shared",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@m0-foundation/solana-m-sdk": "workspace:*",
+    "@solana/web3.js": "workspace:*",
+    "bn.js": "workspace:*"
+  }
+}
