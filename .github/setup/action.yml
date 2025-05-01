@@ -60,10 +60,6 @@ runs:
       run: npm i -g pnpm && pnpm install
       shell: bash
 
-    - name: Install SDK and Bot Dependencies
-      run: cd sdk && pnpm install && cd ../services/yield-bot && pnpm install && cd ../..
-      shell: bash
-
     - name: Build programs
       run: anchor build
       shell: bash
