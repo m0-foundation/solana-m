@@ -2,6 +2,7 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Turnkey } from '@turnkey/sdk-server';
 import { TurnkeySigner } from '@turnkey/solana';
 import { privateKeyToAccount } from 'viem/accounts';
+import { sepolia, mainnet } from 'viem/chains';
 import {
   createPublicClient,
   DEVNET_GRAPH_ID,
@@ -53,7 +54,7 @@ export function getEnv() {
   }
 
   let signer: Keypair | undefined;
-  if (!KEYPAIR) {
+  if (KEYPAIR) {
     try {
       signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(KEYPAIR!)));
     } catch {
@@ -61,16 +62,17 @@ export function getEnv() {
     }
   }
 
+  const isDevnet = RPC_URL!.includes('devnet');
+  const graphID = isDevnet ? DEVNET_GRAPH_ID : MAINNET_GRAPH_ID;
+
   let evmWalletClient: WalletClient | undefined;
   if (EVM_KEY) {
     evmWalletClient = createWalletClient({
       transport: http(EVM_RPC_URL),
       account: privateKeyToAccount(EVM_KEY as Hex),
+      chain: isDevnet ? sepolia : mainnet,
     });
   }
-
-  const isDevnet = RPC_URL!.includes('devnet');
-  const graphID = isDevnet ? DEVNET_GRAPH_ID : MAINNET_GRAPH_ID;
 
   let turnkeyOpt: TurnkeyEnvOption | undefined;
   if (TURNKEY_API_PRIVATE_KEY && TURNKEY_API_PUBLIC_KEY) {
