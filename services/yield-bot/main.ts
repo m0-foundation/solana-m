@@ -473,7 +473,7 @@ if (!process.argv[1].endsWith('jest.js')) {
       slackMessage.messages.push(`${error}`);
     })
     .finally(async () => {
-      if (slackMessage.messages.length === 0) {
+      if (!slackMessage?.messages.length) {
         slackMessage.messages.push('No actions taken');
       }
       await lokiTransport?.flush();

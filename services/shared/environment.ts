@@ -1,6 +1,7 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Turnkey } from '@turnkey/sdk-server';
 import { TurnkeySigner } from '@turnkey/solana';
+import { privateKeyToAccount } from 'viem/accounts';
 import {
   createPublicClient,
   DEVNET_GRAPH_ID,
@@ -9,6 +10,7 @@ import {
   PublicClient,
   Graph,
 } from '@m0-foundation/solana-m-sdk';
+import { Hex, createWalletClient, WalletClient } from 'viem';
 
 type TurnkeyEnvOption = {
   signer: TurnkeySigner;
@@ -24,6 +26,7 @@ export interface EnvOptions {
   isDevnet: boolean;
   connection: Connection;
   evmClient: PublicClient;
+  evmWalletClient?: WalletClient;
   graphClient: Graph;
   signerPubkey: PublicKey;
   signer?: Keypair;
@@ -42,6 +45,7 @@ export function getEnv() {
     TURNKEY_PUBKEY,
     SQUADS_PDA,
     SQUADS_VAULT,
+    EVM_KEY,
   } = process.env;
 
   if (!KEYPAIR && !TURNKEY_PUBKEY) {
@@ -55,6 +59,14 @@ export function getEnv() {
     } catch {
       signer = Keypair.fromSecretKey(Buffer.from(KEYPAIR!, 'base64'));
     }
+  }
+
+  let evmWalletClient: WalletClient | undefined;
+  if (EVM_KEY) {
+    evmWalletClient = createWalletClient({
+      transport: http(EVM_RPC_URL),
+      account: privateKeyToAccount(EVM_KEY as Hex),
+    });
   }
 
   const isDevnet = RPC_URL!.includes('devnet');
@@ -94,6 +106,7 @@ export function getEnv() {
     signerPubkey: signer ? signer.publicKey : new PublicKey(turnkeyOpt!.pubkey),
     connection: new Connection(RPC_URL!, 'confirmed'),
     evmClient: createPublicClient({ transport: http(EVM_RPC_URL!) }),
+    evmWalletClient,
     graphClient: new Graph(GRAPH_KEY!, graphID),
     turnkeyOpt,
     squadsOpt,

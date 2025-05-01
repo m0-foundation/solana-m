@@ -8,6 +8,7 @@
     "@turnkey/sdk-server": "^3.1.0",
     "@turnkey/solana": "^1.0.22",
     "@types/bn.js": "catalog:",
-    "bn.js": "catalog:"
+    "bn.js": "catalog:",
+    "viem": "catalog:"
   }
 }

@@ -1,12 +1,13 @@
 import { Command } from 'commander';
 import { Connection } from '@solana/web3.js';
-import { createWalletClient, getContract, http, WalletClient, Hex } from 'viem';
+import { createWalletClient, getContract, http, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { GLOBAL_ACCOUNT, WinstonLogger } from '@m0-foundation/solana-m-sdk';
 import { sendSlackMessage, SlackMessage } from 'shared/slack';
 import { logBlockchainBalance } from 'shared/balances';
 import LokiTransport from 'winston-loki';
 import winston from 'winston';
+import { EnvOptions, getEnv } from 'shared/environment';
 
 export const HUB_PORTAL: `0x${string}` = '0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd';
 
@@ -22,12 +23,11 @@ if (process.env.LOKI_URL) {
 // meta info from job will be posted to slack
 let slackMessage: SlackMessage;
 
-interface ParsedOptions {
-  solanaClient: Connection;
-  evmClient: WalletClient;
+interface ParsedOptions extends EnvOptions {
   threshold: bigint;
   force: boolean;
   dryRun: boolean;
+  walletAddess: `0x${string}`;
 }
 
 // entrypoint for the index bot command
@@ -37,27 +37,29 @@ export async function indexCLI() {
   program
     .command('push')
     .description('Push the latest index from Ethereum to Solana')
-    .option('-s, --solanaRpc [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
-    .option('-e, --ethRpc [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
-    .option('-k, --ethPrivateKey <KEY>', 'Ethereum private key')
     .option('-t, --threshold [SECONDS]', 'Staleness threshold in seconds', '86400')
     .option('-f, --force', 'Force push the index even if it is not stale', false)
     .option('--dryRun', 'Do not send transactions', false)
-    .action(async ({ solanaRpc, ethRpc, ethPrivateKey, threshold, force, dryRun }) => {
-      const solanaClient = new Connection(solanaRpc);
-      const evmClient = createWalletClient({
-        transport: http(ethRpc),
-        account: privateKeyToAccount(ethPrivateKey as Hex),
-      });
+    .action(async ({ threshold, force, dryRun }) => {
+      const env = getEnv();
 
-      await logBlockchainBalance('ethereum', ethRpc, evmClient.account.address, logger);
+      if (!env.evmWalletClient) {
+        throw new Error('EVM wallet client is not set up');
+      }
+
+      await logBlockchainBalance(
+        'ethereum',
+        env.evmClient.transport.url!,
+        env.evmWalletClient!.account!.address,
+        logger,
+      );
 
       const options: ParsedOptions = {
-        solanaClient,
-        evmClient,
+        ...env,
         threshold: BigInt(threshold),
         force,
         dryRun,
+        walletAddess: env.evmWalletClient!.account!.address as `0x${string}`,
       };
 
       slackMessage = {
@@ -65,7 +67,7 @@ export async function indexCLI() {
         mint: 'M',
         service: 'index-bot',
         level: 'info',
-        devnet: solanaRpc.includes('devnet'),
+        devnet: env.isDevnet,
       };
 
       await pushIndex(options);
@@ -100,7 +102,7 @@ async function pushIndex(options: ParsedOptions) {
 
 async function isIndexStale(options: ParsedOptions) {
   // Get the current index from the Solana program
-  const globalAccount = await options.solanaClient.getAccountInfo(GLOBAL_ACCOUNT);
+  const globalAccount = await options.connection.getAccountInfo(GLOBAL_ACCOUNT);
   if (!globalAccount) {
     throw new Error('Global account not found');
   }
@@ -159,7 +161,7 @@ async function sendIndexUpdate(options: ParsedOptions) {
   const portal = getContract({
     address: HUB_PORTAL,
     abi,
-    client: options.evmClient,
+    client: options.evmWalletClient!,
   });
 
   // Get bridge price quote
@@ -170,21 +172,21 @@ async function sendIndexUpdate(options: ParsedOptions) {
   ]);
 
   // Send index update transaction
-  const refundAddress = ('0x' + options.evmClient.account?.address.slice(2).padStart(64, '0')) as `0x${string}`;
+  const refundAddress = ('0x' + options.evmWalletClient!.account!.address.slice(2).padStart(64, '0')) as `0x${string}`;
 
   const params = {
     wormholeDestinationChainId: 1,
     refundAddress,
-    ethereumAccount: options.evmClient.account?.address,
-    ethereumChain: options.evmClient.chain,
+    ethereumAccount: options.walletAddess,
+    ethereumChain: options.evmWalletClient!.chain!,
     value: quote.toString(),
   };
   if (options.dryRun) {
     logger.debug('Bridge transaction params: ', params);
   } else {
     const tx = await portal.write.sendMTokenIndex([1, refundAddress], {
-      account: options.evmClient.account ?? null,
-      chain: options.evmClient.chain ?? null,
+      account: options.walletAddess,
+      chain: options.evmWalletClient!.chain!,
       value: quote,
     });
 
@@ -222,7 +224,7 @@ if (!process.argv[1].endsWith('jest.js')) {
       slackMessage.messages.push(`${error}`);
     })
     .finally(async () => {
-      if (slackMessage.messages.length === 0) {
+      if (!slackMessage?.messages.length) {
         slackMessage.messages.push('No actions taken');
       }
       await lokiTransport?.flush();

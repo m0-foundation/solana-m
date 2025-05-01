@@ -12,6 +12,8 @@ COPY ./services/shared ./services/shared
 COPY ./sdk ./sdk
 
 RUN npm install -g pnpm ts-node && pnpm install --prod
+RUN pnpm cache delete
+RUN npm cache clean --force
 
 ARG now
 ENV NODE_ENV=production
