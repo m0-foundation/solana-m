@@ -185,7 +185,7 @@ async function sendIndexUpdate(options: ParsedOptions) {
     logger.debug('Bridge transaction params: ', params);
   } else {
     const tx = await portal.write.sendMTokenIndex([1, refundAddress], {
-      account: options.walletAddess,
+      account: options.evmWalletClient!.account!,
       chain: options.evmWalletClient!.chain!,
       value: quote,
     });
