@@ -1,11 +1,11 @@
-import { Keypair, PublicKey } from '@solana/web3.js';
 import nock from 'nock';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import { yieldCLI } from '../../services/yield-bot/main';
 import { EARN_ADDRESS_TABLE_DEVNET, EARN_ADDRESS_TABLE } from '@m0-foundation/solana-m-sdk';
 
-const SVM_RPC = 'https://api.devnet.solana.com';
+const SVM_RPC = 'https://dummy.solana.com';
 const EVM_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
-const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
+const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/bgd3AFHw9bcSox1mfU39W9NbYUeSY53fr4kaVzmkPjC';
 
 describe('Yield bot tests', () => {
   const earner = Keypair.generate();

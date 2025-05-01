@@ -5,12 +5,15 @@
 # Test commands
 #
 test-yield-bot:
+	cd sdk && pnpm build
 	cd tests && pnpm jest --preset ts-jest tests/unit/yieldbot.test.ts; exit $$?
 
 test-index-bot:
+	cd sdk && pnpm build
 	cd tests && pnpm jest --preset ts-jest tests/unit/indexbot.test.ts; exit $$?
 
 test-yield:
+	cd sdk && pnpm build
 	cd tests && pnpm jest --preset ts-jest tests/unit/yield.test.ts; exit $$?
 
 test-sdk:
