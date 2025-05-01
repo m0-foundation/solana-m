@@ -303,13 +303,19 @@ async function buildAndSendTransaction(
       continue;
     }
 
-    const sig = await opt.connection.sendTransaction(txn, { skipPreflight: true });
-    returnData.push(sig);
+    // send a few times in case it gets dropped
+    for (let j = 0; j < 3; j++) {
+      try {
+        const sig = await opt.connection.sendTransaction(txn, { skipPreflight: true });
+        if (j === 0) returnData.push(sig);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch {}
+    }
 
     logger.info('sent transaction', {
       base64: Buffer.from(txn.serialize()).toString('base64'),
       logs: logs[i],
-      signature: sig,
+      signature: returnData[returnData.length - 1],
     });
   }
 
