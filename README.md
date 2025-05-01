@@ -94,7 +94,7 @@ anchor build
 ### Run Tests
 
 ```bash
-anchor build && pnpm test
+anchor build && cd tests && pnpm test
 ```
 
 ### Development Commands

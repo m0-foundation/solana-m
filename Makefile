@@ -45,12 +45,13 @@ test-local-validator:
 # Devnet commands
 #
 yield-bot-devnet:
-	@pnpm --silent ts-node services/yield-bot/main.ts distribute \
-	--rpc $(shell op read "op://Solana Dev/Helius/dev rpc") \
-	--keypair $(shell op read "op://Solana Dev/Solana Program Keys/devnet-authority") \
-	--graphKey $(shell op read "op://Solana Dev/The Graph/credential") \
-	--programID wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko \
-	--dryRun
+	@RPC_URL=$(shell op read "op://Solana Dev/Helius/dev rpc") \
+		EVM_RPC_URL=$(shell op read "op://Solana Dev/Alchemy/sepolia") \
+		KEYPAIR=$(shell op read "op://Solana Dev/Solana Program Keys/devnet-authority") \
+		GRAPH_KEY=$(shell op read "op://Solana Dev/The Graph/credential") \
+		pnpm --silent ts-node services/yield-bot/main.ts distribute \
+		--programID wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko \
+		--dryRun
 
 
 #

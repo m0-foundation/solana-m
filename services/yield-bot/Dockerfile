@@ -1,7 +1,7 @@
 # syntax=docker.io/docker/dockerfile:1.7-labs
 
 # Build stage
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN yarn init -y && \
     cd ../../sdk && yarn install
 
 # Production stage
-FROM node:22-alpine
+FROM node:24-alpine
 
 LABEL org.opencontainers.image.source https://github.com/m0-foundation/solana-m
 LABEL org.opencontainers.image.description "Yield Bot"
@@ -40,4 +40,4 @@ ENV SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
 ENV GRAFANA_DASHBOARD_URL=$GRAFANA_DASHBOARD_URL
 
 # Use the environment variable in the command
-CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --keypair \"$BOT_KEYPAIR\" --rpc \"$SVM_RPC\" --programID \"$PROGRAM_ID\" --claimThreshold \"$CLAIM_THRESHOLD\" --graphKey \"$GRAPH_KEY\" --squadsPda \"$SQUADS_PDA\" --evmRPC \"$EVM_RPC\""]
+CMD ["sh", "-c", "node_modules/.bin/ts-node ./services/yield-bot/main.ts distribute --programID \"$PROGRAM_ID\" --claimThreshold \"$CLAIM_THRESHOLD\""]
