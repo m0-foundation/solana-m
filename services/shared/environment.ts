@@ -35,7 +35,7 @@ export interface EnvOptions {
   turnkey?: TurnkeyEnvOption;
 }
 
-export function getEnv() {
+export function getEnv(): EnvOptions {
   const {
     KEYPAIR,
     RPC_URL,
@@ -74,9 +74,9 @@ export function getEnv() {
     });
   }
 
-  let turnkeyOpt: TurnkeyEnvOption | undefined;
+  let turnkey: TurnkeyEnvOption | undefined;
   if (TURNKEY_API_PRIVATE_KEY && TURNKEY_API_PUBLIC_KEY) {
-    const turnkey = new Turnkey({
+    const tk = new Turnkey({
       apiBaseUrl: 'https://api.turnkey.com',
       apiPrivateKey: TURNKEY_API_PRIVATE_KEY!,
       apiPublicKey: TURNKEY_API_PUBLIC_KEY!,
@@ -85,18 +85,18 @@ export function getEnv() {
 
     const tkSigner = new TurnkeySigner({
       organizationId: '01b5aa43-216b-4a70-bd03-e40d6759c4f9',
-      client: turnkey.apiClient(),
+      client: tk.apiClient(),
     });
 
-    turnkeyOpt = {
+    turnkey = {
       pubkey: TURNKEY_PUBKEY!,
       signer: tkSigner,
     };
   }
 
-  let squadsOpt: SquadsEnvOption | undefined;
+  let squads: SquadsEnvOption | undefined;
   if (SQUADS_PDA && SQUADS_VAULT) {
-    squadsOpt = {
+    squads = {
       squadsPda: new PublicKey(SQUADS_PDA!),
       squadsVault: new PublicKey(SQUADS_VAULT!),
     };
@@ -105,12 +105,12 @@ export function getEnv() {
   return {
     isDevnet,
     signer,
-    signerPubkey: signer ? signer.publicKey : new PublicKey(turnkeyOpt!.pubkey),
+    signerPubkey: signer ? signer.publicKey : new PublicKey(turnkey!.pubkey),
     connection: new Connection(RPC_URL!, 'confirmed'),
     evmClient: createPublicClient({ transport: http(EVM_RPC_URL!) }),
     evmWalletClient,
     graphClient: new Graph(GRAPH_KEY!, graphID),
-    turnkeyOpt,
-    squadsOpt,
+    turnkey,
+    squads,
   };
 }
