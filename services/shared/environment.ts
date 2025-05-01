@@ -11,9 +11,8 @@ import {
 } from '@m0-foundation/solana-m-sdk';
 
 type TurnkeyEnvOption = {
-  turnkey: Turnkey;
   signer: TurnkeySigner;
-  pubkey: PublicKey;
+  pubkey: string;
 };
 
 type SquadsEnvOption = {
@@ -23,10 +22,11 @@ type SquadsEnvOption = {
 
 export interface EnvOptions {
   isDevnet: boolean;
-  signer: Keypair;
   connection: Connection;
   evmClient: PublicClient;
   graphClient: Graph;
+  signerPubkey: PublicKey;
+  signer?: Keypair;
   squads?: SquadsEnvOption;
   turnkey?: TurnkeyEnvOption;
 }
@@ -44,11 +44,17 @@ export function getEnv() {
     SQUADS_VAULT,
   } = process.env;
 
-  let signer: Keypair;
-  try {
-    signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(KEYPAIR!)));
-  } catch {
-    signer = Keypair.fromSecretKey(Buffer.from(KEYPAIR!, 'base64'));
+  if (!KEYPAIR && !TURNKEY_PUBKEY) {
+    throw new Error('As signe or turnkey setup is required');
+  }
+
+  let signer: Keypair | undefined;
+  if (!KEYPAIR) {
+    try {
+      signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(KEYPAIR!)));
+    } catch {
+      signer = Keypair.fromSecretKey(Buffer.from(KEYPAIR!, 'base64'));
+    }
   }
 
   const isDevnet = RPC_URL!.includes('devnet');
@@ -69,9 +75,8 @@ export function getEnv() {
     });
 
     turnkeyOpt = {
-      pubkey: new PublicKey(TURNKEY_PUBKEY!),
+      pubkey: TURNKEY_PUBKEY!,
       signer: tkSigner,
-      turnkey,
     };
   }
 
@@ -86,6 +91,7 @@ export function getEnv() {
   return {
     isDevnet,
     signer,
+    signerPubkey: signer ? signer.publicKey : new PublicKey(turnkeyOpt!.pubkey),
     connection: new Connection(RPC_URL!, 'confirmed'),
     evmClient: createPublicClient({ transport: http(EVM_RPC_URL!) }),
     graphClient: new Graph(GRAPH_KEY!, graphID),

@@ -67,7 +67,7 @@ export async function yieldCLI() {
     .action(async ({ dryRun, skipCycle, programID, claimThreshold, stepInterval }) => {
       const env = getEnv();
 
-      await logBlockchainBalance('solana', env.connection.rpcEndpoint, env.signer.publicKey.toBase58(), logger);
+      await logBlockchainBalance('solana', env.connection.rpcEndpoint, env.signerPubkey.toBase58(), logger);
 
       const options: ParsedOptions = {
         ...env,
@@ -200,7 +200,7 @@ async function addEarners(opt: ParsedOptions) {
   logger.info('adding earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
-  const signer = opt.squads ? opt.squads.squadsVault : opt.signer.publicKey;
+  const signer = opt.squads ? opt.squads.squadsVault : opt.signerPubkey;
   const instructions = await registrar.buildMissingEarnersInstructions(signer, opt.merkleTreeAddress);
 
   if (instructions.length === 0) {
@@ -219,7 +219,7 @@ async function removeEarners(opt: ParsedOptions) {
   logger.info('removing earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
-  const signer = opt.squads ? opt.squads.squadsVault : opt.signer.publicKey;
+  const signer = opt.squads ? opt.squads.squadsVault : opt.signerPubkey;
   const instructions = await registrar.buildRemovedEarnersInstructions(signer, opt.merkleTreeAddress);
 
   if (instructions.length === 0) {
@@ -358,9 +358,12 @@ async function buildTransactions(
       continue;
     }
 
-    const tx = await opt.builder.buildTransaction(batchIxs, opt.signer.publicKey, priorityFee);
+    let tx = await opt.builder.buildTransaction(batchIxs, opt.signerPubkey, priorityFee);
 
-    tx.sign([opt.signer]);
+    // sign with local keypair or with turnkey
+    if (opt.signer) tx.sign([opt.signer]);
+    else tx = (await opt.turnkey!.signer.signTransaction(tx, opt.turnkey!.pubkey)) as VersionedTransaction;
+
     transactions.push(tx);
   }
 
@@ -421,8 +424,8 @@ async function proposeSquadsTransaction(
   const ix1 = instructions.vaultTransactionCreate({
     multisigPda: opt.squads!.squadsPda,
     transactionIndex: newTransactionIndex,
-    creator: opt.signer.publicKey,
-    rentPayer: opt.signer.publicKey,
+    creator: opt.signerPubkey,
+    rentPayer: opt.signerPubkey,
     vaultIndex: 0,
     ephemeralSigners: 0,
     transactionMessage,
@@ -432,13 +435,16 @@ async function proposeSquadsTransaction(
   // propose transaction
   const ix2 = instructions.proposalCreate({
     multisigPda: opt.squads!.squadsPda,
-    creator: opt.signer.publicKey,
-    rentPayer: opt.signer.publicKey,
+    creator: opt.signerPubkey,
+    rentPayer: opt.signerPubkey,
     transactionIndex: newTransactionIndex,
   });
 
-  const tx = await opt.builder.buildTransaction([ix1, ix2], opt.signer.publicKey, priorityFee);
-  tx.sign([opt.signer]);
+  let tx = await opt.builder.buildTransaction([ix1, ix2], opt.signerPubkey, priorityFee);
+
+  // sign with local keypair or with turnkey
+  if (opt.signer) tx.sign([opt.signer]);
+  else tx = (await opt.turnkey!.signer.signTransaction(tx, opt.turnkey!.pubkey)) as VersionedTransaction;
 
   return tx;
 }
