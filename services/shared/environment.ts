@@ -45,7 +45,7 @@ export function getEnv() {
   } = process.env;
 
   if (!KEYPAIR && !TURNKEY_PUBKEY) {
-    throw new Error('As signe or turnkey setup is required');
+    throw new Error('As signer or turnkey setup is required');
   }
 
   let signer: Keypair | undefined;

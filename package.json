@@ -12,9 +12,9 @@
     "fb:dev": "op run --account mzerolabs.1password.com --env-file='./.env.dev' -- ts-node services/cli/fb.ts"
   },
   "devDependencies": {
+    "ts-node": "~10.9.2",
     "@types/node": "~22.13.13",
     "prettier": "~2.6.2",
-    "ts-node": "~10.9.2",
     "typescript": "catalog:"
   }
 }
