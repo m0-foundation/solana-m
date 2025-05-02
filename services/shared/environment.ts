@@ -49,7 +49,7 @@ export function getEnv(): EnvOptions {
     EVM_KEY,
   } = process.env;
 
-  if (!KEYPAIR && !TURNKEY_PUBKEY) {
+  if (!EVM_KEY && !KEYPAIR && !TURNKEY_PUBKEY) {
     throw new Error('As signer or turnkey setup is required');
   }
 
@@ -105,7 +105,7 @@ export function getEnv(): EnvOptions {
   return {
     isDevnet,
     signer,
-    signerPubkey: signer ? signer.publicKey : new PublicKey(turnkey!.pubkey),
+    signerPubkey: signer ? signer.publicKey : turnkey ? new PublicKey(turnkey!.pubkey) : PublicKey.default,
     connection: new Connection(RPC_URL!, 'confirmed'),
     evmClient: createPublicClient({ transport: http(EVM_RPC_URL!) }),
     evmWalletClient,

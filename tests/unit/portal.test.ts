@@ -337,7 +337,7 @@ describe('Portal unit tests', () => {
       const published = emitter.publishMessage(0, serialized, 200);
       const rawVaa = guardians.addSignatures(published, [0]);
       const vaa = deserialize('Ntt:WormholeTransfer', serialize(rawVaa));
-      const redeemTxs = ntt.redeem([vaa], sender, multisig.publicKey);
+      const redeemTxs = ntt.redeem({ wormhole: vaa }, sender, multisig.publicKey);
 
       const pdas = NTT.pdas(config.PORTAL_PROGRAM_ID);
       inboxItem = pdas.inboxItemAccount(vaa.emitterChain as any, vaa.payload.nttManagerPayload);
@@ -346,7 +346,7 @@ describe('Portal unit tests', () => {
       return async function* redeemTxns() {
         let i = 0;
         for await (const tx of redeemTxs) {
-          if (++i === 3) {
+          if (++i === 4) {
             const t = tx.transaction.transaction as VersionedTransaction;
 
             const ixs = t.message.compiledInstructions.map(

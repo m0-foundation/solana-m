@@ -15,11 +15,12 @@ describe('Yield bot tests', () => {
     // 6mjP4Cp2pw8Q8fzoEEGS71xtdwMKCxmY13g86CPtHbmg
     const secret = 'JIsAxWMPwERUzQQy/vnkQqsF0o7mKrZxk5GzNzB/nLFVv+jlKzp8NlDG9h5UOzCc+Fy4eKlWm7akmsPoSPVvlw==';
 
+    process.env.KEYPAIR = secret;
+    process.env.RPC_URL = SVM_RPC;
+    process.env.EVM_RPC_URL = EVM_RPC;
+
     // mock command-line arguments
     process.argv = ['node', 'main.ts', 'distribute'];
-    process.argv.push('-k', secret);
-    process.argv.push('-e', EVM_RPC);
-    process.argv.push('-r', SVM_RPC);
     process.argv.push('--dryRun');
     process.argv.push('--stepInterval', '10');
 
