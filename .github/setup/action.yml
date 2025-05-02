@@ -65,5 +65,8 @@ runs:
       shell: bash
 
     - name: Build programs
-      run: anchor build --no-idl
+      run: |
+        anchor build -p earn
+        anchor build -p ext_earn
+        anchor build -p portal --no-idl
       shell: bash

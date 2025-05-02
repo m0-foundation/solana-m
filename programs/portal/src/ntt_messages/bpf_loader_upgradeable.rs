@@ -85,8 +85,11 @@ mod __private {
 
     #[derive(Accounts)]
     pub struct SetUpgradeAuthorityChecked<'info> {
+        /// CHECK: copied from wormhole repo
         pub program_data: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub current_authority: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub new_authority: AccountInfo<'info>,
     }
 
@@ -105,8 +108,11 @@ mod __private {
 
     #[derive(Accounts)]
     pub struct SetBufferAuthority<'info> {
+        /// CHECK: copied from wormhole repo
         pub buffer: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub current_authority: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub new_authority: AccountInfo<'info>,
     }
 
@@ -125,8 +131,11 @@ mod __private {
 
     #[derive(Accounts)]
     pub struct SetBufferAuthorityChecked<'info> {
+        /// CHECK: copied from wormhole repo
         pub buffer: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub current_authority: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub new_authority: AccountInfo<'info>,
     }
 
@@ -144,12 +153,19 @@ mod __private {
 
     #[derive(Accounts)]
     pub struct Upgrade<'info> {
+        /// CHECK: copied from wormhole repo
         pub program: AccountInfo<'info>,
+        /// CHECK: TODO
         pub program_data: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub buffer: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub authority: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub spill: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub rent: AccountInfo<'info>,
+        /// CHECK: copied from wormhole repo
         pub clock: AccountInfo<'info>,
     }
 }
