@@ -23,7 +23,6 @@
 //! Because of all the above, this instruction can be called permissionlessly.
 
 use anchor_lang::prelude::*;
-use solana_address_lookup_table_program;
 use solana_program::program::{invoke, invoke_signed};
 
 use crate::{config::Config, queue::outbox::OutboxRateLimit, transceivers::wormhole::accounts::*};
@@ -51,7 +50,7 @@ pub struct InitializeLUT<'info> {
     #[account(
         mut,
         seeds = [authority.key().as_ref(), &recent_slot.to_le_bytes()],
-        seeds::program = solana_address_lookup_table_program::id(),
+        seeds::program = solana_address_lookup_table_interface::program::ID,
         bump
     )]
     /// CHECK: The seeds constraint enforces that this is the correct account.
@@ -112,7 +111,7 @@ pub struct Entries<'info> {
 }
 
 pub fn initialize_lut(ctx: Context<InitializeLUT>, recent_slot: u64) -> Result<()> {
-    let (ix, lut_address) = solana_address_lookup_table_program::instruction::create_lookup_table(
+    let (ix, lut_address) = solana_address_lookup_table_interface::instruction::create_lookup_table(
         ctx.accounts.authority.key(),
         ctx.accounts.payer.key(),
         recent_slot,
@@ -166,7 +165,7 @@ pub fn initialize_lut(ctx: Context<InitializeLUT>, recent_slot: u64) -> Result<(
             .map(|x| x.pubkey),
     );
 
-    let ix = solana_address_lookup_table_program::instruction::extend_lookup_table(
+    let ix = solana_address_lookup_table_interface::instruction::extend_lookup_table(
         ctx.accounts.lut_address.key(),
         ctx.accounts.authority.key(),
         Some(ctx.accounts.payer.key()),
