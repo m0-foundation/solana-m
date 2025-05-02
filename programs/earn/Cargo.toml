@@ -10,7 +10,7 @@ crate-type = ["cdylib", "lib"]
 name = "earn"
 
 [features]
-anchor-debug = ["anchor-lang/anchor-debug"]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 default = ["testing"]
 cpi = ["no-entrypoint"]
 no-entrypoint = []
@@ -23,7 +23,6 @@ devnet = []
 
 [dependencies]
 anchor-lang = { workspace = true, features = [
-    "anchor-debug",
     "init-if-needed",
 ] }
 anchor-spl.workspace = true

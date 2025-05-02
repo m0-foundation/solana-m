@@ -15,7 +15,6 @@
 #![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface;
-use ntt_messages::{chain_id::ChainId, mode::Mode, trimmed_amount::TrimmedAmount};
 use spl_token_2022::onchain;
 
 use crate::{
@@ -23,6 +22,7 @@ use crate::{
     config::*,
     error::NTTError,
     instructions::BridgeEvent,
+    ntt_messages::{ChainId, Mode, TrimmedAmount},
     peer::NttManagerPeer,
     queue::{
         inbox::InboxRateLimit,

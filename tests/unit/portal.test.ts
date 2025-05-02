@@ -40,8 +40,8 @@ import {
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { utils } from 'web3';
 import { BN, Program } from '@coral-xyz/anchor';
-import { Earn } from '../../target/types/earn';
-const EARN_IDL = require('../../target/idl/earn.json');
+import { Earn } from '../../sdk/src/idl/earn';
+const EARN_IDL = require('../../sdk/src/idl/earn.json');
 
 const TOKEN_PROGRAM = spl.TOKEN_2022_PROGRAM_ID;
 
