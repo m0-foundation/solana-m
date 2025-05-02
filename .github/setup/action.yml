@@ -9,10 +9,6 @@ inputs:
     description: 'Solana version'
     required: false
     default: 'v2.2.6'
-  anchor-version:
-    description: 'Anchor version'
-    required: false
-    default: 'v0.31.0'
 runs:
   using: 'composite'
   steps:
@@ -53,7 +49,7 @@ runs:
         key: node-modules-${{ inputs.node-version }}
 
     - name: Install Anchor CLI
-      run: npm i -g @coral-xyz/anchor-cli@${{ inputs.anchor-version }}
+      run: curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
       shell: bash
 
     - name: Install Node Dependencies
