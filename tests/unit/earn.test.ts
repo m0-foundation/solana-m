@@ -31,9 +31,9 @@ const EARN_PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY
 const ZERO_WORD = new Array(32).fill(0);
 
 // Setup wallets once at the beginning of the test suite
-const admin: Keypair = loadKeypair('tests/keys/admin.json');
-const portal: Keypair = loadKeypair('tests/keys/admin.json');
-const mint: Keypair = loadKeypair('tests/keys/mint.json');
+const admin: Keypair = loadKeypair('keys/admin.json');
+const portal: Keypair = loadKeypair('keys/admin.json');
+const mint: Keypair = loadKeypair('keys/mint.json');
 const earnAuthority: Keypair = new Keypair();
 const mintAuthority: Keypair = new Keypair();
 const nonAdmin: Keypair = new Keypair();
@@ -550,7 +550,7 @@ const prepRemoveRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
 describe('Earn unit tests', () => {
   beforeEach(async () => {
     // Initialize the SVM instance with all necessary configurations
-    svm = fromWorkspace('')
+    svm = fromWorkspace('../')
       .withSplPrograms() // Add SPL programs (including token programs)
       .withBuiltins() // Add builtin programs
       .withSysvars() // Setup standard sysvars

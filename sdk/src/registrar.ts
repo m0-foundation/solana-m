@@ -126,6 +126,7 @@ export class Registrar {
             signer: signer,
             globalAccount: GLOBAL_ACCOUNT,
             earnerAccount: earner.pubkey,
+            userTokenAccount: earner.data.userTokenAccount,
           })
           .instruction(),
       );

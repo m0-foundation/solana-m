@@ -11,11 +11,12 @@ describe('Index bot tests', () => {
     // 0x607DD8578b494F968526fF70caF1936f962442e9
     const pk = '0xe22c2b4b720a4b35b90a7a8d12e410c46e53773f14e640ec3ac80df31c044ee7';
 
+    process.env.EVM_KEY = pk;
+    process.env.RPC_URL = SVM_RPC;
+    process.env.EVM_RPC_URL = EVM_RPC;
+
     // mock command-line arguments
     process.argv = ['node', 'main.ts', 'push'];
-    process.argv.push('-s', SVM_RPC);
-    process.argv.push('-e', EVM_RPC);
-    process.argv.push('-k', pk);
     process.argv.push('-t', '86400');
     process.argv.push('--dryRun');
 

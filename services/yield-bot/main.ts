@@ -1,39 +1,32 @@
 import { Command } from 'commander';
-import { Registrar } from '../../sdk/src/registrar';
+import {
+  Registrar,
+  EarnAuthority,
+  WinstonLogger,
+  ETH_MERKLE_TREE_BUILDER,
+  ETH_MERKLE_TREE_BUILDER_DEVNET,
+  EXT_PROGRAM_ID,
+  PROGRAM_ID,
+  TransactionBuilder,
+} from '@m0-foundation/solana-m-sdk';
 import {
   ComputeBudgetProgram,
-  Connection,
-  Keypair,
   PublicKey,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
 import * as multisig from '@sqds/multisig';
-import EarnAuthority from '../../sdk/src/earn_auth';
-import {
-  DEVNET_GRAPH_ID,
-  ETH_MERKLE_TREE_BUILDER,
-  ETH_MERKLE_TREE_BUILDER_DEVNET,
-  EXT_PROGRAM_ID,
-  MAINNET_GRAPH_ID,
-  PROGRAM_ID,
-  PublicClient,
-  TransactionBuilder,
-  createPublicClient,
-  http,
-} from '../../sdk/src';
 import { instructions } from '@sqds/multisig';
 import BN from 'bn.js';
-import { getProgram } from '../../sdk/src/idl';
-import { WinstonLogger } from '../../sdk/src/logger';
 import { RateLimiter } from 'limiter';
-import { sendSlackMessage, SlackMessage } from '../shared/slack';
-import { Graph } from '../../sdk/src/graph';
-import { logBlockchainBalance } from '../shared/balances';
+import { sendSlackMessage, SlackMessage } from 'shared/slack';
+import { logBlockchainBalance } from 'shared/balances';
 import LokiTransport from 'winston-loki';
 import winston from 'winston';
-import { validateSubgraph } from '../shared/validation';
+import { validateSubgraph } from 'shared/validation';
+import { getProgram } from '@m0-foundation/solana-m-sdk/src/idl';
+import { EnvOptions, getEnv } from 'shared/environment';
 
 // logger used by bot and passed to SDK
 const logger = new WinstonLogger('yield-bot', { imageBuild: process.env.BUILD_TIME ?? '' }, true);
@@ -50,19 +43,13 @@ const limiter = new RateLimiter({ tokensPerInterval: 2, interval: 1000 });
 // meta info from job will be posted to slack
 let slackMessage: SlackMessage;
 
-interface ParsedOptions {
-  signer: Keypair;
-  connection: Connection;
+interface ParsedOptions extends EnvOptions {
   builder: TransactionBuilder;
-  evmClient: PublicClient;
-  merkleTreeAddress: `0x${string}`;
-  graphClient: Graph;
   dryRun: boolean;
   skipCycle: boolean;
-  squadsPda?: PublicKey;
-  squadsVault?: PublicKey;
   claimThreshold: BN;
   programID: PublicKey;
+  merkleTreeAddress: `0x${string}`;
   mint: 'M' | 'wM';
 }
 
@@ -72,91 +59,43 @@ export async function yieldCLI() {
 
   program
     .command('distribute')
-    .option('-k, --keypair <base64>', 'Signer keypair (base64)')
-    .option('-r, --rpc [URL]', 'Solana RPC URL', 'https://api.devnet.solana.com')
-    .option('-e, --evmRPC [URL]', 'Ethereum RPC URL', 'https://ethereum-sepolia-rpc.publicnode.com')
-    .option('-g, --graphKey <key>', 'API key for the subgraph')
     .option('-d, --dryRun [bool]', 'Build and simulate transactions without sending them', false)
     .option('-s, --skipCycle [bool]', 'Mark cycle as complete without claiming', false)
-    .option(
-      '-p, --squadsPda [pubkey]',
-      'Propose transactions to squads vault instead of sending',
-      '11111111111111111111111111111111',
-    )
-    .option(
-      '-v, --squadsVault [pubkey]',
-      'Squads vault that will sign transactions',
-      '75VwgjdZLaesTXHG5tWHQWJS8DoANwZe4Yvzkwe2DanE',
-    )
     .option('-t, --claimThreshold [bigint]', 'Threshold for claiming yield', '100000')
     .option('-i, --stepInterval [number]', 'Wait interval for steps', '5000')
-    .option('--programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
-    .action(
-      async ({
-        keypair,
-        rpc,
-        evmRPC,
+    .option('-p, --programID [pubkey]', 'Earn program ID', PROGRAM_ID.toBase58())
+    .action(async ({ dryRun, skipCycle, programID, claimThreshold, stepInterval }) => {
+      const env = getEnv();
+
+      await logBlockchainBalance('solana', env.connection.rpcEndpoint, env.signerPubkey.toBase58(), logger);
+
+      const options: ParsedOptions = {
+        ...env,
+        builder: new TransactionBuilder(env.connection),
+        merkleTreeAddress: env.isDevnet ? ETH_MERKLE_TREE_BUILDER_DEVNET : ETH_MERKLE_TREE_BUILDER,
         dryRun,
         skipCycle,
-        squadsPda,
-        squadsVault,
-        programID,
-        claimThreshold,
-        graphKey,
-        stepInterval,
-      }) => {
-        let signer: Keypair;
-        try {
-          signer = Keypair.fromSecretKey(Buffer.from(JSON.parse(keypair)));
-        } catch {
-          signer = Keypair.fromSecretKey(Buffer.from(keypair, 'base64'));
-        }
+        programID: new PublicKey(programID),
+        claimThreshold: new BN(claimThreshold),
+        mint: new PublicKey(programID).equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
+      };
 
-        await logBlockchainBalance('solana', rpc, signer.publicKey.toBase58(), logger);
+      logger.addMetaField('mint', options.mint);
 
-        const evmClient: PublicClient = createPublicClient({ transport: http(evmRPC) });
-        const graphID = rpc.includes('devnet') ? DEVNET_GRAPH_ID : MAINNET_GRAPH_ID;
-        const connection = new Connection(rpc, 'confirmed');
+      slackMessage = {
+        messages: [],
+        mint: options.mint,
+        service: 'yield-bot',
+        level: 'info',
+        devnet: env.isDevnet,
+      };
 
-        const options: ParsedOptions = {
-          signer,
-          connection,
-          builder: new TransactionBuilder(connection),
-          evmClient,
-          merkleTreeAddress: rpc.includes('devnet') ? ETH_MERKLE_TREE_BUILDER_DEVNET : ETH_MERKLE_TREE_BUILDER,
-          graphClient: new Graph(graphKey, graphID),
-          dryRun,
-          skipCycle,
-          programID: new PublicKey(programID),
-          claimThreshold: new BN(claimThreshold),
-          mint: new PublicKey(programID).equals(EXT_PROGRAM_ID) ? 'wM' : 'M',
-        };
+      const steps = options.programID.equals(PROGRAM_ID)
+        ? [validation, removeEarners, distributeYield, addEarners, syncIndex]
+        : [validation, distributeYield];
 
-        logger.addMetaField('mint', options.mint);
-
-        slackMessage = {
-          messages: [],
-          mint: options.mint,
-          service: 'yield-bot',
-          level: 'info',
-          devnet: rpc.includes('devnet'),
-        };
-
-        const squadsPDA = new PublicKey(squadsPda);
-
-        if (!squadsPDA.equals(PublicKey.default)) {
-          options.squadsPda = squadsPDA;
-          options.squadsVault = new PublicKey(squadsVault);
-          slackMessage.messages.push('Bot is in propose mode');
-        }
-
-        const steps = options.programID.equals(PROGRAM_ID)
-          ? [validation, removeEarners, distributeYield, addEarners, syncIndex]
-          : [validation, distributeYield];
-
-        await executeSteps(options, steps, parseInt(stepInterval));
-      },
-    );
+      await executeSteps(options, steps, parseInt(stepInterval));
+    });
 
   await program.parseAsync(process.argv);
 }
@@ -261,7 +200,7 @@ async function addEarners(opt: ParsedOptions) {
   logger.info('adding earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
-  const signer = opt.squadsPda ? opt.squadsVault! : opt.signer.publicKey;
+  const signer = opt.squads ? opt.squads.squadsVault : opt.signerPubkey;
   const instructions = await registrar.buildMissingEarnersInstructions(signer, opt.merkleTreeAddress);
 
   if (instructions.length === 0) {
@@ -280,7 +219,7 @@ async function removeEarners(opt: ParsedOptions) {
   logger.info('removing earners');
   const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
 
-  const signer = opt.squadsPda ? opt.squadsVault! : opt.signer.publicKey;
+  const signer = opt.squads ? opt.squads.squadsVault : opt.signerPubkey;
   const instructions = await registrar.buildRemovedEarnersInstructions(signer, opt.merkleTreeAddress);
 
   if (instructions.length === 0) {
@@ -364,13 +303,19 @@ async function buildAndSendTransaction(
       continue;
     }
 
-    const sig = await opt.connection.sendTransaction(txn, { skipPreflight: true });
-    returnData.push(sig);
+    // send a few times in case it gets dropped
+    for (let j = 0; j < 3; j++) {
+      try {
+        const sig = await opt.connection.sendTransaction(txn, { skipPreflight: true });
+        if (j === 0) returnData.push(sig);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch {}
+    }
 
     logger.info('sent transaction', {
       base64: Buffer.from(txn.serialize()).toString('base64'),
       logs: logs[i],
-      signature: sig,
+      signature: returnData[returnData.length - 1],
     });
   }
 
@@ -413,15 +358,18 @@ async function buildTransactions(
     const batchIxs = ixs.slice(i, i + batchSize);
 
     // build propose transaction for squads vault
-    if (opt.squadsPda) {
+    if (opt.squads) {
       const squadsTxn = await proposeSquadsTransaction(opt, [computeBudgetIx, ...batchIxs], priorityFee, memo);
       transactions.push(squadsTxn);
       continue;
     }
 
-    const tx = await opt.builder.buildTransaction(batchIxs, opt.signer.publicKey, priorityFee);
+    let tx = await opt.builder.buildTransaction(batchIxs, opt.signerPubkey, priorityFee);
 
-    tx.sign([opt.signer]);
+    // sign with local keypair or with turnkey
+    if (opt.signer) tx.sign([opt.signer]);
+    else tx = (await opt.turnkey!.signer.signTransaction(tx, opt.turnkey!.pubkey)) as VersionedTransaction;
+
     transactions.push(tx);
   }
 
@@ -463,7 +411,7 @@ async function proposeSquadsTransaction(
   memo?: string,
 ): Promise<VersionedTransaction> {
   const [vaultPda] = multisig.getVaultPda({
-    multisigPda: opt.squadsPda!,
+    multisigPda: opt.squads!.squadsPda,
     index: 0,
   });
 
@@ -474,16 +422,16 @@ async function proposeSquadsTransaction(
   });
 
   // get the multisig transaction index
-  const multisigInfo = await multisig.accounts.Multisig.fromAccountAddress(opt.connection, opt.squadsPda!);
+  const multisigInfo = await multisig.accounts.Multisig.fromAccountAddress(opt.connection, opt.squads!.squadsPda);
   const currentTransactionIndex = Number(multisigInfo.transactionIndex);
   const newTransactionIndex = BigInt(currentTransactionIndex + 1);
 
   // create transaction
   const ix1 = instructions.vaultTransactionCreate({
-    multisigPda: opt.squadsPda!,
+    multisigPda: opt.squads!.squadsPda,
     transactionIndex: newTransactionIndex,
-    creator: opt.signer.publicKey,
-    rentPayer: opt.signer.publicKey,
+    creator: opt.signerPubkey,
+    rentPayer: opt.signerPubkey,
     vaultIndex: 0,
     ephemeralSigners: 0,
     transactionMessage,
@@ -492,14 +440,17 @@ async function proposeSquadsTransaction(
 
   // propose transaction
   const ix2 = instructions.proposalCreate({
-    multisigPda: opt.squadsPda!,
-    creator: opt.signer.publicKey,
-    rentPayer: opt.signer.publicKey,
+    multisigPda: opt.squads!.squadsPda,
+    creator: opt.signerPubkey,
+    rentPayer: opt.signerPubkey,
     transactionIndex: newTransactionIndex,
   });
 
-  const tx = await opt.builder.buildTransaction([ix1, ix2], opt.signer.publicKey, priorityFee);
-  tx.sign([opt.signer]);
+  let tx = await opt.builder.buildTransaction([ix1, ix2], opt.signerPubkey, priorityFee);
+
+  // sign with local keypair or with turnkey
+  if (opt.signer) tx.sign([opt.signer]);
+  else tx = (await opt.turnkey!.signer.signTransaction(tx, opt.turnkey!.pubkey)) as VersionedTransaction;
 
   return tx;
 }
@@ -520,7 +471,7 @@ function getLokiTransport(host: string, logger: winston.Logger) {
 }
 
 // do not run the cli if this is being imported by jest
-if (!process.argv[1].endsWith('jest')) {
+if (!process.argv[1].endsWith('jest.js')) {
   yieldCLI()
     .catch((error) => {
       logger.error(error);
@@ -528,8 +479,8 @@ if (!process.argv[1].endsWith('jest')) {
       slackMessage.messages.push(`${error}`);
     })
     .finally(async () => {
-      if (slackMessage.messages.length === 0) {
-        slackMessage.messages.push('No actions taken');
+      if (slackMessage?.messages.length === 0) {
+        slackMessage?.messages.push('No actions taken');
       }
       await lokiTransport?.flush();
       await sendSlackMessage(slackMessage);
