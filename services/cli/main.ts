@@ -637,7 +637,10 @@ async function main() {
           addressesForTable.push(earner.pubkey, earner.data.userTokenAccount);
 
           // Check if there is an earn manager
-          if (earner.data.earnManager && !addressesForTable.includes(earner.data.earnManager)) {
+          if (
+            earner.data.earnManager &&
+            !addressesForTable.find((a) => a.equals(earner.data.earnManager))
+          ) {
             addressesForTable.push(earner.data.earnManager);
           }
         }
