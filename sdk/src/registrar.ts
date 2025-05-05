@@ -108,10 +108,18 @@ export class Registrar {
     const ixs: TransactionInstruction[] = [];
     for (const earner of programEarners) {
       // load token account to get owner
-      let tokenAccount: spl.Account;
       try {
         const info = await this.connection.getAccountInfo(earner.data.userTokenAccount);
-        tokenAccount = unpackAccount(earner.data.userTokenAccount, info, TOKEN_2022_ID);
+
+        // if token account is not found then continue to remove earner
+        if (info) {
+          const tokenAccount = unpackAccount(earner.data.userTokenAccount, info, TOKEN_2022_ID);
+
+          // token account owner is part of registrar
+          if (earners.find((e) => e.equals(tokenAccount.owner))) {
+            continue;
+          }
+        }
       } catch (e) {
         this.logger.error('failed to load token account', {
           tokenAccount: earner.data.userTokenAccount.toBase58(),
@@ -121,13 +129,8 @@ export class Registrar {
         continue;
       }
 
-      if (earners.find((e) => e.equals(tokenAccount.owner))) {
-        continue;
-      }
-
       this.logger.info('removing earner', {
         user: earner.data.user.toBase58(),
-        tokenAccountOwner: tokenAccount.owner.toBase58(),
         pubkey: earner.pubkey.toBase58(),
       });
 
