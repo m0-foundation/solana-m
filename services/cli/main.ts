@@ -36,7 +36,7 @@ import {
   TokenMetadata,
 } from '@solana/spl-token-metadata';
 import { Chain, ChainAddress, UniversalAddress, assertChain, signSendWait } from '@wormhole-foundation/sdk';
-import { createPublicClient, EXT_GLOBAL_ACCOUNT, EXT_MINT, Graph, http } from '../../sdk/src';
+import { createPublicClient, EXT_GLOBAL_ACCOUNT, EXT_MINT, Graph, http, EarnAuthority } from '../../sdk/src';
 
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
@@ -628,6 +628,24 @@ async function main() {
         TOKEN_2022_PROGRAM_ID,
       ];
 
+      // Add current earners to LUT
+      for (const pid of [PROGRAM_ID, EXT_PROGRAM_ID]) {
+        const auth = await EarnAuthority.load(connection, evmClient, new Graph(''), pid);
+        const earners = await auth.getAllEarners();
+
+        for (const earner of earners) {
+          addressesForTable.push(earner.pubkey, earner.data.userTokenAccount);
+
+          // Check if there is an earn manager
+          if (
+            earner.data.earnManager &&
+            !addressesForTable.find((a) => a.equals(earner.data.earnManager))
+          ) {
+            addressesForTable.push(earner.data.earnManager);
+          }
+        }
+      }
+
       // Fetch current state of LUT
       let existingAddresses: PublicKey[] = [];
       if (address) {
@@ -647,6 +665,10 @@ async function main() {
       if (toAdd.length === 0) {
         console.log('No addresses to add');
         return;
+      }
+
+      if (existingAddresses.length + toAdd.length > 256) {
+        throw new Error(`cannot add ${toAdd.length} more addresses`);
       }
 
       ixs.push(
