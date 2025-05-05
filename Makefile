@@ -123,6 +123,14 @@ upgrade-portal-mainnet:
 	$(call build-verified,portal,mainnet)
 	$(call propose_upgrade_program,portal,$(PORTAL_PROGRAM_ID))
 
+set-build-tools-v1:
+	avm use 0.29.0
+	agave-install init $(shell agave-install list 2>/dev/null | head -n 1 | sed 's/ (current)//')
+
+set-build-tools-v2:
+	avm use 0.31.1
+	agave-install init $(shell agave-install list | tail -n 1 | sed 's/ (current)//')
+
 #
 # Railway infra
 #
