@@ -6,9 +6,16 @@ import {
   Transaction,
 } from '@solana/web3.js';
 import { fromWorkspace, LiteSVMProvider } from 'anchor-litesvm';
-import { createPublicClient, http, MINT, PROGRAM_ID, TOKEN_2022_ID, DEVNET_GRAPH_ID } from '../../sdk/src';
-import { Graph } from '../../sdk/src/graph';
-import EarnAuthority from '../../sdk/src/earn_auth';
+import {
+  createPublicClient,
+  http,
+  MINT,
+  PROGRAM_ID,
+  TOKEN_2022_ID,
+  DEVNET_GRAPH_ID,
+  Graph,
+  EarnAuthority,
+} from '@m0-foundation/solana-m-sdk';
 import nock from 'nock';
 import { TransactionMetadata } from 'litesvm';
 import BN from 'bn.js';
@@ -16,7 +23,7 @@ import BN from 'bn.js';
 const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
 
 describe('Yield calculation tests', () => {
-  const svm = fromWorkspace('').withSplPrograms();
+  const svm = fromWorkspace('../').withSplPrograms();
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
   const graphClient = new Graph('', DEVNET_GRAPH_ID);
   const provider = new LiteSVMProvider(svm);

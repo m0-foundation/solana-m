@@ -1,11 +1,11 @@
-import { Keypair, PublicKey } from '@solana/web3.js';
 import nock from 'nock';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import { yieldCLI } from '../../services/yield-bot/main';
-import { EARN_ADDRESS_TABLE_DEVNET, EARN_ADDRESS_TABLE } from '../../sdk/src';
+import { EARN_ADDRESS_TABLE_DEVNET, EARN_ADDRESS_TABLE } from '@m0-foundation/solana-m-sdk';
 
-const SVM_RPC = 'https://api.devnet.solana.com';
+const SVM_RPC = 'https://dummy.solana.com';
 const EVM_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
-const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
+const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/bgd3AFHw9bcSox1mfU39W9NbYUeSY53fr4kaVzmkPjC';
 
 describe('Yield bot tests', () => {
   const earner = Keypair.generate();
@@ -15,11 +15,12 @@ describe('Yield bot tests', () => {
     // 6mjP4Cp2pw8Q8fzoEEGS71xtdwMKCxmY13g86CPtHbmg
     const secret = 'JIsAxWMPwERUzQQy/vnkQqsF0o7mKrZxk5GzNzB/nLFVv+jlKzp8NlDG9h5UOzCc+Fy4eKlWm7akmsPoSPVvlw==';
 
+    process.env.KEYPAIR = secret;
+    process.env.RPC_URL = SVM_RPC;
+    process.env.EVM_RPC_URL = EVM_RPC;
+
     // mock command-line arguments
     process.argv = ['node', 'main.ts', 'distribute'];
-    process.argv.push('-k', secret);
-    process.argv.push('-e', EVM_RPC);
-    process.argv.push('-r', SVM_RPC);
     process.argv.push('--dryRun');
     process.argv.push('--stepInterval', '10');
 
