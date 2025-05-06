@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token::get_associated_token_address_with_program_id, token_interface};
 use ntt_messages::mode::Mode;
-use solana_program::program::invoke_signed;
+use solana_program::{instruction::Instruction, program::invoke_signed};
 use spl_token_2022::onchain;
 
 use crate::{
@@ -163,18 +163,29 @@ pub fn release_inbound_mint_multisig<'info>(
             }
         }
 
-        // let ctx = CpiContext::new_with_signer(
-        //     ctx.remaining_accounts[0].clone(),
-        //     PropagateIndex {
-        //         signer: ctx.accounts.common.token_authority.to_account_info(),
-        //         global_account: ctx.remaining_accounts[1].clone(),
-        //         mint: ctx.accounts.common.mint.to_account_info(),
-        //     },
-        //     token_authority_sig,
-        // );
+        let mut data: Vec<u8> = Vec::with_capacity(48);
+        data.extend_from_slice(&[147, 161, 17, 101, 221, 86, 186, 218]); // discriminator
+        data.extend_from_slice(&inbox_item.index_update.to_le_bytes());
+        data.extend_from_slice(&inbox_item.earners_root_update.unwrap_or_default());
 
-        // let earner_root = inbox_item.earners_root_update.unwrap_or_default();
-        // earn::cpi::propagate_index(ctx, inbox_item.index_update, earner_root)?;
+        // Call PropagateIndex on Earn program
+        invoke_signed(
+            &Instruction {
+                program_id: ctx.remaining_accounts[0].key(),
+                accounts: vec![
+                    AccountMeta::new_readonly(ctx.accounts.common.token_authority.key(), true),
+                    AccountMeta::new(ctx.remaining_accounts[1].key(), false),
+                    AccountMeta::new_readonly(ctx.accounts.common.mint.key(), false),
+                ],
+                data: vec![],
+            },
+            &[
+                ctx.accounts.common.token_authority.to_account_info(),
+                ctx.remaining_accounts[1].clone(),
+                ctx.accounts.common.mint.to_account_info(),
+            ],
+            token_authority_sig,
+        )?;
 
         msg!(
             "Index update: {} | root update: {}",

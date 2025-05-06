@@ -21,9 +21,9 @@ import { randomInt } from 'crypto';
 
 import { MerkleTree, ProofElement } from '../../sdk/src/merkle';
 import { loadKeypair } from '../test-utils';
-import { Earn } from '../../target/types/earn';
+import { Earn } from '../../sdk/src/idl/earn';
 
-const EARN_IDL = require('../../target/idl/earn.json');
+const EARN_IDL = require('../../sdk/src/idl/earn.json');
 const EARN_PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c');
 
 // Unit tests for earn program
