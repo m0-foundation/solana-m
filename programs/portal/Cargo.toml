@@ -18,18 +18,17 @@ mainnet = ["wormhole-anchor-sdk/mainnet"]
 devnet = ["wormhole-anchor-sdk/solana-devnet"]
 
 [dependencies]
-ntt-messages = { git = "https://github.com/wormhole-foundation/native-token-transfers", rev = "738c67b", features = [
+ntt-messages = { git = "https://github.com/wormhole-foundation/native-token-transfers", rev = "761bcb2", features = [
     "anchor",
     "hash",
 ] }
 anchor-lang = { version = "0.29.0", features = ["init-if-needed"] }
 anchor-spl = "0.29.0"
 spl-token-2022 = { version = "3.0.2", features = ["no-entrypoint"] }
-solana-program =  "=1.18.10"
+solana-program = "=1.18.26"
 wormhole-anchor-sdk = { version = "0.29.0-alpha.1", default-features = false }
 wormhole-io = "0.1.3"
-wormhole-solana-utils = "0.3.0-alpha.1"
 bitmaps = "3.2.1"
 cfg-if = "1.0"
-solana-address-lookup-table-program =  "=1.18.10"
+solana-address-lookup-table-program = "=1.18.26"
 solana-security-txt = "1.1.1"

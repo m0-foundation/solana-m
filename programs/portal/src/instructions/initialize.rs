@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token::AssociatedToken, token_interface};
 use ntt_messages::{chain_id::ChainId, mode::Mode};
-use wormhole_solana_utils::cpi::bpf_loader_upgradeable::BpfLoaderUpgradeable;
 
 #[cfg(feature = "idl-build")]
 use crate::messages::Hack;
 
 use crate::{
     bitmap::Bitmap,
+    bpf_loader_upgradeable::BpfLoaderUpgradeable,
     config::{Config, RemainingAccount},
     error::NTTError,
     queue::{outbox::OutboxRateLimit, rate_limit::RateLimitState},
@@ -129,11 +129,13 @@ pub fn initialize_multisig(ctx: Context<InitializeMultisig>, args: InitializeArg
         enabled_transceivers: Bitmap::new(),
         custody: common.custody.key(),
         release_inbound_remaining_accounts: [
-            RemainingAccount::new(earn::ID, false),
-            RemainingAccount::new(
-                Pubkey::find_program_address(&[earn::state::GLOBAL_SEED], &earn::ID).0,
-                true,
-            ),
+            // RemainingAccount::new(earn::ID, false),
+            // RemainingAccount::new(
+            //     Pubkey::find_program_address(&[earn::state::GLOBAL_SEED], &earn::ID).0,
+            //     true,
+            // ),
+            RemainingAccount::new(Pubkey::default(), false),
+            RemainingAccount::new(Pubkey::default(), false),
         ],
         evm_token: [0; 32],
         evm_wrapped_token: [0; 32],

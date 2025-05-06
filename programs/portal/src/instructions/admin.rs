@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{token_2022::spl_token_2022::instruction::AuthorityType, token_interface};
 use ntt_messages::chain_id::ChainId;
-use wormhole_solana_utils::cpi::bpf_loader_upgradeable::{self, BpfLoaderUpgradeable};
 
 #[cfg(feature = "idl-build")]
 use crate::messages::Hack;
 
 use crate::{
+    bpf_loader_upgradeable::{self, BpfLoaderUpgradeable},
     config::Config,
     error::NTTError,
     peer::NttManagerPeer,

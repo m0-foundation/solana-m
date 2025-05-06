@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{associated_token::get_associated_token_address_with_program_id, token_interface};
-use earn::cpi::accounts::PropagateIndex;
 use ntt_messages::mode::Mode;
 use solana_program::program::invoke_signed;
 use spl_token_2022::onchain;
@@ -164,18 +163,18 @@ pub fn release_inbound_mint_multisig<'info>(
             }
         }
 
-        let ctx = CpiContext::new_with_signer(
-            ctx.remaining_accounts[0].clone(),
-            PropagateIndex {
-                signer: ctx.accounts.common.token_authority.to_account_info(),
-                global_account: ctx.remaining_accounts[1].clone(),
-                mint: ctx.accounts.common.mint.to_account_info(),
-            },
-            token_authority_sig,
-        );
+        // let ctx = CpiContext::new_with_signer(
+        //     ctx.remaining_accounts[0].clone(),
+        //     PropagateIndex {
+        //         signer: ctx.accounts.common.token_authority.to_account_info(),
+        //         global_account: ctx.remaining_accounts[1].clone(),
+        //         mint: ctx.accounts.common.mint.to_account_info(),
+        //     },
+        //     token_authority_sig,
+        // );
 
-        let earner_root = inbox_item.earners_root_update.unwrap_or_default();
-        earn::cpi::propagate_index(ctx, inbox_item.index_update, earner_root)?;
+        // let earner_root = inbox_item.earners_root_update.unwrap_or_default();
+        // earn::cpi::propagate_index(ctx, inbox_item.index_update, earner_root)?;
 
         msg!(
             "Index update: {} | root update: {}",

@@ -128,6 +128,19 @@ upgrade-portal-mainnet:
 	$(call build-verified,portal,mainnet)
 	$(call propose_upgrade_program,portal,$(PORTAL_PROGRAM_ID))
 
+build-portal-program:
+	avm use 0.29.0
+	rustup default 1.79.0
+	agave-install init 1.18.26
+	cd programs/portal && \
+	anchor build
+
+build-earn-programs:
+	avm use 0.31.1
+	rustup default 1.86.0
+	agave-install init 2.2.6
+	anchor build
+
 #
 # Railway infra
 #
