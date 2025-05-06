@@ -29,7 +29,7 @@ describe('portal - solana-test-validator', () => {
   const payer = anchor.Wallet.local().payer;
   const { ctx, remoteXcvr, remoteMgr, coreBridge } = getWormholeContext(connection);
 
-  const mint = loadKeypair('tests/keys/mint.json');
+  const mint = loadKeypair('keys/mint.json');
   const multisig = Keypair.generate();
   const signer = new SolanaSendSigner(connection, 'Solana', payer, false, {});
   const sender = Wormhole.parseAddress('Solana', signer.address());
