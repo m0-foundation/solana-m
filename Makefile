@@ -18,6 +18,7 @@ test-yield:
 
 test-sdk:
 	@cd sdk && pnpm build
+	@avm use 0.31.1
 	@anchor localnet --skip-build > /dev/null 2>&1 & \
 	anvil -f https://gateway.tenderly.co/public/sepolia > /dev/null 2>&1 & \
 	sleep 2 && \
