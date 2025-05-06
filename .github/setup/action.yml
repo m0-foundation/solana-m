@@ -12,7 +12,7 @@ inputs:
   anchor-version:
     description: 'Anchor version'
     required: false
-    default: 'v0.31.1'
+    default: '0.31.1'
 runs:
   using: 'composite'
   steps:
