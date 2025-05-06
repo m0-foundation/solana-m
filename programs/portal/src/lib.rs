@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
 pub mod bitmap;
-pub mod bpf_loader_upgradeable;
 pub mod clock;
 pub mod config;
 pub mod error;
