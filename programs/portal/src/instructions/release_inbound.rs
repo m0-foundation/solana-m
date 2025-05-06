@@ -177,7 +177,7 @@ pub fn release_inbound_mint_multisig<'info>(
                     AccountMeta::new(ctx.remaining_accounts[1].key(), false),
                     AccountMeta::new_readonly(ctx.accounts.common.mint.key(), false),
                 ],
-                data: vec![],
+                data,
             },
             &[
                 ctx.accounts.common.token_authority.to_account_info(),
