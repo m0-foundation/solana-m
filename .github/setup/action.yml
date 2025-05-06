@@ -68,5 +68,5 @@ runs:
       shell: bash
 
     - name: Build portal program
-      run: build-portal-program
+      run: make build-portal-program
       shell: bash
