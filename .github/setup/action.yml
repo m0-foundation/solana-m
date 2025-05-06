@@ -68,5 +68,7 @@ runs:
       shell: bash
 
     - name: Build portal program
-      run: make build-portal-program
+      run: |
+        avm install 0.29.0
+        make build-portal-program
       shell: bash
