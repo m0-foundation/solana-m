@@ -36,6 +36,7 @@ pub fn handler(
     ctx: Context<Initialize>,
     earn_authority: Pubkey,
     initial_index: u64,
+    initial_earner_rate: u16,
     claim_cooldown: u64,
 ) -> Result<()> {
     // Check that the initial index is at least 1 (with 12 decimals)
@@ -57,6 +58,7 @@ pub fn handler(
         portal_authority,
         mint: ctx.accounts.mint.key(),
         index: initial_index,
+        earner_rate: initial_earner_rate,
         timestamp: 0, // Set this to 0 initially so we can call propagate immediately
         claim_cooldown,
         max_supply: 0,
