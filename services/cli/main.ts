@@ -76,15 +76,16 @@ async function main() {
   const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL ?? '') });
 
   program.command('print-vaults').action(() => {
-    const addresses: { [key: string]: PublicKey } = {
-      Kast: new PublicKey(process.env.KAST_PROGRAM_ID!),
-      Squads: new PublicKey(process.env.SQUADS_PROGRAM_ID!),
-      Loopscale: new PublicKey(process.env.LOOPSCALE_PROGRAM_ID!),
-    };
+    const [kast, squads, loopscale] = keysFromEnv(['KAST_PROGRAM_ID', 'SQUADS_PROGRAM_ID', 'LOOPSCALE_PROGRAM_ID']);
 
-    addresses.KastVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], addresses.Kast)[0];
-    addresses.SquadsVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], addresses.Squads)[0];
-    addresses.LoopscaleVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], addresses.Loopscale)[0];
+    const addresses: { [key: string]: PublicKey } = {
+      Kast: kast.publicKey,
+      KastVault: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], kast.publicKey)[0],
+      Squads: squads.publicKey,
+      SquadsVault: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], squads.publicKey)[0],
+      Loopscale: loopscale.publicKey,
+      LoopScaleVault: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], loopscale.publicKey)[0],
+    };
 
     const tableData = Object.entries(addresses).map(([name, pubkey]) => ({
       Name: name,
