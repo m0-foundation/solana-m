@@ -76,7 +76,7 @@ async function main() {
   const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL ?? '') });
 
   program.command('print-vaults').action(() => {
-    const [kast, squads, loopscale] = keysFromEnv(['KAST_PROGRAM_ID', 'SQUADS_PROGRAM_ID', 'LOOPSCALE_PROGRAM_ID']);
+    const [kast, squads, loopscale] = keysFromEnv(['EXT_PROGRAM_ID_1', 'EXT_PROGRAM_ID_2', 'EXT_PROGRAM_ID_3']);
 
     const addresses: { [key: string]: PublicKey } = {
       Kast: kast.publicKey,
