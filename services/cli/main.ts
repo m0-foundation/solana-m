@@ -75,27 +75,6 @@ async function main() {
   const connection = new Connection(process.env.RPC_URL ?? '');
   const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL ?? '') });
 
-  program.command('print-vaults').action(() => {
-    const [kast, squads, loopscale] = keysFromEnv(['EXT_PROGRAM_ID_1', 'EXT_PROGRAM_ID_2', 'EXT_PROGRAM_ID_3']);
-
-    const addresses: { [key: string]: PublicKey } = {
-      Kast: kast.publicKey,
-      KastVault: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], kast.publicKey)[0],
-      Squads: squads.publicKey,
-      SquadsVault: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], squads.publicKey)[0],
-      Loopscale: loopscale.publicKey,
-      LoopScaleVault: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], loopscale.publicKey)[0],
-    };
-
-    const tableData = Object.entries(addresses).map(([name, pubkey]) => ({
-      Name: name,
-      Address: pubkey.toBase58(),
-      Hex: `0x${pubkey.toBuffer().toString('hex')}`,
-    }));
-
-    console.table(tableData);
-  });
-
   program
     .command('print-addresses')
     .description('Print the addresses of all the relevant programs and accounts')
@@ -136,6 +115,27 @@ async function main() {
 
       console.table(tableData);
     });
+
+  program.command('print-extension-vaults').action(() => {
+    const [a, b, c] = keysFromEnv(['EXT_PROGRAM_ID_1', 'EXT_PROGRAM_ID_2', 'EXT_PROGRAM_ID_3']);
+
+    const addresses: { [key: string]: PublicKey } = {
+      A: a.publicKey,
+      vaultA: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], a.publicKey)[0],
+      B: b.publicKey,
+      vaultB: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], b.publicKey)[0],
+      C: c.publicKey,
+      VaultC: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], c.publicKey)[0],
+    };
+
+    const tableData = Object.entries(addresses).map(([name, pubkey]) => ({
+      Name: name,
+      Address: pubkey.toBase58(),
+      Hex: `0x${pubkey.toBuffer().toString('hex')}`,
+    }));
+
+    console.table(tableData);
+  });
 
   program
     .command('print-earn-global-state')
