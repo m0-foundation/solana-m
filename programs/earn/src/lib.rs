@@ -1,4 +1,5 @@
 // earn/lib.rs - top-level program file
+#![allow(unexpected_cfgs)]
 
 pub mod constants;
 pub mod errors;

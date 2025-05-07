@@ -77,6 +77,8 @@ describe('Portal unit tests', () => {
 
   const svm = fromWorkspace('../').withSplPrograms().withBuiltins().withSysvars().withBlockhashCheck(false);
 
+  svm.addProgramFromFile(config.PORTAL_PROGRAM_ID, '../programs/portal/target/deploy/portal.so');
+
   // Wormhole program
   svm.addProgramFromFile(config.WORMHOLE_PID, 'programs/core_bridge.so');
 
