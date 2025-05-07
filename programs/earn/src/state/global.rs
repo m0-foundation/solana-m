@@ -21,4 +21,5 @@ pub struct Global {
     pub earner_merkle_root: [u8; 32],
     pub portal_authority: Pubkey, // portal authority that propogates indexes and roots
     pub bump: u8,                 // bump seed on this PDA
+    pub earner_rate: u16,         // last earner rate that was bridged
 }
