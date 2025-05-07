@@ -75,6 +75,26 @@ async function main() {
   const connection = new Connection(process.env.RPC_URL ?? '');
   const evmClient = createPublicClient({ transport: http(process.env.ETH_RPC_URL ?? '') });
 
+  program.command('print-vaults').action(() => {
+    const addresses: { [key: string]: PublicKey } = {
+      Kast: new PublicKey(process.env.KAST_PROGRAM_ID!),
+      Squads: new PublicKey(process.env.SQUADS_PROGRAM_ID!),
+      Loopscale: new PublicKey(process.env.LOOPSCALE_PROGRAM_ID!),
+    };
+
+    addresses.KastVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], addresses.Kast)[0];
+    addresses.SquadsVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], addresses.Squads)[0];
+    addresses.LoopscaleVault = PublicKey.findProgramAddressSync([Buffer.from('m_vault')], addresses.Loopscale)[0];
+
+    const tableData = Object.entries(addresses).map(([name, pubkey]) => ({
+      Name: name,
+      Address: pubkey.toBase58(),
+      Hex: `0x${pubkey.toBuffer().toString('hex')}`,
+    }));
+
+    console.table(tableData);
+  });
+
   program
     .command('print-addresses')
     .description('Print the addresses of all the relevant programs and accounts')
@@ -635,10 +655,7 @@ async function main() {
           addressesForTable.push(earner.pubkey, earner.data.userTokenAccount);
 
           // Check if there is an earn manager
-          if (
-            earner.data.earnManager &&
-            !addressesForTable.find((a) => a.equals(earner.data.earnManager))
-          ) {
+          if (earner.data.earnManager && !addressesForTable.find((a) => a.equals(earner.data.earnManager))) {
             addressesForTable.push(earner.data.earnManager);
           }
         }
