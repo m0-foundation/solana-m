@@ -91,7 +91,7 @@ export function getEnv(): EnvOptions {
   }
 
   if (!evmWalletClient && !signer && !turnkey) {
-    throw new Error('As signer or turnkey setup is required');
+    throw new Error('A signer or turnkey setup is required');
   }
 
   let squads: SquadsEnvOption | undefined;
