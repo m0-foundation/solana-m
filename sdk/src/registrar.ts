@@ -3,7 +3,7 @@ import { PublicClient } from 'viem';
 
 import { EvmCaller } from './evm_caller';
 import { Earner } from './earner';
-import { ETH_M_ADDRESS, ETH_MERKLE_TREE_BUILDER, GLOBAL_ACCOUNT, PROGRAM_ID } from '.';
+import { ETH_M_ADDRESS, ETH_MERKLE_TREE_BUILDER, GLOBAL_ACCOUNT, PROGRAM_ID, TOKEN_2022_ID } from '.';
 import { MerkleTree } from './merkle';
 import * as spl from '@solana/spl-token';
 import { Program } from '@coral-xyz/anchor';
@@ -11,6 +11,7 @@ import { getProgram } from './idl';
 import { Earn } from './idl/earn';
 import { MockLogger, Logger } from './logger';
 import { Graph } from './graph';
+import { unpackAccount } from '@solana/spl-token';
 
 export class Registrar {
   private logger: Logger;
@@ -106,7 +107,25 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const earner of programEarners) {
-      if (earners.find((e) => e.equals(earner.data.user))) {
+      // load token account to get owner
+      try {
+        const info = await this.connection.getAccountInfo(earner.data.userTokenAccount);
+
+        // if token account is not found then continue to remove earner
+        if (info) {
+          const tokenAccount = unpackAccount(earner.data.userTokenAccount, info, TOKEN_2022_ID);
+
+          // token account owner is part of registrar
+          if (earners.find((e) => e.equals(tokenAccount.owner))) {
+            continue;
+          }
+        }
+      } catch (e) {
+        this.logger.error('failed to load token account', {
+          tokenAccount: earner.data.userTokenAccount.toBase58(),
+          earner: earner.pubkey.toBase58(),
+          error: e,
+        });
         continue;
       }
 
