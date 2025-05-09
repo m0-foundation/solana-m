@@ -162,7 +162,7 @@ fn wormhole_id_to_chain(id: u16) -> String {
         23 => "Arbitrum".to_string(),
         10003 => "Arbitrum Sepolia".to_string(),
         21 => "Sui".to_string(),
-        24 => "Optimism Sepolia".to_string(),
+        24 => "Optimism".to_string(),
         10005 => "Optimism Sepolia".to_string(),
         30 => "Base".to_string(),
         10004 => "Base Sepolia".to_string(),
