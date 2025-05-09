@@ -16,6 +16,7 @@ solana_security_txt::security_txt! {
     name: "wM Earn Program",
     project_url: "https://m0.org/",
     contacts: "email:security@m0.xyz",
+    policy: "https://github.com/m0-foundation/solana-m/blob/main/SECURITY.md",
     // Optional Fields
     preferred_languages: "en",
     source_code: "https://github.com/m0-foundation/solana-m/tree/main/programs/ext_earn",
