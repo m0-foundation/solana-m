@@ -169,26 +169,40 @@ async function distributeYield(opt: ParsedOptions) {
   const amountDec = distributed.toNumber() / 1e6;
   slackMessage.messages.push(`Distributed ${amountDec.toFixed(2)} ${opt.mint} to ${filteredIxs.length} earners`);
 
+  // cycle instructions - will be null they don't apply to the target program
+  const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
+  const syncIndexIx = await auth.buildIndexSyncInstruction();
+
+  // if instructions will fit into a single transaction
+  if (filteredIxs.length <= batchSize) {
+    if (syncIndexIx) filteredIxs.unshift(syncIndexIx);
+    if (completeClaimIx) filteredIxs.push(completeClaimIx);
+
+    const sig = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
+
+    logger.info('yield distributed', { signature: sig[0] });
+    slackMessage.messages.push(`Claims: https://solscan.io/tx/${sig[0]}`);
+    return true;
+  }
+
+  // sync index if applicable
+  if (syncIndexIx) {
+    const sigs = await buildAndSendTransaction(opt, [syncIndexIx], batchSize, 'sync index');
+    logger.info('synced index', { signature: sigs[0] });
+  }
+
   // send all the claims
   if (filteredIxs.length > 0) {
     const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
     logger.info('yield distributed', { signatures });
 
     for (const sig of signatures) {
-      slackMessage.messages.push(
-        `Claims: https://solscan.io/tx/${sig}${opt.connection.rpcEndpoint.includes('devnet') ? '?cluster=devnet' : ''}`,
-      );
+      slackMessage.messages.push(`Claims: https://solscan.io/tx/${sig}`);
     }
   }
 
-  if (opt.programID.equals(PROGRAM_ID)) {
-    // complete cycle on last claim transaction
-    const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
-    if (!completeClaimIx) {
-      return true;
-    }
-
-    // wait for claim transactions to be confirmed before completing cycle
+  // complete cycle on last claim transaction
+  if (completeClaimIx) {
     const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
     logger.info('cycle complete', { signature: sigs[0] });
   }
@@ -255,7 +269,7 @@ async function syncIndex(opt: ParsedOptions) {
   }
 
   const ix = await auth.buildIndexSyncInstruction();
-  const signature = await buildAndSendTransaction(opt, [ix], 10, 'sync index');
+  const signature = await buildAndSendTransaction(opt, [ix!], 10, 'sync index');
 
   logger.info('updated index on ext earn', { ...logsFields, signature: signature[0] });
   slackMessage.messages.push(`Synced index: ${signature[0]}`);
