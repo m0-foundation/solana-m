@@ -91,7 +91,7 @@ export async function yieldCLI() {
       };
 
       const steps = options.programID.equals(PROGRAM_ID)
-        ? [validation, removeEarners, distributeYield, addEarners, syncIndex]
+        ? [validation, removeEarners, distributeYield, addEarners]
         : [validation, distributeYield];
 
       await executeSteps(options, steps, parseInt(stepInterval));
@@ -169,26 +169,38 @@ async function distributeYield(opt: ParsedOptions) {
   const amountDec = distributed.toNumber() / 1e6;
   slackMessage.messages.push(`Distributed ${amountDec.toFixed(2)} ${opt.mint} to ${filteredIxs.length} earners`);
 
+  // cycle instructions - will be null they don't apply to the target program
+  const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
+  const syncIndexIx = await auth.buildIndexSyncInstruction();
+
+  // if instructions will fit into a single transaction
+  if (filteredIxs.length <= batchSize) {
+    if (syncIndexIx) filteredIxs.unshift(syncIndexIx);
+    if (completeClaimIx) filteredIxs.push(completeClaimIx);
+
+    const sig = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
+
+    logger.info('yield distributed', { signature: sig[0] });
+    slackMessage.messages.push(`Claims: https://solscan.io/tx/${sig[0]}`);
+    return true;
+  } else if (syncIndexIx) {
+    // sync index if applicable
+    const sigs = await buildAndSendTransaction(opt, [syncIndexIx], batchSize, 'sync index');
+    logger.info('synced index', { signature: sigs[0] });
+  }
+
   // send all the claims
   if (filteredIxs.length > 0) {
     const signatures = await buildAndSendTransaction(opt, filteredIxs, batchSize, 'yield claim');
     logger.info('yield distributed', { signatures });
 
     for (const sig of signatures) {
-      slackMessage.messages.push(
-        `Claims: https://solscan.io/tx/${sig}${opt.connection.rpcEndpoint.includes('devnet') ? '?cluster=devnet' : ''}`,
-      );
+      slackMessage.messages.push(`Claims: https://solscan.io/tx/${sig}`);
     }
   }
 
-  if (opt.programID.equals(PROGRAM_ID)) {
-    // complete cycle on last claim transaction
-    const completeClaimIx = await auth.buildCompleteClaimCycleInstruction();
-    if (!completeClaimIx) {
-      return true;
-    }
-
-    // wait for claim transactions to be confirmed before completing cycle
+  // complete cycle on last claim transaction
+  if (completeClaimIx) {
     const sigs = await buildAndSendTransaction(opt, [completeClaimIx], batchSize, 'complete claim cycle');
     logger.info('cycle complete', { signature: sigs[0] });
   }
@@ -230,35 +242,6 @@ async function removeEarners(opt: ParsedOptions) {
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'removing earners');
   logger.info('removed earners', { signature, earners: instructions.length });
   slackMessage.messages.push(`Removed ${instructions.length} earners`);
-
-  return true;
-}
-
-async function syncIndex(opt: ParsedOptions) {
-  logger.info('syncing index');
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphClient, EXT_PROGRAM_ID, logger);
-  const extIndex = auth['global'].index;
-
-  // fetch the current index on the earn program
-  const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
-  const index = (await getProgram(opt.connection).account.global.fetch(globalAccount)).index;
-
-  const logsFields = {
-    extIndex: extIndex.toString(),
-    index: index.toString(),
-  };
-
-  if (extIndex.eq(index)) {
-    slackMessage.messages.push('index already synced');
-    logger.info('index already synced', logsFields);
-    return false;
-  }
-
-  const ix = await auth.buildIndexSyncInstruction();
-  const signature = await buildAndSendTransaction(opt, [ix], 10, 'sync index');
-
-  logger.info('updated index on ext earn', { ...logsFields, signature: signature[0] });
-  slackMessage.messages.push(`Synced index: ${signature[0]}`);
 
   return true;
 }
