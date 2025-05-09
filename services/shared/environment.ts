@@ -49,10 +49,6 @@ export function getEnv(): EnvOptions {
     EVM_KEY,
   } = process.env;
 
-  if (!EVM_KEY && !KEYPAIR && !TURNKEY_PUBKEY) {
-    throw new Error('As signer or turnkey setup is required');
-  }
-
   let signer: Keypair | undefined;
   if (KEYPAIR) {
     try {
@@ -92,6 +88,10 @@ export function getEnv(): EnvOptions {
       pubkey: TURNKEY_PUBKEY!,
       signer: tkSigner,
     };
+  }
+
+  if (!evmWalletClient && !signer && !turnkey) {
+    throw new Error('As signer or turnkey setup is required');
   }
 
   let squads: SquadsEnvOption | undefined;

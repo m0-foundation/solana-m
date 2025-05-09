@@ -91,7 +91,7 @@ export async function yieldCLI() {
       };
 
       const steps = options.programID.equals(PROGRAM_ID)
-        ? [validation, removeEarners, distributeYield, addEarners]
+        ? [validation, removeEarners, distributeYield, addEarners, syncIndex]
         : [validation, distributeYield];
 
       await executeSteps(options, steps, parseInt(stepInterval));
@@ -242,6 +242,35 @@ async function removeEarners(opt: ParsedOptions) {
   const signature = await buildAndSendTransaction(opt, instructions, 10, 'removing earners');
   logger.info('removed earners', { signature, earners: instructions.length });
   slackMessage.messages.push(`Removed ${instructions.length} earners`);
+
+  return true;
+}
+
+async function syncIndex(opt: ParsedOptions) {
+  logger.info('syncing index');
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphClient, EXT_PROGRAM_ID, logger);
+  const extIndex = auth['global'].index;
+
+  // fetch the current index on the earn program
+  const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], PROGRAM_ID);
+  const index = (await getProgram(opt.connection).account.global.fetch(globalAccount)).index;
+
+  const logsFields = {
+    extIndex: extIndex.toString(),
+    index: index.toString(),
+  };
+
+  if (extIndex.eq(index)) {
+    slackMessage.messages.push('index already synced');
+    logger.info('index already synced', logsFields);
+    return false;
+  }
+
+  const ix = await auth.buildIndexSyncInstruction();
+  const signature = await buildAndSendTransaction(opt, [ix!], 10, 'sync index');
+
+  logger.info('updated index on ext earn', { ...logsFields, signature: signature[0] });
+  slackMessage.messages.push(`Synced index: ${signature[0]}`);
 
   return true;
 }
