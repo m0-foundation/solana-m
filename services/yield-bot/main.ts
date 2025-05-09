@@ -183,8 +183,10 @@ async function distributeYield(opt: ParsedOptions) {
     logger.info('yield distributed', { signature: sig[0] });
     slackMessage.messages.push(`Claims: https://solscan.io/tx/${sig[0]}`);
     return true;
-  } else if (syncIndexIx) {
-    // sync index if applicable
+  }
+
+  // sync index if applicable
+  if (syncIndexIx) {
     const sigs = await buildAndSendTransaction(opt, [syncIndexIx], batchSize, 'sync index');
     logger.info('synced index', { signature: sigs[0] });
   }
