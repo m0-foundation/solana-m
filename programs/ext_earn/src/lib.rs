@@ -42,6 +42,10 @@ pub mod ext_earn {
         instructions::admin::set_earn_authority::handler(ctx, new_earn_authority)
     }
 
+    pub fn set_m_mint(ctx: Context<SetMMint>) -> Result<()> {
+        instructions::admin::set_m_mint::handler(ctx)
+    }
+
     pub fn add_earn_manager(
         ctx: Context<AddEarnManager>,
         earn_manager: Pubkey,
