@@ -15,6 +15,7 @@ import {
   createInitializeAccountInstruction,
   createInitializeMultisigInstruction,
   createMintToCheckedInstruction,
+  createCloseAccountInstruction,
   getAccountLen,
 } from '@solana/spl-token';
 import { randomInt } from 'crypto';
@@ -2008,6 +2009,38 @@ describe('Earn unit tests', () => {
         .rpc();
 
       // Verify the earner account was closed correctly
+      expectAccountEmpty(earnerAccount);
+    });
+
+    test('Remove registrar earner, closed token account - success', async () => {
+      // Get the ATA for earner one
+      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
+
+      // Get the exclusion proof for earner one against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
+
+      // Setup the instruction
+      const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
+
+      let ix = createCloseAccountInstruction(
+        earnerOneATA,
+        nonAdmin.publicKey,
+        earnerOne.publicKey,
+        [],
+        TOKEN_2022_PROGRAM_ID,
+      );
+      let tx = new Transaction();
+      tx.add(ix);
+      await provider.sendAndConfirm!(tx, [earnerOne]);
+      expectAccountEmpty(earnerOneATA);
+
+      // Remove earner one from the earn manager's list
+      await earn.methods
+        .removeRegistrarEarner(proofs, neighbors)
+        .accounts({ ...accounts })
+        .signers([nonAdmin])
+        .rpc();
+
       expectAccountEmpty(earnerAccount);
     });
   });
