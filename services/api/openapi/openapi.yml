@@ -1,0 +1,93 @@
+openapi: 3.0.1
+info:
+  title: api
+  version: ''
+  description: |-
+    ## M0 Solana API
+    This API provides data for the M token and its extensions
+paths:
+  /events/bridges:
+    get:
+      description: Get lastest bridge events
+      operationId: events_bridges
+      tags:
+        - Events
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bridges'
+              examples:
+                Example1:
+                  value:
+                    bridges:
+                      - amount: 100000
+                        chain: Ethereum
+                        from: AAAAAAAAAAAAAAAAd7qzL3WZbegHXrpirqexIFz34AQ=
+                        to: s9x7XBNcYoYaMyViaXbzbD5xuRQChVBXie8GSSK8T/Y=
+                        programId: mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY
+                        signature: >-
+                          5HiQ3CPqmteRFZqqqd97vXwgvow8MkhtUPUY1n2YTh7diUTTudVp1j4DcBTchtfwHjfFLwXsjGoY8dLCRvbBZ3MY
+                        tokenSupply: 18150034600821
+                        ts: '2025-04-25T17:27:37.000Z'
+components:
+  schemas:
+    Bridges:
+      title: Bridges
+      type: object
+      properties:
+        bridges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bridge'
+      required:
+        - bridges
+    Bridge:
+      title: Bridge
+      type: object
+      properties:
+        amount:
+          type: number
+          format: double
+        chain:
+          $ref: '#/components/schemas/Chain'
+        from:
+          type: string
+          format: byte
+        to:
+          type: string
+          format: byte
+        programId:
+          type: string
+        signature:
+          type: string
+        tokenSupply:
+          type: number
+          format: double
+        ts:
+          type: string
+          format: date-time
+      required:
+        - amount
+        - chain
+        - from
+        - to
+        - programId
+        - signature
+        - tokenSupply
+        - ts
+    Chain:
+      title: Chain
+      type: string
+      enum:
+        - Ethereum
+        - Solana
+        - Polygon
+        - Arbitrum
+  securitySchemes: {}
+servers:
+  - url: https://www.staging.yoursite.com
+    description: mainnet

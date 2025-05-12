@@ -1,0 +1,10 @@
+name: api
+environments:
+  mainnet:
+    url: https://www.staging.yoursite.com
+default-environment: mainnet
+docs: |
+  ## M0 Solana API
+  This API provides data for the M token and its extensions
+error-discrimination:
+  strategy: status-code
