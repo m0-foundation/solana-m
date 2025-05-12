@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import apicache from 'apicache';
 import { register } from '../generated';
 import { docs } from './docs';
 import { configuireLogger } from './logger';
@@ -13,6 +14,10 @@ app.use(cors());
 
 const [logHandler, logger] = configuireLogger();
 app.use(logHandler);
+
+// cache all responses for 60 seconds
+const cache = apicache.middleware;
+app.use(cache('60 seconds'));
 
 // MongoDB
 connectToDatabase()
