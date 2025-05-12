@@ -116,6 +116,27 @@ async function main() {
       console.table(tableData);
     });
 
+  program.command('print-extension-vaults').action(() => {
+    const [a, b, c] = keysFromEnv(['EXT_PROGRAM_ID_1', 'EXT_PROGRAM_ID_2', 'EXT_PROGRAM_ID_3']);
+
+    const addresses: { [key: string]: PublicKey } = {
+      A: a.publicKey,
+      vaultA: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], a.publicKey)[0],
+      B: b.publicKey,
+      vaultB: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], b.publicKey)[0],
+      C: c.publicKey,
+      VaultC: PublicKey.findProgramAddressSync([Buffer.from('m_vault')], c.publicKey)[0],
+    };
+
+    const tableData = Object.entries(addresses).map(([name, pubkey]) => ({
+      Name: name,
+      Address: pubkey.toBase58(),
+      Hex: `0x${pubkey.toBuffer().toString('hex')}`,
+    }));
+
+    console.table(tableData);
+  });
+
   program
     .command('print-earn-global-state')
     .description('Print the global state of the earn program')
@@ -635,10 +656,7 @@ async function main() {
           addressesForTable.push(earner.pubkey, earner.data.userTokenAccount);
 
           // Check if there is an earn manager
-          if (
-            earner.data.earnManager &&
-            !addressesForTable.find((a) => a.equals(earner.data.earnManager))
-          ) {
+          if (earner.data.earnManager && !addressesForTable.find((a) => a.equals(earner.data.earnManager))) {
             addressesForTable.push(earner.data.earnManager);
           }
         }
