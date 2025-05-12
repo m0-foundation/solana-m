@@ -233,7 +233,7 @@ deploy-substream-mongo-mainnet:
 	$(call deploy-substream-mongo,solana-mainnet-beta,mainnet,$(MAINNET_STARTING_BLOCK))
 
 #
-# SDKs
+# SDK
 #
 publish-sdk:
 	@cd sdk && \
@@ -242,6 +242,10 @@ publish-sdk:
 	npm publish && \
 	rm .npmrc
 
+
+#
+# API
+#
 generate-api-code: 
 	@cd services/api && \
 	fern generate --local --keepDocker --force
@@ -249,3 +253,7 @@ generate-api-code:
 	@sed -i '' 's/Object.keys(object)/Object.keys(object as any)/g' services/api/server/generated/core/schemas/utils/keys.ts
 	@sed -i '' 's/Object.entries(obj)/Object.entries(obj as any)/g' services/api/server/generated/core/schemas/utils/filterObject.ts
 	@sed -i '' 's/\(acc, \[\)key, value\(\]\)/\1key, value\2: [string, any]/g' services/api/server/generated/core/schemas/utils/filterObject.ts
+
+run-api-locally:
+	@export MONGO_CONNECTION_STRING="$(shell op read "op://Solana Dev/Mongo Read Access/connection string")" && \
+	cd services/api/server && pnpm run dev

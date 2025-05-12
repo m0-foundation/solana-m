@@ -1,8 +1,9 @@
 import winston from 'winston';
 import LokiTransport from 'winston-loki';
 import expressWinston from 'express-winston';
+import { Handler } from 'express';
 
-export const configuireLogger = () => {
+export const configuireLogger = (): [Handler, winston.Logger] => {
   const transports: winston.transport[] = [new winston.transports.Console()];
   let format: winston.Logform.Format;
 
@@ -37,7 +38,7 @@ export const configuireLogger = () => {
     transports.push(transport);
   }
 
-  const logger = expressWinston.logger({
+  const handler = expressWinston.logger({
     transports,
     format,
     meta: true,
@@ -49,5 +50,11 @@ export const configuireLogger = () => {
     },
   });
 
-  return logger;
+  const logger = winston.createLogger({
+    format,
+    defaultMeta: { name: 'solana-m-api' },
+    transports,
+  });
+
+  return [handler, logger];
 };

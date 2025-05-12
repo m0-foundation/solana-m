@@ -30,17 +30,10 @@ types:
   Bridge:
     properties:
       amount: double
-      chain: Chain
+      chain: string
       from: base64
       to: base64
       programId: string
       signature: string
       tokenSupply: double
       ts: datetime
-
-  Chain:
-    enum:
-      - Ethereum
-      - Solana
-      - Polygon
-      - Arbitrum

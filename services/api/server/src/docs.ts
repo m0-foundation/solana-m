@@ -1,5 +1,5 @@
 import express from 'express';
-import spec from './openapi/openapi.json';
+import spec from '../openapi/openapi.json';
 
 export const docs = express.Router();
 
