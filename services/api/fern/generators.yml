@@ -18,5 +18,7 @@ groups:
       - name: fernapi/fern-openapi
         output:
           location: local-file-system
-          path: ../openapi
+          path: ../server/openapi
+        config:
+          format: json
         version: 0.1.7

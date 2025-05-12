@@ -1,10 +1,13 @@
-name: api
+name: m0-solana-api
 environments:
+  localnet:
+    url: http://localhost:5500
+  devnet:
+    url: https://www.staging.yoursite.com
   mainnet:
     url: https://www.staging.yoursite.com
 default-environment: mainnet
 docs: |
-  ## M0 Solana API
   This API provides data for the M token and its extensions
 error-discrimination:
   strategy: status-code

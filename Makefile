@@ -242,6 +242,10 @@ publish-sdk:
 	npm publish && \
 	rm .npmrc
 
-publish-api-sdk:
-	cd services/api && \
+generate-api-code: 
+	@cd services/api && \
 	fern generate --local --keepDocker --force
+	@sed -i '' 's/Object.entries(object)/Object.entries(object as any)/g' services/api/server/generated/core/schemas/utils/entries.ts
+	@sed -i '' 's/Object.keys(object)/Object.keys(object as any)/g' services/api/server/generated/core/schemas/utils/keys.ts
+	@sed -i '' 's/Object.entries(obj)/Object.entries(obj as any)/g' services/api/server/generated/core/schemas/utils/filterObject.ts
+	@sed -i '' 's/\(acc, \[\)key, value\(\]\)/\1key, value\2: [string, any]/g' services/api/server/generated/core/schemas/utils/filterObject.ts
