@@ -282,32 +282,8 @@ async function buildAndSendTransaction(
   ixs: TransactionInstruction[],
   batchSize = 10,
   memo?: string,
-  retry = true,
 ): Promise<string[]> {
   const priorityFee = await getPriorityFee();
-  const logs: string[][] = [];
-
-  // simulate transactions first
-  for (const txn of await buildTransactions(opt, ixs, priorityFee, batchSize, memo)) {
-    const result = await opt.connection.simulateTransaction(txn, { sigVerify: false });
-    if (result.value.err) {
-      logger.error('Transaction simulation failed', {
-        logs: result.value.logs,
-        err: result.value.err,
-        b64: Buffer.from(txn.serialize()).toString('base64'),
-      });
-
-      if (retry) {
-        logger.info('retrying transaction');
-        await new Promise((resolve) => setTimeout(resolve, 2500));
-        return buildAndSendTransaction(opt, ixs, batchSize, memo, false);
-      }
-
-      throw new Error(`Transaction simulation failed: ${result.value.logs}`);
-    }
-
-    logs.push(result.value.logs ?? []);
-  }
 
   const returnData: string[] = [];
   for (const [i, txn] of (await buildTransactions(opt, ixs, priorityFee, batchSize, memo)).entries()) {
@@ -328,7 +304,6 @@ async function buildAndSendTransaction(
 
     logger.info('sent transaction', {
       base64: Buffer.from(txn.serialize()).toString('base64'),
-      logs: logs[i],
       signature: returnData[returnData.length - 1],
     });
   }

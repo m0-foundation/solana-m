@@ -243,7 +243,7 @@ export class EarnAuthority {
       await limiter.removeTokens(1);
 
       // simulate transaction
-      const result = await this.connection.simulateTransaction(txn, { sigVerify: false });
+      const result = await this.connection.simulateTransaction(txn, { sigVerify: false, replaceRecentBlockhash: true });
       if (result.value.err) {
         this.logger.error('Claim batch simulation failed', {
           logs: result.value.logs,
