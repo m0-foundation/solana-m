@@ -7,16 +7,18 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { EARN_ADDRESS_TABLE, EARN_ADDRESS_TABLE_DEVNET } from '.';
+import { ConsoleLogger, EARN_ADDRESS_TABLE, EARN_ADDRESS_TABLE_DEVNET, Logger } from '.';
 
 const DEFAULT_COMPUTE_BUDGET = 500_000;
 
 export class TransactionBuilder {
   private connection: Connection;
+  private logger: Logger;
   private luts: AddressLookupTableAccount[];
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, logger: Logger = new ConsoleLogger()) {
     this.connection = connection;
+    this.logger = logger;
     this.luts = [];
   }
 
@@ -45,7 +47,7 @@ export class TransactionBuilder {
         unitsConsumed = Math.floor(simulation.value.unitsConsumed * 1.1);
       }
     } catch (e) {
-      console.error('simulation error for compute', e);
+      this.logger.error('simulation error for compute', e);
     }
 
     // add compute budget ixs

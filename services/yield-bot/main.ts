@@ -71,7 +71,7 @@ export async function yieldCLI() {
 
       const options: ParsedOptions = {
         ...env,
-        builder: new TransactionBuilder(env.connection),
+        builder: new TransactionBuilder(env.connection, logger),
         merkleTreeAddress: env.isDevnet ? ETH_MERKLE_TREE_BUILDER_DEVNET : ETH_MERKLE_TREE_BUILDER,
         dryRun,
         skipCycle,
