@@ -1,0 +1,21 @@
+{
+  "name": "@m0-foundation/solana-m-api-sdk",
+  "description": "Solana M API SDK",
+  "version": "0.1.0",
+  "main": "./generated/index.js",
+  "types": "./generated/index.d.ts",
+  "files": [
+    "generated"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "M0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m0-foundation/solana-m.git"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

@@ -233,7 +233,7 @@ deploy-substream-mongo-mainnet:
 	$(call deploy-substream-mongo,solana-mainnet-beta,mainnet,$(MAINNET_STARTING_BLOCK))
 
 #
-# SDK
+# SDKs
 #
 publish-sdk:
 	@cd sdk && \
@@ -242,6 +242,11 @@ publish-sdk:
 	npm publish && \
 	rm .npmrc
 
+publish-api-sdk:
+	@cd services/api/sdk && \
+	echo "//registry.npmjs.org/:_authToken=$(shell op read "op://Web3/NPM Publish Token m0-foundation/credential")" > .npmrc && \
+	npm publish && \
+	rm .npmrc
 
 #
 # API

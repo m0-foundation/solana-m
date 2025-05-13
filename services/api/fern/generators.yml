@@ -6,7 +6,7 @@ groups:
       - name: fernapi/fern-typescript-node-sdk
         output:
           location: local-file-system
-          path: ../sdk
+          path: ../sdk/generated
         version: 0.51.5
       - name: fernapi/fern-typescript-express
         config:
