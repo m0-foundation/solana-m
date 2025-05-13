@@ -3,7 +3,7 @@ import express from 'express';
 import apicache from 'apicache';
 import { register } from '../generated';
 import { docs } from './docs';
-import { configuireLogger } from './logger';
+import { configureLogger } from './logger';
 import { events } from './events';
 import { connectToDatabase } from './db';
 import { tokenAccount } from './tokenAccount';
