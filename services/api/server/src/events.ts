@@ -1,4 +1,4 @@
-import { Bridge, Claim } from '../generated/api';
+import { Bridge, IndexUpdate } from '../generated/api';
 import { EventsService } from '../generated/api/resources/events/service/EventsService';
 import { database } from './db';
 
@@ -31,31 +31,23 @@ export const events = new EventsService({
     });
   },
 
-  claims: async (req, res, next) => {
+  indexUpdates: async (req, res, next) => {
     const { limit, skip } = parseLimitQuery(req.query);
-    const { programId, tokenAccount } = req.params;
 
-    const cursor = database
-      .collection('claim_events')
-      .find(
-        { token_account: tokenAccount, program_id: programId },
-        { limit, skip, sort: { 'transaction.block_height': -1 } },
-      );
-
+    const coll = database.collection('index_updates');
+    const cursor = coll.find({}, { limit, skip });
     const result = await cursor.toArray();
 
     res.send({
-      claims: result.map((claim) => {
-        const claimEvent: Claim = {
-          amount: claim.amount,
-          index: claim.index,
-          programId: claim.program_id,
-          tokenAccount: claim.token_account,
-          recipientTokenAccount: claim.recipient_token_account,
-          signature: claim.signature,
-          ts: claim.transaction.block_time,
+      updates: result.map((update) => {
+        const updateEvent: IndexUpdate = {
+          index: update.index,
+          programId: update.program_id,
+          signature: update.signature,
+          tokenSupply: update.token_supply,
+          ts: update.transaction.block_time,
         };
-        return claimEvent;
+        return updateEvent;
       }),
     });
   },

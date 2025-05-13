@@ -27,32 +27,26 @@ service:
                   tokenSupply: 18150034600821
                   ts: 2025-04-25T17:27:37.000Z
 
-    claims:
-      docs: Get claim events
+    index-updates:
+      docs: Get lastest index update events
       method: GET
-      path: /claims/{programId}/{tokenAccount}
-      path-parameters:
-        programId: string
-        tokenAccount: string
-      response: Claims
+      path: /index-updates
+      response: IndexUpdates
       request:
-        name: GetClaimsRequest
+        name: GetIndexUpdatesRequest
         query-parameters:
           skip: optional<integer>
           limit: optional<integer>
+          from_time: optional<integer>
+          to_time: optional<integer>
       examples:
-        - path-parameters:
-            programId: wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko
-            tokenAccount: 'AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq'
-          response:
+        - response:
             body:
-              claims:
-                - amount: 1717708827
-                  index: 1042706510795
-                  programId: 'wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko'
-                  tokenAccount: 'AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq'
-                  recipientTokenAccount: 'AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq'
-                  signature: '2FFi5nSYXgLizQcP8PiPe8QVTyVQsWYUUYL9TFgyKVeC4LRJoHdxUP1BMscYZqHxA7oXjdUdGnBBcAgpa6HmN9K8'
+              updates:
+                - index: 1042706510795
+                  programId: 'MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c'
+                  signature: '3uiYEveHBAQ6TLt8FLFDnLNJLgUyq2D3AGwzZtpRL8xWPM8DjHqmiKJqi9K4szqzpKTJTPoNeraSiEPGA3VkriLY'
+                  tokenSupply: 18182747979648
                   ts: 2025-04-25T17:27:37.000Z
 
 types:
@@ -71,16 +65,14 @@ types:
       tokenSupply: double
       ts: datetime
 
-  Claims:
+  IndexUpdates:
     properties:
-      claims: list<Claim>
+      updates: list<IndexUpdate>
 
-  Claim:
+  IndexUpdate:
     properties:
-      amount: double
       index: double
       programId: string
-      tokenAccount: string
-      recipientTokenAccount: string
       signature: string
+      tokenSupply: double
       ts: datetime

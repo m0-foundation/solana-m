@@ -27,37 +27,6 @@ export class Graph {
     });
   }
 
-  async getTokenAccounts(limit = 100, skip = 0): Promise<TokenAccount[]> {
-    const query = gql`
-      query getTokenAccounts($limit: Int!, $skip: Int!) {
-        tokenAccounts(first: $limit, orderBy: balance, orderDirection: desc, skip: $skip) {
-          pubkey
-          balance
-          claims(orderBy: ts, first: 1, orderDirection: desc) {
-            ts
-            index
-          }
-        }
-      }
-    `;
-
-    interface Data {
-      tokenAccounts: {
-        pubkey: string;
-        balance: string;
-        claims: { ts: string; index: string }[];
-      }[];
-    }
-
-    const data = await this.client.request<Data>(query, { limit, skip });
-    return data.tokenAccounts.map(({ pubkey, balance, claims }) => ({
-      pubkey: new PublicKey(Buffer.from(pubkey.slice(2), 'hex')),
-      balance: BigInt(balance),
-      last_claim_ts: BigInt(claims?.[0]?.ts ?? 0),
-      last_claim_index: BigInt(claims?.[0]?.index ?? 0),
-    }));
-  }
-
   async getHistoricalClaims(tokenAccount: PublicKey): Promise<Claim[]> {
     const query = gql`
       query getClaimsForTokenAccount($tokenAccountId: Bytes!) {
