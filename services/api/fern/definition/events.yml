@@ -9,6 +9,11 @@ service:
       method: GET
       path: /bridges
       response: Bridges
+      request:
+        name: GetBridgesRequest
+        query-parameters:
+          skip: optional<integer>
+          limit: optional<integer>
       examples:
         - response:
             body:
@@ -20,6 +25,34 @@ service:
                   programId: 'mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY'
                   signature: '5HiQ3CPqmteRFZqqqd97vXwgvow8MkhtUPUY1n2YTh7diUTTudVp1j4DcBTchtfwHjfFLwXsjGoY8dLCRvbBZ3MY'
                   tokenSupply: 18150034600821
+                  ts: 2025-04-25T17:27:37.000Z
+
+    claims:
+      docs: Get claim events
+      method: GET
+      path: /claims/{programId}/{tokenAccount}
+      path-parameters:
+        programId: string
+        tokenAccount: string
+      response: Claims
+      request:
+        name: GetClaimsRequest
+        query-parameters:
+          skip: optional<integer>
+          limit: optional<integer>
+      examples:
+        - path-parameters:
+            programId: wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko
+            tokenAccount: 'AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq'
+          response:
+            body:
+              claims:
+                - amount: 1717708827
+                  index: 1042706510795
+                  programId: 'wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko'
+                  tokenAccount: 'AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq'
+                  recipientTokenAccount: 'AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq'
+                  signature: '2FFi5nSYXgLizQcP8PiPe8QVTyVQsWYUUYL9TFgyKVeC4LRJoHdxUP1BMscYZqHxA7oXjdUdGnBBcAgpa6HmN9K8'
                   ts: 2025-04-25T17:27:37.000Z
 
 types:
@@ -36,4 +69,18 @@ types:
       programId: string
       signature: string
       tokenSupply: double
+      ts: datetime
+
+  Claims:
+    properties:
+      claims: list<Claim>
+
+  Claim:
+    properties:
+      amount: double
+      index: double
+      programId: string
+      tokenAccount: string
+      recipientTokenAccount: string
+      signature: string
       ts: datetime
