@@ -261,6 +261,7 @@ generate-api-code:
 
 build-api-server:
 	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:api -f services/api/server/Dockerfile .
+	docker push ghcr.io/m0-foundation/solana-m:api
 
 run-api-locally:
 	@export MONGO_CONNECTION_STRING="$(shell op read "op://Solana Dev/Mongo Read Access/connection string")" && \
