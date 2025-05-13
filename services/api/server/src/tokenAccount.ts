@@ -82,8 +82,8 @@ export const tokenAccount = new TokenAccountService({
           'transaction.block_height': -1,
         },
       },
-      { $limit: limit },
       { $skip: skip },
+      { $limit: limit },
     ]);
 
     const result = await cursor.toArray();
