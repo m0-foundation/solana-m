@@ -10,9 +10,9 @@ COPY tsconfig.json ./
 COPY *.yaml ./
 COPY --exclude=node_modules services/api/server/ services/api/server/
 
-RUN npm install -g pnpm
-RUN pnpm install 
-RUN pnpm --filter "solana-m-api" build
+RUN npm install -g pnpm && \
+    pnpm install && \
+    pnpm --filter "solana-m-api" build
 
 ## production stage
 FROM node:24-alpine AS final
@@ -22,10 +22,11 @@ COPY --from=build /app/package.json /app/
 COPY --from=build /app/*.yaml /app/
 COPY --from=build /app/services/api/server /app/services/api/server
 
-# Install production dependencies
-RUN npm install -g pnpm
-RUN pnpm install --prod
-
+RUN npm install -g pnpm && \
+    pnpm install --prod && \
+    npm cache clean --force && \
+    pnpm store prune
+    
 EXPOSE 5500
 
 CMD ["node", "services/api/server/dist/server.js"]
