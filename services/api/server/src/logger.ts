@@ -3,7 +3,7 @@ import LokiTransport from 'winston-loki';
 import expressWinston from 'express-winston';
 import { Handler } from 'express';
 
-export const configuireLogger = (): [Handler, winston.Logger] => {
+export const configureLogger = (): [Handler, winston.Logger] => {
   const transports: winston.transport[] = [new winston.transports.Console()];
   let format: winston.Logform.Format;
 
