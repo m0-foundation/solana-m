@@ -1,6 +1,5 @@
 packages:
-  - services/*
-  - services/api/*
+  - services/**/*
   - sdk
   - dashboard
   - tests
