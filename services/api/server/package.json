@@ -1,8 +1,18 @@
 {
   "name": "solana-m-api",
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
+    "server": "ts-node src/server.ts",
     "dev": "nodemon src/server.ts"
+  },
+  "tsup": {
+    "entry": [
+      "src/server.ts"
+    ],
+    "format": "cjs",
+    "splitting": false,
+    "clean": true,
+    "outDir": "dist"
   },
   "dependencies": {
     "apicache": "^1.6.3",
@@ -19,6 +29,7 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.5.0",
     "nodemon": "^3.1.10",
+    "tsup": "^8.4.0",
     "typescript": "catalog:"
   }
 }

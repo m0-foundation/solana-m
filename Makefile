@@ -259,6 +259,9 @@ generate-api-code:
 	@sed -i '' 's/Object.entries(obj)/Object.entries(obj as any)/g' services/api/server/generated/core/schemas/utils/filterObject.ts
 	@sed -i '' 's/\(acc, \[\)key, value\(\]\)/\1key, value\2: [string, any]/g' services/api/server/generated/core/schemas/utils/filterObject.ts
 
+build-api-server:
+	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:api -f services/api/server/Dockerfile .
+
 run-api-locally:
 	@export MONGO_CONNECTION_STRING="$(shell op read "op://Solana Dev/Mongo Read Access/connection string")" && \
 	cd services/api/server && pnpm run dev

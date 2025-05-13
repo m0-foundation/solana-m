@@ -270,7 +270,7 @@ importers:
     devDependencies:
       typescript:
         specifier: 'catalog:'
-        version: 4.6.4
+        version: 5.8.3
 
   services/api/server:
     dependencies:
@@ -307,13 +307,16 @@ importers:
         version: 4.17.21
       '@types/node':
         specifier: ^22.5.0
-        version: 22.15.17
+        version: 22.13.17
       nodemon:
         specifier: ^3.1.10
         version: 3.1.10
+      ts-node:
+        specifier: ~10.9.2
+        version: 10.9.2(@swc/core@1.11.24(@swc/helpers@0.5.17))(@types/node@22.13.17)(typescript@5.8.3)
       typescript:
         specifier: 'catalog:'
-        version: 4.6.4
+        version: 5.8.3
 
   services/cli:
     dependencies:
@@ -3196,9 +3199,6 @@ packages:
 
   '@types/node@22.15.17':
     resolution: {integrity: sha512-wIX2aSZL5FE+MR0JlvF87BNVrtFWf6AE6rxSE9X7OwnVvoyCQjpzSRJ+M87se/4QCkCiebQAqrJ0y6fwIyi7nw==}
-
-  '@types/node@22.15.3':
-    resolution: {integrity: sha512-lX7HFZeHf4QG/J7tBZqrCAXwz9J5RD56Y6MpP0eJkka8p+K0RY/yBTW7CYFJ4VGCclxqOLKmiGP5juQc6MKgcw==}
 
   '@types/node@22.7.5':
     resolution: {integrity: sha512-jML7s2NAzMWc//QSJ1a3prpk78cOPchGvXJsC3C6R6PSMoooztvRVQEz89gmBTBY1SPMaqo5teB4uNHPdetShQ==}
@@ -7080,11 +7080,6 @@ packages:
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0
       typescript: '>=4.8.4 <5.9.0'
-
-  typescript@4.6.4:
-    resolution: {integrity: sha512-9ia/jWHIEbo49HfjrLGfKbZSuWo9iTMwXO+Ca3pRsSpbsMbc7/IU8NKdCZVRRBafVPGnoJeFL76ZOAA84I9fEg==}
-    engines: {node: '>=4.2.0'}
-    hasBin: true
 
   typescript@5.8.3:
     resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
@@ -11624,7 +11619,7 @@ snapshots:
   '@types/body-parser@1.19.5':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 22.15.17
+      '@types/node': 22.13.17
 
   '@types/bs58@4.0.4':
     dependencies:
@@ -11644,7 +11639,7 @@ snapshots:
 
   '@types/cors@2.8.18':
     dependencies:
-      '@types/node': 22.15.17
+      '@types/node': 22.13.17
 
   '@types/d3-array@3.2.1': {}
 
@@ -11678,7 +11673,7 @@ snapshots:
 
   '@types/express-serve-static-core@4.19.6':
     dependencies:
-      '@types/node': 22.15.17
+      '@types/node': 22.13.17
       '@types/qs': 6.9.18
       '@types/range-parser': 1.2.7
       '@types/send': 0.17.4
@@ -11739,10 +11734,7 @@ snapshots:
   '@types/node@22.15.17':
     dependencies:
       undici-types: 6.21.0
-
-  '@types/node@22.15.3':
-    dependencies:
-      undici-types: 6.21.0
+    optional: true
 
   '@types/node@22.7.5':
     dependencies:
@@ -11766,7 +11758,7 @@ snapshots:
 
   '@types/redis@2.8.32':
     dependencies:
-      '@types/node': 22.15.17
+      '@types/node': 22.13.17
 
   '@types/responselike@1.0.3':
     dependencies:
@@ -11784,7 +11776,7 @@ snapshots:
   '@types/serve-static@1.15.7':
     dependencies:
       '@types/http-errors': 2.0.4
-      '@types/node': 22.15.17
+      '@types/node': 22.13.17
       '@types/send': 0.17.4
 
   '@types/stack-utils@2.0.3': {}
@@ -15417,7 +15409,7 @@ snapshots:
   jest-util@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 22.15.3
+      '@types/node': 22.13.17
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
@@ -17225,8 +17217,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  typescript@4.6.4: {}
-
   typescript@5.8.3: {}
 
   ua-is-frozen@0.1.2: {}
@@ -17259,7 +17249,8 @@ snapshots:
 
   undici-types@6.20.0: {}
 
-  undici-types@6.21.0: {}
+  undici-types@6.21.0:
+    optional: true
 
   undici-types@7.8.0: {}
 
