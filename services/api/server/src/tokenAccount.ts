@@ -14,16 +14,18 @@ const parseLimitQuery = (reqQuery: { skip?: number; limit?: number }) => {
 export const tokenAccount = new TokenAccountService({
   claims: async (req, res, next) => {
     const { limit, skip } = parseLimitQuery(req.query);
-    const { mint, tokenAccount } = req.params;
+    const { mint, pubkey } = req.params;
 
     if (!programIds[mint]) {
-      throw new InvalidMint();
+      throw new InvalidMint({
+        message: `Invalid mint: ${mint}`,
+      });
     }
 
     const cursor = database
       .collection('claim_events')
       .find(
-        { token_account: tokenAccount, program_id: programIds[mint] },
+        { token_account: pubkey, program_id: programIds[mint] },
         { limit, skip, sort: { 'transaction.block_height': -1 } },
       );
 
@@ -47,16 +49,18 @@ export const tokenAccount = new TokenAccountService({
 
   transfers: async (req, res, next) => {
     const { limit, skip } = parseLimitQuery(req.query);
-    const { mint, tokenAccount } = req.params;
+    const { mint, pubkey } = req.params;
 
     if (!programIds[mint]) {
-      throw new InvalidMint();
+      throw new InvalidMint({
+        message: `Invalid mint: ${mint}`,
+      });
     }
 
     const cursor = database.collection('balance_updates').aggregate([
       {
         $match: {
-          pubkey: tokenAccount,
+          pubkey: pubkey,
           mint,
         },
       },

@@ -2,9 +2,9 @@
 
 service:
   auth: false
-  base-path: /token-account/{tokenAccount}/{mint}
+  base-path: /token-account/{pubkey}/{mint}
   path-parameters:
-    tokenAccount: string
+    pubkey: string
     mint: string
   endpoints:
     claims:
@@ -21,8 +21,8 @@ service:
           limit: optional<integer>
       examples:
         - path-parameters:
-            mint: wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko
-            tokenAccount: 'AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq'
+            pubkey: AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq
+            mint: mzeroXDoBpRVhnEXBra27qzAMdxgpWVY3DzQW7xMVJp
           response:
             body:
               claims:
@@ -50,8 +50,8 @@ service:
           to_time: optional<integer>
       examples:
         - path-parameters:
-            mint: wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko
-            tokenAccount: 'AnuF2dWsdSKJZXCb1cCqTbe6gvp2g3xuDQFd2JjUyWYq'
+            pubkey: 88FHCznZEXoBNfCFPb6GtztKZEtvkrd4s3sUUGmbxHtU
+            mint: mzerokyEX9TNDoK4o2YZQBDmMzjokAeN6M2g2S3pLJo
           response:
             body:
               transfers:
@@ -90,6 +90,11 @@ types:
       signature: string
       ts: datetime
 
+  RequestError:
+    properties:
+      message: string
+
 errors:
   InvalidMint:
     status-code: 404
+    type: RequestError
