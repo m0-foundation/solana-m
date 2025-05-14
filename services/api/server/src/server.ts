@@ -13,7 +13,7 @@ const PORT = process.env.PORT ?? 5500;
 const app = express();
 app.use(cors());
 
-const [logHandler, logger] = configuireLogger();
+const [logHandler, logger] = configureLogger();
 app.use(logHandler);
 
 // cache all responses for 60 seconds
