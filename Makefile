@@ -233,7 +233,7 @@ deploy-substream-mongo-mainnet:
 	$(call deploy-substream-mongo,solana-mainnet-beta,mainnet,$(MAINNET_STARTING_BLOCK))
 
 #
-# SDK
+# SDKs
 #
 publish-sdk:
 	@cd sdk && \
@@ -241,3 +241,28 @@ publish-sdk:
 	echo "//registry.npmjs.org/:_authToken=$(shell op read "op://Web3/NPM Publish Token m0-foundation/credential")" > .npmrc && \
 	npm publish && \
 	rm .npmrc
+
+publish-api-sdk:
+	@cd services/api/sdk && \
+	echo "//registry.npmjs.org/:_authToken=$(shell op read "op://Web3/NPM Publish Token m0-foundation/credential")" > .npmrc && \
+	npm publish && \
+	rm .npmrc
+
+#
+# API
+#
+generate-api-code: 
+	@cd services/api && \
+	fern generate --local --keepDocker --force
+	@sed -i '' 's/Object.entries(object)/Object.entries(object as any)/g' services/api/server/generated/core/schemas/utils/entries.ts
+	@sed -i '' 's/Object.keys(object)/Object.keys(object as any)/g' services/api/server/generated/core/schemas/utils/keys.ts
+	@sed -i '' 's/Object.entries(obj)/Object.entries(obj as any)/g' services/api/server/generated/core/schemas/utils/filterObject.ts
+	@sed -i '' 's/\(acc, \[\)key, value\(\]\)/\1key, value\2: [string, any]/g' services/api/server/generated/core/schemas/utils/filterObject.ts
+
+build-api-server:
+	docker build --platform linux/amd64 -t ghcr.io/m0-foundation/solana-m:api -f services/api/server/Dockerfile .
+	docker push ghcr.io/m0-foundation/solana-m:api
+
+run-api-locally:
+	@export MONGO_CONNECTION_STRING="$(shell op read "op://Solana Dev/Mongo Read Access/connection string")" && \
+	cd services/api/server && pnpm run dev

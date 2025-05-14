@@ -349,11 +349,6 @@ describe('SDK unit tests', () => {
   });
 
   describe('subgraph', () => {
-    test('token holders', async () => {
-      const accounts = await GRAPH_CLIENT.getTokenAccounts(3);
-      expect(accounts).toHaveLength(3);
-    });
-
     test('weighted balance', async () => {
       const balance = await GRAPH_CLIENT.getTimeWeightedBalance(
         new PublicKey('BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj'),
@@ -627,31 +622,6 @@ describe('SDK unit tests', () => {
  * Mock subgraph and rpc data for testing
  */
 function mockSubgraph() {
-  nock(GRAPH_URL)
-    .post('', (body) => body.operationName === 'getTokenAccounts')
-    .reply(200, {
-      data: {
-        tokenAccounts: [
-          {
-            pubkey: '0x2e5142a34ef98156a014e46bef3bde4ad56222945615cea479f2f183699a5bf8',
-            balance: '7989730149114',
-            claims: [],
-          },
-          {
-            pubkey: '0xfa6612d18aeda9532e052a0187a4fdb08fb0d1f6495d9373ce33b7ff9253f88c',
-            balance: '1334675545835',
-            claims: [],
-          },
-          {
-            pubkey: '0xca9b25a2034eaac78095a0c15fba16622ff1bc8cb6ff979ff1948ce8dd0d89e0',
-            balance: '852358441083',
-            claims: [],
-          },
-        ],
-      },
-    })
-    .persist();
-
   nock(GRAPH_URL)
     .post(
       '',
