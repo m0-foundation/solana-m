@@ -24,12 +24,12 @@ import {
 import { randomInt } from 'crypto';
 
 import { loadKeypair } from '../test-utils';
-import { Earn } from '../../sdk/src/idl/earn';
-import { ExtEarn } from '../../sdk/src/idl/ext_earn';
+import { Earn } from '../../target/types/earn';
+import { ExtEarn } from '../../target/types/ext_earn';
 import { MerkleTree, ProofElement } from '../../sdk/src/merkle';
 
-const EARN_IDL = require('../../sdk/src/idl/earn.json');
-const EXT_EARN_IDL = require('../../sdk/src/idl/ext_earn.json');
+const EARN_IDL = require('../../target/idl/earn.json');
+const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
 
 const EARN_PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c');
 const EXT_EARN_PROGRAM_ID = new PublicKey('wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko');
@@ -494,7 +494,7 @@ const initializeEarn = async (mint: PublicKey, earnAuthority: PublicKey, initial
   // Send the transaction
   await earn.methods
     .initialize(earnAuthority, initialIndex, claimCooldown)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([admin])
     .rpc();
 
@@ -521,7 +521,7 @@ const propagateIndex = async (newIndex: BN, earnerMerkleRoot: number[] = ZERO_WO
   // Send the instruction
   await earn.methods
     .propagateIndex(newIndex, earnerMerkleRoot)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([portal])
     .rpc();
 
@@ -564,7 +564,7 @@ const mClaimFor = async (earner: PublicKey, balance?: BN) => {
   // Send the instruction
   await earn.methods
     .claimFor(snapshotBalance)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earnAuthority])
     .rpc();
 
@@ -590,7 +590,7 @@ const completeClaims = async () => {
   // Send the instruction
   await earn.methods
     .completeClaims()
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earnAuthority])
     .rpc();
 };
@@ -623,7 +623,7 @@ const addRegistrarEarner = async (earner: PublicKey, proof: ProofElement[]) => {
   // Send the instruction
   await earn.methods
     .addRegistrarEarner(earner, proof)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([nonAdmin])
     .rpc();
 };
@@ -671,7 +671,7 @@ const initializeExt = async (earnAuthority: PublicKey) => {
   // Send the transaction
   await extEarn.methods
     .initialize(earnAuthority)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([admin])
     .rpc();
 
@@ -713,7 +713,7 @@ const addEarnManager = async (earnManager: PublicKey, feeBps: BN, feeTokenAccoun
   // Send the instruction
   await extEarn.methods
     .addEarnManager(earnManager, feeBps)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([admin])
     .rpc();
 
@@ -740,7 +740,7 @@ const removeEarnManager = async (earnManager: PublicKey) => {
   // Send the instruction
   await extEarn.methods
     .removeEarnManager()
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([admin])
     .rpc();
 
@@ -767,7 +767,7 @@ const sync = async () => {
   // Send the instruction
   await extEarn.methods
     .sync()
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earnAuthority])
     .rpc();
 };
@@ -824,7 +824,7 @@ const claimFor = async (earner: PublicKey, earnManager: PublicKey, balance?: BN)
   // Send the transaction
   await extEarn.methods
     .claimFor(snapshotBalance)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earnAuthority])
     .rpc();
 };
@@ -857,7 +857,7 @@ const configureEarnManager = async (earnManager: Keypair, feeBps?: BN, feeTokenA
   // Send the instruction
   await extEarn.methods
     .configureEarnManager(feeBps ?? null)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earnManager])
     .rpc();
 };
@@ -894,7 +894,7 @@ const addEarner = async (earnManager: Keypair, earner: PublicKey) => {
   // Send the instruction
   await extEarn.methods
     .addEarner(earner)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earnManager])
     .rpc();
 };
@@ -926,7 +926,7 @@ const removeEarner = async (earnManager: Keypair, earner: PublicKey) => {
   // Send the instruction
   await extEarn.methods
     .removeEarner()
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earnManager])
     .rpc();
 };
@@ -959,7 +959,7 @@ const transferEarner = async (fromEarnManager: Keypair, toEarnManager: PublicKey
   // Send the instruction
   await extEarn.methods
     .transferEarner(toEarnManager)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([fromEarnManager])
     .rpc();
 };
@@ -987,7 +987,7 @@ const setRecipient = async (earner: Keypair, recipientTokenAccount: PublicKey | 
   // Send the instruction
   await extEarn.methods
     .setRecipient()
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earner])
     .rpc();
 
@@ -1030,7 +1030,7 @@ const wrap = async (user: Keypair, amount: BN) => {
   // Send the instruction
   await extEarn.methods
     .wrap(amount)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([user])
     .rpc();
 
@@ -1073,7 +1073,7 @@ const unwrap = async (user: Keypair, amount: BN) => {
   // Send the instruction
   await extEarn.methods
     .unwrap(amount)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([user])
     .rpc();
 
@@ -1114,8 +1114,8 @@ describe('ExtEarn unit tests', () => {
     provider = new LiteSVMProvider(svm);
 
     // Create program instances
-    earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM_ID, provider);
-    extEarn = new Program<ExtEarn>(EXT_EARN_IDL, EXT_EARN_PROGRAM_ID, provider);
+    earn = new Program<Earn>(EARN_IDL, provider);
+    extEarn = new Program<ExtEarn>(EXT_EARN_IDL, provider);
 
     // Fund the wallets
     svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
@@ -1190,7 +1190,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .initialize(earnAuthority.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'ConstraintAddress',
@@ -1214,7 +1214,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .initialize(earnAuthority.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'ConstraintMintTokenProgram',
@@ -1238,7 +1238,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .initialize(earnAuthority.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'ConstraintMintDecimals',
@@ -1260,7 +1260,7 @@ describe('ExtEarn unit tests', () => {
         await expectSystemError(
           extEarn.methods
             .initialize(earnAuthority.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
         );
@@ -1275,7 +1275,7 @@ describe('ExtEarn unit tests', () => {
         // Create and send the transaction
         await extEarn.methods
           .initialize(earnAuthority.publicKey)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([admin])
           .rpc();
 
@@ -1323,7 +1323,7 @@ describe('ExtEarn unit tests', () => {
         // Send the transaction
         await extEarn.methods
           .setEarnAuthority(newEarnAuthority.publicKey)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([admin])
           .rpc();
 
@@ -1342,7 +1342,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .setEarnAuthority(newEarnAuthority.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'NotAuthorized',
@@ -1385,7 +1385,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .addEarnManager(earnManagerOne.publicKey, new BN(0))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'NotAuthorized',
@@ -1407,7 +1407,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .addEarnManager(earnManagerOne.publicKey, new BN(0))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([admin])
             .rpc(),
           'ConstraintTokenMint',
@@ -1427,7 +1427,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .addEarnManager(earnManagerOne.publicKey, feeBps)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([admin])
             .rpc(),
           'InvalidParam',
@@ -1446,7 +1446,7 @@ describe('ExtEarn unit tests', () => {
         // Send the transaction
         await extEarn.methods
           .addEarnManager(earnManagerOne.publicKey, feeBps)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([admin])
           .rpc();
 
@@ -1512,7 +1512,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeEarnManager()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'NotAuthorized',
@@ -1531,7 +1531,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeEarnManager()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([admin])
             .rpc(),
           'AccountNotInitialized',
@@ -1552,7 +1552,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .removeEarnManager()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([admin])
           .rpc();
 
@@ -1623,7 +1623,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .sync()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'NotAuthorized',
@@ -1647,7 +1647,7 @@ describe('ExtEarn unit tests', () => {
         await expectSystemError(
           extEarn.methods
             .sync()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
         );
@@ -1675,7 +1675,7 @@ describe('ExtEarn unit tests', () => {
         // Send the transaction
         await extEarn.methods
           .sync()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc();
 
@@ -1753,7 +1753,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(balance)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'NotAuthorized',
@@ -1774,7 +1774,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey)))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
           'InvalidAccount',
@@ -1795,7 +1795,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey)))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
           'ConstraintSeeds',
@@ -1819,7 +1819,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey)))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
           'ConstraintAssociated',
@@ -1849,7 +1849,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey)))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
           'InvalidAccount',
@@ -1874,7 +1874,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(await getTokenBalance(invalidUserTokenAccount))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
           'InvalidAccount',
@@ -1905,7 +1905,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .claimFor(initialBalance)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc();
 
@@ -1933,7 +1933,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(await getTokenBalance(earnerATA))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
           'InvalidAccount',
@@ -1970,7 +1970,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .claimFor(initialBalance)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc();
 
@@ -2005,7 +2005,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(balance)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
           'AlreadyClaimed',
@@ -2030,7 +2030,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .claimFor(inflatedBalance)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnAuthority])
             .rpc(),
           'InsufficientCollateral',
@@ -2068,7 +2068,7 @@ describe('ExtEarn unit tests', () => {
         // Send the transaction
         await extEarn.methods
           .claimFor(earnerStartBalance)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc();
 
@@ -2124,7 +2124,7 @@ describe('ExtEarn unit tests', () => {
         // Send the transaction
         await extEarn.methods
           .claimFor(earnerStartBalance)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc();
 
@@ -2178,7 +2178,7 @@ describe('ExtEarn unit tests', () => {
         // Send the transaction
         await extEarn.methods
           .claimFor(earnerStartBalance)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc();
 
@@ -2233,7 +2233,7 @@ describe('ExtEarn unit tests', () => {
         const snapshotBalance = new BN(10000);
         await extEarn.methods
           .claimFor(snapshotBalance)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc();
 
@@ -2291,7 +2291,7 @@ describe('ExtEarn unit tests', () => {
         const snapshotBalance = await getTokenBalance(await getATA(extMint.publicKey, earnerOne.publicKey));
         await extEarn.methods
           .claimFor(snapshotBalance)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc();
 
@@ -2366,7 +2366,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .addEarner(nonEarnerOne.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonEarnManagerOne])
             .rpc(),
           'AccountNotInitialized',
@@ -2390,7 +2390,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .addEarner(earnerTwo.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'NotActive',
@@ -2412,7 +2412,7 @@ describe('ExtEarn unit tests', () => {
         await expectSystemError(
           extEarn.methods
             .addEarner(earnerOne.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
         );
@@ -2438,7 +2438,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .addEarner(earnerTwo.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'ConstraintTokenMint',
@@ -2461,7 +2461,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .addEarner(earnerTwo.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'ConstraintTokenOwner',
@@ -2503,7 +2503,7 @@ describe('ExtEarn unit tests', () => {
         // Add earner two to the earn manager's list
         await extEarn.methods
           .addEarner(earnerTwo.publicKey)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -2536,7 +2536,7 @@ describe('ExtEarn unit tests', () => {
         // Add earner one to the earn manager's list
         await extEarn.methods
           .addEarner(earnerTwo.publicKey)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -2582,7 +2582,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeEarner()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonEarnManagerOne])
             .rpc(),
           'AccountNotInitialized',
@@ -2606,7 +2606,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeEarner()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'NotActive',
@@ -2632,7 +2632,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeEarner()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerTwo])
             .rpc(),
           'NotAuthorized',
@@ -2654,7 +2654,7 @@ describe('ExtEarn unit tests', () => {
         // Remove the earner account
         await extEarn.methods
           .removeEarner()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -2696,7 +2696,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .transferEarner(earnManagerTwo.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'AccountNotInitialized',
@@ -2715,7 +2715,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .transferEarner(nonEarnManagerOne.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'AccountNotInitialized',
@@ -2734,7 +2734,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .transferEarner(earnManagerTwo.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'NotAuthorized',
@@ -2757,7 +2757,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .transferEarner(earnManagerTwo.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'NotActive',
@@ -2780,7 +2780,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .transferEarner(earnManagerTwo.publicKey)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'NotActive',
@@ -2809,7 +2809,7 @@ describe('ExtEarn unit tests', () => {
         // Transfer the earner from earn manager one to earn manager two
         await extEarn.methods
           .transferEarner(earnManagerTwo.publicKey)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -2857,7 +2857,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .configureEarnManager(new BN(100))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonEarnManagerOne])
             .rpc(),
           'ConstraintSeeds',
@@ -2878,7 +2878,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .configureEarnManager(new BN(0))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerTwo])
             .rpc(),
           'AccountNotInitialized',
@@ -2901,7 +2901,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .configureEarnManager(feeBps)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'InvalidParam',
@@ -2928,7 +2928,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .configureEarnManager(new BN(100))
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnManagerOne])
             .rpc(),
           'ConstraintTokenMint',
@@ -2956,7 +2956,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .configureEarnManager(null)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -2991,7 +2991,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .configureEarnManager(newFee)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -3032,7 +3032,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .configureEarnManager(null)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -3076,7 +3076,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .configureEarnManager(newFee)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -3142,7 +3142,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .setRecipient()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnerOne])
           .rpc();
 
@@ -3167,7 +3167,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .setRecipient()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -3188,7 +3188,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .setRecipient()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'NotAuthorized',
@@ -3210,7 +3210,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .setRecipient()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintTokenMint',
@@ -3231,7 +3231,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .setRecipient()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnerOne])
           .rpc();
 
@@ -3255,7 +3255,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .setRecipient()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnManagerOne])
           .rpc();
 
@@ -3322,7 +3322,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .wrap(mintAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'InvalidAccount',
@@ -3343,7 +3343,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .wrap(mintAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'InvalidAccount',
@@ -3364,7 +3364,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .wrap(mintAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintTokenOwner',
@@ -3409,7 +3409,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .wrap(mintAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintAssociated',
@@ -3430,7 +3430,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .wrap(mintAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintTokenMint',
@@ -3451,7 +3451,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .wrap(mintAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintTokenMint',
@@ -3472,7 +3472,7 @@ describe('ExtEarn unit tests', () => {
         await expectSystemError(
           extEarn.methods
             .wrap(wrapAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
         );
@@ -3496,7 +3496,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .wrap(wrapAmount)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnerOne])
           .rpc();
 
@@ -3524,7 +3524,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .wrap(wrapAmount)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonEarnerOne])
           .rpc();
 
@@ -3578,7 +3578,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .unwrap(wrappedAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'InvalidAccount',
@@ -3599,7 +3599,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .unwrap(wrappedAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'InvalidAccount',
@@ -3621,7 +3621,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .unwrap(wrappedAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintTokenOwner',
@@ -3666,7 +3666,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .unwrap(wrappedAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintAssociated',
@@ -3687,7 +3687,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .unwrap(wrappedAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintTokenMint',
@@ -3708,7 +3708,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .unwrap(wrappedAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
           'ConstraintTokenMint',
@@ -3729,7 +3729,7 @@ describe('ExtEarn unit tests', () => {
         await expectSystemError(
           extEarn.methods
             .unwrap(unwrapAmount)
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
         );
@@ -3753,7 +3753,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .unwrap(unwrapAmount)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnerOne])
           .rpc();
 
@@ -3781,7 +3781,7 @@ describe('ExtEarn unit tests', () => {
         // Send the instruction
         await extEarn.methods
           .unwrap(unwrapAmount)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonEarnerOne])
           .rpc();
 
@@ -3837,7 +3837,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeOrphanedEarner()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'AccountNotInitialized',
@@ -3857,7 +3857,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeOrphanedEarner()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'AccountNotInitialized',
@@ -3879,7 +3879,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeOrphanedEarner()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'Active',
@@ -3899,7 +3899,7 @@ describe('ExtEarn unit tests', () => {
         await expectAnchorError(
           extEarn.methods
             .removeOrphanedEarner()
-            .accounts({ ...accounts })
+            .accountsPartial({ ...accounts })
             .signers([nonAdmin])
             .rpc(),
           'ConstraintSeeds',
@@ -3934,7 +3934,7 @@ describe('ExtEarn unit tests', () => {
         // Remove the orphaned earner
         await extEarn.methods
           .removeOrphanedEarner()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc();
 

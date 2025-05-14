@@ -22,9 +22,9 @@ import { randomInt } from 'crypto';
 
 import { MerkleTree, ProofElement } from '../../sdk/src/merkle';
 import { loadKeypair } from '../test-utils';
-import { Earn } from '../../sdk/src/idl/earn';
+import { Earn } from '../../target/types/earn';
 
-const EARN_IDL = require('../../sdk/src/idl/earn.json');
+const EARN_IDL = require('../../target/idl/earn.json');
 const EARN_PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c');
 
 // Unit tests for earn program
@@ -379,7 +379,7 @@ const initialize = async (mint: PublicKey, earnAuthority: PublicKey, initialInde
   // Send the transaction
   await earn.methods
     .initialize(earnAuthority, initialIndex, claimCooldown)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([admin])
     .rpc();
 
@@ -440,7 +440,7 @@ const propagateIndex = async (newIndex: BN, earnerMerkleRoot: number[] = ZERO_WO
   // Send the instruction
   await earn.methods
     .propagateIndex(newIndex, earnerMerkleRoot)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([portal])
     .rpc();
 
@@ -493,7 +493,7 @@ const completeClaims = async () => {
   // Send the instruction
   await earn.methods
     .completeClaims()
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([earnAuthority])
     .rpc();
 };
@@ -526,7 +526,7 @@ const addRegistrarEarner = async (earner: PublicKey, proof: ProofElement[]) => {
   // Send the instruction
   await earn.methods
     .addRegistrarEarner(earner, proof)
-    .accounts({ ...accounts })
+    .accountsPartial({ ...accounts })
     .signers([nonAdmin])
     .rpc();
 };
@@ -562,7 +562,7 @@ describe('Earn unit tests', () => {
     provider = new LiteSVMProvider(svm);
 
     // Create program instances
-    earn = new Program<Earn>(EARN_IDL, EARN_PROGRAM_ID, provider);
+    earn = new Program<Earn>(EARN_IDL, provider);
 
     // Fund the wallets
     svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
@@ -596,7 +596,7 @@ describe('Earn unit tests', () => {
       // Create and send the transaction
       await earn.methods
         .initialize(earnAuthority.publicKey, initialIndex, claimCooldown)
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([admin])
         .rpc();
 
@@ -635,7 +635,7 @@ describe('Earn unit tests', () => {
       // Send the transaction
       await earn.methods
         .setEarnAuthority(newEarnAuthority.publicKey)
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([admin])
         .rpc();
 
@@ -654,7 +654,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .setEarnAuthority(newEarnAuthority.publicKey)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'NotAuthorized',
@@ -684,7 +684,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .setClaimCooldown(new BN(1))
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'NotAuthorized',
@@ -701,7 +701,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .setClaimCooldown(new BN(randomCooldown))
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([admin])
           .rpc(),
         'InvalidParam',
@@ -716,7 +716,7 @@ describe('Earn unit tests', () => {
 
       await earn.methods
         .setClaimCooldown(newCooldown)
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([admin])
         .rpc();
 
@@ -817,7 +817,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .propagateIndex(newIndex, newEarnerRoot)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'NotAuthorized',
@@ -1370,7 +1370,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .claimFor(new BN(100_000_000))
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'NotAuthorized',
@@ -1388,7 +1388,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .claimFor(new BN(10_000_000))
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
         'AccountNotInitialized',
@@ -1406,7 +1406,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .claimFor(new BN(10_000_000))
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
         'AlreadyClaimed',
@@ -1427,7 +1427,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .claimFor(new BN(120_000_001))
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
         'ExceedsMaxYield',
@@ -1453,7 +1453,7 @@ describe('Earn unit tests', () => {
       // Claim for the earner
       await earn.methods
         .claimFor(new BN(10_000_000))
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([earnAuthority])
         .rpc();
 
@@ -1500,7 +1500,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .completeClaims()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'NotAuthorized',
@@ -1524,7 +1524,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .completeClaims()
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([earnAuthority])
           .rpc(),
         'NoActiveClaim',
@@ -1541,7 +1541,7 @@ describe('Earn unit tests', () => {
       // Complete the claim
       await earn.methods
         .completeClaims()
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([earnAuthority])
         .rpc();
 
@@ -1609,7 +1609,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .addRegistrarEarner(PublicKey.default, proof)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'InvalidParam',
@@ -1636,7 +1636,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .addRegistrarEarner(PublicKey.default, proof)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'InvalidParam',
@@ -1663,7 +1663,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .addRegistrarEarner(earnerOne.publicKey, proof)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'ConstraintTokenMint',
@@ -1686,7 +1686,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .addRegistrarEarner(earnerOne.publicKey, proof)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'ConstraintTokenOwner',
@@ -1715,7 +1715,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .addRegistrarEarner(earnerOne.publicKey, proof)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'AccountNotInitialized',
@@ -1741,7 +1741,7 @@ describe('Earn unit tests', () => {
       await expectSystemError(
         earn.methods
           .addRegistrarEarner(earnerOne.publicKey, proof)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
       );
@@ -1780,7 +1780,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .addRegistrarEarner(nonEarnerOne.publicKey, proof)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'MutableOwner',
@@ -1804,7 +1804,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .addRegistrarEarner(nonEarnerOne.publicKey, proof)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'InvalidProof',
@@ -1829,7 +1829,7 @@ describe('Earn unit tests', () => {
       // Add earner one to the earn manager's list
       await earn.methods
         .addRegistrarEarner(earnerOne.publicKey, proof)
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([nonAdmin])
         .rpc();
 
@@ -1907,7 +1907,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .removeRegistrarEarner(proofs, neighbors)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'AccountNotInitialized',
@@ -1928,7 +1928,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .removeRegistrarEarner([], [])
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'InvalidProof',
@@ -1952,7 +1952,7 @@ describe('Earn unit tests', () => {
       await expectAnchorError(
         earn.methods
           .removeRegistrarEarner(proofs, neighbors)
-          .accounts({ ...accounts })
+          .accountsPartial({ ...accounts })
           .signers([nonAdmin])
           .rpc(),
         'InvalidProof',
@@ -1975,7 +1975,7 @@ describe('Earn unit tests', () => {
       // Remove earner one from the earn manager's list
       await earn.methods
         .removeRegistrarEarner(proofs, neighbors)
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([nonAdmin])
         .rpc();
 
@@ -2004,7 +2004,7 @@ describe('Earn unit tests', () => {
       // Remove earner one from the earn manager's list
       await earn.methods
         .removeRegistrarEarner(proofs, neighbors)
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([nonAdmin])
         .rpc();
 
@@ -2037,7 +2037,7 @@ describe('Earn unit tests', () => {
       // Remove earner one from the earn manager's list
       await earn.methods
         .removeRegistrarEarner(proofs, neighbors)
-        .accounts({ ...accounts })
+        .accountsPartial({ ...accounts })
         .signers([nonAdmin])
         .rpc();
 
