@@ -1,4 +1,4 @@
-import { Logger } from '../../sdk/src/logger';
+import { Logger } from '@m0-foundation/solana-m-sdk';
 
 type BlockchainType = 'solana' | 'ethereum';
 

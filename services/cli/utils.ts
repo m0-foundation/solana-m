@@ -1,7 +1,7 @@
 import { Keypair, Connection, PublicKey } from '@solana/web3.js';
 import { SolanaNtt } from '@wormhole-foundation/sdk-solana-ntt';
 import { SolanaPlatform, SolanaSendSigner } from '@wormhole-foundation/sdk-solana';
-import { Wormhole } from '@wormhole-foundation/sdk';
+import { AccountAddress, Wormhole } from '@wormhole-foundation/sdk';
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 
 const PORTAL = new PublicKey('mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY');
@@ -11,10 +11,8 @@ export function keysFromEnv(keys: string[]) {
 }
 
 export function NttManager(connection: Connection, owner: Keypair, mint: PublicKey) {
-  const signer = new SolanaSendSigner(connection, 'Solana', owner, false, {
-    min: 300_000,
-  });
-  const sender = Wormhole.parseAddress('Solana', signer.address());
+  const signer = new SolanaSendSigner(connection, 'Solana', owner, false, { min: 300_000 });
+  const sender = Wormhole.parseAddress('Solana', signer.address()) as AccountAddress<'Solana'>;
 
   const wormholeNetwork = process.env.NETWORK === 'devnet' ? 'Testnet' : 'Mainnet';
   const wh = new Wormhole(wormholeNetwork, [SolanaPlatform]);

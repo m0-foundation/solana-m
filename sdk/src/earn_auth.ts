@@ -317,9 +317,9 @@ export class EarnAuthority {
     return [filteredTxns, totalRewards];
   }
 
-  async buildIndexSyncInstruction(): Promise<TransactionInstruction> {
+  async buildIndexSyncInstruction(): Promise<TransactionInstruction | null> {
     if (this.programID.equals(PROGRAM_ID)) {
-      throw new Error('Index sync not supported for program');
+      return null;
     }
 
     return (this.program as Program<ExtEarn>).methods

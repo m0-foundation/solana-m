@@ -15,6 +15,7 @@ import {
   createInitializeAccountInstruction,
   createInitializeMultisigInstruction,
   createMintToCheckedInstruction,
+  createCloseAccountInstruction,
   getAccountLen,
 } from '@solana/spl-token';
 import { randomInt } from 'crypto';
@@ -31,9 +32,9 @@ const EARN_PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY
 const ZERO_WORD = new Array(32).fill(0);
 
 // Setup wallets once at the beginning of the test suite
-const admin: Keypair = loadKeypair('tests/keys/admin.json');
-const portal: Keypair = loadKeypair('tests/keys/admin.json');
-const mint: Keypair = loadKeypair('tests/keys/mint.json');
+const admin: Keypair = loadKeypair('keys/admin.json');
+const portal: Keypair = loadKeypair('keys/admin.json');
+const mint: Keypair = loadKeypair('keys/mint.json');
 const earnAuthority: Keypair = new Keypair();
 const mintAuthority: Keypair = new Keypair();
 const nonAdmin: Keypair = new Keypair();
@@ -550,7 +551,7 @@ const prepRemoveRegistrarEarner = (signer: Keypair, earnerATA: PublicKey) => {
 describe('Earn unit tests', () => {
   beforeEach(async () => {
     // Initialize the SVM instance with all necessary configurations
-    svm = fromWorkspace('')
+    svm = fromWorkspace('../')
       .withSplPrograms() // Add SPL programs (including token programs)
       .withBuiltins() // Add builtin programs
       .withSysvars() // Setup standard sysvars
@@ -2008,6 +2009,38 @@ describe('Earn unit tests', () => {
         .rpc();
 
       // Verify the earner account was closed correctly
+      expectAccountEmpty(earnerAccount);
+    });
+
+    test('Remove registrar earner, closed token account - success', async () => {
+      // Get the ATA for earner one
+      const earnerOneATA = await getATA(mint.publicKey, earnerOne.publicKey);
+
+      // Get the exclusion proof for earner one against the earner merkle tree
+      const { proofs, neighbors } = earnerMerkleTree.getExclusionProof(earnerOne.publicKey);
+
+      // Setup the instruction
+      const { earnerAccount } = prepRemoveRegistrarEarner(nonAdmin, earnerOneATA);
+
+      let ix = createCloseAccountInstruction(
+        earnerOneATA,
+        nonAdmin.publicKey,
+        earnerOne.publicKey,
+        [],
+        TOKEN_2022_PROGRAM_ID,
+      );
+      let tx = new Transaction();
+      tx.add(ix);
+      await provider.sendAndConfirm!(tx, [earnerOne]);
+      expectAccountEmpty(earnerOneATA);
+
+      // Remove earner one from the earn manager's list
+      await earn.methods
+        .removeRegistrarEarner(proofs, neighbors)
+        .accounts({ ...accounts })
+        .signers([nonAdmin])
+        .rpc();
+
       expectAccountEmpty(earnerAccount);
     });
   });

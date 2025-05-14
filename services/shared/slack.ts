@@ -1,4 +1,4 @@
-import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
+import { EXT_PROGRAM_ID, PROGRAM_ID } from '@m0-foundation/solana-m-sdk';
 
 export interface SlackMessage {
   messages: string[];
