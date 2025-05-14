@@ -72,20 +72,12 @@ export class Registrar {
       const tree = new MerkleTree(earners);
       const { proof } = tree.getInclusionProof(user);
 
-      // PDAs
-      const [earnerAccount] = PublicKey.findProgramAddressSync(
-        [Buffer.from('earner'), userTokenAccount.toBytes()],
-        PROGRAM_ID,
-      );
-
       ixs.push(
         await this.program.methods
           .addRegistrarEarner(user, proof)
           .accounts({
             signer: signer,
-            globalAccount: GLOBAL_ACCOUNT,
             userTokenAccount,
-            earnerAccount,
           })
           .instruction(),
       );
@@ -143,9 +135,6 @@ export class Registrar {
           .removeRegistrarEarner(proofs, neighbors)
           .accounts({
             signer: signer,
-            globalAccount: GLOBAL_ACCOUNT,
-            earnerAccount: earner.pubkey,
-            userTokenAccount: earner.data.userTokenAccount,
           })
           .instruction(),
       );
