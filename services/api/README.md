@@ -24,7 +24,7 @@ The `fern` directory contains the api definitions which fern uses to generated t
         ├── src
         └── package.json
 
-⚙️ generated codecode
+⚙️ generated code
 ```
 
 The SDK code requires no additional implementation but the server code requires you to implement each service and register its handler.
