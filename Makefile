@@ -189,6 +189,7 @@ deploy-dashboard-mainnet:
 #
 DEVNET_STARTING_BLOCK := 364230817
 MAINNET_STARTING_BLOCK := 335213628
+MONGO_MAINNET_STARTING_BLOCK := 339967540
 DEVNET_TARGET_VERSION := v0.0.2 
 MAINNET_TARGET_VERSION := v0.0.4
 
@@ -230,7 +231,7 @@ deploy-substream-mongo-devnet:
 
 deploy-substream-mongo-mainnet:
 	railway environment production
-	$(call deploy-substream-mongo,solana-mainnet-beta,mainnet,$(MAINNET_STARTING_BLOCK))
+	$(call deploy-substream-mongo,solana-mainnet-beta,mainnet,$(MONGO_MAINNET_STARTING_BLOCK))
 
 #
 # SDK
