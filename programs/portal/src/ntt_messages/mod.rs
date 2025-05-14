@@ -1,3 +1,6 @@
+/// NOTE: this entire module was copied over from https://github.com/wormhole-foundation/native-token-transfers/tree/main/solana/modules/ntt-messages
+/// This was done to remove the ntt-messages dependency and upgrade to anchor v0.31.0
+///
 pub mod bpf_loader_upgradeable;
 pub mod chain_id;
 pub mod errors;
