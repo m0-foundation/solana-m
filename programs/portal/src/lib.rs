@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::prelude::*;
 
 pub mod bitmap;
@@ -6,6 +8,7 @@ pub mod config;
 pub mod error;
 pub mod instructions;
 pub mod messages;
+pub mod ntt_messages;
 pub mod payloads;
 pub mod peer;
 pub mod pending_token_authority;
@@ -196,18 +199,6 @@ pub mod portal {
     ) -> Result<()> {
         transceivers::wormhole::instructions::broadcast_peer(ctx, args)
     }
-}
-
-// The Version struct is just a dummy type because anchor needs every function
-// to have a context. When compiled in CPI mode, anchor generates code that
-// assumes that the struct has a lifetime parameter. So in that mode, we bind a
-// dummy lifetime parameter (and use it in a dummy account).
-// When compiling normally, we don't do this, and just use an empty struct, which anchor is happy with.
-#[cfg(feature = "cpi")]
-#[derive(Accounts)]
-pub struct Version<'info> {
-    /// CHECK: refer to comment above
-    pub dummy: UncheckedAccount<'info>,
 }
 
 #[cfg(not(feature = "cpi"))]

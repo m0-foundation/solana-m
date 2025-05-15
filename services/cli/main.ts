@@ -40,8 +40,9 @@ import { createPublicClient, EXT_GLOBAL_ACCOUNT, EXT_MINT, Graph, http, EarnAuth
 import { createSetEvmAddresses } from '../../tests/test-utils';
 import { createInitializeConfidentialTransferMintInstruction } from './confidential-transfers';
 import { Program, BN } from '@coral-xyz/anchor';
-import { Earn } from '../../target/types/earn';
-import { ExtEarn } from '../../target/types/ext_earn';
+import * as multisig from '@sqds/multisig';
+import { Earn } from '../../sdk/src/idl/earn';
+import { ExtEarn } from '../../sdk/src/idl/ext_earn';
 import { anchorProvider, keysFromEnv, NttManager } from './utils';
 import { MerkleTree } from '../../sdk/src/merkle';
 import { EvmCaller } from '../../sdk/src/evm_caller';
@@ -49,8 +50,8 @@ import { EXT_PROGRAM_ID, PROGRAM_ID } from '../../sdk/src';
 import { EarnManager } from '../../sdk/src/earn_manager';
 import { getExtProgram, getProgram } from '../../sdk/src/idl';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-const EARN_IDL = require('../../target/idl/earn.json');
-const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
+const EARN_IDL = require('../../sdk/src/idl/earn.json');
+const EXT_EARN_IDL = require('../../sdk/src/idl/ext_earn.json');
 
 const PROGRAMS = {
   // program id the same for devnet and mainnet
