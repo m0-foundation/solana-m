@@ -190,7 +190,7 @@ export class EarnAuthority {
 
       return (this.program as Program<ExtEarn>).methods
         .claimFor(claimBalance)
-        .accounts({
+        .accountsPartial({
           earnAuthority: this.global.earnAuthority,
           globalAccount: EXT_GLOBAL_ACCOUNT,
           extMint: this.global.mint,
@@ -209,7 +209,7 @@ export class EarnAuthority {
 
       return (this.program as Program<Earn>).methods
         .claimFor(claimBalance)
-        .accounts({
+        .accountsPartial({
           earnAuthority: new PublicKey(this.global.earnAuthority),
           globalAccount: GLOBAL_ACCOUNT,
           mint: new PublicKey(this.global.mint),
