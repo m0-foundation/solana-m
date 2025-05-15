@@ -8,7 +8,7 @@ inputs:
   solana-version:
     description: 'Solana version'
     required: false
-    default: 'v2.2.6'
+    default: 'v2.1.0'
 runs:
   using: 'composite'
   steps:
