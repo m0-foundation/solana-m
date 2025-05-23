@@ -19,6 +19,8 @@ pub struct PoolConfig {
     pub trade_fee_bps: u16,
     pub seed: u8,
     pub bump: u8,
+    pub auth_bump: u8,
+    pub total_tokens: u64,
     pub lp_mint: Pubkey,
     pub swap_mints: [Pubkey; 10],
 }

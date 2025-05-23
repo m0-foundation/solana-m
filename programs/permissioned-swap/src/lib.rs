@@ -19,10 +19,14 @@ pub mod permissioned_swap {
 
     pub fn initialize_pool(
         ctx: Context<InitializePool>,
-        seed: u8,
+        pool_seed: u8,
         trade_fee_bps: u16,
         swap_mints: Vec<Pubkey>,
     ) -> Result<()> {
-        InitializePool::handler(ctx, seed, trade_fee_bps, swap_mints)
+        InitializePool::handler(ctx, pool_seed, trade_fee_bps, swap_mints)
+    }
+
+    pub fn deposit(ctx: Context<Deposit>, pool_seed: u8, amount: u64) -> Result<()> {
+        Deposit::handler(ctx, pool_seed, amount)
     }
 }

@@ -6,7 +6,7 @@ use anchor_spl::{
 use crate::state::{Global, PoolConfig, GLOBAL_SEED, LP_MINT_SEED, POOL_AUTH, POOL_CONFIG_SEED};
 
 #[derive(Accounts)]
-#[instruction(seed: u8)]
+#[instruction(pool_seed: u8)]
 pub struct InitializePool<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -20,20 +20,23 @@ pub struct InitializePool<'info> {
 
     /// CHECK: authority on lp mints and vaults
     #[account(
-        seeds = [POOL_AUTH.as_bytes(), &[seed]],
+        seeds = [POOL_AUTH.as_bytes(), &[pool_seed]],
         bump,
     )]
     pub pool_auth: UncheckedAccount<'info>,
 
     #[account(
-        seeds = [POOL_CONFIG_SEED.as_bytes(), &[seed]],
+        init,
+        seeds = [POOL_CONFIG_SEED.as_bytes(), &[pool_seed]],
+        space = 8 + PoolConfig::INIT_SPACE,
         bump,
+        payer = admin,
     )]
     pub pool_config: Account<'info, PoolConfig>,
 
     #[account(
         init,
-        seeds = [LP_MINT_SEED.as_bytes(), &[seed]],
+        seeds = [LP_MINT_SEED.as_bytes(), &[pool_seed]],
         bump,
         payer = admin,
         mint::decimals = 6,
@@ -82,14 +85,16 @@ impl InitializePool<'_> {
     #[access_control(ctx.accounts.validate(trade_fee_bps, &swap_mints, ctx.remaining_accounts))]
     pub fn handler(
         ctx: Context<Self>,
-        seed: u8,
+        pool_seed: u8,
         trade_fee_bps: u16,
         swap_mints: Vec<Pubkey>,
     ) -> Result<()> {
         ctx.accounts.pool_config.set_inner(PoolConfig {
             trade_fee_bps,
-            seed,
+            seed: pool_seed,
             bump: ctx.bumps.pool_config,
+            auth_bump: ctx.bumps.pool_auth,
+            total_tokens: 0,
             lp_mint: ctx.accounts.lp_mint.key(),
             swap_mints: [Pubkey::default(); 10],
         });
