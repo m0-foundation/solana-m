@@ -1,7 +1,9 @@
 use anchor_lang::{accounts::interface_account::InterfaceAccount, prelude::*};
-use anchor_spl::{token::Token, token_interface::Mint};
+use anchor_spl::{
+    associated_token::get_associated_token_address, token::Token, token_interface::Mint,
+};
 
-use crate::state::{Global, PoolConfig, GLOBAL_SEED, LP_MINT_SEED, POOL_CONFIG_SEED};
+use crate::state::{Global, PoolConfig, GLOBAL_SEED, LP_MINT_SEED, POOL_AUTH, POOL_CONFIG_SEED};
 
 #[derive(Accounts)]
 #[instruction(seed: u8)]
@@ -16,6 +18,13 @@ pub struct InitializePool<'info> {
     )]
     pub global: Account<'info, Global>,
 
+    /// CHECK: authority on lp mints and vaults
+    #[account(
+        seeds = [POOL_AUTH.as_bytes(), &[seed]],
+        bump,
+    )]
+    pub pool_auth: UncheckedAccount<'info>,
+
     #[account(
         seeds = [POOL_CONFIG_SEED.as_bytes(), &[seed]],
         bump,
@@ -28,7 +37,7 @@ pub struct InitializePool<'info> {
         bump,
         payer = admin,
         mint::decimals = 6,
-        mint::authority = global,
+        mint::authority = pool_auth,
         mint::token_program = token_program,
     )]
     pub lp_mint: InterfaceAccount<'info, Mint>,
@@ -39,18 +48,38 @@ pub struct InitializePool<'info> {
 }
 
 impl InitializePool<'_> {
-    fn validate(&self, trade_fee_bps: u16, swap_mints: &[Pubkey]) -> Result<()> {
+    fn validate(
+        &self,
+        trade_fee_bps: u16,
+        swap_mints: &[Pubkey],
+        remaining_accounts: &[AccountInfo<'_>],
+    ) -> Result<()> {
         if trade_fee_bps > 10_000 {
             return Err(ProgramError::InvalidArgument.into());
         }
         if swap_mints.len() > 10 {
             return Err(ProgramError::InvalidArgument.into());
         }
+        if remaining_accounts.len() != swap_mints.len() {
+            return Err(ProgramError::InvalidArgument.into());
+        }
+
+        // Check that an associated token account was created for each mint
+        for (i, mint) in swap_mints.iter().enumerate() {
+            let token_account = get_associated_token_address(&self.pool_auth.key(), mint);
+
+            if !token_account.eq(remaining_accounts[i].key) {
+                return Err(ProgramError::InvalidArgument.into());
+            }
+            if remaining_accounts[i].data_is_empty() {
+                return Err(ProgramError::InvalidArgument.into());
+            }
+        }
 
         Ok(())
     }
 
-    #[access_control(ctx.accounts.validate(trade_fee_bps, &swap_mints))]
+    #[access_control(ctx.accounts.validate(trade_fee_bps, &swap_mints, ctx.remaining_accounts))]
     pub fn handler(
         ctx: Context<Self>,
         seed: u8,

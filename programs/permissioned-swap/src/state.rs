@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 pub const GLOBAL_SEED: &str = "global";
 pub const POOL_CONFIG_SEED: &str = "pool_config";
+pub const POOL_AUTH: &str = "pool_auth";
 pub const LP_MINT_SEED: &str = "lp_mint";
 
 #[account]
