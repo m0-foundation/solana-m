@@ -1,23 +1,26 @@
 [toolchain]
 
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
 [programs.localnet]
 earn = "MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c"
-portal = "mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"
 ext_earn = "wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko"
+permissioned-swap = "7B9Roa5xoEpK8EZ1wHL9V9T7QvevhSUjUEQT9mxhYBYN"
+portal = "mzp1q2j5Hr1QuLC3KFBCAUz5aUckT6qyuZKZ3WJnMmY"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "localnet"
 wallet = "tests/keys/user.json"
-
-[test]
-upgradeable = true
 
 [scripts]
 test = "pnpm run jest --preset ts-jest --verbose --testPathPattern=tests/unit"
+
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+upgradeable = true
