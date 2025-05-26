@@ -28,7 +28,7 @@ pub mod permissioned_swap {
         InitializePool::handler(ctx, swap_mode, trade_fee_bps)
     }
 
-    pub fn deposit(ctx: Context<Deposit>, amount_a: u64, amount_b: u64) -> Result<()> {
-        Deposit::handler(ctx, amount_a, amount_b)
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+        Deposit::handler(ctx, amount)
     }
 }

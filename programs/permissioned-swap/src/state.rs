@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
 
-pub const GLOBAL_SEED: &str = "global";
-pub const POOL_CONFIG_SEED: &str = "pool_config";
-pub const POOL_AUTH: &str = "pool_auth";
-pub const POOL_ACTOR: &str = "pool_actor";
+pub const GLOBAL_SEED: &[u8] = b"global";
+pub const POOL_CONFIG_SEED: &[u8] = b"pool_config";
+pub const POOL_AUTH: &[u8] = b"pool_auth";
+pub const POOL_ACTOR: &[u8] = b"pool_actor";
+pub const LP_MINT_SEED: &[u8] = b"lp_mint";
 
 #[account]
 #[derive(InitSpace)]
@@ -18,6 +19,8 @@ pub struct Global {
 pub struct Pool {
     pub swap_mint_a: Pubkey,
     pub swap_mint_b: Pubkey,
+    pub lp_mint_a: Pubkey,
+    pub lp_mint_b: Pubkey,
     pub swap_mode: SwapMode,
     pub trade_fee_bps: u16,
     pub bump: u8,

@@ -6,4 +6,8 @@ pub enum SwapError {
     MissingOracle,
     #[msg("Bad oracle data")]
     BadOracleData,
+    #[msg("Invalid mint")]
+    InvalidMint,
+    #[msg("Account does not match provided mint")]
+    InvalidAccountForMint,
 }

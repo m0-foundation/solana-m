@@ -1,10 +1,14 @@
 use anchor_lang::{accounts::interface_account::InterfaceAccount, prelude::*};
-use anchor_spl::{token::Token, token_interface::Mint};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::Token,
+    token_interface::{Mint, TokenAccount},
+};
 use switchboard_on_demand::PullFeedAccountData;
 
 use crate::{
     errors::SwapError,
-    state::{Global, OracleConfig, Pool, SwapMode, GLOBAL_SEED, POOL_CONFIG_SEED},
+    state::{Global, OracleConfig, Pool, SwapMode, GLOBAL_SEED, LP_MINT_SEED, POOL_CONFIG_SEED},
 };
 
 #[derive(Accounts)]
@@ -13,7 +17,7 @@ pub struct InitializePool<'info> {
     pub admin: Signer<'info>,
 
     #[account(
-        seeds = [GLOBAL_SEED.as_bytes()],
+        seeds = [GLOBAL_SEED],
         bump = global.bump,
         has_one = admin,
     )]
@@ -21,7 +25,7 @@ pub struct InitializePool<'info> {
 
     #[account(
         init,
-        seeds = [POOL_CONFIG_SEED.as_bytes(), swap_mint_a.key().as_ref(), swap_mint_b.key().as_ref()],
+        seeds = [POOL_CONFIG_SEED, swap_mint_a.key().as_ref(), swap_mint_b.key().as_ref()],
         space = 8 + Pool::INIT_SPACE,
         bump,
         payer = admin,
@@ -32,11 +36,55 @@ pub struct InitializePool<'info> {
 
     pub swap_mint_b: InterfaceAccount<'info, Mint>,
 
+    #[account(
+        init,
+        seeds = [LP_MINT_SEED, pool.key().as_ref(), swap_mint_a.key().as_ref()],
+        bump,
+        payer = admin,
+        mint::decimals = swap_mint_a.decimals,
+        mint::authority = pool,
+        mint::token_program = token_program_a,
+    )]
+    pub lp_mint_a: InterfaceAccount<'info, Mint>,
+
+    #[account(
+        init,
+        seeds = [LP_MINT_SEED, pool.key().as_ref(), swap_mint_b.key().as_ref()],
+        bump,
+        payer = admin,
+        mint::decimals = swap_mint_b.decimals,
+        mint::authority = pool,
+        mint::token_program = token_program_b,
+    )]
+    pub lp_mint_b: InterfaceAccount<'info, Mint>,
+
+    #[account(
+        init,
+        payer = admin,
+        associated_token::mint = swap_mint_a,
+        associated_token::authority = pool,
+        associated_token::token_program = token_program_a,
+    )]
+    pub vault_a: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        init,
+        payer = admin,
+        associated_token::mint = swap_mint_b,
+        associated_token::authority = pool,
+        associated_token::token_program = token_program_b,
+    )]
+    pub vault_b: InterfaceAccount<'info, TokenAccount>,
+
     pub oracle_a: Option<AccountInfo<'info>>,
 
     pub oracle_b: Option<AccountInfo<'info>>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program_a: Program<'info, Token>,
+
+    pub token_program_b: Program<'info, Token>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>,
 
     pub system_program: Program<'info, System>,
 }
@@ -47,12 +95,14 @@ impl InitializePool<'_> {
             return Err(ProgramError::InvalidArgument.into());
         }
 
-        // swap pubkeys should be sorted to prevent duplicate pools
+        // mint pubkeys should be sorted to prevent duplicate pools
         if self.swap_mint_a.key().to_string() > self.swap_mint_b.key().to_string() {
+            msg!("unsorted mint pubkeys");
             return Err(ProgramError::InvalidArgument.into());
         }
 
         if *swap_mode == SwapMode::Oracle && (self.oracle_a.is_none() || self.oracle_b.is_none()) {
+            msg!("oracle is required for oracle swap mode");
             return err!(SwapError::MissingOracle);
         }
 
@@ -97,6 +147,8 @@ impl InitializePool<'_> {
         ctx.accounts.pool.set_inner(Pool {
             swap_mint_a: ctx.accounts.swap_mint_a.key(),
             swap_mint_b: ctx.accounts.swap_mint_b.key(),
+            lp_mint_a: ctx.accounts.lp_mint_a.key(),
+            lp_mint_b: ctx.accounts.lp_mint_b.key(),
             swap_mode,
             trade_fee_bps,
             bump: ctx.bumps.pool,
