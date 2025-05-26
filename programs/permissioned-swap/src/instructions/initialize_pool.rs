@@ -1,12 +1,13 @@
 use anchor_lang::{accounts::interface_account::InterfaceAccount, prelude::*};
-use anchor_spl::{
-    associated_token::get_associated_token_address, token::Token, token_interface::Mint,
+use anchor_spl::{token::Token, token_interface::Mint};
+use switchboard_on_demand::PullFeedAccountData;
+
+use crate::{
+    errors::SwapError,
+    state::{Global, OracleConfig, Pool, SwapMode, GLOBAL_SEED, POOL_CONFIG_SEED},
 };
 
-use crate::state::{Global, PoolConfig, GLOBAL_SEED, LP_MINT_SEED, POOL_AUTH, POOL_CONFIG_SEED};
-
 #[derive(Accounts)]
-#[instruction(pool_seed: u8)]
 pub struct InitializePool<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -18,32 +19,22 @@ pub struct InitializePool<'info> {
     )]
     pub global: Account<'info, Global>,
 
-    /// CHECK: authority on lp mints and vaults
-    #[account(
-        seeds = [POOL_AUTH.as_bytes(), &[pool_seed]],
-        bump,
-    )]
-    pub pool_auth: UncheckedAccount<'info>,
-
     #[account(
         init,
-        seeds = [POOL_CONFIG_SEED.as_bytes(), &[pool_seed]],
-        space = 8 + PoolConfig::INIT_SPACE,
+        seeds = [POOL_CONFIG_SEED.as_bytes(), swap_mint_a.key().as_ref(), swap_mint_b.key().as_ref()],
+        space = 8 + Pool::INIT_SPACE,
         bump,
         payer = admin,
     )]
-    pub pool_config: Account<'info, PoolConfig>,
+    pub pool: Account<'info, Pool>,
 
-    #[account(
-        init,
-        seeds = [LP_MINT_SEED.as_bytes(), &[pool_seed]],
-        bump,
-        payer = admin,
-        mint::decimals = 6,
-        mint::authority = pool_auth,
-        mint::token_program = token_program,
-    )]
-    pub lp_mint: InterfaceAccount<'info, Mint>,
+    pub swap_mint_a: InterfaceAccount<'info, Mint>,
+
+    pub swap_mint_b: InterfaceAccount<'info, Mint>,
+
+    pub oracle_a: Option<AccountInfo<'info>>,
+
+    pub oracle_b: Option<AccountInfo<'info>>,
 
     pub token_program: Program<'info, Token>,
 
@@ -51,57 +42,66 @@ pub struct InitializePool<'info> {
 }
 
 impl InitializePool<'_> {
-    fn validate(
-        &self,
-        trade_fee_bps: u16,
-        swap_mints: &[Pubkey],
-        remaining_accounts: &[AccountInfo<'_>],
-    ) -> Result<()> {
+    fn validate(&self, swap_mode: &SwapMode, trade_fee_bps: u16) -> Result<()> {
         if trade_fee_bps > 10_000 {
             return Err(ProgramError::InvalidArgument.into());
         }
-        if swap_mints.len() > 10 {
-            return Err(ProgramError::InvalidArgument.into());
-        }
-        if remaining_accounts.len() != swap_mints.len() {
+
+        // swap pubkeys should be sorted to prevent duplicate pools
+        if self.swap_mint_a.key().to_string() > self.swap_mint_b.key().to_string() {
             return Err(ProgramError::InvalidArgument.into());
         }
 
-        // Check that an associated token account was created for each mint
-        for (i, mint) in swap_mints.iter().enumerate() {
-            let token_account = get_associated_token_address(&self.pool_auth.key(), mint);
+        if *swap_mode == SwapMode::Oracle && (self.oracle_a.is_none() || self.oracle_b.is_none()) {
+            return err!(SwapError::MissingOracle);
+        }
 
-            if !token_account.eq(remaining_accounts[i].key) {
-                return Err(ProgramError::InvalidArgument.into());
-            }
-            if remaining_accounts[i].data_is_empty() {
-                return Err(ProgramError::InvalidArgument.into());
+        // if only 1 oracle is provided
+        if self.oracle_a.is_some() ^ self.oracle_b.is_some() {
+            return err!(SwapError::MissingOracle);
+        }
+
+        // validate oracle
+        for oracle in [&self.oracle_a, &self.oracle_b].iter() {
+            if let Some(oracle) = oracle {
+                let feed_account = oracle.data.borrow();
+                let feed = PullFeedAccountData::parse(feed_account);
+
+                let price = feed
+                    .map_err(|_| SwapError::BadOracleData)?
+                    .value(&Clock::get().map_err(|_| SwapError::BadOracleData)?)
+                    .map_err(|_| SwapError::BadOracleData)?;
+
+                msg!("oracle price: {:}", price);
+
+                if price.is_sign_negative() {
+                    return err!(SwapError::BadOracleData);
+                }
             }
         }
 
         Ok(())
     }
 
-    #[access_control(ctx.accounts.validate(trade_fee_bps, &swap_mints, ctx.remaining_accounts))]
-    pub fn handler(
-        ctx: Context<Self>,
-        pool_seed: u8,
-        trade_fee_bps: u16,
-        swap_mints: Vec<Pubkey>,
-    ) -> Result<()> {
-        ctx.accounts.pool_config.set_inner(PoolConfig {
-            trade_fee_bps,
-            seed: pool_seed,
-            bump: ctx.bumps.pool_config,
-            auth_bump: ctx.bumps.pool_auth,
-            total_tokens: 0,
-            lp_mint: ctx.accounts.lp_mint.key(),
-            swap_mints: [Pubkey::default(); 10],
-        });
+    #[access_control(ctx.accounts.validate(&swap_mode, trade_fee_bps))]
+    pub fn handler(ctx: Context<Self>, swap_mode: SwapMode, trade_fee_bps: u16) -> Result<()> {
+        let oracle = if ctx.accounts.oracle_a.is_some() {
+            Some(OracleConfig {
+                oracle_a: ctx.accounts.oracle_a.as_ref().unwrap().key(),
+                oracle_b: ctx.accounts.oracle_b.as_ref().unwrap().key(),
+            })
+        } else {
+            None
+        };
 
-        for (i, mint) in swap_mints.iter().enumerate() {
-            ctx.accounts.pool_config.swap_mints[i] = *mint;
-        }
+        ctx.accounts.pool.set_inner(Pool {
+            swap_mint_a: ctx.accounts.swap_mint_a.key(),
+            swap_mint_b: ctx.accounts.swap_mint_b.key(),
+            swap_mode,
+            trade_fee_bps,
+            bump: ctx.bumps.pool,
+            oracle,
+        });
 
         Ok(())
     }
