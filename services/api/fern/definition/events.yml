@@ -5,7 +5,7 @@ service:
   base-path: /events
   endpoints:
     bridges:
-      docs: Get lastest bridge events
+      docs: Get latest bridge events
       method: GET
       path: /bridges
       response: Bridges
@@ -28,7 +28,7 @@ service:
                   ts: 2025-04-25T17:27:37.000Z
 
     index-updates:
-      docs: Get lastest index update events
+      docs: Get latest index update events
       method: GET
       path: /index-updates
       response: IndexUpdates
