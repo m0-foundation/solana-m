@@ -22,13 +22,6 @@ func LoadCursor(ctx context.Context, logger *zap.Logger, mongoDNS string) (strin
 		return "", nil, fmt.Errorf("error getting cursor: %w", err)
 	}
 
-	logger.Info("temp",
-		zap.Any("step", cursor.Cursor.Step),
-		zap.Any("block", cursor.Cursor.Block),
-		zap.Any("lib", cursor.Cursor.LIB),
-		zap.Any("head", cursor.Cursor.HeadBlock),
-	)
-
 	return hash, cursor, nil
 }
 

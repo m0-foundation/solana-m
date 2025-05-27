@@ -29,7 +29,11 @@ func main() {
 					if err != nil {
 						logger.Fatal("failed to load cursor", zap.Error(err))
 					}
-					logger.Info("found cursor", zap.String("hash", hash), zap.Stringer("cursor", cursor), zap.Uint64("block", cursor.Block().Num()))
+					logger.Info("found cursor",
+						zap.String("hash", hash),
+						zap.Stringer("cursor", cursor),
+						zap.Uint64("block", cursor.Block().Num()),
+					)
 					return nil
 				},
 			},
@@ -51,11 +55,21 @@ func main() {
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					hash, cursor, err := mongo.WriteCursor(ctx, logger, cmd.String("mongo-dns"), cmd.Uint64("latest-block-num"), cmd.String("latest-block-hash"))
+					hash, cursor, err := mongo.WriteCursor(
+						ctx,
+						logger,
+						cmd.String("mongo-dns"),
+						cmd.Uint64("latest-block-num"),
+						cmd.String("latest-block-hash"),
+					)
 					if err != nil {
 						logger.Fatal("failed to write latest cursor", zap.Error(err))
 					}
-					logger.Info("wrote cursor", zap.String("hash", hash), zap.Stringer("cursor", cursor), zap.Uint64("block", cursor.Block().Num()))
+					logger.Info("wrote cursor",
+						zap.String("hash", hash),
+						zap.Stringer("cursor", cursor),
+						zap.Uint64("block", cursor.Block().Num()),
+					)
 					return nil
 				},
 			},
