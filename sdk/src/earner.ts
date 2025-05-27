@@ -3,16 +3,16 @@ import { PublicClient } from 'viem';
 import BN from 'bn.js';
 
 import { EXT_PROGRAM_ID } from '.';
-import { Claim, Graph } from './graph';
 import { EarnerData } from './accounts';
 import { getExtProgram, getProgram } from './idl';
 import { EvmCaller } from './evm_caller';
 import { EarnManager } from './earn_manager';
+import { M0SolanaApiClient } from '@m0-foundation/solana-m-api-sdk';
 
 export class Earner {
   private connection: Connection;
   private evmClient: PublicClient;
-  private graphClient: Graph;
+  private apiClient: M0SolanaApiClient;
 
   pubkey: PublicKey;
   data: EarnerData;
@@ -20,13 +20,13 @@ export class Earner {
   constructor(
     connection: Connection,
     evmClient: PublicClient,
-    graphClient: Graph,
+    apiClient: M0SolanaApiClient,
     pubkey: PublicKey,
     data: EarnerData,
   ) {
     this.connection = connection;
     this.evmClient = evmClient;
-    this.graphClient = graphClient;
+    this.apiClient = apiClient;
     this.pubkey = pubkey;
     this.data = data;
   }
@@ -34,7 +34,7 @@ export class Earner {
   static async fromTokenAccount(
     connection: Connection,
     evmClient: PublicClient,
-    graphClient: Graph,
+    apiClient: M0SolanaApiClient,
     tokenAccount: PublicKey,
     program = EXT_PROGRAM_ID,
   ): Promise<Earner> {
@@ -42,10 +42,10 @@ export class Earner {
 
     if (program.equals(EXT_PROGRAM_ID)) {
       const data = await getExtProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, graphClient, earnerAccount, data);
+      return new Earner(connection, evmClient, apiClient, earnerAccount, data);
     } else {
       const data = await getProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, graphClient, earnerAccount, {
+      return new Earner(connection, evmClient, apiClient, earnerAccount, {
         ...data,
         earnManager: null,
         recipientTokenAccount: null,
@@ -56,7 +56,7 @@ export class Earner {
   static async fromUserAddress(
     connection: Connection,
     evmClient: PublicClient,
-    graphClient: Graph,
+    apiClient: M0SolanaApiClient,
     user: PublicKey,
     program = EXT_PROGRAM_ID,
   ): Promise<Earner[]> {
@@ -64,12 +64,12 @@ export class Earner {
 
     if (program.equals(EXT_PROGRAM_ID)) {
       const accounts = await getExtProgram(connection).account.earner.all(filter);
-      return accounts.map((a) => new Earner(connection, evmClient, graphClient, a.publicKey, a.account));
+      return accounts.map((a) => new Earner(connection, evmClient, apiClient, a.publicKey, a.account));
     } else {
       const accounts = await getProgram(connection).account.earner.all(filter);
       return accounts.map(
         (a) =>
-          new Earner(connection, evmClient, graphClient, a.publicKey, {
+          new Earner(connection, evmClient, apiClient, a.publicKey, {
             ...a.account,
             earnManager: null,
             recipientTokenAccount: null,
@@ -79,7 +79,7 @@ export class Earner {
   }
 
   async getHistoricalClaims(): Promise<Claim[]> {
-    return await this.graphClient.getHistoricalClaims(this.data.userTokenAccount);
+    return await this.apiClient.getHistoricalClaims(this.data.userTokenAccount);
   }
 
   async getClaimedYield(): Promise<BN> {
@@ -100,7 +100,7 @@ export class Earner {
     const currentIndex = await evmCaller.getCurrentIndex();
 
     // Get the index updates from the graph b/w the user's last claim index and current index
-    const steps = await this.graphClient.getIndexUpdates(this.data.lastClaimIndex, currentIndex);
+    const steps = await this.apiClient.getIndexUpdates(this.data.lastClaimIndex, currentIndex);
 
     // The current index should not be in the index updates list so we add it manually
     steps.push({ index: currentIndex, ts: currentTime });
@@ -117,7 +117,7 @@ export class Earner {
         throw new Error('Invalid index or timestamp');
       }
 
-      const twb = await this.graphClient.getTimeWeightedBalance(this.data.userTokenAccount, last.ts, current.ts);
+      const twb = await this.apiClient.getTimeWeightedBalance(this.data.userTokenAccount, last.ts, current.ts);
 
       // iterative calculation
       // y_n = (y_(n-1) + twb) * (I_n / I_(n-1) - twb
@@ -133,7 +133,7 @@ export class Earner {
       const earnManager = await EarnManager.fromManagerAddress(
         this.connection,
         this.evmClient,
-        this.graphClient,
+        this.apiClient,
         this.data.earnManager,
       );
 
