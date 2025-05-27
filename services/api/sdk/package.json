@@ -1,7 +1,7 @@
 {
   "name": "@m0-foundation/solana-m-api-sdk",
   "description": "Solana M API SDK",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "main": "./generated/index.js",
   "types": "./generated/index.d.ts",
   "files": [

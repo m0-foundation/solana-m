@@ -1,4 +1,4 @@
-name: m0-solana-api
+name: solana-api
 environments:
   mainnet:
     url: https://api-production-0046.up.railway.app

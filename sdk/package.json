@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "catalog:",
+    "@m0-foundation/solana-m-api-sdk": "workspace:^",
     "@solana/spl-token": "catalog:",
     "@solana/web3.js": "catalog:",
     "@types/bn.js": "catalog:",
