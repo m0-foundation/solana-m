@@ -52,6 +52,7 @@ func WriteCursor(
 	latest := bstream.NewBlockRef(latestBlockHash, latestBlockNum)
 	cursor.Cursor.Block = latest
 	cursor.Cursor.HeadBlock = latest
+	cursor.Cursor.LIB = bstream.NewBlockRef(cursor.Cursor.LIB.ID(), latestBlockNum-32)
 
 	if err = db.WriteCursor(ctx, hash, cursor); err != nil {
 		return "", nil, fmt.Errorf("error writing cursor: %w", err)
