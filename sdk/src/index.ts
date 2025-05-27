@@ -28,7 +28,6 @@ export { EarnAuthority } from './earn_auth';
 export { EarnManager } from './earn_manager';
 export { Earner } from './earner';
 export { EvmCaller } from './evm_caller';
-export { Graph } from './graph';
 export { Registrar } from './registrar';
 export * from './logger';
 export * from './transaction';

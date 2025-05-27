@@ -12,6 +12,7 @@ import { ExtEarn } from './idl/ext_earn';
 import { MockLogger, Logger } from './logger';
 import { RateLimiter } from 'limiter';
 import { M0SolanaApiClient } from '@m0-foundation/solana-m-api-sdk';
+import { getTimeWeightedBalance } from './twb';
 
 export class EarnAuthority {
   private logger: Logger;
@@ -124,7 +125,10 @@ export class EarnAuthority {
     }
 
     // get the index updates from the earner's last claim to the current index
-    const steps = await this.apiClient.getIndexUpdates(earner.data.lastClaimIndex, this.global.index);
+    const { updates: steps } = await this.apiClient.events.indexUpdates({
+      fromTime: earner.data.lastClaimTimestamp.toNumber(),
+      toTime: this.global.timestamp.toNumber(),
+    });
 
     // iterate through the steps and calculate the pending yield for the earner
     let claimYield: BN = new BN(0);
@@ -134,15 +138,21 @@ export class EarnAuthority {
       let current = steps[i];
 
       // Check that indices and timestamps are only increasing
-      if (current.index.lt(last.index) || current.ts.lt(last.ts)) {
+      if (current.index < last.index || current.ts < last.ts) {
         throw new Error('Invalid index or timestamp');
       }
 
-      const twb = await this.apiClient.getTimeWeightedBalance(earner.data.userTokenAccount, last.ts, current.ts);
+      const twb = await getTimeWeightedBalance(
+        this.apiClient,
+        earner.data.userTokenAccount,
+        this.global.mint,
+        last.ts,
+        current.ts,
+      );
 
       // iterative calculation
       // y_n = (y_(n-1) + twb) * I_n / I_(n-1) - twb
-      claimYield = claimYield.add(twb).mul(current.index).div(last.index).sub(twb);
+      claimYield = claimYield.add(twb).mul(new BN(current.index)).div(new BN(last.index)).sub(twb);
 
       // update last
       last = current;

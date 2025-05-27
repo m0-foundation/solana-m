@@ -93,17 +93,22 @@ export class Earner {
     // - Fetching the current index (from ETH mainnet)
     // - Using our usual yield calculation formula for yield claims, but adding another index update with the current index
 
-    const currentTime = new BN(Math.floor(Date.now() / 1000));
-
     const evmCaller = new EvmCaller(this.evmClient);
-
     const currentIndex = await evmCaller.getCurrentIndex();
 
     // Get the index updates from the graph b/w the user's last claim index and current index
-    const steps = await this.apiClient.getIndexUpdates(this.data.lastClaimIndex, currentIndex);
+    const { updates: steps } = await this.apiClient.events.indexUpdates({
+      fromTime: this.data.lastClaimTimestamp.toNumber(),
+    });
 
     // The current index should not be in the index updates list so we add it manually
-    steps.push({ index: currentIndex, ts: currentTime });
+    steps.push({
+      index: currentIndex.toNumber(),
+      ts: new Date(),
+      programId: '',
+      signature: '',
+      tokenSupply: 0,
+    });
 
     // iterate through the steps and calculate the pending yield for the earner
     let pendingYield: BN = new BN(0);
