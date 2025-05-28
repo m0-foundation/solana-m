@@ -6,16 +6,7 @@ import {
   Transaction,
 } from '@solana/web3.js';
 import { fromWorkspace, LiteSVMProvider } from 'anchor-litesvm';
-import {
-  createPublicClient,
-  http,
-  MINT,
-  PROGRAM_ID,
-  TOKEN_2022_ID,
-  DEVNET_GRAPH_ID,
-  Graph,
-  EarnAuthority,
-} from '@m0-foundation/solana-m-sdk';
+import { createPublicClient, http, MINT, PROGRAM_ID, TOKEN_2022_ID, EarnAuthority } from '@m0-foundation/solana-m-sdk';
 import nock from 'nock';
 import { TransactionMetadata } from 'litesvm';
 import BN from 'bn.js';
@@ -25,7 +16,6 @@ const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPj
 describe('Yield calculation tests', () => {
   const svm = fromWorkspace('../').withSplPrograms();
   const evmClient = createPublicClient({ transport: http('http://localhost:8545') });
-  const graphClient = new Graph('', DEVNET_GRAPH_ID);
   const provider = new LiteSVMProvider(svm);
   const connection = provider.connection;
 
@@ -218,7 +208,7 @@ describe('Yield calculation tests', () => {
           mockSubgraphIndexUpdates(testConfig.indexUpdates.slice(lastClaim, j + 2));
 
           // build claim for earner
-          const auth = await EarnAuthority.load(connection, evmClient, graphClient);
+          const auth = await EarnAuthority.load(connection, evmClient);
           const earner = (await auth.getAllEarners())[0];
           const ix = await auth.buildClaimInstruction(earner);
           // build transaction

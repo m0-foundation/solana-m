@@ -10,20 +10,19 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { createPublicClient, createTestClient, DEVNET_GRAPH_ID, http } from '@m0-foundation/solana-m-sdk';
+import { createPublicClient, createTestClient, http, MINT } from '@m0-foundation/solana-m-sdk';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { PROGRAM_ID as EARN_PROGRAM, EXT_PROGRAM_ID } from '@m0-foundation/solana-m-sdk';
-import { Graph, EarnAuthority, EarnManager, Earner } from '@m0-foundation/solana-m-sdk';
+import { EarnAuthority, EarnManager, Earner } from '@m0-foundation/solana-m-sdk';
 import nock from 'nock';
 import { Earn } from '@m0-foundation/solana-m-sdk/src/idl/earn';
 import { ExtEarn } from '@m0-foundation/solana-m-sdk/src/idl/ext_earn';
 import { MerkleTree } from '@m0-foundation/solana-m-sdk/src/merkle';
+import { _calculateTimeWeightedBalance, getTimeWeightedBalance } from '@m0-foundation/solana-m-sdk/src/twb';
+import { BalanceUpdate } from '../../services/api/sdk/generated/serialization';
 const EARN_IDL = require('@m0-foundation/solana-m-sdk/src/idl/earn.json');
 const EXT_EARN_IDL = require('@m0-foundation/solana-m-sdk/src/idl/ext_earn.json');
-
-const GRAPH_CLIENT = new Graph('', DEVNET_GRAPH_ID);
-const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
 
 describe('SDK unit tests', () => {
   const signer = loadKeypair('keys/user.json');
@@ -44,7 +43,7 @@ describe('SDK unit tests', () => {
   const earnerC = Keypair.generate();
   let earnerAccountA: PublicKey, earnerAccountB: PublicKey;
 
-  mockSubgraph();
+  mockAPI();
   const connection = new Connection('http://localhost:8899', 'processed');
   const provider = new AnchorProvider(connection, new Wallet(signer), { commitment: 'processed' });
 
@@ -323,12 +322,7 @@ describe('SDK unit tests', () => {
   describe('rpc', () => {
     test('get all earners', async () => {
       for (const [index, earner] of [earnerA, earnerB].entries()) {
-        const auth = await EarnAuthority.load(
-          connection,
-          evmClient,
-          GRAPH_CLIENT,
-          index === 0 ? EARN_PROGRAM : EXT_PROGRAM_ID,
-        );
+        const auth = await EarnAuthority.load(connection, evmClient, index === 0 ? EARN_PROGRAM : EXT_PROGRAM_ID);
         const earners = await auth.getAllEarners();
         expect(earners).toHaveLength(1);
         expect(earners[0].data.user.toBase58()).toEqual(earner.publicKey.toBase58());
@@ -336,12 +330,12 @@ describe('SDK unit tests', () => {
     });
 
     test('get earn manager', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, evmClient, GRAPH_CLIENT, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
       expect(manager.data.feeBps.toNumber()).toEqual(10);
     });
 
     test('manager earners', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, evmClient, GRAPH_CLIENT, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
       const earners = await manager.getEarners();
       expect(earners).toHaveLength(1);
       expect(earners[0].data.user.toBase58()).toEqual(earnerB.publicKey.toBase58());
@@ -350,30 +344,34 @@ describe('SDK unit tests', () => {
 
   describe('subgraph', () => {
     test('weighted balance', async () => {
-      const balance = await GRAPH_CLIENT.getTimeWeightedBalance(
+      const balance = await getTimeWeightedBalance(
         new PublicKey('BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj'),
-        new BN(0),
-        new BN(1000),
+        MINT,
+        new Date(0),
+        new Date(1000),
       );
       expect(balance.toNumber()).toEqual(2250000000000);
     });
 
     describe('weighted balance calculations', () => {
-      // grab private function
-      const fn = Graph['calculateTimeWeightedBalance'];
-
       test('0 balance', async () => {
-        expect(fn(new BN(0), new BN(0), new BN(1741939199), []).toNumber()).toEqual(0);
+        expect(_calculateTimeWeightedBalance(new BN(0), new BN(0), new BN(1741939199), []).toNumber()).toEqual(0);
       });
       test('no transfers balance', async () => {
-        expect(fn(new BN(110), new BN(0), new BN(1741939199), []).toNumber()).toEqual(110);
+        expect(_calculateTimeWeightedBalance(new BN(110), new BN(0), new BN(1741939199), []).toNumber()).toEqual(110);
       });
       test('one transfers halfway', async () => {
-        expect(fn(new BN(100), new BN(50), new BN(150), [{ amount: '50', ts: '100' }]).toNumber()).toEqual(75);
+        expect(
+          _calculateTimeWeightedBalance(new BN(100), new BN(50), new BN(150), [
+            { preBalance: 50, postBalance: 100, ts: new Date(100) } as any,
+          ]).toNumber(),
+        ).toEqual(75);
       });
       test('huge transfer before calculation', async () => {
         expect(
-          fn(new BN(1000000), new BN(100), new BN(1500000), [{ amount: '1000000', ts: '1499995' }]).toNumber(),
+          _calculateTimeWeightedBalance(new BN(1000000), new BN(100), new BN(1500000), [
+            { preBalance: 0, postBalance: 1000000, ts: new Date(1499995) } as any,
+          ]).toNumber(),
         ).toEqual(3);
       });
       test('many transfers', async () => {
@@ -382,7 +380,7 @@ describe('SDK unit tests', () => {
 
         // generate transfer data
         const transfers = [...Array(numTransfers)]
-          .map((_, i) => ({ amount: '10', ts: (100n + BigInt(i * transferAmount)).toString() }))
+          .map((_, i) => ({ amount: '10', ts: (100n + BigInt(i * transferAmount)).toString() } as any))
           .reverse();
 
         const upper = new BN(transfers[0].ts).add(new BN(10));
@@ -390,10 +388,14 @@ describe('SDK unit tests', () => {
 
         // expect balance based on linear distribution of transfers
         const expected = 1000 - (numTransfers * transferAmount) / 2;
-        expect(fn(new BN(1000), lower, upper, transfers).toNumber()).toEqual(expected);
+        expect(_calculateTimeWeightedBalance(new BN(1000), lower, upper, transfers).toNumber()).toEqual(expected);
       });
       test('current balance is 0', async () => {
-        expect(fn(new BN(0), new BN(100), new BN(200), [{ amount: '-1000', ts: '150' }]).toNumber()).toEqual(500);
+        expect(
+          _calculateTimeWeightedBalance(new BN(0), new BN(100), new BN(200), [
+            { preBalance: 0, postBalance: 1000, ts: new Date(150) } as any,
+          ]).toNumber(),
+        ).toEqual(500);
       });
     });
   });
@@ -409,7 +411,7 @@ describe('SDK unit tests', () => {
     const claimIxs: TransactionInstruction[] = [];
 
     test('build claims', async () => {
-      const auth = await EarnAuthority.load(connection, evmClient, GRAPH_CLIENT);
+      const auth = await EarnAuthority.load(connection, evmClient);
       const earners = await auth.getAllEarners();
 
       for (const earner of earners) {
@@ -420,7 +422,7 @@ describe('SDK unit tests', () => {
     });
 
     test('validate claims and send', async () => {
-      const auth = await EarnAuthority.load(connection, evmClient, GRAPH_CLIENT);
+      const auth = await EarnAuthority.load(connection, evmClient);
       expect(auth['global'].distributed!.toNumber()).toBe(0);
 
       // will throw on simulation or validation errors
@@ -466,7 +468,7 @@ describe('SDK unit tests', () => {
     });
 
     test('set claim cycle complete', async () => {
-      const auth = await EarnAuthority.load(connection, evmClient, GRAPH_CLIENT);
+      const auth = await EarnAuthority.load(connection, evmClient);
       const ix = await auth.buildCompleteClaimCycleInstruction();
       await sendAndConfirmTransaction(connection, new Transaction().add(ix!), [signer]);
 
@@ -479,7 +481,7 @@ describe('SDK unit tests', () => {
 
   describe('earn manager', () => {
     test('configure', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, evmClient, GRAPH_CLIENT, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
 
       const dummyATA = spl.getAssociatedTokenAddressSync(
         mints[1].publicKey,
@@ -496,7 +498,7 @@ describe('SDK unit tests', () => {
     });
 
     test('add earner', async () => {
-      const manager = await EarnManager.fromManagerAddress(connection, evmClient, GRAPH_CLIENT, signer.publicKey);
+      const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
 
       const earnerATA = spl.getAssociatedTokenAddressSync(
         mints[1].publicKey,
@@ -508,7 +510,7 @@ describe('SDK unit tests', () => {
       const ixs = await manager.buildAddEarnerInstruction(earnerC.publicKey, earnerATA);
       await sendAndConfirmTransaction(connection, new Transaction().add(...ixs), [signer]);
 
-      const earner = await Earner.fromTokenAccount(connection, evmClient, GRAPH_CLIENT, earnerATA);
+      const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA);
       expect(earner.data.earnManager?.toBase58()).toEqual(manager.manager.toBase58());
     });
   });
@@ -523,7 +525,7 @@ describe('SDK unit tests', () => {
           spl.TOKEN_2022_PROGRAM_ID,
         );
 
-        const earner = await Earner.fromTokenAccount(connection, evmClient, GRAPH_CLIENT, earnerATA, EARN_PROGRAM);
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EARN_PROGRAM);
         const claimed = await earner.getClaimedYield();
         expect(claimed.toString()).toEqual('9000000');
       });
@@ -536,7 +538,7 @@ describe('SDK unit tests', () => {
           spl.TOKEN_2022_PROGRAM_ID,
         );
 
-        const earner = await Earner.fromTokenAccount(connection, evmClient, GRAPH_CLIENT, earnerATA, EXT_PROGRAM_ID);
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
         const claimed = await earner.getClaimedYield();
         expect(claimed.toString()).toEqual('5000000');
       });
@@ -556,7 +558,7 @@ describe('SDK unit tests', () => {
           spl.TOKEN_2022_PROGRAM_ID,
         );
 
-        const earner = await Earner.fromTokenAccount(connection, evmClient, GRAPH_CLIENT, earnerATA, EARN_PROGRAM);
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EARN_PROGRAM);
         const pending = await earner.getPendingYield();
 
         // Earner's weighted balance over the period is 5,000,000 M
@@ -573,7 +575,7 @@ describe('SDK unit tests', () => {
           spl.TOKEN_2022_PROGRAM_ID,
         );
 
-        const earner = await Earner.fromTokenAccount(connection, evmClient, GRAPH_CLIENT, earnerATA, EXT_PROGRAM_ID);
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
         const pending = await earner.getPendingYield();
 
         // Earners's weighted balance over the period is 2,000,000
@@ -586,7 +588,7 @@ describe('SDK unit tests', () => {
 
       test('ext earn program - no manager fee', async () => {
         // Set the earn manager to 0% fee
-        const manager = await EarnManager.fromManagerAddress(connection, evmClient, GRAPH_CLIENT, signer.publicKey);
+        const manager = await EarnManager.fromManagerAddress(connection, evmClient, signer.publicKey);
 
         const dummyATA = spl.getAssociatedTokenAddressSync(
           mints[1].publicKey,
@@ -606,7 +608,7 @@ describe('SDK unit tests', () => {
           spl.TOKEN_2022_PROGRAM_ID,
         );
 
-        const earner = await Earner.fromTokenAccount(connection, evmClient, GRAPH_CLIENT, earnerATA, EXT_PROGRAM_ID);
+        const earner = await Earner.fromTokenAccount(connection, evmClient, earnerATA, EXT_PROGRAM_ID);
         const pending = await earner.getPendingYield();
 
         // Earner's weighted balance over the period is 2,000,000 M
@@ -618,134 +620,6 @@ describe('SDK unit tests', () => {
   });
 });
 
-/*
- * Mock subgraph and rpc data for testing
- */
-function mockSubgraph() {
-  nock(GRAPH_URL)
-    .post(
-      '',
-      (body) =>
-        body.operationName === 'getBalanceUpdates' &&
-        body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
-    )
-    .reply(200, {
-      data: {
-        tokenAccount: {
-          balance: '5000000000000',
-          transfers: [],
-        },
-      },
-    })
-    .persist();
-
-  nock(GRAPH_URL)
-    .post('', (body) => body.operationName === 'getIndexUpdates')
-    .reply(200, (_: any, requestBody: { variables: { lowerIndex: string; upperIndex: string } }) => {
-      const now = BigInt(Math.floor(Date.now() / 1000));
-      const day = BigInt('86400');
-
-      const indexUpdates = [
-        {
-          index: '1000000000000',
-          ts: (now - day * BigInt(3)).toString(),
-        },
-        {
-          index: '1010000000000',
-          ts: (now - day * BigInt(2)).toString(),
-        },
-        {
-          index: '1020100000000',
-          ts: (now - day).toString(),
-        },
-      ];
-
-      return {
-        data: {
-          indexUpdates: indexUpdates.filter(
-            (v) =>
-              BigInt(v.index) >= BigInt(requestBody.variables.lowerIndex) &&
-              BigInt(v.index) <= BigInt(requestBody.variables.upperIndex),
-          ),
-        },
-      };
-    })
-    .persist();
-
-  nock(GRAPH_URL)
-    .post(
-      '',
-      (body) =>
-        body.operationName === 'getBalanceUpdates' &&
-        body.variables.tokenAccountId !== '0x2fe054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
-    )
-    .reply(200, {
-      data: {
-        tokenAccount: {
-          balance: '2000000000000',
-          transfers: [
-            {
-              amount: '-1000000000000',
-              ts: '250',
-            },
-          ],
-        },
-      },
-    })
-    .persist();
-
-  nock(GRAPH_URL)
-    .post(
-      '',
-      (body) =>
-        body.operationName === 'getClaimsForTokenAccount' &&
-        body.variables.tokenAccountId === '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
-    )
-    .reply(200, {
-      data: {
-        claims: [
-          {
-            amount: '5000000',
-            ts: '100',
-            signature: '0x',
-            index: '1000000000000',
-            recipient_token_account: {
-              pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
-            },
-          },
-          {
-            amount: '4000000',
-            ts: '200',
-            signature: '0x',
-            index: '1010000000000',
-            recipient_token_account: {
-              pubkey: '2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
-            },
-          },
-        ],
-      },
-    });
-
-  nock(GRAPH_URL)
-    .post(
-      '',
-      (body) =>
-        body.operationName === 'getClaimsForTokenAccount' &&
-        body.variables.tokenAccountId !== '0x2ee054fbeb1bcc406d5b9bf8e96a6d2da4196dedbf8181a69be92e73b5c5488f',
-    )
-    .reply(200, {
-      data: {
-        claims: [
-          {
-            amount: '5000000',
-            ts: '100',
-            signature: '0x',
-            index: '1000000000000',
-            recipient_token_account: {
-              pubkey: '0xd088f35850618fd9c71c18b2c8ebcdff4dfc192bb22b64826fac4dc0136b5685',
-            },
-          },
-        ],
-      },
-    });
+function mockAPI() {
+  nock.disableNetConnect();
 }

@@ -30,7 +30,7 @@ export async function getTimeWeightedBalance(
     // balance did not change during period
     return new BN(transfers[0].postBalance);
   } else {
-    return calculateTimeWeightedBalance(
+    return _calculateTimeWeightedBalance(
       new BN(transfers[0].preBalance),
       dateToBN(lowerTS),
       dateToBN(upperTS),
@@ -39,7 +39,12 @@ export async function getTimeWeightedBalance(
   }
 }
 
-function calculateTimeWeightedBalance(startingBalance: BN, lowerTS: BN, upperTS: BN, transfers: BalanceUpdate[]): BN {
+export function _calculateTimeWeightedBalance(
+  startingBalance: BN,
+  lowerTS: BN,
+  upperTS: BN,
+  transfers: BalanceUpdate[],
+): BN {
   // no transfers in range
   if (transfers.length === 0) {
     return startingBalance;
