@@ -266,4 +266,5 @@ build-api-server:
 
 run-api-locally:
 	@export MONGO_CONNECTION_STRING="$(shell op read "op://Solana Dev/Mongo Read Access/connection string")" && \
+	export EVM_RPC="$(shell op read "op://Solana Dev/Alchemy/mainnet")" && \
 	cd services/api/server && pnpm run dev

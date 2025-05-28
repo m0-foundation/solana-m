@@ -18,12 +18,36 @@ catalogs:
     '@types/bn.js':
       specifier: ^5.1.2
       version: 5.1.6
+    '@types/bs58':
+      specifier: ^4.0.1
+      version: 4.0.4
+    '@wormhole-foundation/sdk':
+      specifier: 1.16.1
+      version: 1.16.1
+    '@wormhole-foundation/sdk-definitions':
+      specifier: 1.16.1
+      version: 1.16.1
+    '@wormhole-foundation/sdk-evm-ntt':
+      specifier: 0.7.0
+      version: 0.7.0
+    '@wormhole-foundation/sdk-solana':
+      specifier: 1.16.1
+      version: 1.16.1
+    '@wormhole-foundation/sdk-solana-core':
+      specifier: 1.16.1
+      version: 1.16.1
+    '@wormhole-foundation/sdk-solana-ntt':
+      specifier: 0.7.0-multi-transceiver-alpha.1
+      version: 0.7.0-multi-transceiver-alpha.1
     bn.js:
       specifier: ~5.2.1
       version: 5.2.2
     bs58:
       specifier: ^4.0.1
       version: 4.0.1
+    commander:
+      specifier: 13.1.0
+      version: 13.1.0
     limiter:
       specifier: ~3.0.0
       version: 3.0.0
@@ -36,9 +60,15 @@ catalogs:
     viem:
       specifier: ~2.23.14
       version: 2.23.15
+    web3:
+      specifier: ~4.16.0
+      version: 4.16.0
     winston:
       specifier: ~3.17.0
       version: 3.17.0
+    winston-loki:
+      specifier: ~6.1.3
+      version: 6.1.3
 
 importers:
 
@@ -250,6 +280,9 @@ importers:
       mongodb:
         specifier: ^6.16.0
         version: 6.16.0(snappy@7.2.2)(socks@2.8.4)
+      viem:
+        specifier: 'catalog:'
+        version: 2.23.15(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.22.4)
       winston:
         specifier: 'catalog:'
         version: 3.17.0
@@ -8501,14 +8534,14 @@ snapshots:
     dependencies:
       '@injectivelabs/grpc-web': 0.0.1(google-protobuf@3.21.4)
       google-protobuf: 3.21.4
-      protobufjs: 7.5.0
+      protobufjs: 7.4.0
       rxjs: 7.8.2
 
   '@injectivelabs/core-proto-ts@1.14.3':
     dependencies:
       '@injectivelabs/grpc-web': 0.0.1(google-protobuf@3.21.4)
       google-protobuf: 3.21.4
-      protobufjs: 7.5.0
+      protobufjs: 7.4.0
       rxjs: 7.8.2
 
   '@injectivelabs/exceptions@1.15.1':
@@ -8532,14 +8565,14 @@ snapshots:
     dependencies:
       '@injectivelabs/grpc-web': 0.0.1(google-protobuf@3.21.4)
       google-protobuf: 3.21.4
-      protobufjs: 7.5.0
+      protobufjs: 7.4.0
       rxjs: 7.8.2
 
   '@injectivelabs/mito-proto-ts@1.13.2':
     dependencies:
       '@injectivelabs/grpc-web': 0.0.1(google-protobuf@3.21.4)
       google-protobuf: 3.21.4
-      protobufjs: 7.5.0
+      protobufjs: 7.4.0
       rxjs: 7.8.2
 
   '@injectivelabs/networks@1.15.2':
@@ -8550,7 +8583,7 @@ snapshots:
     dependencies:
       '@injectivelabs/grpc-web': 0.0.1(google-protobuf@3.21.4)
       google-protobuf: 3.21.4
-      protobufjs: 7.5.0
+      protobufjs: 7.4.0
       rxjs: 7.8.2
 
   '@injectivelabs/sdk-ts@1.15.4(@types/react@19.1.2)(bufferutil@4.0.9)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(utf-8-validate@5.0.10)':
@@ -14091,10 +14124,6 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
-  debug@4.4.0:
-    dependencies:
-      ms: 2.1.3
-
   debug@4.4.0(supports-color@5.5.0):
     dependencies:
       ms: 2.1.3
@@ -17114,7 +17143,7 @@ snapshots:
       cac: 6.7.14
       chokidar: 4.0.3
       consola: 3.4.2
-      debug: 4.4.0
+      debug: 4.4.0(supports-color@5.5.0)
       esbuild: 0.25.3
       joycon: 3.1.1
       picocolors: 1.1.1

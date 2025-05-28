@@ -1,6 +1,7 @@
-import { Bridge, IndexUpdate } from '../generated/api';
+import { Bridge, IndexUpdate, IndexValue } from '../generated/api';
 import { EventsService } from '../generated/api/resources/events/service/EventsService';
 import { database } from './db';
+import { getCurrentIndex } from './evm';
 
 const parseLimitQuery = (reqQuery: { skip?: number; limit?: number }) => {
   return { skip: reqQuery?.skip ?? 0, limit: Math.min(reqQuery?.limit ?? 100, 1000) };
@@ -49,6 +50,25 @@ export const events = new EventsService({
         };
         return updateEvent;
       }),
+    });
+  },
+
+  currentIndex: async (req, res, next) => {
+    const [solana, ethereum] = await Promise.all([
+      new Promise<IndexValue>(async (resolve, _) => {
+        const coll = database.collection('index_updates');
+        const result = await coll.find({}, { limit: 1 }).toArray();
+        resolve({ index: result[0].index, ts: result[0].transaction.block_time });
+      }),
+      new Promise<IndexValue>(async (resolve, _) => {
+        const index = await getCurrentIndex();
+        resolve({ index: index, ts: new Date() });
+      }),
+    ]);
+
+    res.send({
+      solana,
+      ethereum,
     });
   },
 });
