@@ -2,6 +2,7 @@ import { Bridge, IndexUpdate, IndexValue } from '../generated/api';
 import { EventsService } from '../generated/api/resources/events/service/EventsService';
 import { database } from './db';
 import { getCurrentIndex } from './evm';
+import { parseTimeFilter, parseLimitFilter } from './query';
 
 const parseLimitQuery = (reqQuery: { skip?: number; limit?: number }) => {
   return { skip: reqQuery?.skip ?? 0, limit: Math.min(reqQuery?.limit ?? 100, 1000) };
@@ -33,10 +34,8 @@ export const events = new EventsService({
   },
 
   indexUpdates: async (req, res, next) => {
-    const { limit, skip } = parseLimitQuery(req.query);
-
     const coll = database.collection('index_updates');
-    const cursor = coll.find({}, { limit, skip });
+    const cursor = coll.aggregate([...parseTimeFilter(req.query), ...parseLimitFilter(req.query)]);
     const result = await cursor.toArray();
 
     res.send({
