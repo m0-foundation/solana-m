@@ -3,7 +3,7 @@ import { PublicClient } from 'viem';
 
 import { EvmCaller } from './evm_caller';
 import { Earner } from './earner';
-import { ETH_M_ADDRESS, ETH_MERKLE_TREE_BUILDER, GLOBAL_ACCOUNT, PROGRAM_ID, TOKEN_2022_ID } from '.';
+import { ETH_M_ADDRESS, ETH_MERKLE_TREE_BUILDER, GLOBAL_ACCOUNT, MINT, PROGRAM_ID, TOKEN_2022_ID } from '.';
 import { MerkleTree } from './merkle';
 import * as spl from '@solana/spl-token';
 import { Program } from '@coral-xyz/anchor';
@@ -11,26 +11,18 @@ import { getProgram } from './idl';
 import { Earn } from './idl/earn';
 import { MockLogger, Logger } from './logger';
 import { unpackAccount } from '@solana/spl-token';
-import { M0SolanaApiClient } from '@m0-foundation/solana-m-api-sdk';
 
 export class Registrar {
   private logger: Logger;
   private connection: Connection;
   private evmClient: PublicClient;
-  private apiClient: M0SolanaApiClient;
   private program: Program<Earn>;
   private _mint: PublicKey | undefined;
 
-  constructor(
-    connection: Connection,
-    evmClient: PublicClient,
-    apiClient: M0SolanaApiClient,
-    logger: Logger = new MockLogger(),
-  ) {
+  constructor(connection: Connection, evmClient: PublicClient, logger: Logger = new MockLogger()) {
     this.connection = connection;
     this.logger = logger;
     this.evmClient = evmClient;
-    this.apiClient = apiClient;
     this.program = getProgram(connection);
   }
 
@@ -52,13 +44,7 @@ export class Registrar {
 
     const ixs: TransactionInstruction[] = [];
     for (const user of earners) {
-      const existingEarners = await Earner.fromUserAddress(
-        this.connection,
-        this.evmClient,
-        this.apiClient,
-        user,
-        PROGRAM_ID,
-      );
+      const existingEarners = await Earner.fromUserAddress(this.connection, this.evmClient, user, PROGRAM_ID);
       if (existingEarners.length > 0) {
         continue;
       }
@@ -161,6 +147,6 @@ export class Registrar {
 
   async getRegistrarEarners(): Promise<Earner[]> {
     const accounts = await getProgram(this.connection).account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.apiClient, a.publicKey, a.account));
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account, MINT));
   }
 }

@@ -1,9 +1,9 @@
 import { Connection, TransactionInstruction, PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { PublicClient } from 'viem';
-import { EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID, TransactionBuilder } from '.';
+import { getApiClient, EXT_GLOBAL_ACCOUNT, EXT_PROGRAM_ID, GLOBAL_ACCOUNT, PROGRAM_ID, TransactionBuilder } from '.';
 import { Earner } from './earner';
 import { EarnManager } from './earn_manager';
-import { GlobalAccountData } from './accounts';
+import { GlobalAccountData, loadGlobal } from './accounts';
 import * as spl from '@solana/spl-token';
 import { BN, Program } from '@coral-xyz/anchor';
 import { getExtProgram, getProgram } from './idl';
@@ -11,7 +11,6 @@ import { Earn } from './idl/earn';
 import { ExtEarn } from './idl/ext_earn';
 import { MockLogger, Logger } from './logger';
 import { RateLimiter } from 'limiter';
-import { M0SolanaApiClient } from '@m0-foundation/solana-m-api-sdk';
 import { getTimeWeightedBalance } from './twb';
 
 export class EarnAuthority {
@@ -19,7 +18,6 @@ export class EarnAuthority {
   private connection: Connection;
   private builder: TransactionBuilder;
   private evmClient: PublicClient;
-  private apiClient: M0SolanaApiClient;
   private program: Program<Earn> | Program<ExtEarn>;
   private global: GlobalAccountData;
   private managerCache: Map<PublicKey, EarnManager> = new Map();
@@ -30,7 +28,6 @@ export class EarnAuthority {
   private constructor(
     connection: Connection,
     evmClient: PublicClient,
-    apiClient: M0SolanaApiClient,
     global: GlobalAccountData,
     mintAuth: PublicKey,
     program = PROGRAM_ID,
@@ -40,7 +37,6 @@ export class EarnAuthority {
     this.connection = connection;
     this.builder = new TransactionBuilder(connection);
     this.evmClient = evmClient;
-    this.apiClient = apiClient;
     this.programID = program;
     this.program = program.equals(PROGRAM_ID) ? getProgram(connection) : getExtProgram(connection);
     this.global = global;
@@ -50,35 +46,19 @@ export class EarnAuthority {
   static async load(
     connection: Connection,
     evmClient: PublicClient,
-    apiClient: M0SolanaApiClient,
     program = PROGRAM_ID,
     logger: Logger = new MockLogger(),
   ): Promise<EarnAuthority> {
-    const [globalAccount] = PublicKey.findProgramAddressSync([Buffer.from('global')], program);
-
-    let global: GlobalAccountData;
-    if (program.equals(PROGRAM_ID)) {
-      global = await getProgram(connection).account.global.fetch(globalAccount);
-    } else {
-      const extGlobal = await getExtProgram(connection).account.extGlobal.fetch(globalAccount);
-      global = { ...extGlobal, mint: extGlobal.extMint, underlyingMint: extGlobal.mMint };
-    }
+    let global = await loadGlobal(connection, program);
 
     // get mint multisig
     const mint = await spl.getMint(connection, global.mint, connection.commitment, spl.TOKEN_2022_PROGRAM_ID);
 
-    return new EarnAuthority(connection, evmClient, apiClient, global, mint.mintAuthority!, program, logger);
+    return new EarnAuthority(connection, evmClient, global, mint.mintAuthority!, program, logger);
   }
 
   async refresh(): Promise<void> {
-    const updated = await EarnAuthority.load(
-      this.connection,
-      this.evmClient,
-      this.apiClient,
-      this.programID,
-      this.logger,
-    );
-    Object.assign(this, updated);
+    this.global = await loadGlobal(this.connection, this.programID);
   }
 
   public get latestIndex(): BN {
@@ -91,9 +71,7 @@ export class EarnAuthority {
 
   async getAllEarners(): Promise<Earner[]> {
     const accounts = await this.program.account.earner.all();
-    return accounts.map(
-      (a) => new Earner(this.connection, this.evmClient, this.apiClient, a.publicKey, a.account, this.global.mint),
-    );
+    return accounts.map((a) => new Earner(this.connection, this.evmClient, a.publicKey, a.account, this.global.mint));
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {
@@ -127,7 +105,7 @@ export class EarnAuthority {
     }
 
     // get the index updates from the earner's last claim to the current index
-    const { updates: steps } = await this.apiClient.events.indexUpdates({
+    const { updates: steps } = await getApiClient().events.indexUpdates({
       fromTime: earner.data.lastClaimTimestamp.toNumber(),
       toTime: this.global.timestamp.toNumber(),
     });
@@ -144,13 +122,7 @@ export class EarnAuthority {
         throw new Error('Invalid index or timestamp');
       }
 
-      const twb = await getTimeWeightedBalance(
-        this.apiClient,
-        earner.data.userTokenAccount,
-        this.global.mint,
-        last.ts,
-        current.ts,
-      );
+      const twb = await getTimeWeightedBalance(earner.data.userTokenAccount, this.global.mint, last.ts, current.ts);
 
       // iterative calculation
       // y_n = (y_(n-1) + twb) * I_n / I_(n-1) - twb
@@ -176,12 +148,7 @@ export class EarnAuthority {
       // get manager (manager fee token account)
       let manager = this.managerCache.get(earner.data.earnManager!);
       if (!manager) {
-        manager = await EarnManager.fromManagerAddress(
-          this.connection,
-          this.evmClient,
-          this.apiClient,
-          earner.data.earnManager!,
-        );
+        manager = await EarnManager.fromManagerAddress(this.connection, this.evmClient, earner.data.earnManager!);
         this.managerCache.set(earner.data.earnManager!, manager);
       }
 

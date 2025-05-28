@@ -1,10 +1,9 @@
-import { M0SolanaApiClient } from '@m0-foundation/solana-m-api-sdk';
 import { BalanceUpdate } from '@m0-foundation/solana-m-api-sdk/generated/api';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
+import { getApiClient } from '.';
 
 export async function getTimeWeightedBalance(
-  apiClient: M0SolanaApiClient,
   tokenAccount: PublicKey,
   mint: PublicKey,
   lowerTS: Date,
@@ -14,7 +13,7 @@ export async function getTimeWeightedBalance(
     throw new Error(`Invalid time range: ${lowerTS} - ${upperTS}`);
   }
 
-  const { transfers } = await apiClient.tokenAccount.transfers(tokenAccount.toBase58(), mint.toBase58(), {
+  const { transfers } = await getApiClient().tokenAccount.transfers(tokenAccount.toBase58(), mint.toBase58(), {
     fromTime: dateToBN(lowerTS).toNumber(),
     toTime: dateToBN(upperTS).toNumber(),
   });
@@ -24,7 +23,7 @@ export async function getTimeWeightedBalance(
 
   if (transfers.length === 0) {
     // no transfers in period, fetch first transfer before lowerTS
-    const { transfers } = await apiClient.tokenAccount.transfers(tokenAccount.toBase58(), mint.toBase58(), {
+    const { transfers } = await getApiClient().tokenAccount.transfers(tokenAccount.toBase58(), mint.toBase58(), {
       toTime: lowerTS.getTime(),
       limit: 1,
     });
