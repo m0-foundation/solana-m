@@ -18,42 +18,12 @@ catalogs:
     '@types/bn.js':
       specifier: ^5.1.2
       version: 5.1.6
-    '@types/bs58':
-      specifier: ^4.0.1
-      version: 4.0.4
-    '@wormhole-foundation/sdk':
-      specifier: 1.16.1
-      version: 1.16.1
-    '@wormhole-foundation/sdk-definitions':
-      specifier: 1.16.1
-      version: 1.16.1
-    '@wormhole-foundation/sdk-evm-ntt':
-      specifier: 0.7.0
-      version: 0.7.0
-    '@wormhole-foundation/sdk-solana':
-      specifier: 1.16.1
-      version: 1.16.1
-    '@wormhole-foundation/sdk-solana-core':
-      specifier: 1.16.1
-      version: 1.16.1
-    '@wormhole-foundation/sdk-solana-ntt':
-      specifier: 0.7.0-multi-transceiver-alpha.1
-      version: 0.7.0-multi-transceiver-alpha.1
     bn.js:
       specifier: ~5.2.1
       version: 5.2.2
     bs58:
       specifier: ^4.0.1
       version: 4.0.1
-    commander:
-      specifier: 13.1.0
-      version: 13.1.0
-    graphql:
-      specifier: ^16.10.0
-      version: 16.11.0
-    graphql-request:
-      specifier: 6.1.0
-      version: 6.1.0
     limiter:
       specifier: ~3.0.0
       version: 3.0.0
@@ -66,15 +36,9 @@ catalogs:
     viem:
       specifier: ~2.23.14
       version: 2.23.15
-    web3:
-      specifier: ~4.16.0
-      version: 4.16.0
     winston:
       specifier: ~3.17.0
       version: 3.17.0
-    winston-loki:
-      specifier: ~6.1.3
-      version: 6.1.3
 
 importers:
 
@@ -240,12 +204,6 @@ importers:
       bs58:
         specifier: 'catalog:'
         version: 4.0.1
-      graphql:
-        specifier: 'catalog:'
-        version: 16.11.0
-      graphql-request:
-        specifier: 'catalog:'
-        version: 6.1.0(graphql@16.11.0)
       js-sha256:
         specifier: ^0.11.0
         version: 0.11.0
@@ -4970,11 +4928,6 @@ packages:
 
   graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
-
-  graphql-request@6.1.0:
-    resolution: {integrity: sha512-p+XPfS4q7aIpKVcgmnZKhMNqhltk20hfXtkaIkTfjjmiKMJ5xrt5c743cL03y/K7y1rg3WrIC49xGiEQ4mxdNw==}
-    peerDependencies:
-      graphql: 14 - 16
 
   graphql-request@7.1.2:
     resolution: {integrity: sha512-+XE3iuC55C2di5ZUrB4pjgwe+nIQBuXVIK9J98wrVwojzDW3GMdSBZfxUk8l4j9TieIpjpggclxhNEU9ebGF8w==}
@@ -14138,6 +14091,10 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
+  debug@4.4.0:
+    dependencies:
+      ms: 2.1.3
+
   debug@4.4.0(supports-color@5.5.0):
     dependencies:
       ms: 2.1.3
@@ -14834,14 +14791,6 @@ snapshots:
   graceful-fs@4.2.11: {}
 
   graphemer@1.4.0: {}
-
-  graphql-request@6.1.0(graphql@16.11.0):
-    dependencies:
-      '@graphql-typed-document-node/core': 3.2.0(graphql@16.11.0)
-      cross-fetch: 3.2.0
-      graphql: 16.11.0
-    transitivePeerDependencies:
-      - encoding
 
   graphql-request@7.1.2(graphql@16.11.0):
     dependencies:
@@ -17165,7 +17114,7 @@ snapshots:
       cac: 6.7.14
       chokidar: 4.0.3
       consola: 3.4.2
-      debug: 4.4.0(supports-color@5.5.0)
+      debug: 4.4.0
       esbuild: 0.25.3
       joycon: 3.1.1
       picocolors: 1.1.1

@@ -91,7 +91,9 @@ export class EarnAuthority {
 
   async getAllEarners(): Promise<Earner[]> {
     const accounts = await this.program.account.earner.all();
-    return accounts.map((a) => new Earner(this.connection, this.evmClient, this.apiClient, a.publicKey, a.account));
+    return accounts.map(
+      (a) => new Earner(this.connection, this.evmClient, this.apiClient, a.publicKey, a.account, this.global.mint),
+    );
   }
 
   async buildCompleteClaimCycleInstruction(): Promise<TransactionInstruction | null> {

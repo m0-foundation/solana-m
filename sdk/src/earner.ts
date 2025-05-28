@@ -2,12 +2,14 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { PublicClient } from 'viem';
 import BN from 'bn.js';
 
-import { EXT_PROGRAM_ID } from '.';
+import { EXT_MINT, EXT_PROGRAM_ID, MINT } from '.';
 import { EarnerData } from './accounts';
 import { getExtProgram, getProgram } from './idl';
 import { EvmCaller } from './evm_caller';
 import { EarnManager } from './earn_manager';
 import { M0SolanaApiClient } from '@m0-foundation/solana-m-api-sdk';
+import { getTimeWeightedBalance } from './twb';
+import { Claims } from '@m0-foundation/solana-m-api-sdk/generated/api';
 
 export class Earner {
   private connection: Connection;
@@ -16,6 +18,7 @@ export class Earner {
 
   pubkey: PublicKey;
   data: EarnerData;
+  mint: PublicKey;
 
   constructor(
     connection: Connection,
@@ -23,12 +26,14 @@ export class Earner {
     apiClient: M0SolanaApiClient,
     pubkey: PublicKey,
     data: EarnerData,
+    mint: PublicKey,
   ) {
     this.connection = connection;
     this.evmClient = evmClient;
     this.apiClient = apiClient;
     this.pubkey = pubkey;
     this.data = data;
+    this.mint = mint;
   }
 
   static async fromTokenAccount(
@@ -42,14 +47,21 @@ export class Earner {
 
     if (program.equals(EXT_PROGRAM_ID)) {
       const data = await getExtProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, apiClient, earnerAccount, data);
+      return new Earner(connection, evmClient, apiClient, earnerAccount, data, EXT_MINT);
     } else {
       const data = await getProgram(connection).account.earner.fetch(earnerAccount);
-      return new Earner(connection, evmClient, apiClient, earnerAccount, {
-        ...data,
-        earnManager: null,
-        recipientTokenAccount: null,
-      });
+      return new Earner(
+        connection,
+        evmClient,
+        apiClient,
+        earnerAccount,
+        {
+          ...data,
+          earnManager: null,
+          recipientTokenAccount: null,
+        },
+        MINT,
+      );
     }
   }
 
@@ -64,27 +76,34 @@ export class Earner {
 
     if (program.equals(EXT_PROGRAM_ID)) {
       const accounts = await getExtProgram(connection).account.earner.all(filter);
-      return accounts.map((a) => new Earner(connection, evmClient, apiClient, a.publicKey, a.account));
+      return accounts.map((a) => new Earner(connection, evmClient, apiClient, a.publicKey, a.account, EXT_MINT));
     } else {
       const accounts = await getProgram(connection).account.earner.all(filter);
       return accounts.map(
         (a) =>
-          new Earner(connection, evmClient, apiClient, a.publicKey, {
-            ...a.account,
-            earnManager: null,
-            recipientTokenAccount: null,
-          }),
+          new Earner(
+            connection,
+            evmClient,
+            apiClient,
+            a.publicKey,
+            {
+              ...a.account,
+              earnManager: null,
+              recipientTokenAccount: null,
+            },
+            MINT,
+          ),
       );
     }
   }
 
-  async getHistoricalClaims(): Promise<Claim[]> {
-    return await this.apiClient.getHistoricalClaims(this.data.userTokenAccount);
+  async getHistoricalClaims(): Promise<Claims> {
+    return await this.apiClient.tokenAccount.claims(this.data.userTokenAccount.toBase58(), this.mint.toBase58());
   }
 
   async getClaimedYield(): Promise<BN> {
     const claims = await this.getHistoricalClaims();
-    return claims.reduce((acc, claim) => acc.add(new BN(claim.amount.toString())), new BN(0));
+    return claims.claims.reduce((acc, claim) => acc.add(new BN(claim.amount.toString())), new BN(0));
   }
 
   async getPendingYield(): Promise<BN> {
@@ -96,18 +115,17 @@ export class Earner {
     const evmCaller = new EvmCaller(this.evmClient);
     const currentIndex = await evmCaller.getCurrentIndex();
 
-    // Get the index updates from the graph b/w the user's last claim index and current index
-    const { updates: steps } = await this.apiClient.events.indexUpdates({
+    // Get the index updates b/w the user's last claim index and current index
+    const { updates } = await this.apiClient.events.indexUpdates({
       fromTime: this.data.lastClaimTimestamp.toNumber(),
     });
 
+    const steps = updates.map((update) => ({ index: new BN(update.index), ts: update.ts }));
+
     // The current index should not be in the index updates list so we add it manually
     steps.push({
-      index: currentIndex.toNumber(),
+      index: currentIndex,
       ts: new Date(),
-      programId: '',
-      signature: '',
-      tokenSupply: 0,
     });
 
     // iterate through the steps and calculate the pending yield for the earner
@@ -118,11 +136,17 @@ export class Earner {
       let current = steps[i];
 
       // Check that indices and timestamps are only increasing
-      if (current.index.lt(last.index) || current.ts.lt(last.ts)) {
+      if (current.index.lt(last.index) || current.ts < last.ts) {
         throw new Error('Invalid index or timestamp');
       }
 
-      const twb = await this.apiClient.getTimeWeightedBalance(this.data.userTokenAccount, last.ts, current.ts);
+      const twb = await getTimeWeightedBalance(
+        this.apiClient,
+        this.data.userTokenAccount,
+        this.mint,
+        last.ts,
+        current.ts,
+      );
 
       // iterative calculation
       // y_n = (y_(n-1) + twb) * (I_n / I_(n-1) - twb

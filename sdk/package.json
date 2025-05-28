@@ -40,8 +40,6 @@
     "@types/bn.js": "catalog:",
     "bn.js": "catalog:",
     "bs58": "catalog:",
-    "graphql": "catalog:",
-    "graphql-request": "catalog:",
     "js-sha256": "^0.11.0",
     "limiter": "catalog:",
     "sha3": "catalog:",
