@@ -55,7 +55,7 @@ export function _calculateTimeWeightedBalance(
 
   // use transfers to calculate the weighted balance from the end balance
   for (const [i, transfer] of transfers.entries()) {
-    const transferTS = new BN(Math.floor(transfer.ts.getTime() / 1000));
+    const transferTS = dateToBN(transfer.ts);
 
     if (transferTS.lt(lowerTS) || transferTS.gt(upperTS)) {
       throw new Error('transfer ts out of range');
@@ -65,13 +65,13 @@ export function _calculateTimeWeightedBalance(
     }
 
     const preBalance = new BN(transfer.preBalance);
-    weightedBalance = weightedBalance.add(preBalance.mul(prevTS.sub(transferTS)));
+    weightedBalance = weightedBalance.add(preBalance.mul(transferTS.sub(prevTS)));
     prevTS = transferTS;
   }
 
-  // calculate up to sinceTS
+  // calculate up to upperTS
   const latestBalance = new BN(transfers[transfers.length - 1].postBalance);
-  weightedBalance = weightedBalance.add(latestBalance.mul(prevTS.sub(upperTS)));
+  weightedBalance = weightedBalance.add(latestBalance.mul(upperTS.sub(prevTS)));
 
   // return the time-weighted balance
   return weightedBalance.div(upperTS.sub(lowerTS));

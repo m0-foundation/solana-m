@@ -10,7 +10,14 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { createPublicClient, createTestClient, http, MINT } from '@m0-foundation/solana-m-sdk';
+import {
+  ConsoleLogger,
+  createPublicClient,
+  createTestClient,
+  http,
+  MINT,
+  PROGRAM_ID,
+} from '@m0-foundation/solana-m-sdk';
 import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { PROGRAM_ID as EARN_PROGRAM, EXT_PROGRAM_ID } from '@m0-foundation/solana-m-sdk';
@@ -341,15 +348,15 @@ describe('SDK unit tests', () => {
     });
   });
 
-  describe('subgraph', () => {
+  describe('api calculations', () => {
     test('weighted balance', async () => {
       const balance = await getTimeWeightedBalance(
         new PublicKey('BpBCHhfSbR368nurxPizimYEr55JE7JWQ5aDQjYi3EQj'),
         MINT,
         new Date(0),
-        new Date(1000),
+        new Date(1000e3),
       );
-      expect(balance.toNumber()).toEqual(2250000000000);
+      expect(balance.toNumber()).toEqual(2500000000000);
     });
 
     describe('weighted balance calculations', () => {
@@ -362,14 +369,14 @@ describe('SDK unit tests', () => {
       test('one transfers halfway', async () => {
         expect(
           _calculateTimeWeightedBalance(new BN(100), new BN(50), new BN(150), [
-            { preBalance: 50, postBalance: 100, ts: new Date(100) } as any,
+            { preBalance: 100, postBalance: 50, ts: new Date(100e3) } as any,
           ]).toNumber(),
         ).toEqual(75);
       });
       test('huge transfer before calculation', async () => {
         expect(
-          _calculateTimeWeightedBalance(new BN(1000000), new BN(100), new BN(1500000), [
-            { preBalance: 0, postBalance: 1000000, ts: new Date(1499995) } as any,
+          _calculateTimeWeightedBalance(new BN(0), new BN(100), new BN(1500000), [
+            { preBalance: 0, postBalance: 1000000, ts: new Date(1499995e3) } as any,
           ]).toNumber(),
         ).toEqual(3);
       });
@@ -378,12 +385,17 @@ describe('SDK unit tests', () => {
         const transferAmount = 10;
 
         // generate transfer data
-        const transfers = [...Array(numTransfers)]
-          .map((_, i) => ({ amount: '10', ts: (100n + BigInt(i * transferAmount)).toString() } as any))
-          .reverse();
+        const transfers = [...Array(numTransfers)].map(
+          (_, i) =>
+            ({
+              preBalance: 1000 - 10 * i,
+              postBalance: 1000 - 10 * (i + 1),
+              ts: new Date((100 + i * transferAmount) * 1000),
+            } as any),
+        );
 
-        const upper = new BN(transfers[0].ts).add(new BN(10));
-        const lower = new BN(transfers[transfers.length - 1].ts).sub(new BN(10));
+        const lower = new BN(transfers[0].ts.getTime() / 1000).sub(new BN(10));
+        const upper = new BN(transfers[transfers.length - 1].ts.getTime() / 1000).add(new BN(10));
 
         // expect balance based on linear distribution of transfers
         const expected = 1000 - (numTransfers * transferAmount) / 2;
@@ -392,7 +404,7 @@ describe('SDK unit tests', () => {
       test('current balance is 0', async () => {
         expect(
           _calculateTimeWeightedBalance(new BN(0), new BN(100), new BN(200), [
-            { preBalance: 0, postBalance: 1000, ts: new Date(150) } as any,
+            { preBalance: 0, postBalance: 1000, ts: new Date(150e3) } as any,
           ]).toNumber(),
         ).toEqual(500);
       });
@@ -410,24 +422,23 @@ describe('SDK unit tests', () => {
     const claimIxs: TransactionInstruction[] = [];
 
     test('build claims', async () => {
-      const auth = await EarnAuthority.load(connection, evmClient);
+      const auth = await EarnAuthority.load(connection, evmClient, PROGRAM_ID, new ConsoleLogger());
       const earners = await auth.getAllEarners();
 
       for (const earner of earners) {
-        // earner.data.lastClaimTimestamp = auth['global'].timestamp;
         const ix = await auth.buildClaimInstruction(earner);
         claimIxs.push(ix!);
       }
     });
 
     test('validate claims and send', async () => {
-      const auth = await EarnAuthority.load(connection, evmClient);
+      const auth = await EarnAuthority.load(connection, evmClient, PROGRAM_ID, new ConsoleLogger());
       expect(auth['global'].distributed!.toNumber()).toBe(0);
 
       // will throw on simulation or validation errors
       const [ixs, amount] = await auth.simulateAndValidateClaimIxs(claimIxs);
       expect(ixs).toHaveLength(1);
-      expect(amount.toNumber()).toEqual(50000000000);
+      expect(amount.toNumber()).toEqual(50250000000);
 
       const logWaiter = new Promise((resolve: (value: void) => void, reject) => {
         const timeout = setTimeout(() => {
@@ -440,7 +451,7 @@ describe('SDK unit tests', () => {
           new PublicKey('3ojLwYogY9x64HvxACRZ4awjGonUYBTGefFp56mkfxVs'),
           (logs: Logs, _: Context) => {
             const rewards = auth['_getRewardAmounts'](logs.logs);
-            expect(rewards?.[0].user.toString()).toEqual('50000000000');
+            expect(rewards?.[0].user.toString()).toEqual('50250000000');
             provider.connection.removeOnLogsListener(logsID);
             clearTimeout(timeout);
             resolve();
@@ -453,14 +464,14 @@ describe('SDK unit tests', () => {
       await sendAndConfirmTransaction(connection, new Transaction().add(...claimIxs), [signer]);
 
       await auth.refresh();
-      expect(auth['global'].distributed!.toNumber()).toBe(50000000000);
+      expect(auth['global'].distributed!.toNumber()).toBe(50250000000);
 
       await logWaiter;
     });
 
     test('post claim cycle validation', async () => {
       const global = await earn.account.global.fetch(globalAccount, 'processed');
-      expect(global.maxSupply.toString()).toEqual('8050000000000');
+      expect(global.maxSupply.toString()).toEqual('8000000000000');
       expect(global.maxYield.toString()).toEqual('80000000000');
       expect(global.distributed.toString()).toEqual('50000000000');
       expect(global.claimComplete).toBeFalsy();
@@ -626,31 +637,31 @@ function mockAPI() {
     .get('/events/index-updates')
     .query(true)
     .reply(200, (url: any) => {
-      const now = BigInt(Math.floor(Date.now() / 1000));
-      const day = BigInt('86400');
+      const now = Date.now();
+      const day = 86400e3;
 
-      const urlParams = new URLSearchParams(url);
-      const from_time = BigInt(urlParams.get('from_time') || '0');
-      const to_time = BigInt(urlParams.get('from_time') || '0');
+      const urlParams = new URLSearchParams(url.split('?')?.[1] ?? '');
+      const from_time = new Date(Number(urlParams.get('from_time') ?? 0) * 1000);
+      const to_time = urlParams.get('to_time') ? new Date(Number(urlParams.get('to_time')) * 1000) : new Date(now);
 
-      const indexUpdates = [
+      const indexUpdates: any[] = [
         {
-          index: '1000000000000',
-          ts: new Date(Number(now - day * BigInt(3))).toISOString(),
+          index: 1020100000000,
+          ts: new Date(now - day),
           programId: '',
           signature: '',
           tokenSupply: 0,
         },
         {
-          index: '1010000000000',
-          ts: new Date(Number(now - day * BigInt(2))).toISOString(),
+          index: 1010000000000,
+          ts: new Date(now - day * 2),
           programId: '',
           signature: '',
           tokenSupply: 0,
         },
         {
-          index: '1020100000000',
-          ts: new Date(Number(now - day)).toISOString(),
+          index: 1000000000000,
+          ts: new Date(now - day * 3),
           programId: '',
           signature: '',
           tokenSupply: 0,
@@ -658,7 +669,12 @@ function mockAPI() {
       ];
 
       return {
-        updates: indexUpdates.filter((v) => BigInt(v.index) >= from_time && BigInt(v.index) <= to_time),
+        updates: indexUpdates
+          .filter((v) => v.ts >= from_time && v.ts <= to_time)
+          .map((v) => {
+            v.ts = v.ts.toISOString();
+            return v;
+          }),
       };
     })
     .persist();
@@ -669,6 +685,9 @@ function mockAPI() {
     )
     .query(true)
     .reply(200, (url: any) => {
+      const urlParams = new URLSearchParams(url);
+      const from_time = Number(urlParams.get('from_time') || '0');
+
       return {
         transfers: [
           {
@@ -677,7 +696,7 @@ function mockAPI() {
             tokenAccount: '',
             owner: '',
             signature: '',
-            ts: new Date(0).toISOString(),
+            ts: new Date(from_time * 1000).toISOString(),
           },
         ],
       };
@@ -688,15 +707,19 @@ function mockAPI() {
     .get(/token-account\/.*\/.*\/transfers/)
     .query(true)
     .reply(200, (url: any) => {
+      const urlParams = new URLSearchParams(url.split('?')?.[1] ?? '');
+      const from_time = Number(urlParams.get('from_time')) * 1000;
+      const to_time = Number(urlParams.get('to_time')) * 1000;
+
       return {
         transfers: [
           {
-            preBalance: 1000000000000,
+            preBalance: 3000000000000,
             postBalance: 2000000000000,
             tokenAccount: '',
             owner: '',
             signature: '',
-            ts: new Date(250).toISOString(),
+            ts: new Date((from_time + to_time) / 2).toISOString(),
           },
         ],
       };
@@ -727,7 +750,7 @@ function mockAPI() {
             tokenAccount: '',
             recipientTokenAccount: '',
             signature: '',
-            ts: new Date(200).toISOString(),
+            ts: new Date(200 * 1000).toISOString(),
           },
         ],
       };
@@ -747,7 +770,7 @@ function mockAPI() {
             tokenAccount: '',
             recipientTokenAccount: '',
             signature: '',
-            ts: new Date(100).toISOString(),
+            ts: new Date(100 * 1000).toISOString(),
           },
         ],
       };
