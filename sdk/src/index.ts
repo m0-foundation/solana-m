@@ -33,5 +33,6 @@ export { M0SolanaApiClient, M0SolanaApiEnvironment } from '@m0-foundation/solana
 export const getApiClient = () => {
   let apiEnv: M0SolanaApiEnvironment = M0SolanaApiEnvironment.Mainnet;
   if (process.env.DEVNET === 'true') apiEnv = M0SolanaApiEnvironment.Devnet;
+  if (process.env.LOCALNET === 'true') apiEnv = M0SolanaApiEnvironment.Localnet;
   return new M0SolanaApiClient({ environment: apiEnv });
 };

@@ -15,12 +15,11 @@ import * as spl from '@solana/spl-token';
 import { loadKeypair } from '../test-utils';
 import { PROGRAM_ID as EARN_PROGRAM, EXT_PROGRAM_ID } from '@m0-foundation/solana-m-sdk';
 import { EarnAuthority, EarnManager, Earner } from '@m0-foundation/solana-m-sdk';
-import nock from 'nock';
 import { Earn } from '@m0-foundation/solana-m-sdk/src/idl/earn';
 import { ExtEarn } from '@m0-foundation/solana-m-sdk/src/idl/ext_earn';
 import { MerkleTree } from '@m0-foundation/solana-m-sdk/src/merkle';
 import { _calculateTimeWeightedBalance, getTimeWeightedBalance } from '@m0-foundation/solana-m-sdk/src/twb';
-import { BalanceUpdate } from '../../services/api/sdk/generated/serialization';
+import nock from 'nock';
 const EARN_IDL = require('@m0-foundation/solana-m-sdk/src/idl/earn.json');
 const EXT_EARN_IDL = require('@m0-foundation/solana-m-sdk/src/idl/ext_earn.json');
 
@@ -621,5 +620,137 @@ describe('SDK unit tests', () => {
 });
 
 function mockAPI() {
-  nock.disableNetConnect();
+  process.env.LOCALNET = 'true';
+
+  nock('http://localhost:5500')
+    .get('/events/index-updates')
+    .query(true)
+    .reply(200, (url: any) => {
+      const now = BigInt(Math.floor(Date.now() / 1000));
+      const day = BigInt('86400');
+
+      const urlParams = new URLSearchParams(url);
+      const from_time = BigInt(urlParams.get('from_time') || '0');
+      const to_time = BigInt(urlParams.get('from_time') || '0');
+
+      const indexUpdates = [
+        {
+          index: '1000000000000',
+          ts: new Date(Number(now - day * BigInt(3))).toISOString(),
+          programId: '',
+          signature: '',
+          tokenSupply: 0,
+        },
+        {
+          index: '1010000000000',
+          ts: new Date(Number(now - day * BigInt(2))).toISOString(),
+          programId: '',
+          signature: '',
+          tokenSupply: 0,
+        },
+        {
+          index: '1020100000000',
+          ts: new Date(Number(now - day)).toISOString(),
+          programId: '',
+          signature: '',
+          tokenSupply: 0,
+        },
+      ];
+
+      return {
+        updates: indexUpdates.filter((v) => BigInt(v.index) >= from_time && BigInt(v.index) <= to_time),
+      };
+    })
+    .persist();
+
+  nock('http://localhost:5500')
+    .get(
+      '/token-account/49z9xVgJC5F45Ui3NkJGxKWH3DBzcL6wnQJS79ziQD5p/mzerokyEX9TNDoK4o2YZQBDmMzjokAeN6M2g2S3pLJo/transfers',
+    )
+    .query(true)
+    .reply(200, (url: any) => {
+      return {
+        transfers: [
+          {
+            preBalance: 5000000000000,
+            postBalance: 5000000000000,
+            tokenAccount: '',
+            owner: '',
+            signature: '',
+            ts: new Date(0).toISOString(),
+          },
+        ],
+      };
+    })
+    .persist();
+
+  nock('http://localhost:5500')
+    .get(/token-account\/.*\/.*\/transfers/)
+    .query(true)
+    .reply(200, (url: any) => {
+      return {
+        transfers: [
+          {
+            preBalance: 1000000000000,
+            postBalance: 2000000000000,
+            tokenAccount: '',
+            owner: '',
+            signature: '',
+            ts: new Date(250).toISOString(),
+          },
+        ],
+      };
+    })
+    .persist();
+
+  nock('http://localhost:5500')
+    .get(
+      '/token-account/49z9xVgJC5F45Ui3NkJGxKWH3DBzcL6wnQJS79ziQD5p/mzerokyEX9TNDoK4o2YZQBDmMzjokAeN6M2g2S3pLJo/claims',
+    )
+    .query(true)
+    .reply(200, (url: any) => {
+      return {
+        claims: [
+          {
+            amount: 5000000,
+            index: 1000000000000,
+            programId: '',
+            tokenAccount: '',
+            recipientTokenAccount: '',
+            signature: '',
+            ts: new Date(100).toISOString(),
+          },
+          {
+            amount: 4000000,
+            index: 1010000000000,
+            programId: '',
+            tokenAccount: '',
+            recipientTokenAccount: '',
+            signature: '',
+            ts: new Date(200).toISOString(),
+          },
+        ],
+      };
+    })
+    .persist();
+
+  nock('http://localhost:5500')
+    .get(/token-account\/.*\/.*\/claims/)
+    .query(true)
+    .reply(200, (url: any) => {
+      return {
+        claims: [
+          {
+            amount: 5000000,
+            index: 1000000000000,
+            programId: '',
+            tokenAccount: '',
+            recipientTokenAccount: '',
+            signature: '',
+            ts: new Date(100).toISOString(),
+          },
+        ],
+      };
+    })
+    .persist();
 }
