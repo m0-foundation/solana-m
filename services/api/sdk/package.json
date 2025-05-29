@@ -1,7 +1,7 @@
 {
   "name": "@m0-foundation/solana-m-api-sdk",
   "description": "Solana M API SDK",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -33,6 +33,7 @@
     "url": "git+https://github.com/m0-foundation/solana-m.git"
   },
   "devDependencies": {
+    "tsup": "^8.4.0",
     "typescript": "catalog:",
     "@types/node": "17.0.33",
     "@types/url-join": "4.0.1",

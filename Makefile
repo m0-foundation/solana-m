@@ -5,22 +5,18 @@
 # Test commands
 #
 test-yield-bot:
-	@cd services/api/sdk && pnpm build
 	@cd sdk && pnpm build
 	cd tests && pnpm jest --preset ts-jest tests/unit/yieldbot.test.ts; exit $$?
 
 test-index-bot:
-	@cd services/api/sdk && pnpm build
 	@cd sdk && pnpm build
 	cd tests && pnpm jest --preset ts-jest tests/unit/indexbot.test.ts; exit $$?
 
 test-yield:
-	@cd services/api/sdk && pnpm build
 	@cd sdk && pnpm build
 	cd tests && pnpm jest --preset ts-jest tests/unit/yield.test.ts; exit $$?
 
 test-sdk:
-	@cd services/api/sdk && pnpm build
 	@cd sdk && pnpm build
 	@anchor localnet --skip-build > /dev/null 2>&1 & \
 	anvil -f https://gateway.tenderly.co/public/sepolia > /dev/null 2>&1 & \
