@@ -59,7 +59,8 @@ yield-bot-mainnet:
 		TURNKEY_API_PUBLIC_KEY=$(shell op read "op://Solana Secure/Turnkey API keys/public-key-prod") \
 		TURNKEY_API_PRIVATE_KEY=$(shell op read "op://Solana Secure/Turnkey API keys/private-key-prod") \
 		pnpm --silent ts-node services/yield-bot/main.ts distribute \
-		--programID wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko 
+		--claimThreshold 100000 \
+		--programID wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko \
 		--dryRun
 
 #

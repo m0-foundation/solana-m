@@ -5,7 +5,7 @@ import { getCurrentIndex } from './evm';
 import { parseTimeFilter, parseLimitFilter } from './query';
 
 const parseLimitQuery = (reqQuery: { skip?: number; limit?: number }) => {
-  return { skip: reqQuery?.skip ?? 0, limit: Math.min(reqQuery?.limit ?? 100, 1000) };
+  return { skip: Number(reqQuery?.skip ?? 0), limit: Math.min(Number(reqQuery?.limit ?? 100), 1000) };
 };
 
 export const events = new EventsService({

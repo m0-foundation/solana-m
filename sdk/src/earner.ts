@@ -1,14 +1,13 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { PublicClient } from 'viem';
 import BN from 'bn.js';
-
 import { EXT_MINT, EXT_PROGRAM_ID, getApiClient, MINT } from '.';
 import { EarnerData } from './accounts';
 import { getExtProgram, getProgram } from './idl';
 import { EvmCaller } from './evm_caller';
 import { EarnManager } from './earn_manager';
 import { getTimeWeightedBalance } from './twb';
-import { Claims } from '@m0-foundation/solana-m-api-sdk/generated/api';
+import { M0SolanaApi } from '@m0-foundation/solana-m-api-sdk';
 
 export class Earner {
   private connection: Connection;
@@ -83,7 +82,7 @@ export class Earner {
     }
   }
 
-  async getHistoricalClaims(): Promise<Claims> {
+  async getHistoricalClaims(): Promise<M0SolanaApi.Claims> {
     return await getApiClient().tokenAccount.claims(this.data.userTokenAccount.toBase58(), this.mint.toBase58());
   }
 

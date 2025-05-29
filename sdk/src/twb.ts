@@ -1,4 +1,4 @@
-import { BalanceUpdate } from '@m0-foundation/solana-m-api-sdk/generated/api';
+import { M0SolanaApi } from '@m0-foundation/solana-m-api-sdk';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { getApiClient } from '.';
@@ -43,7 +43,7 @@ export function _calculateTimeWeightedBalance(
   startingBalance: BN,
   lowerTS: BN,
   upperTS: BN,
-  transfers: BalanceUpdate[],
+  transfers: M0SolanaApi.BalanceUpdate[],
 ): BN {
   // no transfers in range
   if (transfers.length === 0) {

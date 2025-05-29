@@ -107,11 +107,12 @@ export class EarnAuthority {
     // get the index updates from the earner's last claim to the current index
     const { updates: steps } = await getApiClient().events.indexUpdates({
       fromTime: earner.data.lastClaimTimestamp.toNumber(),
-      toTime: this.global.timestamp.toNumber(),
+      toTime: this.global.timestamp.toNumber() + 1, // include current index
     });
 
     // iterate through the steps and calculate the pending yield for the earner
     let claimYield: BN = new BN(0);
+    steps.reverse();
 
     let last = steps[0];
     for (let i = 1; i < steps.length; i++) {
@@ -235,15 +236,15 @@ export class EarnAuthority {
       // add up rewards
       const batchRewards = this._getRewardAmounts(result.value.logs!);
       for (const [index, reward] of batchRewards.entries()) {
-        if (reward.user > claimSizeThreshold) {
+        this.logger.debug('Claim for earner', {
+          tokenAccount: reward.tokenAccount.toString(),
+          rewards: reward.user.toString(),
+          fee: reward.fee.toString(),
+        });
+
+        if (reward.user.gt(claimSizeThreshold)) {
           totalRewards = totalRewards.add(reward.user).add(reward.fee);
           filteredTxns.push(ixs[i * batchSize + index]);
-
-          this.logger.debug('Claim for earner', {
-            tokenAccount: reward.tokenAccount.toString(),
-            rewards: reward.user.toString(),
-            fee: reward.fee.toString(),
-          });
         }
       }
     }

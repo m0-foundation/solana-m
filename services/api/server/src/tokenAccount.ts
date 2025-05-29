@@ -9,7 +9,7 @@ const programIds: { [key: string]: string } = {
 };
 
 const parseLimitQuery = (reqQuery: { skip?: number; limit?: number }) => {
-  return { skip: reqQuery?.skip ?? 0, limit: Math.min(reqQuery?.limit ?? 100, 1000) };
+  return { skip: Number(reqQuery?.skip ?? 0), limit: Math.min(Number(reqQuery?.limit ?? 100), 1000) };
 };
 
 export const tokenAccount = new TokenAccountService({
