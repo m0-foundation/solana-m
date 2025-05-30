@@ -137,15 +137,14 @@ describe('Yield calculation tests', () => {
     const testConfig = {
       indexUpdates,
       balanceUpdates: [
+        { ts: 0n, amount: 1000000000n },
         { ts: 25n, amount: 250000000n },
         { ts: 55n, amount: -250000000n },
         { ts: 85n, amount: 250000000n },
         { ts: 95n, amount: 250000000n },
       ],
-      startingBalance: 1000000000n,
-      // expectedReward: new BN(24968184),
-      expectedReward: new BN(30000000),
-      expectedTolerance: new BN(6000000),
+      expectedReward: new BN(24968184),
+      expectedTolerance: new BN(20),
     };
 
     // each test is an array of indexes where claims are made
@@ -196,18 +195,11 @@ describe('Yield calculation tests', () => {
             continue;
           }
 
-          const lastClaimTs = testConfig.indexUpdates[lastClaim].ts;
-
           // for API env
           process.env.LOCALNET = 'true';
 
           // set balance updates on mocked subgraph for this iteration
-          const currentBalance = balanceUpdates
-            .filter((b) => b.ts <= update.ts)
-            .reduce((acc, b) => acc + b.amount, testConfig.startingBalance);
-          setTokenAccountBalance(currentBalance);
-          const filteredUpdates = balanceUpdates.filter((b) => b.ts >= lastClaimTs && b.ts <= update.ts);
-          mockSubgraphBalances(currentBalance, filteredUpdates);
+          mockSubgraphBalances(balanceUpdates);
 
           // set index updates on mocked subgraph
           mockSubgraphIndexUpdates(testConfig.indexUpdates.slice(lastClaim, j + 2));
@@ -256,28 +248,28 @@ describe('Yield calculation tests', () => {
 });
 
 function mockSubgraphBalances(
-  currentBalance: bigint,
   balanceUpdates: {
     ts: bigint;
     amount: bigint;
   }[],
 ) {
   const transfers: M0SolanaApi.BalanceUpdate[] = [];
-  let balance = currentBalance;
 
-  for (let i = balanceUpdates.length - 1; i >= 0; i--) {
-    const update = balanceUpdates[i];
+  let balance = 0n;
+
+  for (const update of balanceUpdates) {
     const amount = update.amount;
-    balance += amount;
 
     transfers.push({
-      postBalance: Number(balance),
-      preBalance: Number(balance - amount),
+      postBalance: Number(balance + amount),
+      preBalance: Number(balance),
       ts: new Date(Number(update.ts) * 1000),
       tokenAccount: '',
       owner: '',
       signature: '',
     });
+
+    balance += amount;
   }
 
   nock(API_URL)
@@ -288,23 +280,13 @@ function mockSubgraphBalances(
       const from_time = new Date(Number(urlParams.get('from_time')) * 1000);
       const to_time = new Date(Number(urlParams.get('to_time')) * 1000);
 
-      // requesting a balance update outside range
+      // requesting first balance update outside range
       if (urlParams.get('limit') === '1') {
-        return {
-          transfers: [
-            {
-              postBalance: Number(currentBalance),
-              preBalance: Number(currentBalance),
-              ts: new Date(),
-              tokenAccount: '',
-              owner: '',
-              signature: '',
-            },
-          ],
-        };
+        const balances = transfers.filter((t) => t.ts <= to_time);
+        return { transfers: [balances[balances.length - 1]] };
       }
 
-      return { transfers: transfers.filter((t) => t.ts >= from_time && t.ts < to_time) };
+      return { transfers: transfers.filter((t) => t.ts >= from_time && t.ts < to_time).reverse() };
     })
     .persist();
 }

@@ -24,7 +24,7 @@ export async function getTimeWeightedBalance(
   if (transfers.length === 0) {
     // no transfers in period, fetch first transfer before lowerTS
     const { transfers } = await getApiClient().tokenAccount.transfers(tokenAccount.toBase58(), mint.toBase58(), {
-      toTime: lowerTS.getTime(),
+      toTime: dateToBN(lowerTS).toNumber(),
       limit: 1,
     });
     // balance did not change during period
