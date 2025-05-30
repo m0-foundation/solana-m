@@ -27,6 +27,10 @@ export async function getTimeWeightedBalance(
       toTime: dateToBN(lowerTS).toNumber(),
       limit: 1,
     });
+
+    // account never held any tokens
+    return new BN(0);
+
     // balance did not change during period
     return new BN(transfers[0].postBalance);
   } else {
@@ -53,7 +57,7 @@ export function _calculateTimeWeightedBalance(
   let weightedBalance = new BN(0);
   let prevTS = lowerTS;
 
-  // use transfers to calculate the weighted balance from the end balance
+  // use transfers to calculate the weighted balance
   for (const [i, transfer] of transfers.entries()) {
     const transferTS = dateToBN(transfer.ts);
 
