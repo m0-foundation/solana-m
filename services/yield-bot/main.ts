@@ -24,7 +24,7 @@ import { sendSlackMessage, SlackMessage } from 'shared/slack';
 import { logBlockchainBalance } from 'shared/balances';
 import LokiTransport from 'winston-loki';
 import winston from 'winston';
-import { validateSubgraph } from 'shared/validation';
+import { validateDatabaseData } from 'shared/validation';
 import { getProgram } from '@m0-foundation/solana-m-sdk/src/idl';
 import { EnvOptions, getEnv } from 'shared/environment';
 
@@ -119,13 +119,13 @@ async function executeSteps(
 }
 
 async function validation(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphClient, opt.programID, logger);
-  await validateSubgraph(auth, opt.graphClient);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.programID, logger);
+  await validateDatabaseData(auth, opt.apiEnvornment);
   return true;
 }
 
 async function distributeYield(opt: ParsedOptions) {
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphClient, opt.programID, logger);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.programID, logger);
 
   if (auth['global'].claimComplete) {
     logger.info('claim cycle already complete');
@@ -212,7 +212,7 @@ async function distributeYield(opt: ParsedOptions) {
 
 async function addEarners(opt: ParsedOptions) {
   logger.info('adding earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
+  const registrar = new Registrar(opt.connection, opt.evmClient, logger);
 
   const signer = opt.squads ? opt.squads.squadsVault : opt.signerPubkey;
   const instructions = await registrar.buildMissingEarnersInstructions(signer, opt.merkleTreeAddress);
@@ -231,7 +231,7 @@ async function addEarners(opt: ParsedOptions) {
 
 async function removeEarners(opt: ParsedOptions) {
   logger.info('removing earners');
-  const registrar = new Registrar(opt.connection, opt.evmClient, opt.graphClient, logger);
+  const registrar = new Registrar(opt.connection, opt.evmClient, logger);
 
   const signer = opt.squads ? opt.squads.squadsVault : opt.signerPubkey;
   const instructions = await registrar.buildRemovedEarnersInstructions(signer, opt.merkleTreeAddress);
@@ -250,7 +250,7 @@ async function removeEarners(opt: ParsedOptions) {
 
 async function syncIndex(opt: ParsedOptions) {
   logger.info('syncing index');
-  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, opt.graphClient, EXT_PROGRAM_ID, logger);
+  const auth = await EarnAuthority.load(opt.connection, opt.evmClient, EXT_PROGRAM_ID, logger);
   const extIndex = auth['global'].index;
 
   // fetch the current index on the earn program

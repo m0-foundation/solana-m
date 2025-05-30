@@ -16,9 +16,13 @@ app.use(cors());
 const [logHandler, logger] = configureLogger();
 app.use(logHandler);
 
-// cache all responses for 60 seconds
-const cache = apicache.middleware;
-app.use(cache('60 seconds'));
+if (process.env.DISABLE_CACHE === 'true') {
+  logger.info('Cache is disabled');
+} else {
+  // cache all responses for 60 seconds
+  const cache = apicache.middleware;
+  app.use(cache('60 seconds'));
+}
 
 // MongoDB
 connectToDatabase()
