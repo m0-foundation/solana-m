@@ -29,7 +29,9 @@ export async function getTimeWeightedBalance(
     });
 
     // account never held any tokens
-    return new BN(0);
+    if (transfers.length === 0) {
+      return new BN(0);
+    }
 
     // balance did not change during period
     return new BN(transfers[0].postBalance);
