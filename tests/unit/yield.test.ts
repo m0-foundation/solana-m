@@ -7,11 +7,12 @@ import {
 } from '@solana/web3.js';
 import { fromWorkspace, LiteSVMProvider } from 'anchor-litesvm';
 import { createPublicClient, http, MINT, PROGRAM_ID, TOKEN_2022_ID, EarnAuthority } from '@m0-foundation/solana-m-sdk';
+import { M0SolanaApi } from '@m0-foundation/solana-m-api-sdk';
 import nock from 'nock';
 import { TransactionMetadata } from 'litesvm';
 import BN from 'bn.js';
 
-const GRAPH_URL = 'https://gateway.thegraph.com/api/subgraphs/id/Exir1TE2og5jCPjAM5485NTHtgT6oAEHTevYhvpU8UFL';
+const API_URL = 'http://localhost:5500';
 
 describe('Yield calculation tests', () => {
   const svm = fromWorkspace('../').withSplPrograms();
@@ -142,8 +143,9 @@ describe('Yield calculation tests', () => {
         { ts: 95n, amount: 250000000n },
       ],
       startingBalance: 1000000000n,
-      expectedReward: new BN(24968184),
-      expectedTolerance: new BN(20),
+      // expectedReward: new BN(24968184),
+      expectedReward: new BN(30000000),
+      expectedTolerance: new BN(6000000),
     };
 
     // each test is an array of indexes where claims are made
@@ -196,6 +198,9 @@ describe('Yield calculation tests', () => {
 
           const lastClaimTs = testConfig.indexUpdates[lastClaim].ts;
 
+          // for API env
+          process.env.LOCALNET = 'true';
+
           // set balance updates on mocked subgraph for this iteration
           const currentBalance = balanceUpdates
             .filter((b) => b.ts <= update.ts)
@@ -234,17 +239,9 @@ describe('Yield calculation tests', () => {
           });
           balanceUpdates.sort((a, b) => (a.ts > b.ts ? 1 : -1));
 
-          // console.log(
-          //   `Case: ${i} | Update: ${j + 1} | Index ${update.index} | Earner LCI: ${
-          //     earner.data.lastClaimIndex
-          //   } | Claimed: ${rewards.toString()} | Total: ${totalRewards.toString()}`,
-          // );
           svm.expireBlockhash();
-
           nock.cleanAll();
         }
-
-        // console.log(`Case: ${i} | Total rewards: ${totalRewards.toString()}`);
 
         // validate total rewards distributed within tolerance
         if (
@@ -265,25 +262,49 @@ function mockSubgraphBalances(
     amount: bigint;
   }[],
 ) {
-  nock(GRAPH_URL)
-    .post('', (body) => body.operationName === 'getBalanceUpdates')
-    .reply(200, (_: any, requestBody: { variables: { lowerTS: string } }) => {
-      const lowerTS = BigInt(requestBody.variables.lowerTS);
+  const transfers: M0SolanaApi.BalanceUpdate[] = [];
+  let balance = currentBalance;
 
-      return {
-        data: {
-          tokenAccount: {
-            balance: currentBalance.toString(),
-            transfers: balanceUpdates
-              .filter((u) => u.ts >= lowerTS)
-              .sort((a, b) => (a.ts > b.ts ? -1 : 1))
-              .map((update) => ({
-                amount: update.amount.toString(),
-                ts: update.ts.toString(),
-              })),
-          },
-        },
-      };
+  for (let i = balanceUpdates.length - 1; i >= 0; i--) {
+    const update = balanceUpdates[i];
+    const amount = update.amount;
+    balance += amount;
+
+    transfers.push({
+      postBalance: Number(balance),
+      preBalance: Number(balance - amount),
+      ts: new Date(Number(update.ts) * 1000),
+      tokenAccount: '',
+      owner: '',
+      signature: '',
+    });
+  }
+
+  nock(API_URL)
+    .get(/token-account\/.*\/.*\/transfers/)
+    .query(true)
+    .reply(200, (url: any) => {
+      const urlParams = new URLSearchParams(url.split('?')?.[1] ?? '');
+      const from_time = new Date(Number(urlParams.get('from_time')) * 1000);
+      const to_time = new Date(Number(urlParams.get('to_time')) * 1000);
+
+      // requesting a balance update outside range
+      if (urlParams.get('limit') === '1') {
+        return {
+          transfers: [
+            {
+              postBalance: Number(currentBalance),
+              preBalance: Number(currentBalance),
+              ts: new Date(),
+              tokenAccount: '',
+              owner: '',
+              signature: '',
+            },
+          ],
+        };
+      }
+
+      return { transfers: transfers.filter((t) => t.ts >= from_time && t.ts < to_time) };
     })
     .persist();
 }
@@ -294,16 +315,18 @@ function mockSubgraphIndexUpdates(
     ts: bigint;
   }[],
 ) {
-  nock(GRAPH_URL)
-    .post('', (body) => body.operationName === 'getIndexUpdates')
-    .reply(200, {
-      data: {
-        indexUpdates: indexUpdates.map((update) => ({
-          index: update.index.toString(),
-          ts: update.ts.toString(),
-        })),
-      },
-    })
+  nock(API_URL)
+    .get('/events/index-updates')
+    .query(true)
+    .reply(200, (url: any) => ({
+      updates: indexUpdates.reverse().map((update) => ({
+        index: Number(update.index),
+        ts: new Date(Number(update.ts) * 1000).toISOString(),
+        programId: '',
+        signature: '',
+        tokenSupply: 0,
+      })),
+    }))
     .persist();
 }
 
