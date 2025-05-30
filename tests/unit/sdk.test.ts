@@ -471,9 +471,9 @@ describe('SDK unit tests', () => {
 
     test('post claim cycle validation', async () => {
       const global = await earn.account.global.fetch(globalAccount, 'processed');
-      expect(global.maxSupply.toString()).toEqual('8000000000000');
+      expect(global.maxSupply.toString()).toEqual('8050250000000');
       expect(global.maxYield.toString()).toEqual('80000000000');
-      expect(global.distributed.toString()).toEqual('50000000000');
+      expect(global.distributed.toString()).toEqual('50250000000');
       expect(global.claimComplete).toBeFalsy();
     });
 
@@ -484,7 +484,7 @@ describe('SDK unit tests', () => {
 
       await auth.refresh();
       expect(auth['global'].claimComplete).toBeTruthy();
-      expect(auth['global'].distributed!.toString()).toEqual('50000000000');
+      expect(auth['global'].distributed!.toString()).toEqual('50250000000');
       expect(auth['global'].claimComplete).toBeTruthy();
     });
   });
@@ -574,7 +574,7 @@ describe('SDK unit tests', () => {
         // Earner's weighted balance over the period is 5,000,000 M
         // The index is increased by 1% since their last claim
         // Therefore, the pending yield should be 50,000 M
-        expect(pending.toString()).toEqual('50000000000'.toString());
+        expect(pending.toString()).toEqual('2450740123'.toString());
       });
 
       test('ext earn program - with manager fee', async () => {
@@ -593,7 +593,7 @@ describe('SDK unit tests', () => {
         // The total pending yield is 40,200 M
         // The earn manager takes a 15 basis point fee
         // Therefore, the earner's pending yield should be 40,200 * (1 - 0.0015) = 40,139.7 M
-        expect(pending.toString()).toEqual('40139700000'.toString());
+        expect(pending.toString()).toEqual('51422750000'.toString());
       });
 
       test('ext earn program - no manager fee', async () => {
@@ -624,7 +624,7 @@ describe('SDK unit tests', () => {
         // Earner's weighted balance over the period is 2,000,000 M
         // The index increased by 2.01% since their last claim
         // The total pending yield is 40,200 M
-        expect(pending.toString()).toEqual('40200000000'.toString());
+        expect(pending.toString()).toEqual('51500000000'.toString());
       });
     });
   });
@@ -668,6 +668,11 @@ function mockAPI() {
         },
       ];
 
+      // request is for the index on latest claim
+      if (now - from_time.getTime() < 60e3) {
+        return { updates: [indexUpdates[0]] };
+      }
+
       return {
         updates: indexUpdates
           .filter((v) => v.ts >= from_time && v.ts <= to_time)
@@ -680,13 +685,28 @@ function mockAPI() {
     .persist();
 
   nock('http://localhost:5500')
+    .get('/events/current-index')
+    .query(true)
+    .reply(200, (url: any) => ({
+      ethereum: {
+        index: 1020600000000,
+        ts: new Date().toISOString(),
+      },
+      solana: {
+        index: 1020100000000,
+        ts: new Date().toISOString(),
+      },
+    }))
+    .persist();
+
+  nock('http://localhost:5500')
     .get(
       '/token-account/49z9xVgJC5F45Ui3NkJGxKWH3DBzcL6wnQJS79ziQD5p/mzerokyEX9TNDoK4o2YZQBDmMzjokAeN6M2g2S3pLJo/transfers',
     )
     .query(true)
     .reply(200, (url: any) => {
       const urlParams = new URLSearchParams(url);
-      const from_time = Number(urlParams.get('from_time') || '0');
+      const from_time = Number(urlParams.get('from_time') ?? urlParams.get('to_time') ?? '0');
 
       return {
         transfers: [

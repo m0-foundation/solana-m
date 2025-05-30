@@ -4,7 +4,6 @@ import BN from 'bn.js';
 import { EXT_MINT, EXT_PROGRAM_ID, getApiClient, MINT } from '.';
 import { EarnerData } from './accounts';
 import { getExtProgram, getProgram } from './idl';
-import { EvmCaller } from './evm_caller';
 import { EarnManager } from './earn_manager';
 import { getTimeWeightedBalance } from './twb';
 import { M0SolanaApi } from '@m0-foundation/solana-m-api-sdk';
@@ -97,31 +96,31 @@ export class Earner {
     // - Fetching the current index (from ETH mainnet)
     // - Using our usual yield calculation formula for yield claims, but adding another index update with the current index
 
-    const evmCaller = new EvmCaller(this.evmClient);
-    const currentIndex = await evmCaller.getCurrentIndex();
+    const { ethereum } = await getApiClient().events.currentIndex();
 
     // Get the index updates b/w the user's last claim index and current index
     const { updates } = await getApiClient().events.indexUpdates({
       fromTime: this.data.lastClaimTimestamp.toNumber(),
     });
 
-    const steps = updates.map((update) => ({ index: new BN(update.index), ts: update.ts }));
+    const steps = updates as M0SolanaApi.IndexValue[];
 
     // The current index should not be in the index updates list so we add it manually
-    steps.push({
-      index: currentIndex,
-      ts: new Date(),
+    steps.unshift({
+      index: ethereum.index,
+      ts: ethereum.ts,
     });
 
     // iterate through the steps and calculate the pending yield for the earner
     let pendingYield: BN = new BN(0);
+    steps.reverse();
 
     let last = steps[0];
     for (let i = 1; i < steps.length; i++) {
       let current = steps[i];
 
       // Check that indices and timestamps are only increasing
-      if (current.index.lt(last.index) || current.ts < last.ts) {
+      if (current.index < last.index || current.ts < last.ts) {
         throw new Error('Invalid index or timestamp');
       }
 
@@ -129,7 +128,7 @@ export class Earner {
 
       // iterative calculation
       // y_n = (y_(n-1) + twb) * (I_n / I_(n-1) - twb
-      pendingYield = pendingYield.add(twb).mul(current.index).div(last.index).sub(twb);
+      pendingYield = pendingYield.add(twb).mul(new BN(current.index)).div(new BN(last.index)).sub(twb);
 
       last = current;
     }
