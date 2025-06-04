@@ -38,34 +38,41 @@ pub fn handler(ctx: Context<AddWrapAuthority>, new_wrap_authority: Pubkey) -> Re
         ExtGlobal::try_deserialize(&mut buf)?.wrap_authorities.len()
     };
 
-    // Reallocate more space
     let new_size = ExtGlobal::size(authorities + 1);
-    global_account.realloc(new_size, false)?;
 
-    // If more lamports are needed, transfer them to the account.
-    let rent_exempt_lamports = Rent::get().unwrap().minimum_balance(new_size).max(1);
-    let top_up_lamports =
-        rent_exempt_lamports.saturating_sub(global_account.to_account_info().lamports());
+    // Reallocate more space if needed
+    // (removing whitelisted items does not shrink the account)
+    if global_account.data_len() < new_size {
+        global_account.realloc(new_size, false)?;
 
-    if top_up_lamports > 0 {
-        transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.admin.to_account_info(),
-                    to: global_account.to_account_info(),
-                },
-            ),
-            top_up_lamports,
-        )?;
+        // If more lamports are needed, transfer them to the account
+        let rent_exempt_lamports = Rent::get().unwrap().minimum_balance(new_size).max(1);
+        let top_up_lamports =
+            rent_exempt_lamports.saturating_sub(global_account.to_account_info().lamports());
+
+        if top_up_lamports > 0 {
+            transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.admin.to_account_info(),
+                        to: global_account.to_account_info(),
+                    },
+                ),
+                top_up_lamports,
+            )?;
+        }
     }
 
     let mut buf = &global_account.try_borrow_mut_data()?[..];
     let mut global = ExtGlobal::try_deserialize(&mut buf)?;
 
     // Validate now that we can parse the account
-    if global.admin.eq(ctx.accounts.admin.key) {
+    if !global.admin.eq(ctx.accounts.admin.key) {
         return err!(ExtError::NotAuthorized);
+    }
+    if global.wrap_authorities.contains(&new_wrap_authority) {
+        return err!(ExtError::InvalidParam);
     }
 
     global.wrap_authorities.push(new_wrap_authority);
