@@ -75,6 +75,16 @@ pub struct Unwrap<'info> {
 }
 
 pub fn handler(ctx: Context<Unwrap>, amount: u64) -> Result<()> {
+    let auth = match &ctx.accounts.program_authority {
+        Some(auth) => auth.key,
+        None => ctx.accounts.token_authority.key,
+    };
+
+    // Ensure the caller is authorized to unwrap
+    if !ctx.accounts.global_account.wrap_authorities.contains(auth) {
+        return err!(ExtError::NotAuthorized);
+    }
+
     // Burn the amount of ext tokens from the user
     burn_tokens(
         &ctx.accounts.from_ext_token_account,            // from
