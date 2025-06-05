@@ -10,6 +10,7 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct AddWrapAuthority<'info> {
+    #[account(mut)]
     pub admin: Signer<'info>,
 
     #[account(
@@ -64,8 +65,8 @@ pub fn handler(ctx: Context<AddWrapAuthority>, new_wrap_authority: Pubkey) -> Re
         }
     }
 
-    let mut buf = &global_account.try_borrow_mut_data()?[..];
-    let mut global = ExtGlobal::try_deserialize(&mut buf)?;
+    let data = &mut global_account.try_borrow_mut_data()?[..];
+    let mut global = ExtGlobal::try_deserialize(&mut &data[..])?;
 
     // Validate now that we can parse the account
     if !global.admin.eq(ctx.accounts.admin.key) {
@@ -76,6 +77,7 @@ pub fn handler(ctx: Context<AddWrapAuthority>, new_wrap_authority: Pubkey) -> Re
     }
 
     global.wrap_authorities.push(new_wrap_authority);
+    data[8..].copy_from_slice(global.try_to_vec()?.as_slice());
 
     Ok(())
 }
