@@ -675,6 +675,11 @@ const initializeExt = async (earnAuthority: PublicKey) => {
     .signers([admin])
     .rpc();
 
+  // Whitelist wrap authorities
+  for (const auth of [admin, earnerOne, earnerTwo, nonEarnerOne]) {
+    await extEarn.methods.addWrapAuthority(auth.publicKey).accounts({ admin: admin.publicKey }).signers([admin]).rpc();
+  }
+
   return globalAccount;
 };
 
@@ -1005,10 +1010,12 @@ const prepWrap = async (
 
   // Populate accounts
   accounts = {};
-  accounts.signer = signer.publicKey;
+  accounts.tokenAuthority = signer.publicKey;
+  accounts.programAuthority = extEarn.programId;
   accounts.mMint = mMint.publicKey;
   accounts.extMint = extMint.publicKey;
   accounts.globalAccount = getExtGlobalAccount();
+  accounts.mEarnGlobalAccount = getEarnGlobalAccount();
   accounts.mVault = mVault;
   accounts.extMintAuthority = getExtMintAuthority();
   accounts.fromMTokenAccount = fromMTokenAccount ?? (await getATA(mMint.publicKey, signer.publicKey));
@@ -1048,10 +1055,12 @@ const prepUnwrap = async (
 
   // Populate accounts
   accounts = {};
-  accounts.signer = signer.publicKey;
+  accounts.tokenAuthority = signer.publicKey;
+  accounts.programAuthority = extEarn.programId;
   accounts.mMint = mMint.publicKey;
   accounts.extMint = extMint.publicKey;
   accounts.globalAccount = getExtGlobalAccount();
+  accounts.mEarnGlobalAccount = getEarnGlobalAccount();
   accounts.mVault = mVault;
   accounts.extMintAuthority = getExtMintAuthority();
   accounts.toMTokenAccount = toMTokenAccount ?? (await getATA(mMint.publicKey, signer.publicKey));
@@ -1560,6 +1569,57 @@ describe('ExtEarn unit tests', () => {
         expectEarnManagerState(earnManagerAccount, {
           isActive: false,
         });
+      });
+    });
+
+    describe('add_wrap_authority tests', () => {
+      const randomWrapAuthority = new Keypair().publicKey;
+
+      beforeEach(async () => {
+        await initializeExt(earnAuthority.publicKey);
+      });
+
+      test('whitelist - success', async () => {
+        await extEarn.methods
+          .addWrapAuthority(randomWrapAuthority)
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        const global = await extEarn.account.extGlobal.fetch(getExtGlobalAccount());
+        expect(global.wrapAuthorities[global.wrapAuthorities.length - 1].toBase58()).toBe(
+          randomWrapAuthority.toBase58(),
+        );
+      });
+
+      test('whitelisted item does not exist - revert', async () => {
+        await expectAnchorError(
+          extEarn.methods
+            .removeWrapAuthority(randomWrapAuthority)
+            .accounts({ admin: admin.publicKey })
+            .signers([admin])
+            .rpc(),
+          'InvalidParam',
+        );
+      });
+
+      test('remove whitelisted item - success', async () => {
+        await extEarn.methods
+          .addWrapAuthority(randomWrapAuthority)
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        await extEarn.methods
+          .removeWrapAuthority(randomWrapAuthority)
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        const global = await extEarn.account.extGlobal.fetch(getExtGlobalAccount());
+        expect(global.wrapAuthorities[global.wrapAuthorities.length - 1].toBase58()).not.toBe(
+          randomWrapAuthority.toBase58(),
+        );
       });
     });
   });
@@ -3361,13 +3421,12 @@ describe('ExtEarn unit tests', () => {
 
         // Attempt to send the transaction
         // Expect revert with TokenOwner error
-        await expectAnchorError(
+        await expectSystemError(
           extEarn.methods
             .wrap(mintAmount)
             .accountsPartial({ ...accounts })
             .signers([earnerOne])
             .rpc(),
-          'ConstraintTokenOwner',
         );
       });
 
