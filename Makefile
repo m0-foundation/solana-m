@@ -245,5 +245,12 @@ publish-sdk:
 #
 # Switchboard
 #
-publish-switchboard-devnet:
-	op run --account mzerolabs.1password.com --no-masking --env-file='./.env.dev' -- pnpm ts-node services/switchboard/index.ts create-feed
+define run-switchboard
+	op run --account mzerolabs.1password.com --no-masking --env-file='./.env.dev' -- pnpm ts-node services/switchboard/index.ts $(1)
+endef
+
+publish-switchboard-feed-devnet:
+	$(call run-switchboard,create-feed)
+
+update-switchboard-feed-devnet:
+	$(call run-switchboard,update-feed)

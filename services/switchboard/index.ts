@@ -3,10 +3,41 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import * as sb from '@switchboard-xyz/on-demand';
 import { CrossbarClient, decodeString, OracleJob } from '@switchboard-xyz/common';
 
+// Fetch data from multiple RPCs for increased security
+const RPCS = ['https://eth.llamarpc.com', 'https://ethereum-rpc.publicnode.com'];
+
 (async function main() {
   const program = new Command();
   const connection = new Connection(process.env.RPC_URL!);
   const keypair = Keypair.fromSecretKey(Buffer.from(JSON.parse(process.env.PAYER_KEYPAIR!)));
+
+  program.command('simulate-job').action(async () => {
+    const jobs = buildJobs();
+
+    // Serialize the jobs to base64 strings.
+    const serializedJobs = jobs.map((oracleJob) => {
+      const encoded = OracleJob.encodeDelimited(oracleJob).finish();
+      const base64 = Buffer.from(encoded).toString('base64');
+      return base64;
+    });
+
+    // Call the simulation server.
+    const response = await fetch('https://api.switchboard.xyz/api/simulate', {
+      method: 'POST',
+      headers: [['Content-Type', 'application/json']],
+      body: JSON.stringify({ cluster: 'Mainnet', jobs: serializedJobs }),
+    });
+
+    // Check response.
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`Response is good (${response.status})`);
+      console.log(JSON.stringify(data, null, 2));
+    } else {
+      console.log(`Response is bad (${response.status})`);
+      console.log(await response.text());
+    }
+  });
 
   program.command('create-feed').action(async () => {
     const program = await sb.AnchorUtils.loadProgramFromConnection(connection);
@@ -29,6 +60,7 @@ import { CrossbarClient, decodeString, OracleJob } from '@switchboard-xyz/common
     const sig = await connection.sendTransaction(initTx);
     await connection.confirmTransaction(sig, 'confirmed');
     console.log(`Feed ${feedKp.publicKey} initialized (${sig})`);
+    console.log(`Feed hash: ${config.feedHash.toString('hex')}`);
   });
 
   program.command('update-feed').action(async () => {
@@ -49,8 +81,6 @@ import { CrossbarClient, decodeString, OracleJob } from '@switchboard-xyz/common
       lookupTables: luts,
     });
 
-    console.log(Buffer.from(tx.serialize()).toString('base64'));
-
     const sim = await connection.simulateTransaction(tx);
     const updateEvent = new sb.PullFeedValueEvent(sb.AnchorUtils.loggedEvents(program!, sim.value.logs!)[0]).toRows();
     console.log('Submitted updates:\n', updateEvent);
@@ -64,15 +94,14 @@ async function buildFeedConfig(payer: PublicKey, queue: PublicKey, feedhash?: st
   let hash = feedhash;
   if (!hash) {
     const crossbarClient = new CrossbarClient('https://crossbar.switchboard.xyz', true);
-    const FEED_JOBS = [buildJob('earnerRate'), buildJob('latestIndex')];
-    hash = (await crossbarClient.store(queue.toString(), FEED_JOBS)).feedHash;
+    hash = (await crossbarClient.store(queue.toString(), buildJobs())).feedHash;
   }
 
   return {
-    name: 'M0 Earner Data', // the feed name (max 32 bytes)
+    name: 'M0 Earner Rate', // the feed name (max 32 bytes)
     queue, // the queue of oracles to bind to
     maxVariance: 0, // allowed variance between submissions and jobs
-    minResponses: 1, // minimum number of responses of jobs to allow
+    minResponses: RPCS.length, // require response from all RPCs
     numSignatures: 3, // number of signatures to fetch per update
     minSampleSize: 1, // minimum number of responses to sample for a result
     maxStaleness: 750, // maximum stale slots of responses to sample
@@ -81,36 +110,53 @@ async function buildFeedConfig(payer: PublicKey, queue: PublicKey, feedhash?: st
   };
 }
 
-function buildJob(method: 'earnerRate' | 'latestIndex', rpc = 'https://eth.llamarpc.com'): OracleJob {
+function buildJobs(): OracleJob[] {
+  return RPCS.map((rpc) => buildJob(rpc));
+}
+
+function buildJob(rpc: string): OracleJob {
   const jobConfig = {
     tasks: [
       {
-        httpTask: {
-          url: rpc,
-          method: 'METHOD_POST',
-          headers: [{ key: 'Content-Type', value: 'application/json' }],
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'eth_call',
-            params: [
-              {
-                to: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
-                data: { earnerRate: '0xc23465b4', latestIndex: '0x578f2aa0' }[method],
+        cacheTask: {
+          cacheItems: [
+            {
+              variableName: 'RATE',
+              job: {
+                tasks: [
+                  {
+                    httpTask: {
+                      url: rpc,
+                      method: 'METHOD_POST',
+                      headers: [{ key: 'Content-Type', value: 'application/json' }],
+                      body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'eth_call',
+                        params: [
+                          {
+                            to: '0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b',
+                            data: '0xc23465b3',
+                          },
+                          'latest',
+                        ],
+                        id: 1,
+                      }),
+                    },
+                  },
+                  {
+                    regexExtractTask: {
+                      pattern: '0x[0-9a-fA-F]*',
+                    },
+                  },
+                ],
               },
-              'latest',
-            ],
-            id: 1,
-          }),
-        },
-      },
-      {
-        jsonParseTask: {
-          path: `$.result`,
+            },
+          ],
         },
       },
       {
         valueTask: {
-          hex: '${ONE}',
+          hex: '${RATE}',
         },
       },
     ],
