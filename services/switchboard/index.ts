@@ -8,10 +8,10 @@ const RPCS = ['https://eth.llamarpc.com', 'https://ethereum-rpc.publicnode.com']
 
 (async function main() {
   const program = new Command();
-  const connection = new Connection(process.env.RPC_URL!);
+  const connection = new Connection(process.env.RPC_URL!, { commitment: 'confirmed' });
   const keypair = Keypair.fromSecretKey(Buffer.from(JSON.parse(process.env.PAYER_KEYPAIR!)));
 
-  program.command('simulate-job').action(async () => {
+  program.command('simulate-jobs').action(async () => {
     const jobs = buildJobs();
 
     // Serialize the jobs to base64 strings.
@@ -70,7 +70,7 @@ const RPCS = ['https://eth.llamarpc.com', 'https://ethereum-rpc.publicnode.com']
     const queueAccount = await sb.getDefaultQueue(connection.rpcEndpoint);
     const config = await buildFeedConfig(keypair.publicKey, queueAccount.pubkey, process.env.SWITCHBOARD_FEED_HASH);
 
-    const [pullIx, _resp, _ok, luts] = await pullFeed.fetchUpdateIx(config as any);
+    const [pullIx, _resp, _ok, luts] = await pullFeed.fetchUpdateIx(config as any, false, keypair.publicKey);
 
     const tx = await sb.asV0Tx({
       connection,
@@ -79,11 +79,13 @@ const RPCS = ['https://eth.llamarpc.com', 'https://ethereum-rpc.publicnode.com']
       computeUnitPrice: 150_000,
       computeUnitLimitMultiple: 1.2,
       lookupTables: luts,
+      payer: keypair.publicKey,
     });
 
     const sim = await connection.simulateTransaction(tx);
     const updateEvent = new sb.PullFeedValueEvent(sb.AnchorUtils.loggedEvents(program!, sim.value.logs!)[0]).toRows();
     console.log('Submitted updates:\n', updateEvent);
+
     console.log(`Tx Signature: ${await connection.sendTransaction(tx)}`);
   });
 
