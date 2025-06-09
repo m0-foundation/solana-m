@@ -9,7 +9,7 @@ const CONFIG = {
   minResponses: 3, // require successful response from 3 RPCs
   numSignatures: 3, // number of signatures to fetch per update
   minSampleSize: 1, // minimum number of responses to sample for a result
-  maxStaleness: 750, // how many slots the respons is valid for (~5min)
+  maxStaleness: 750, // how many slots the response is valid for (~5min)
   rpcs: [
     'https://eth.llamarpc.com',
     'https://ethereum-rpc.publicnode.com',
