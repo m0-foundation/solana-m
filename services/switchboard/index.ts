@@ -3,8 +3,22 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import * as sb from '@switchboard-xyz/on-demand';
 import { CrossbarClient, decodeString, OracleJob } from '@switchboard-xyz/common';
 
-// Fetch data from multiple RPCs for increased security
-const RPCS = ['https://eth.llamarpc.com', 'https://ethereum-rpc.publicnode.com'];
+const CONFIG = {
+  name: 'M0 Earner Rate', // the feed name (max 32 bytes)
+  maxVariance: 0, // allowed variance between submissions and jobs
+  minResponses: 3, // require successful response from 3 RPCs
+  numSignatures: 3, // number of signatures to fetch per update
+  minSampleSize: 1, // minimum number of responses to sample for a result
+  maxStaleness: 1500, // how many slots the respons is valid for (~10min)
+  rpcs: [
+    'https://eth.llamarpc.com',
+    'https://ethereum-rpc.publicnode.com',
+    'https://0xrpc.io/eth',
+    'https://rpc.flashbots.net',
+    'https://eth.meowrpc.com',
+    'https://mainnet.gateway.tenderly.co',
+  ],
+};
 
 (async function main() {
   const program = new Command();
@@ -84,8 +98,8 @@ const RPCS = ['https://eth.llamarpc.com', 'https://ethereum-rpc.publicnode.com']
 
     const sim = await connection.simulateTransaction(tx);
     const updateEvent = new sb.PullFeedValueEvent(sb.AnchorUtils.loggedEvents(program!, sim.value.logs!)[0]).toRows();
-    console.log('Submitted updates:\n', updateEvent);
 
+    console.log('Submitted updates:\n', updateEvent);
     console.log(`Tx Signature: ${await connection.sendTransaction(tx)}`);
   });
 
@@ -100,20 +114,15 @@ async function buildFeedConfig(payer: PublicKey, queue: PublicKey, feedhash?: st
   }
 
   return {
-    name: 'M0 Earner Rate', // the feed name (max 32 bytes)
-    queue, // the queue of oracles to bind to
-    maxVariance: 0, // allowed variance between submissions and jobs
-    minResponses: RPCS.length, // require response from all RPCs
-    numSignatures: 3, // number of signatures to fetch per update
-    minSampleSize: 1, // minimum number of responses to sample for a result
-    maxStaleness: 750, // maximum stale slots of responses to sample
-    feedHash: decodeString(hash)!, // feed configs on IPFS
+    ...CONFIG,
+    queue,
+    feedHash: decodeString(hash)!,
     payer,
   };
 }
 
 function buildJobs(): OracleJob[] {
-  return RPCS.map((rpc) => buildJob(rpc));
+  return CONFIG.rpcs.map((rpc) => buildJob(rpc));
 }
 
 function buildJob(rpc: string): OracleJob {
@@ -147,7 +156,9 @@ function buildJob(rpc: string): OracleJob {
                   },
                   {
                     regexExtractTask: {
-                      pattern: '0x[0-9a-fA-F]*',
+                      // {"jsonrpc":"2.0","id":1,"result":"0x0000000000000000000000000000000000000000000000000000000000000197"}
+                      pattern: '"result"s*:s*"(0x[a-fA-F0-9]+)"',
+                      groupNumber: 1,
                     },
                   },
                 ],
