@@ -9,7 +9,7 @@ const CONFIG = {
   minResponses: 3, // require successful response from 3 RPCs
   numSignatures: 3, // number of signatures to fetch per update
   minSampleSize: 1, // minimum number of responses to sample for a result
-  maxStaleness: 1500, // how many slots the respons is valid for (~10min)
+  maxStaleness: 750, // how many slots the respons is valid for (~5min)
   rpcs: [
     'https://eth.llamarpc.com',
     'https://ethereum-rpc.publicnode.com',
@@ -60,10 +60,24 @@ const CONFIG = {
     const queueAccount = await sb.getDefaultQueue(connection.rpcEndpoint);
 
     const config = await buildFeedConfig(keypair.publicKey, queueAccount.pubkey);
+    const initIx = await pullFeed.initIx(config);
+
+    // authority defaults to the payer
+    if (process.env.SWITCHBOARD_AUTHORITY) {
+      const auth = new PublicKey(process.env.SWITCHBOARD_AUTHORITY);
+
+      initIx.keys[2] = {
+        pubkey: auth,
+        isSigner: false,
+        isWritable: false,
+      };
+
+      console.log(`Setting authority to ${auth.toBase58()}`);
+    }
 
     const initTx = await sb.asV0Tx({
       connection,
-      ixs: [await pullFeed.initIx(config)],
+      ixs: [initIx],
       payer: keypair.publicKey,
       signers: [keypair, feedKp],
       computeUnitPrice: 150_000,
@@ -74,7 +88,7 @@ const CONFIG = {
     const sig = await connection.sendTransaction(initTx);
     await connection.confirmTransaction(sig, 'confirmed');
     console.log(`Feed ${feedKp.publicKey} initialized (${sig})`);
-    console.log(`Feed hash: ${config.feedHash.toString('hex')}`);
+    console.log(`Feed hash: 0x${config.feedHash.toString('hex')}`);
   });
 
   program.command('update-feed').action(async () => {
