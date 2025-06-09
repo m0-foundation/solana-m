@@ -255,14 +255,11 @@ publish-switchboard-feed-devnet:
 update-switchboard-feed-devnet:
 	$(call run-switchboard,update-feed,dev)
 
-simulate-switchboard-jobs-devnet:
-	$(call run-switchboard,simulate-jobs,dev)
-
 publish-switchboard-feed-mainnet:
 	$(call run-switchboard,create-feed,prod)
 
 update-switchboard-feed-mainnet:
 	$(call run-switchboard,update-feed,prod)
 
-simulate-switchboard-jobs-mainnet:
-	$(call run-switchboard,simulate-jobs,prod)
+simulate-switchboard-jobs:
+	$(call run-switchboard,simulate-jobs,dev)

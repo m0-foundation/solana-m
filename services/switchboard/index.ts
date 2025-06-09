@@ -171,7 +171,7 @@ function buildJob(rpc: string): OracleJob {
                   {
                     regexExtractTask: {
                       // {"jsonrpc":"2.0","id":1,"result":"0x0000000000000000000000000000000000000000000000000000000000000197"}
-                      pattern: '"result"s*:s*"(0x[a-fA-F0-9]+)"',
+                      pattern: '"result"\\s*:\\s*"(0x[a-fA-F0-9]+)"',
                       groupNumber: 1,
                     },
                   },
