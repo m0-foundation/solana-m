@@ -241,3 +241,25 @@ publish-sdk:
 	echo "//registry.npmjs.org/:_authToken=$(shell op read "op://Web3/NPM Publish Token m0-foundation/credential")" > .npmrc && \
 	npm publish && \
 	rm .npmrc
+
+#
+# Switchboard
+#
+define run-switchboard
+	op run --account mzerolabs.1password.com --no-masking --env-file='./.env.$(2)' -- pnpm ts-node services/switchboard/index.ts $(1)
+endef
+
+publish-switchboard-feed-devnet:
+	$(call run-switchboard,create-feed,dev)
+
+update-switchboard-feed-devnet:
+	$(call run-switchboard,update-feed,dev)
+
+publish-switchboard-feed-mainnet:
+	$(call run-switchboard,create-feed,prod)
+
+update-switchboard-feed-mainnet:
+	$(call run-switchboard,update-feed,prod)
+
+simulate-switchboard-jobs:
+	$(call run-switchboard,simulate-jobs,dev)
