@@ -2,7 +2,6 @@
 
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, Token2022, TokenAccount};
-use earn::state::Global as EarnGlobal;
 
 use crate::{
     errors::ExtError,
@@ -32,7 +31,8 @@ pub struct Unwrap<'info> {
     )]
     pub global_account: Account<'info, ExtGlobal>,
 
-    pub _m_earn_global_account: Account<'info, EarnGlobal>,
+    /// CHECK: Only added to conform to unwrap interface
+    pub _m_earner_account: Option<AccountInfo<'info>>,
 
     /// CHECK: This account is validated by the seed, it stores no data
     #[account(
