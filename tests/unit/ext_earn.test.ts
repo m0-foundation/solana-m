@@ -26,10 +26,12 @@ import { randomInt } from 'crypto';
 import { loadKeypair } from '../test-utils';
 import { Earn } from '../../target/types/earn';
 import { ExtEarn } from '../../target/types/ext_earn';
+import { ExtSwap } from '../programs/ext_swap';
 import { MerkleTree, ProofElement } from '../../sdk/src/merkle';
 
 const EARN_IDL = require('../../target/idl/earn.json');
 const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
+const SWAP_IDL = require('../programs/ext_swap.json');
 
 const EARN_PROGRAM_ID = new PublicKey('MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c');
 const EXT_EARN_PROGRAM_ID = new PublicKey('wMXX1K1nca5W4pZr1piETe78gcAVVrEFi9f4g46uXko');
@@ -60,6 +62,7 @@ let provider: LiteSVMProvider;
 let accounts: Record<string, PublicKey | null> = {};
 let earn: Program<Earn>;
 let extEarn: Program<ExtEarn>;
+let swapProgram: Program<ExtSwap>;
 
 // Start parameters
 const initialSupply = new BN(100_000_000); // 100 tokens with 6 decimals
@@ -1125,6 +1128,9 @@ describe('ExtEarn unit tests', () => {
     // Create program instances
     earn = new Program<Earn>(EARN_IDL, provider);
     extEarn = new Program<ExtEarn>(EXT_EARN_IDL, provider);
+    swapProgram = new Program<ExtSwap>(SWAP_IDL, provider);
+
+    svm.addProgramFromFile(swapProgram.programId, 'programs/ext_swap.so');
 
     // Fund the wallets
     svm.airdrop(admin.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
@@ -3999,6 +4005,69 @@ describe('ExtEarn unit tests', () => {
 
         // Verify the earner account was closed
         expectAccountEmpty(earnerAccount);
+      });
+    });
+
+    describe('test against swap program', () => {
+      test('wrap and unwrap', async () => {
+        // Initialize the swap program and add the extension
+        await swapProgram.methods
+          .initializeGlobal(mMint.publicKey)
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        await swapProgram.methods
+          .whitelistExtension(extEarn.programId)
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        // Add swap program as authority
+        await extEarn.methods
+          .addWrapAuthority(PublicKey.findProgramAddressSync([Buffer.from('global')], swapProgram.programId)[0])
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        await mintM(earnerOne.publicKey, new BN(1000));
+
+        // Wrap
+        await swapProgram.methods
+          .wrap(new BN(100))
+          .accountsPartial({
+            signer: earnerOne.publicKey,
+            wrapAuthority: admin.publicKey,
+            toMint: extMint.publicKey,
+            toTokenProgram: TOKEN_2022_PROGRAM_ID,
+            mTokenProgram: TOKEN_2022_PROGRAM_ID,
+            toExtProgram: extEarn.programId,
+            mMint: mMint.publicKey,
+          })
+          .signers([earnerOne, admin])
+          .rpc();
+
+        // Allow earnerOne to unwrap
+        await swapProgram.methods
+          .whitelistUnwrapper(earnerOne.publicKey)
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        // Unwrap
+        await swapProgram.methods
+          .unwrap(new BN(100))
+          .accountsPartial({
+            signer: earnerOne.publicKey,
+            unwrapAuthority: admin.publicKey,
+            fromMint: extMint.publicKey,
+            fromTokenProgram: TOKEN_2022_PROGRAM_ID,
+            mTokenProgram: TOKEN_2022_PROGRAM_ID,
+            fromExtProgram: extEarn.programId,
+            mMint: mMint.publicKey,
+          })
+          .signers([earnerOne, admin])
+          .rpc();
       });
     });
   });
