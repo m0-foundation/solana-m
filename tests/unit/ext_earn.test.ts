@@ -1627,6 +1627,58 @@ describe('ExtEarn unit tests', () => {
           randomWrapAuthority.toBase58(),
         );
       });
+
+      test('whitelist from previous config layout - success', async () => {
+        const randomWrapAuthority = new Keypair().publicKey;
+
+        // Global account from devent without whitelisted authorities support
+        const data = Buffer.from(
+          'nT0aSBDxU4yz3HtcE1xihhozJWJpdvNsPnG5FAKFUFeJ7wZJIrxP9iO8K5T0ASjYhJ0tk6FGBzNvB/wA8HJXQK2ngVbIwAUqC4a+ZrwfmLR9IKO+YVpJBagluCaGTioPTJSEZ9M+5wkLhr5mv860wdfpJ7zE0BS+Dyhjq534X9phCFG2Tb0K5eRoMAbaMvJBTyQcLMmsnaDkH0FwZa+QwkrYCQghj/MV7VA90usAAAARsjxoAAAAAP/+/A==',
+          'base64',
+        );
+
+        // Set admin (first 32 bytes after discriminator)
+        admin.publicKey.toBuffer().copy(data, 8);
+
+        svm.setAccount(getExtGlobalAccount(), {
+          executable: false,
+          owner: extEarn.programId,
+          lamports: 2192400,
+          data,
+        });
+
+        // Account should fail to parse
+        await expectAnchorError(
+          extEarn.methods
+            .removeWrapAuthority(new Keypair().publicKey)
+            .accounts({ admin: admin.publicKey })
+            .signers([admin])
+            .rpc(),
+          'AccountDidNotDeserialize',
+        );
+
+        // Add authority and fix account layout
+        await extEarn.methods
+          .addWrapAuthority(randomWrapAuthority)
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        let global = await extEarn.account.extGlobal.fetch(getExtGlobalAccount());
+        expect(global.wrapAuthorities[global.wrapAuthorities.length - 1].toBase58()).toBe(
+          randomWrapAuthority.toBase58(),
+        );
+
+        // Can now call removeWrapAuthority
+        await extEarn.methods
+          .removeWrapAuthority(randomWrapAuthority)
+          .accounts({ admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+
+        global = await extEarn.account.extGlobal.fetch(getExtGlobalAccount());
+        expect(global.wrapAuthorities.length).toBe(0);
+      });
     });
   });
 
