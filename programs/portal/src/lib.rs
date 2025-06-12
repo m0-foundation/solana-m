@@ -98,6 +98,13 @@ pub mod portal {
         instructions::transfer_burn(ctx, args)
     }
 
+    pub fn transfer_extension_burn<'info>(
+        ctx: Context<'_, '_, '_, 'info, TransferExtensionBurn<'info>>,
+        args: TransferArgs,
+    ) -> Result<()> {
+        instructions::transfer_extension_burn(ctx, args)
+    }
+
     pub fn redeem(ctx: Context<Redeem>, args: RedeemArgs) -> Result<()> {
         instructions::redeem(ctx, args)
     }
