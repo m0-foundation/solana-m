@@ -55,17 +55,10 @@ export class EarnManager {
   }
 
   async buildConfigureInstruction(feeBPS: number, feeTokenAccount: PublicKey): Promise<TransactionInstruction> {
-    const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earn_manager'), this.manager.toBytes()],
-      EXT_PROGRAM_ID,
-    );
-
     return this.program.methods
       .configureEarnManager(new BN(feeBPS))
       .accounts({
         signer: this.manager,
-        globalAccount: EXT_GLOBAL_ACCOUNT,
-        earnManagerAccount,
         feeTokenAccount,
       })
       .instruction();
@@ -94,25 +87,12 @@ export class EarnManager {
       }
     }
 
-    // PDAs
-    const [earnManagerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earn_manager'), this.manager.toBytes()],
-      EXT_PROGRAM_ID,
-    );
-    const [earnerAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from('earner'), userTokenAccount.toBytes()],
-      EXT_PROGRAM_ID,
-    );
-
     ixs.push(
       await this.program.methods
         .addEarner(user)
         .accounts({
           signer: this.manager,
-          globalAccount: EXT_GLOBAL_ACCOUNT,
-          earnManagerAccount,
           userTokenAccount,
-          earnerAccount,
         })
         .instruction(),
     );

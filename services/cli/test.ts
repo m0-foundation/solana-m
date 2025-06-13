@@ -12,8 +12,8 @@ import {
   TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { Program } from '@coral-xyz/anchor';
-import { ExtEarn } from '../../target/types/ext_earn';
-const EXT_EARN_IDL = require('../../target/idl/ext_earn.json');
+import { ExtEarn } from '../../sdk/src/idl/ext_earn';
+const EXT_EARN_IDL = require('../../sdk/src/idl/ext_earn.json');
 
 async function main() {
   const program = new Command();
