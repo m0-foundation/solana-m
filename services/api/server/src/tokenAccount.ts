@@ -1,6 +1,7 @@
 import { BalanceUpdate, Claim, InvalidMint } from '../generated/api';
 import { TokenAccountService } from '../generated/api/resources/tokenAccount/service/TokenAccountService';
 import { database } from './db';
+import { parseLimitFilter, parseTimeFilter } from './query';
 
 const programIds: { [key: string]: string } = {
   mzerokyEX9TNDoK4o2YZQBDmMzjokAeN6M2g2S3pLJo: 'MzeRokYa9o1ZikH6XHRiSS5nD8mNjZyHpLCBRTBSY4c',
@@ -8,7 +9,7 @@ const programIds: { [key: string]: string } = {
 };
 
 const parseLimitQuery = (reqQuery: { skip?: number; limit?: number }) => {
-  return { skip: reqQuery?.skip ?? 0, limit: Math.min(reqQuery?.limit ?? 100, 1000) };
+  return { skip: Number(reqQuery?.skip ?? 0), limit: Math.min(Number(reqQuery?.limit ?? 100), 1000) };
 };
 
 export const tokenAccount = new TokenAccountService({
@@ -48,7 +49,6 @@ export const tokenAccount = new TokenAccountService({
   },
 
   transfers: async (req, res, next) => {
-    const { limit, skip } = parseLimitQuery(req.query);
     const { mint, pubkey } = req.params;
 
     if (!programIds[mint]) {
@@ -77,13 +77,13 @@ export const tokenAccount = new TokenAccountService({
           path: '$transaction',
         },
       },
+      ...parseTimeFilter(req.query),
       {
         $sort: {
           'transaction.block_height': -1,
         },
       },
-      { $skip: skip },
-      { $limit: limit },
+      ...parseLimitFilter(req.query),
     ]);
 
     const result = await cursor.toArray();

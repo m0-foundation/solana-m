@@ -49,6 +49,21 @@ service:
                   tokenSupply: 18182747979648
                   ts: 2025-04-25T17:27:37.000Z
 
+    current-index:
+      docs: Get latest index on Solana and Ethereum
+      method: GET
+      path: /current-index
+      response: CurrentIndex
+      examples:
+        - response:
+            body:
+              solana:
+                index: 1042706510795
+                ts: 2025-04-25T17:27:37.000Z
+              ethereum:
+                index: 1042706510795
+                ts: 2025-04-25T17:27:37.000Z
+
 types:
   Bridges:
     properties:
@@ -65,14 +80,23 @@ types:
       tokenSupply: double
       ts: datetime
 
+  CurrentIndex:
+    properties:
+      solana: IndexValue
+      ethereum: IndexValue
+
+  IndexValue:
+    properties:
+      index: double
+      ts: datetime
+
   IndexUpdates:
     properties:
       updates: list<IndexUpdate>
 
   IndexUpdate:
+    extends: IndexValue
     properties:
-      index: double
       programId: string
       signature: string
       tokenSupply: double
-      ts: datetime
